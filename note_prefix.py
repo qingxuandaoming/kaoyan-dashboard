@@ -63,3 +63,23 @@ def is_cross_subject(eid) -> bool:
     """是否跨科目专题笔记（这类条目不参与章节级覆盖统计）。"""
     root = str(eid or "").split("-")[0]
     return root in CROSS_SUBJECT_PREFIXES
+
+
+def topic_note_chapter(topic) -> int | None:
+    """图谱考点用来对齐「笔记章号」的那个章号。
+
+    408 / 政治 / 英语：考点的 chapter 就是教材章号，笔记也照它编号，直接可用。
+    数学：考点按张宇的「讲」建（高数18 / 线代9 / 概率9），但笔记是按「章」写的
+    （高数8 / 线代6 / 概率6），一章对应多讲。所以数学考点额外带一个 note_chapter
+    指向所属的笔记章号；匹配笔记时用它，展示时仍用 chapter（讲次）。
+
+    显式写 `"note_chapter": null` 表示「这个考点没有对应笔记」（如张宇第17讲
+    多元函数积分学的预备知识——空间解析几何，用户没有这一章的笔记），
+    它不会匹配任何笔记、一直显示为缺口；省略该键则回退到 chapter。
+
+    2026-09-17 引入。此前四处各写各的 `topic.get("chapter")`，数学改讲次后会
+    全部失配——与政治那次「三个脚本各存一份映射表」是同一类坑。
+    """
+    if "note_chapter" in topic:
+        return topic.get("note_chapter")
+    return topic.get("chapter")

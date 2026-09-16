@@ -86,7 +86,7 @@ SUBJECT_ALL_PREFIXES = {
 # 政治笔记的短编号（MY-001 / 思修-001 / ZT-001）与图谱前缀（POL-MY）不是一套体系，
 # 映射表抽到 note_prefix.py 与 gap_analysis.py 共用——两个脚本各存一份正是
 # 「XSX 被错映射到 POL-SX」和「思修笔记无人认领」两个 bug 的来源（2026-09-17 修）。
-from note_prefix import note_entry_prefix  # noqa: E402
+from note_prefix import note_entry_prefix, topic_note_chapter  # noqa: E402
 
 def note_files_for(rel: str) -> list:
     """列出某个笔记前缀对应的 .md 文件。
@@ -407,7 +407,8 @@ def _chapter_weights(graphs: dict) -> dict:
                 if len(parts) < 3:
                     continue
                 pfx = "-".join(parts[:2])
-                ch = topic.get("chapter")
+                # 笔记是按「章」编号的，数学考点按张宇「讲」建，故取 note_chapter
+                ch = topic_note_chapter(topic)
                 if ch is None:
                     continue
                 weights[(pfx, int(ch))] = weights.get((pfx, int(ch)), 0) + float(
@@ -626,9 +627,10 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
                 for topic in sub_data.get("topics", []):
                     tid = topic.get("id", "")
                     pfx = "-".join(tid.split("-")[:2])
-                    graph_chapters.setdefault(pfx, set()).add(topic.get("chapter"))
+                    match_ch = topic_note_chapter(topic)
+                    graph_chapters.setdefault(pfx, set()).add(match_ch)
                     chs = entry_chapters.get(pfx)
-                    if chs and topic.get("chapter") in chs:
+                    if chs and match_ch in chs:
                         covered_topic_ids.add(tid)
 
         # 笔记章节号超出图谱章节范围（如史纲第 9 章 vs 图谱只到第 7 章）会被

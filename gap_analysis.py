@@ -23,7 +23,7 @@ from datetime import datetime
 # 政治笔记用 MY-001 / 思修-001 这类短编号，与图谱前缀 POL-MY 不是一套体系。
 # 本文件原先没有这张映射表，把 "MY-001" 整体当前缀，导致政治笔记永远匹配不上图谱，
 # 「笔记覆盖」恒为 0（2026-09-17 修，表与 generate_dashboard.py 共用）。
-from note_prefix import note_entry_prefix, is_cross_subject
+from note_prefix import note_entry_prefix, is_cross_subject, topic_note_chapter
 
 # Force UTF-8 on Windows stdout to avoid GBK encoding errors with CJK output
 if sys.platform == "win32":
@@ -333,15 +333,16 @@ def analyze_graph(graph, note_prefix_chapters, note_prefix_total):
         for topic in topics:
             tid = topic["id"]
             t_prefix = get_topic_prefix(tid)
-            ch = topic.get("chapter")
+            ch = topic.get("chapter")            # 展示用（数学是张宇讲次）
+            match_ch = topic_note_chapter(topic)  # 匹配笔记用（数学是笔记章号）
 
             # Count matching notes
             note_count = 0
             covered = False
             if t_prefix in note_prefix_chapters:
                 ch_counts = note_prefix_chapters[t_prefix]
-                if ch is not None and ch in ch_counts:
-                    note_count = ch_counts[ch]
+                if match_ch is not None and match_ch in ch_counts:
+                    note_count = ch_counts[match_ch]
                     covered = True
 
             # Also count total notes for this prefix (regardless of chapter)

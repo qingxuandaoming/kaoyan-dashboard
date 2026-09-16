@@ -25,7 +25,7 @@ import sys
 from datetime import date, datetime, timedelta
 
 # 政治笔记短编号（MY-001 / 思修-001）与图谱前缀（POL-MY）的映射，三处共用一份
-from note_prefix import note_entry_prefix
+from note_prefix import note_entry_prefix, topic_note_chapter
 
 # ---------------------------------------------------------------------------
 # Force UTF-8 on Windows to avoid GBK encoding errors
@@ -411,7 +411,7 @@ def _get_covered_main_topic_ids(subject, notes_index, graphs):
             if not tid:
                 continue
             pfx = "-".join(tid.split("-")[:2])
-            if topic.get("chapter") in prefix_chapters.get(pfx, set()):
+            if topic_note_chapter(topic) in prefix_chapters.get(pfx, set()):
                 covered.add(tid)
     return covered
 

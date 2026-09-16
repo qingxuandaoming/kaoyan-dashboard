@@ -10,276 +10,161 @@
       "topics": [
         {
           "id": "MATH-GS-01",
-          "name": "函数、极限与连续",
+          "name": "函数极限与连续",
           "chapter": 1,
-          "exam_weight": 10,
-          "exam_points": "8-12分",
+          "exam_weight": 5,
+          "exam_points": "3-7分",
           "difficulty": 0.5,
-          "exam_frequency": 8,
+          "exam_frequency": 6,
           "prerequisites": [],
           "subtopics": [
             {
               "id": "MATH-GS-01-01",
               "name": "函数概念与性质",
               "weight": 1,
-              "difficulty": 0.3
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-01-02",
-              "name": "数列极限",
-              "weight": 2,
+              "name": "极限的定义与性质",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GS-01-03",
-              "name": "函数极限",
-              "weight": 2,
+              "name": "无穷小与等价无穷小替换",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GS-01-04",
-              "name": "无穷小与无穷大及等价无穷小替换",
-              "weight": 3,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GS-01-05",
-              "name": "极限运算法则与两个重要极限",
-              "weight": 3,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GS-01-06",
-              "name": "函数连续性与间断点分类",
-              "weight": 2,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GS-01-07",
-              "name": "闭区间上连续函数的性质",
+              "name": "连续性与间断点",
               "weight": 1,
               "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "求 lim(n→∞) (1+1/n)^n 型极限",
-            "用等价无穷小替换求 lim(x→0) (e^x - 1 - x) / x² 的值",
-            "判断函数 f(x) = sin(x)/x 在 x=0 处的间断点类型",
-            "利用夹逼定理证明 lim(n→∞) (1/n!)=0"
-          ]
+          "typical_questions": [],
+          "note_chapter": 1
         },
         {
           "id": "MATH-GS-02",
-          "name": "一元函数微分学",
+          "name": "数列极限",
           "chapter": 2,
-          "exam_weight": 14,
-          "exam_points": "12-16分",
-          "difficulty": 0.6,
-          "exam_frequency": 9,
+          "exam_weight": 5,
+          "exam_points": "3-7分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-GS-01"
           ],
           "subtopics": [
             {
               "id": "MATH-GS-02-01",
-              "name": "导数定义与几何意义",
+              "name": "数列极限的定义与性质",
               "weight": 1,
-              "difficulty": 0.4
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-02-02",
-              "name": "求导法则(复合函数/隐函数/参数方程)",
-              "weight": 3,
-              "difficulty": 0.6
+              "name": "单调有界准则与夹逼准则",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-02-03",
-              "name": "高阶导数",
-              "weight": 2,
+              "name": "递推数列求极限",
+              "weight": 1,
               "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GS-02-04",
-              "name": "微分中值定理(Rolle/Lagrange/Cauchy)",
-              "weight": 3,
-              "difficulty": 0.7
-            },
-            {
-              "id": "MATH-GS-02-05",
-              "name": "Taylor公式",
-              "weight": 3,
-              "difficulty": 0.7
-            },
-            {
-              "id": "MATH-GS-02-06",
-              "name": "L'Hôpital法则",
-              "weight": 2,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GS-02-07",
-              "name": "函数单调性与极值",
-              "weight": 2,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GS-02-08",
-              "name": "凹凸性、拐点与曲率",
-              "weight": 2,
-              "difficulty": 0.6
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "设 f(x) 在 [a,b] 上连续，在 (a,b) 内可导，证明存在 ξ 使 f'(ξ)=0",
-            "用 Taylor 公式求 lim(x→0) (e^x - 1 - x) / x² 的极限",
-            "求隐函数方程 x² + xy + y² = 3 在点 (1,1) 处的切线方程",
-            "求参数方程 x=t-sin(t), y=1-cos(t) 的二阶导数 d²y/dx²",
-            "讨论函数 f(x) = x³ - 3x + 1 的单调性与极值"
-          ]
+          "typical_questions": [],
+          "note_chapter": 1
         },
         {
           "id": "MATH-GS-03",
-          "name": "一元函数积分学",
+          "name": "一元函数微分学的概念",
           "chapter": 3,
-          "exam_weight": 12,
-          "exam_points": "10-14分",
-          "difficulty": 0.6,
-          "exam_frequency": 8,
+          "exam_weight": 3,
+          "exam_points": "2-5分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-GS-02"
           ],
           "subtopics": [
             {
               "id": "MATH-GS-03-01",
-              "name": "不定积分基本公式",
+              "name": "导数与微分的定义",
               "weight": 1,
-              "difficulty": 0.4
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-03-02",
-              "name": "换元积分法",
-              "weight": 3,
-              "difficulty": 0.6
+              "name": "可导性判定",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-03-03",
-              "name": "分部积分法",
-              "weight": 3,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-03-04",
-              "name": "有理函数积分",
-              "weight": 2,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-03-05",
-              "name": "定积分概念与性质及微积分基本定理",
-              "weight": 2,
+              "name": "高阶导数与莱布尼茨公式",
+              "weight": 1,
               "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GS-03-06",
-              "name": "定积分换元与分部积分",
-              "weight": 2,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GS-03-07",
-              "name": "反常积分",
-              "weight": 2,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GS-03-08",
-              "name": "定积分应用(面积/体积/弧长/旋转体)",
-              "weight": 3,
-              "difficulty": 0.6
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "计算不定积分 ∫ x·e^x dx",
-            "用第二类换元法计算 ∫ dx / (x²√(x²-1))",
-            "计算 ∫ 1/(x²+2x+2) dx 的有理函数积分",
-            "判断反常积分 ∫₁^∞ 1/(x·ln²x) dx 的敛散性",
-            "求由 y=x² 与 y=√x 所围区域的面积和绕 x 轴旋转体体积"
-          ]
+          "typical_questions": [],
+          "note_chapter": 2
         },
         {
           "id": "MATH-GS-04",
-          "name": "多元函数微分学",
+          "name": "一元函数微分学的计算",
           "chapter": 4,
-          "exam_weight": 10,
-          "exam_points": "8-12分",
-          "difficulty": 0.6,
-          "exam_frequency": 7,
+          "exam_weight": 3,
+          "exam_points": "2-5分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-GS-03"
           ],
           "subtopics": [
             {
               "id": "MATH-GS-04-01",
-              "name": "多元函数极限与连续",
+              "name": "基本求导公式与四则运算",
               "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GS-04-02",
-              "name": "偏导数与全微分",
-              "weight": 2,
+              "name": "复合函数与反函数求导",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GS-04-03",
-              "name": "复合函数与隐函数求导",
-              "weight": 3,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-04-04",
-              "name": "高阶偏导数与混合偏导数",
-              "weight": 2,
+              "name": "隐函数与参数方程求导",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
-              "id": "MATH-GS-04-05",
-              "name": "方向导数与梯度",
-              "weight": 2,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-04-06",
-              "name": "多元函数极值与条件极值(Lagrange乘数法)",
-              "weight": 3,
-              "difficulty": 0.7
-            },
-            {
-              "id": "MATH-GS-04-07",
-              "name": "几何应用(切平面与法线)",
-              "weight": 2,
+              "id": "MATH-GS-04-04",
+              "name": "对数求导法",
+              "weight": 1,
               "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "讨论 lim((x,y)→(0,0)) xy/(x²+y²) 是否存在",
-            "设 z=f(x²+y², xy)，求 ∂z/∂x 和 ∂²z/∂x∂y",
-            "求函数 f(x,y)=x³-y³+3x²+3y²-9x 的极值",
-            "用 Lagrange 乘数法求 x+y=1 条件下 x²+y² 的最小值",
-            "求曲面 x²+y²+z²=14 在点 (1,2,3) 处的切平面方程"
-          ]
+          "typical_questions": [],
+          "note_chapter": 2
         },
         {
           "id": "MATH-GS-05",
-          "name": "多元函数积分学",
+          "name": "一元函数微分学的应用(一)——几何应用",
           "chapter": 5,
-          "exam_weight": 14,
-          "exam_points": "12-16分",
-          "difficulty": 0.8,
+          "exam_weight": 3,
+          "exam_points": "2-5分",
+          "difficulty": 0.5,
           "exam_frequency": 6,
           "prerequisites": [
             "MATH-GS-04"
@@ -287,250 +172,529 @@
           "subtopics": [
             {
               "id": "MATH-GS-05-01",
-              "name": "二重积分(直角坐标与极坐标)",
-              "weight": 3,
-              "difficulty": 0.6
+              "name": "单调性与极值",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-05-02",
-              "name": "三重积分(直角/柱/球坐标)",
-              "weight": 2,
-              "difficulty": 0.7
+              "name": "凹凸性与拐点",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-05-03",
-              "name": "第一型与第二型曲线积分",
-              "weight": 2,
-              "difficulty": 0.7
+              "name": "渐近线",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-05-04",
-              "name": "第一型与第二型曲面积分",
-              "weight": 2,
-              "difficulty": 0.8
-            },
-            {
-              "id": "MATH-GS-05-05",
-              "name": "Green公式",
-              "weight": 3,
-              "difficulty": 0.7
-            },
-            {
-              "id": "MATH-GS-05-06",
-              "name": "Gauss公式",
-              "weight": 3,
-              "difficulty": 0.8
-            },
-            {
-              "id": "MATH-GS-05-07",
-              "name": "Stokes公式",
-              "weight": 2,
-              "difficulty": 0.8
-            },
-            {
-              "id": "MATH-GS-05-08",
-              "name": "路径无关与全微分方程",
-              "weight": 2,
-              "difficulty": 0.7
+              "name": "曲率",
+              "weight": 1,
+              "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "计算二重积分 ∬_D (x²+y²) dxdy，D 为 x²+y²≤2x",
-            "用极坐标计算三重积分 ∭_Ω z dV，Ω 为 x²+y²+z²≤R², z≥0",
-            "用 Green 公式计算 ∮_L (x²-y)dx + (x+y²)dy",
-            "用 Gauss 公式计算 ∯_Σ x²dydz + y²dzdx + z²dxdy",
-            "判断曲线积分 ∫_L (2xy-y²)dx + (x²-2xy)dy 是否与路径无关",
-            "计算第二型曲面积分 ∯_Σ x dydz + y dzdx + z dxdy"
-          ]
+          "typical_questions": [],
+          "note_chapter": 2
         },
         {
           "id": "MATH-GS-06",
-          "name": "无穷级数",
+          "name": "一元函数微分学的应用(二)——中值定理、微分等式与微分不等式",
           "chapter": 6,
-          "exam_weight": 10,
-          "exam_points": "8-12分",
-          "difficulty": 0.7,
-          "exam_frequency": 5,
+          "exam_weight": 3,
+          "exam_points": "2-5分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [
-            "MATH-GS-03"
+            "MATH-GS-05"
           ],
           "subtopics": [
             {
               "id": "MATH-GS-06-01",
-              "name": "常数项级数收敛判别",
-              "weight": 2,
+              "name": "罗尔定理与拉格朗日中值定理",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GS-06-02",
-              "name": "正项级数(比较/比值/根值判别法)",
-              "weight": 3,
-              "difficulty": 0.6
+              "name": "柯西中值定理与泰勒公式",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-06-03",
-              "name": "交错级数(Leibniz判别法)",
-              "weight": 2,
+              "name": "微分等式证明",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GS-06-04",
-              "name": "绝对收敛与条件收敛",
-              "weight": 2,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-06-05",
-              "name": "幂级数收敛域",
-              "weight": 3,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-06-06",
-              "name": "函数展开为幂级数与常用展开式",
-              "weight": 3,
-              "difficulty": 0.7
-            },
-            {
-              "id": "MATH-GS-06-07",
-              "name": "Fourier级数",
-              "weight": 2,
-              "difficulty": 0.8
+              "name": "微分不等式证明",
+              "weight": 1,
+              "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "判断级数 Σ(1/n·(n+1)) 的敛散性并求和",
-            "用比值判别法判断 Σ n!/n^n 的敛散性",
-            "判断交错级数 Σ(-1)^(n+1) / √n 的收敛类型(绝对/条件)",
-            "求幂级数 Σ n·x^n 的收敛域与和函数",
-            "将 f(x)=1/(1+x²) 展开为 Maclaurin 级数",
-            "将 f(x)=x (0≤x≤π) 展开为 Fourier 正弦级数"
-          ]
+          "typical_questions": [],
+          "note_chapter": 2
         },
         {
           "id": "MATH-GS-07",
-          "name": "常微分方程",
+          "name": "一元函数微分学的应用(三)——物理应用",
           "chapter": 7,
-          "exam_weight": 8,
-          "exam_points": "6-10分",
-          "difficulty": 0.6,
-          "exam_frequency": 5,
+          "exam_weight": 2,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [
-            "MATH-GS-02",
-            "MATH-GS-03"
+            "MATH-GS-06"
           ],
           "subtopics": [
             {
               "id": "MATH-GS-07-01",
-              "name": "可分离变量方程与齐次方程",
-              "weight": 2,
-              "difficulty": 0.4
-            },
-            {
-              "id": "MATH-GS-07-02",
-              "name": "一阶线性方程",
-              "weight": 3,
+              "name": "相关变化率",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
-              "id": "MATH-GS-07-03",
-              "name": "Bernoulli方程与全微分方程",
-              "weight": 2,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-07-04",
-              "name": "可降阶的高阶方程",
-              "weight": 2,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-07-05",
-              "name": "高阶线性方程解的结构",
-              "weight": 2,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-07-06",
-              "name": "常系数齐次与非齐次线性方程",
-              "weight": 3,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-07-07",
-              "name": "Euler方程",
-              "weight": 1,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GS-07-08",
-              "name": "差分方程",
+              "id": "MATH-GS-07-02",
+              "name": "物理极值问题",
               "weight": 1,
               "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "求解可分离变量方程 dy/dx = y·ln(y)/x",
-            "求解一阶线性方程 y' + y·tan(x) = cos(x)",
-            "求解 Bernoulli 方程 y' - y/x = y²·ln(x)",
-            "求解可降阶方程 y'' = 1 + (y')²",
-            "求 y'' - 4y' + 4y = e^(2x) 的通解",
-            "求解 Euler 方程 x²y'' + xy' - y = 0"
-          ]
+          "typical_questions": [],
+          "note_chapter": 2
         },
         {
           "id": "MATH-GS-08",
-          "name": "向量代数与空间解析几何",
+          "name": "一元函数积分学的概念与性质",
           "chapter": 8,
-          "exam_weight": 5,
-          "exam_points": "4-6分",
-          "difficulty": 0.4,
-          "exam_frequency": 3,
+          "exam_weight": 3,
+          "exam_points": "2-5分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [
-            "MATH-GS-01"
+            "MATH-GS-07"
           ],
           "subtopics": [
             {
               "id": "MATH-GS-08-01",
-              "name": "向量运算(点乘/叉乘/混合积)",
-              "weight": 2,
-              "difficulty": 0.4
+              "name": "原函数与不定积分",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-08-02",
-              "name": "平面方程",
+              "name": "定积分的定义与几何意义",
               "weight": 1,
-              "difficulty": 0.4
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-08-03",
-              "name": "直线方程",
+              "name": "变限积分函数",
               "weight": 1,
-              "difficulty": 0.4
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GS-08-04",
-              "name": "平面与直线的位置关系",
-              "weight": 2,
-              "difficulty": 0.4
-            },
-            {
-              "id": "MATH-GS-08-05",
-              "name": "曲面方程与曲线方程",
-              "weight": 2,
+              "name": "定积分的性质与积分中值定理",
+              "weight": 1,
               "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "求过点 (1,0,2) 且与直线 x/1 = y/(-1) = z/2 垂直的平面方程",
-            "求两平面 2x-y+z-1=0 与 x+y-z+3=0 的夹角",
-            "求点 (1,2,3) 到平面 2x-y+2z-5=0 的距离",
-            "求过点 (0,1,0) 且与两平面 x-z=0 和 2x+y+z=1 平行的直线方程"
-          ]
+          "typical_questions": [],
+          "note_chapter": 3
+        },
+        {
+          "id": "MATH-GS-09",
+          "name": "一元函数积分学的计算",
+          "chapter": 9,
+          "exam_weight": 3,
+          "exam_points": "2-5分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-08"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-09-01",
+              "name": "换元积分法",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-09-02",
+              "name": "分部积分法",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-09-03",
+              "name": "有理函数与三角有理式积分",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-09-04",
+              "name": "反常积分的计算与敛散性",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 3
+        },
+        {
+          "id": "MATH-GS-10",
+          "name": "一元函数积分学的应用(一)——几何应用",
+          "chapter": 10,
+          "exam_weight": 2,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-09"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-10-01",
+              "name": "平面图形面积",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-10-02",
+              "name": "旋转体体积与侧面积",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-10-03",
+              "name": "弧长",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 3
+        },
+        {
+          "id": "MATH-GS-11",
+          "name": "一元函数积分学的应用(二)——积分等式与积分不等式",
+          "chapter": 11,
+          "exam_weight": 2,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-10"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-11-01",
+              "name": "积分等式证明",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-11-02",
+              "name": "积分不等式证明",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 3
+        },
+        {
+          "id": "MATH-GS-12",
+          "name": "一元函数积分学的应用(三)——物理应用",
+          "chapter": 12,
+          "exam_weight": 2,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-11"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-12-01",
+              "name": "变力做功与液体压力",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-12-02",
+              "name": "形心与质心",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 3
+        },
+        {
+          "id": "MATH-GS-13",
+          "name": "多元函数微分学",
+          "chapter": 13,
+          "exam_weight": 10,
+          "exam_points": "8-12分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-12"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-13-01",
+              "name": "偏导数与全微分",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-13-02",
+              "name": "多元复合与隐函数求导",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-13-03",
+              "name": "极值与条件极值（拉格朗日乘数法）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-13-04",
+              "name": "方向导数与梯度",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-13-05",
+              "name": "空间曲线的切线与曲面的切平面",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 4
+        },
+        {
+          "id": "MATH-GS-14",
+          "name": "二重积分",
+          "chapter": 14,
+          "exam_weight": 7,
+          "exam_points": "5-9分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-13"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-14-01",
+              "name": "二重积分的计算（直角坐标/极坐标）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-14-02",
+              "name": "交换积分次序",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-14-03",
+              "name": "二重积分的对称性",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-14-04",
+              "name": "三重积分",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 5
+        },
+        {
+          "id": "MATH-GS-15",
+          "name": "微分方程",
+          "chapter": 15,
+          "exam_weight": 8,
+          "exam_points": "6-10分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-14"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-15-01",
+              "name": "一阶微分方程（可分离/齐次/线性）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-15-02",
+              "name": "可降阶的高阶方程",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-15-03",
+              "name": "常系数线性微分方程",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-15-04",
+              "name": "微分方程的应用（几何/物理）",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 8
+        },
+        {
+          "id": "MATH-GS-16",
+          "name": "无穷级数",
+          "chapter": 16,
+          "exam_weight": 10,
+          "exam_points": "8-12分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-15"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-16-01",
+              "name": "数项级数的敛散性判别",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-16-02",
+              "name": "幂级数与收敛半径",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-16-03",
+              "name": "函数展开成幂级数",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-16-04",
+              "name": "傅里叶级数",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 7
+        },
+        {
+          "id": "MATH-GS-17",
+          "name": "多元函数积分学的预备知识",
+          "chapter": 17,
+          "exam_weight": 5,
+          "exam_points": "3-7分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-16"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-17-01",
+              "name": "向量代数",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-17-02",
+              "name": "空间平面与直线",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-17-03",
+              "name": "曲面与曲线方程",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-17-04",
+              "name": "场论初步（散度/旋度）",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": null
+        },
+        {
+          "id": "MATH-GS-18",
+          "name": "多元函数积分学",
+          "chapter": 18,
+          "exam_weight": 7,
+          "exam_points": "5-9分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GS-17"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GS-18-01",
+              "name": "第一类与第二类曲线积分",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-18-02",
+              "name": "格林公式",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-18-03",
+              "name": "第一类与第二类曲面积分",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GS-18-04",
+              "name": "高斯公式与斯托克斯公式",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 6
         }
       ]
     },
@@ -543,148 +707,118 @@
           "id": "MATH-XD-01",
           "name": "行列式",
           "chapter": 1,
-          "exam_weight": 5,
-          "exam_points": "4-6分",
-          "difficulty": 0.4,
-          "exam_frequency": 5,
+          "exam_weight": 3,
+          "exam_points": "2-5分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [],
           "subtopics": [
             {
               "id": "MATH-XD-01-01",
-              "name": "行列式定义与基本性质",
-              "weight": 2,
-              "difficulty": 0.4
+              "name": "行列式的定义与性质",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-XD-01-02",
-              "name": "行列式展开定理(按行/列展开)",
-              "weight": 2,
-              "difficulty": 0.4
+              "name": "具体型行列式的计算",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-XD-01-03",
-              "name": "克拉默法则",
+              "name": "抽象型行列式的计算",
               "weight": 1,
-              "difficulty": 0.4
-            },
-            {
-              "id": "MATH-XD-01-04",
-              "name": "行列式的计算方法(递推/拆分/加边)",
-              "weight": 2,
               "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "计算 n 阶行列式 |a_ij| 其中 a_ij = |i-j|",
-            "用递推法计算三对角行列式",
-            "利用克拉默法则判断齐次线性方程组有非零解的条件",
-            "计算 Vandermonde 行列式"
-          ]
+          "typical_questions": [],
+          "note_chapter": 1
         },
         {
           "id": "MATH-XD-02",
-          "name": "矩阵",
+          "name": "余子式和代数余子式的计算",
           "chapter": 2,
-          "exam_weight": 5,
-          "exam_points": "4-6分",
+          "exam_weight": 2,
+          "exam_points": "2-4分",
           "difficulty": 0.5,
-          "exam_frequency": 7,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-XD-01"
           ],
           "subtopics": [
             {
               "id": "MATH-XD-02-01",
-              "name": "矩阵运算(加法/乘法/转置/数乘)",
+              "name": "用行列式求余子式",
               "weight": 1,
-              "difficulty": 0.3
+              "difficulty": 0.5
             },
             {
               "id": "MATH-XD-02-02",
-              "name": "逆矩阵",
-              "weight": 2,
+              "name": "用矩阵求余子式",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-XD-02-03",
-              "name": "矩阵的秩",
-              "weight": 2,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-XD-02-04",
-              "name": "分块矩阵",
+              "name": "用特征值求余子式",
               "weight": 1,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-XD-02-05",
-              "name": "初等变换与初等矩阵",
-              "weight": 2,
               "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "已知 AB=C，若 A 可逆，求 B",
-            "求矩阵 A 的逆矩阵（用初等行变换法）",
-            "求矩阵 A = [1,2,3; 2,4,6; 3,6,9] 的秩",
-            "用分块矩阵求逆公式计算分块对角矩阵的逆"
-          ]
+          "typical_questions": [],
+          "note_chapter": 1
         },
         {
           "id": "MATH-XD-03",
-          "name": "向量组",
+          "name": "矩阵运算",
           "chapter": 3,
-          "exam_weight": 5,
-          "exam_points": "4-6分",
-          "difficulty": 0.6,
-          "exam_frequency": 5,
+          "exam_weight": 3,
+          "exam_points": "2-5分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-XD-02"
           ],
           "subtopics": [
             {
               "id": "MATH-XD-03-01",
-              "name": "线性相关与线性无关",
-              "weight": 2,
+              "name": "矩阵乘法与转置",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-XD-03-02",
-              "name": "向量组的秩与极大线性无关组",
-              "weight": 2,
+              "name": "逆矩阵与伴随矩阵",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-XD-03-03",
-              "name": "向量空间(子空间/维数/基)",
-              "weight": 2,
-              "difficulty": 0.6
+              "name": "分块矩阵",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-XD-03-04",
-              "name": "基变换与过渡矩阵",
+              "name": "矩阵方程",
               "weight": 1,
-              "difficulty": 0.6
+              "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "判断向量组 α₁=(1,2,3), α₂=(2,4,6), α₃=(1,0,-1) 的线性相关性",
-            "求向量组的极大线性无关组并将其余向量用其线性表示",
-            "求 R³ 中由向量 (1,0,1), (0,1,1), (1,1,0) 生成的子空间的维数",
-            "求两组基之间的过渡矩阵"
-          ]
+          "typical_questions": [],
+          "note_chapter": 2
         },
         {
           "id": "MATH-XD-04",
-          "name": "线性方程组",
+          "name": "矩阵的秩",
           "chapter": 4,
-          "exam_weight": 7,
-          "exam_points": "6-8分",
-          "difficulty": 0.6,
+          "exam_weight": 2,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
           "exam_frequency": 6,
           "prerequisites": [
             "MATH-XD-03"
@@ -692,132 +826,219 @@
           "subtopics": [
             {
               "id": "MATH-XD-04-01",
-              "name": "齐次线性方程组解的结构",
-              "weight": 2,
+              "name": "秩的定义与求法",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-XD-04-02",
-              "name": "非齐次线性方程组解的结构",
-              "weight": 2,
+              "name": "秩的不等式与等式",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-XD-04-03",
-              "name": "解的判定定理(Rank条件)",
-              "weight": 2,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-XD-04-04",
-              "name": "基础解系的求法",
-              "weight": 2,
+              "name": "秩与线性相关性的关系",
+              "weight": 1,
               "difficulty": 0.5
-            },
-            {
-              "id": "MATH-XD-04-05",
-              "name": "含参数方程组的讨论",
-              "weight": 2,
-              "difficulty": 0.7
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "求齐次方程组 Ax=0 的基础解系",
-            "讨论含参数 λ 的方程组的解的情况(无解/唯一解/无穷多解)",
-            "已知非齐次方程组的两个特解，求其通解",
-            "用矩阵秩的条件判断方程组 Ax=b 是否有解"
-          ]
+          "typical_questions": [],
+          "note_chapter": 2
         },
         {
           "id": "MATH-XD-05",
-          "name": "特征值与特征向量",
+          "name": "线性方程组",
           "chapter": 5,
           "exam_weight": 7,
-          "exam_points": "6-8分",
-          "difficulty": 0.6,
-          "exam_frequency": 7,
+          "exam_points": "5-9分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-XD-04"
           ],
           "subtopics": [
             {
               "id": "MATH-XD-05-01",
-              "name": "特征值与特征向量的定义与计算",
-              "weight": 3,
+              "name": "齐次方程组的基础解系",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-XD-05-02",
-              "name": "相似矩阵",
-              "weight": 2,
-              "difficulty": 0.6
+              "name": "非齐次方程组的通解",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-XD-05-03",
-              "name": "矩阵对角化",
-              "weight": 3,
-              "difficulty": 0.6
+              "name": "解的结构与判定",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-XD-05-04",
-              "name": "实对称矩阵的性质与正交对角化",
-              "weight": 3,
-              "difficulty": 0.7
+              "name": "方程组的几何意义",
+              "weight": 1,
+              "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "求矩阵 A=[2,-1,0; -1,2,0; 0,0,3] 的特征值和特征向量",
-            "判断矩阵 A 是否可对角化，若可，求可逆矩阵 P 使 P⁻¹AP=Λ",
-            "对实对称矩阵进行正交对角化，求正交矩阵 Q",
-            "已知 A 的特征值为 1,2,3，求 A²+E 的特征值"
-          ]
+          "typical_questions": [],
+          "note_chapter": 4
         },
         {
           "id": "MATH-XD-06",
-          "name": "二次型",
+          "name": "向量组",
           "chapter": 6,
           "exam_weight": 5,
-          "exam_points": "4-6分",
+          "exam_points": "3-7分",
           "difficulty": 0.5,
-          "exam_frequency": 4,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-XD-05"
           ],
           "subtopics": [
             {
               "id": "MATH-XD-06-01",
-              "name": "二次型及其矩阵表示",
+              "name": "线性相关与线性无关",
               "weight": 1,
-              "difficulty": 0.4
+              "difficulty": 0.5
             },
             {
               "id": "MATH-XD-06-02",
-              "name": "化标准形(配方法)",
-              "weight": 2,
+              "name": "极大无关组与秩",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-XD-06-03",
-              "name": "化标准形(正交变换法)",
-              "weight": 2,
-              "difficulty": 0.6
+              "name": "向量组等价",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-XD-06-04",
-              "name": "正定二次型的判别",
-              "weight": 2,
+              "name": "向量空间",
+              "weight": 1,
               "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "写出二次型 f=x₁²+2x₂²+3x₃²+2x₁x₂-4x₂x₃ 的矩阵表示",
-            "用配方法将二次型化为标准形",
-            "用正交变换将二次型化为标准形并求正交矩阵",
-            "判断二次型 f=x₁²+2x₂²+3x₃²+2x₁x₂+2x₁x₃+2x₂x₃ 是否正定"
-          ]
+          "typical_questions": [],
+          "note_chapter": 3
+        },
+        {
+          "id": "MATH-XD-07",
+          "name": "特征值与特征向量",
+          "chapter": 7,
+          "exam_weight": 4,
+          "exam_points": "2-6分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-XD-06"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-XD-07-01",
+              "name": "特征值与特征向量的求法",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-XD-07-02",
+              "name": "特征值的性质与相似不变量",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-XD-07-03",
+              "name": "矩阵方程与特征值命题",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 5
+        },
+        {
+          "id": "MATH-XD-08",
+          "name": "相似理论",
+          "chapter": 8,
+          "exam_weight": 3,
+          "exam_points": "2-5分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-XD-07"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-XD-08-01",
+              "name": "相似对角化的判定",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-XD-08-02",
+              "name": "实对称矩阵的正交对角化",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-XD-08-03",
+              "name": "相似的应用",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 5
+        },
+        {
+          "id": "MATH-XD-09",
+          "name": "二次型",
+          "chapter": 9,
+          "exam_weight": 5,
+          "exam_points": "3-7分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-XD-08"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-XD-09-01",
+              "name": "二次型的标准形（配方法/正交变换法）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-XD-09-02",
+              "name": "合同与相似",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-XD-09-03",
+              "name": "正定性判定",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-XD-09-04",
+              "name": "二次型的最值",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 6
         }
       ]
     },
@@ -828,163 +1049,125 @@
       "topics": [
         {
           "id": "MATH-GL-01",
-          "name": "随机事件与概率",
+          "name": "随机事件和概率",
           "chapter": 1,
           "exam_weight": 5,
-          "exam_points": "4-6分",
-          "difficulty": 0.4,
+          "exam_points": "3-7分",
+          "difficulty": 0.5,
           "exam_frequency": 6,
           "prerequisites": [],
           "subtopics": [
             {
               "id": "MATH-GL-01-01",
-              "name": "样本空间与随机事件",
+              "name": "事件关系与运算",
               "weight": 1,
-              "difficulty": 0.3
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-01-02",
-              "name": "概率的定义与基本性质",
+              "name": "古典概型与几何概型",
               "weight": 1,
-              "difficulty": 0.3
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-01-03",
               "name": "条件概率与乘法公式",
-              "weight": 2,
-              "difficulty": 0.4
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-01-04",
-              "name": "全概率公式与Bayes公式",
-              "weight": 3,
+              "name": "全概率与贝叶斯公式",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GL-01-05",
-              "name": "事件的独立性",
-              "weight": 2,
-              "difficulty": 0.4
-            },
-            {
-              "id": "MATH-GL-01-06",
-              "name": "伯努利概型(独立重复试验)",
-              "weight": 2,
-              "difficulty": 0.4
+              "name": "独立性与伯努利概型",
+              "weight": 1,
+              "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "用全概率公式计算产品合格率（多个车间生产）",
-            "用 Bayes 公式推断某疾病检测结果为阳性时实际患病的概率",
-            "三个独立事件 A,B,C 都不发生的概率为 1/27，求 P(A)",
-            "5 次独立射击中恰好命中 3 次的概率（伯努利概型）"
-          ]
+          "typical_questions": [],
+          "note_chapter": 1
         },
         {
           "id": "MATH-GL-02",
-          "name": "随机变量及其分布",
+          "name": "一维随机变量及其分布",
           "chapter": 2,
-          "exam_weight": 5,
-          "exam_points": "4-6分",
+          "exam_weight": 3,
+          "exam_points": "2-5分",
           "difficulty": 0.5,
-          "exam_frequency": 7,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-GL-01"
           ],
           "subtopics": [
             {
               "id": "MATH-GL-02-01",
-              "name": "随机变量概念与分布函数",
+              "name": "分布函数与概率密度",
               "weight": 1,
-              "difficulty": 0.4
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-02-02",
-              "name": "离散型分布(0-1/二项/Poisson/几何/超几何)",
-              "weight": 3,
+              "name": "常见分布",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GL-02-03",
-              "name": "连续型分布(均匀/指数/正态)",
-              "weight": 3,
+              "name": "由分布求概率",
+              "weight": 1,
               "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GL-02-04",
-              "name": "随机变量函数的分布",
-              "weight": 2,
-              "difficulty": 0.6
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "已知 X 的密度函数求 X 的分布函数 F(x)",
-            "X~P(λ)，求 P(X≥2) 的值",
-            "设 X~N(μ,σ²)，求 P(a<X<b) 并标准化",
-            "已知 X 的分布，求 Y=X² 的分布（离散型函数分布）",
-            "X~U(0,1)，求 Y=-2lnX 的密度函数（连续型函数分布）"
-          ]
+          "typical_questions": [],
+          "note_chapter": 2
         },
         {
           "id": "MATH-GL-03",
-          "name": "多维随机变量及其分布",
+          "name": "一维随机变量函数的分布",
           "chapter": 3,
-          "exam_weight": 5,
-          "exam_points": "4-6分",
-          "difficulty": 0.6,
-          "exam_frequency": 5,
+          "exam_weight": 2,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-GL-02"
           ],
           "subtopics": [
             {
               "id": "MATH-GL-03-01",
-              "name": "联合分布函数与联合密度",
-              "weight": 2,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GL-03-02",
-              "name": "边缘分布",
-              "weight": 2,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GL-03-03",
-              "name": "条件分布",
-              "weight": 2,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GL-03-04",
-              "name": "随机变量的独立性",
+              "name": "离散型→离散型",
               "weight": 1,
               "difficulty": 0.5
             },
             {
-              "id": "MATH-GL-03-05",
-              "name": "两个随机变量函数的分布(卷积/Z=X+Y/max/min)",
-              "weight": 3,
-              "difficulty": 0.7
+              "id": "MATH-GL-03-02",
+              "name": "连续型→连续型",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GL-03-03",
+              "name": "连续型→离散型",
+              "weight": 1,
+              "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "已知联合密度 f(x,y)，求 X 和 Y 的边缘密度",
-            "判断 X 与 Y 是否独立",
-            "求条件密度 f(x|y) 并计算条件概率",
-            "X,Y 独立同分布于 Exp(λ)，求 Z=X+Y 的密度（卷积公式）",
-            "求 Z=max(X,Y) 和 W=min(X,Y) 的分布"
-          ]
+          "typical_questions": [],
+          "note_chapter": 2
         },
         {
           "id": "MATH-GL-04",
-          "name": "随机变量的数字特征",
+          "name": "多维随机变量及其分布",
           "chapter": 4,
-          "exam_weight": 5,
-          "exam_points": "4-6分",
+          "exam_weight": 3,
+          "exam_points": "2-5分",
           "difficulty": 0.5,
           "exam_frequency": 6,
           "prerequisites": [
@@ -993,214 +1176,231 @@
           "subtopics": [
             {
               "id": "MATH-GL-04-01",
-              "name": "数学期望",
-              "weight": 2,
-              "difficulty": 0.4
+              "name": "联合分布与边缘分布",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-04-02",
-              "name": "方差",
-              "weight": 2,
+              "name": "条件分布",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GL-04-03",
-              "name": "协方差与相关系数",
-              "weight": 3,
-              "difficulty": 0.6
+              "name": "独立性判定",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-04-04",
-              "name": "矩与协方差矩阵",
-              "weight": 2,
-              "difficulty": 0.6
+              "name": "二维均匀分布与正态分布",
+              "weight": 1,
+              "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "求 X 的期望 E(X) 和方差 D(X)（离散/连续型）",
-            "利用期望的性质求 E(2X-3Y+1)",
-            "求 Cov(X,Y) 和 ρ(X,Y)，判断 X 与 Y 的相关性",
-            "已知 (X,Y) 的联合分布，求协方差矩阵"
-          ]
+          "typical_questions": [],
+          "note_chapter": 3
         },
         {
           "id": "MATH-GL-05",
-          "name": "大数定律与中心极限定理",
+          "name": "多维随机变量函数的分布",
           "chapter": 5,
-          "exam_weight": 3,
+          "exam_weight": 2,
           "exam_points": "2-4分",
           "difficulty": 0.5,
-          "exam_frequency": 3,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-GL-04"
           ],
           "subtopics": [
             {
               "id": "MATH-GL-05-01",
-              "name": "Markov不等式与Chebyshev不等式",
+              "name": "和的分布与卷积公式",
               "weight": 1,
-              "difficulty": 0.4
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-05-02",
-              "name": "大数定律(Chebyshev/Bernoulli/Khinchin)",
-              "weight": 2,
+              "name": "商的分布与最值分布",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GL-05-03",
-              "name": "中心极限定理(Lindeberg-Levy/Moivre-Laplace)",
-              "weight": 2,
-              "difficulty": 0.5
-            },
-            {
-              "id": "MATH-GL-05-04",
-              "name": "大数定律与中心极限定理的应用",
+              "name": "随机变量变换法",
               "weight": 1,
-              "difficulty": 0.6
+              "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "用 Chebyshev 不等式估计 P(|X-μ|≥kσ) 的上界",
-            "n 次独立投骰子，用大数定律说明算术平均趋于期望值",
-            "1000 次独立试验中成功次数近似正态分布，求概率（中心极限定理）",
-            "用 Moivre-Laplace 定理近似计算二项分布概率"
-          ]
+          "typical_questions": [],
+          "note_chapter": 3
         },
         {
           "id": "MATH-GL-06",
-          "name": "数理统计的基本概念",
+          "name": "数字特征",
           "chapter": 6,
-          "exam_weight": 3,
-          "exam_points": "2-4分",
-          "difficulty": 0.4,
-          "exam_frequency": 4,
-          "prerequisites": [],
+          "exam_weight": 5,
+          "exam_points": "3-7分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GL-05"
+          ],
           "subtopics": [
             {
               "id": "MATH-GL-06-01",
-              "name": "总体与样本",
+              "name": "数学期望",
               "weight": 1,
-              "difficulty": 0.3
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-06-02",
-              "name": "统计量及其分布",
-              "weight": 2,
-              "difficulty": 0.4
+              "name": "方差与标准差",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-06-03",
-              "name": "三大抽样分布(χ²分布/t分布/F分布)",
-              "weight": 3,
+              "name": "协方差与相关系数",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GL-06-04",
-              "name": "正态总体的抽样分布定理",
-              "weight": 2,
+              "name": "独立性与不相关性",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GL-06-05",
+              "name": "切比雪夫不等式",
+              "weight": 1,
               "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "证明样本均值 X̄ 服从 N(μ, σ²/n) 分布",
-            "判断统计量 (n-1)S²/σ² 服从什么分布",
-            "利用 t 分布的定义构造 t 统计量",
-            "判断 F = S₁²/S₂² 服从 F 分布的条件"
-          ]
+          "typical_questions": [],
+          "note_chapter": 4
         },
         {
           "id": "MATH-GL-07",
-          "name": "参数估计",
+          "name": "大数定律与中心极限定理",
           "chapter": 7,
-          "exam_weight": 5,
-          "exam_points": "4-6分",
+          "exam_weight": 3,
+          "exam_points": "2-5分",
           "difficulty": 0.5,
-          "exam_frequency": 5,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-GL-06"
           ],
           "subtopics": [
             {
               "id": "MATH-GL-07-01",
-              "name": "矩估计法",
-              "weight": 2,
-              "difficulty": 0.4
-            },
-            {
-              "id": "MATH-GL-07-02",
-              "name": "最大似然估计法",
-              "weight": 3,
-              "difficulty": 0.6
-            },
-            {
-              "id": "MATH-GL-07-03",
-              "name": "估计量的评选标准(无偏性/有效性/一致性)",
-              "weight": 2,
+              "name": "依概率收敛",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
-              "id": "MATH-GL-07-04",
-              "name": "区间估计(正态总体)",
-              "weight": 2,
+              "id": "MATH-GL-07-02",
+              "name": "大数定律",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GL-07-03",
+              "name": "中心极限定理",
+              "weight": 1,
               "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "用矩估计法估计均匀分布 U(0,θ) 的参数 θ",
-            "用最大似然估计法估计指数分布 Exp(λ) 的参数 λ",
-            "证明样本方差 S² 是总体方差 σ² 的无偏估计",
-            "求正态总体均值 μ 的 95% 置信区间（σ² 已知/未知）"
-          ]
+          "typical_questions": [],
+          "note_chapter": 5
         },
         {
           "id": "MATH-GL-08",
-          "name": "假设检验",
+          "name": "统计量及其分布",
           "chapter": 8,
           "exam_weight": 3,
-          "exam_points": "2-4分",
+          "exam_points": "2-5分",
           "difficulty": 0.5,
-          "exam_frequency": 3,
+          "exam_frequency": 6,
           "prerequisites": [
             "MATH-GL-07"
           ],
           "subtopics": [
             {
               "id": "MATH-GL-08-01",
-              "name": "假设检验的基本思想与步骤",
-              "weight": 2,
-              "difficulty": 0.4
+              "name": "总体、样本与统计量",
+              "weight": 1,
+              "difficulty": 0.5
             },
             {
               "id": "MATH-GL-08-02",
-              "name": "正态总体均值的显著性检验(U检验/t检验)",
-              "weight": 2,
+              "name": "样本矩",
+              "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GL-08-03",
-              "name": "正态总体方差的显著性检验(χ²检验)",
+              "name": "三大抽样分布（χ²/t/F）",
               "weight": 1,
               "difficulty": 0.5
             },
             {
               "id": "MATH-GL-08-04",
-              "name": "两个正态总体参数的检验",
-              "weight": 2,
-              "difficulty": 0.6
+              "name": "正态总体的抽样分布",
+              "weight": 1,
+              "difficulty": 0.5
             }
           ],
           "linked_notes": [],
-          "typical_questions": [
-            "对正态总体均值进行 U 检验（σ² 已知），给出拒绝域",
-            "对正态总体均值进行 t 检验（σ² 未知），计算检验统计量",
-            "对两个正态总体均值差进行 t 检验",
-            "对正态总体方差进行 χ² 检验，判断是否接受 H₀"
-          ]
+          "typical_questions": [],
+          "note_chapter": 6
+        },
+        {
+          "id": "MATH-GL-09",
+          "name": "参数估计与假设检验",
+          "chapter": 9,
+          "exam_weight": 8,
+          "exam_points": "6-10分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "MATH-GL-08"
+          ],
+          "subtopics": [
+            {
+              "id": "MATH-GL-09-01",
+              "name": "矩估计与最大似然估计",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GL-09-02",
+              "name": "估计量的评选标准",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GL-09-03",
+              "name": "区间估计",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "MATH-GL-09-04",
+              "name": "假设检验与两类错误",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [],
+          "note_chapter": 6
         }
       ]
     }
