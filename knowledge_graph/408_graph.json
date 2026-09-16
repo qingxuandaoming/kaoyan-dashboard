@@ -107,7 +107,7 @@
         },
         {
           "id": "408-DS-03",
-          "name": "栈队列和数组",
+          "name": "栈、队列和数组",
           "chapter": 3,
           "exam_weight": 5,
           "exam_points": "4-6分",
@@ -158,8 +158,40 @@
         },
         {
           "id": "408-DS-04",
-          "name": "树和二叉树",
+          "name": "串",
           "chapter": 4,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "408-DS-03"
+          ],
+          "subtopics": [
+            {
+              "id": "408-DS-04-01",
+              "name": "串的定义和存储结构",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "408-DS-04-02",
+              "name": "串的模式匹配(KMP)",
+              "weight": 2,
+              "difficulty": 0.7
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "KMP 的 next 数组计算",
+            "模式匹配的时间复杂度",
+            "nextval 数组的优化"
+          ]
+        },
+        {
+          "id": "408-DS-05",
+          "name": "树和二叉树",
+          "chapter": 5,
           "exam_weight": 11,
           "exam_points": "8-12分",
           "difficulty": 0.7,
@@ -169,37 +201,37 @@
           ],
           "subtopics": [
             {
-              "id": "408-DS-04-01",
+              "id": "408-DS-05-01",
               "name": "二叉树性质与存储结构",
               "weight": 1.0,
               "difficulty": 0.4
             },
             {
-              "id": "408-DS-04-02",
+              "id": "408-DS-05-02",
               "name": "二叉树遍历(先/中/后/层序)",
               "weight": 3.0,
               "difficulty": 0.7
             },
             {
-              "id": "408-DS-04-03",
+              "id": "408-DS-05-03",
               "name": "线索二叉树",
               "weight": 1.0,
               "difficulty": 0.6
             },
             {
-              "id": "408-DS-04-04",
+              "id": "408-DS-05-04",
               "name": "树与森林转换",
               "weight": 0.5,
               "difficulty": 0.4
             },
             {
-              "id": "408-DS-04-05",
+              "id": "408-DS-05-05",
               "name": "哈夫曼树与哈夫曼编码",
               "weight": 2.0,
               "difficulty": 0.6
             },
             {
-              "id": "408-DS-04-06",
+              "id": "408-DS-05-06",
               "name": "并查集",
               "weight": 1.0,
               "difficulty": 0.5
@@ -214,49 +246,49 @@
           ]
         },
         {
-          "id": "408-DS-05",
+          "id": "408-DS-06",
           "name": "图",
-          "chapter": 5,
+          "chapter": 6,
           "exam_weight": 8,
           "exam_points": "6-10分",
           "difficulty": 0.8,
           "exam_frequency": 9,
           "prerequisites": [
-            "408-DS-04"
+            "408-DS-05"
           ],
           "subtopics": [
             {
-              "id": "408-DS-05-01",
+              "id": "408-DS-06-01",
               "name": "图的存储(邻接矩阵/邻接表/十字链表/邻接多重表)",
               "weight": 1.0,
               "difficulty": 0.5
             },
             {
-              "id": "408-DS-05-02",
+              "id": "408-DS-06-02",
               "name": "DFS与BFS",
               "weight": 2.0,
               "difficulty": 0.6
             },
             {
-              "id": "408-DS-05-03",
+              "id": "408-DS-06-03",
               "name": "最小生成树(Prim/Kruskal)",
               "weight": 2.0,
               "difficulty": 0.7
             },
             {
-              "id": "408-DS-05-04",
+              "id": "408-DS-06-04",
               "name": "最短路径(Dijkstra/Floyd)",
               "weight": 2.5,
               "difficulty": 0.8
             },
             {
-              "id": "408-DS-05-05",
+              "id": "408-DS-06-05",
               "name": "拓扑排序",
               "weight": 1.5,
               "difficulty": 0.7
             },
             {
-              "id": "408-DS-05-06",
+              "id": "408-DS-06-06",
               "name": "关键路径",
               "weight": 1.5,
               "difficulty": 0.8
@@ -271,52 +303,46 @@
           ]
         },
         {
-          "id": "408-DS-06",
+          "id": "408-DS-07",
           "name": "查找",
-          "chapter": 6,
+          "chapter": 7,
           "exam_weight": 8,
           "exam_points": "6-8分",
           "difficulty": 0.6,
           "exam_frequency": 7,
           "prerequisites": [
-            "408-DS-05"
+            "408-DS-06"
           ],
           "subtopics": [
             {
-              "id": "408-DS-06-01",
+              "id": "408-DS-07-01",
               "name": "顺序查找",
               "weight": 0.5,
               "difficulty": 0.2
             },
             {
-              "id": "408-DS-06-02",
+              "id": "408-DS-07-02",
               "name": "折半查找",
               "weight": 2.0,
               "difficulty": 0.5
             },
             {
-              "id": "408-DS-06-03",
+              "id": "408-DS-07-03",
               "name": "B树",
               "weight": 2.5,
               "difficulty": 0.7
             },
             {
-              "id": "408-DS-06-04",
+              "id": "408-DS-07-04",
               "name": "B+树",
               "weight": 1.0,
               "difficulty": 0.6
             },
             {
-              "id": "408-DS-06-05",
+              "id": "408-DS-07-05",
               "name": "散列表(哈希表)",
               "weight": 2.5,
               "difficulty": 0.6
-            },
-            {
-              "id": "408-DS-06-06",
-              "name": "字符串模式匹配(KMP)",
-              "weight": 2.0,
-              "difficulty": 0.7
             }
           ],
           "linked_notes": [],
@@ -328,55 +354,55 @@
           ]
         },
         {
-          "id": "408-DS-07",
+          "id": "408-DS-08",
           "name": "排序",
-          "chapter": 7,
+          "chapter": 8,
           "exam_weight": 8,
           "exam_points": "6-8分",
           "difficulty": 0.7,
           "exam_frequency": 8,
           "prerequisites": [
-            "408-DS-06"
+            "408-DS-07"
           ],
           "subtopics": [
             {
-              "id": "408-DS-07-01",
+              "id": "408-DS-08-01",
               "name": "插入排序(直接/折半/希尔)",
               "weight": 1.0,
               "difficulty": 0.4
             },
             {
-              "id": "408-DS-07-02",
+              "id": "408-DS-08-02",
               "name": "交换排序(冒泡/快速排序)",
               "weight": 2.5,
               "difficulty": 0.7
             },
             {
-              "id": "408-DS-07-03",
+              "id": "408-DS-08-03",
               "name": "选择排序(简单选择/堆排序)",
               "weight": 2.0,
               "difficulty": 0.6
             },
             {
-              "id": "408-DS-07-04",
+              "id": "408-DS-08-04",
               "name": "归并排序",
               "weight": 1.0,
               "difficulty": 0.6
             },
             {
-              "id": "408-DS-07-05",
+              "id": "408-DS-08-05",
               "name": "基数排序",
               "weight": 0.5,
               "difficulty": 0.4
             },
             {
-              "id": "408-DS-07-06",
+              "id": "408-DS-08-06",
               "name": "外部排序",
               "weight": 0.5,
               "difficulty": 0.5
             },
             {
-              "id": "408-DS-07-07",
+              "id": "408-DS-08-07",
               "name": "各排序算法比较与选择",
               "weight": 2.0,
               "difficulty": 0.7
@@ -498,7 +524,7 @@
         },
         {
           "id": "408-CO-03",
-          "name": "存储器层次结构",
+          "name": "存储系统",
           "chapter": 3,
           "exam_weight": 12,
           "exam_points": "10-14分",
@@ -618,7 +644,7 @@
         },
         {
           "id": "408-CO-05",
-          "name": "中央处理器CPU",
+          "name": "中央处理器",
           "chapter": 5,
           "exam_weight": 10,
           "exam_points": "8-12分",
@@ -687,10 +713,10 @@
         },
         {
           "id": "408-CO-06",
-          "name": "总线和I/O系统",
+          "name": "总线",
           "chapter": 6,
-          "exam_weight": 5,
-          "exam_points": "4-6分",
+          "exam_weight": 2,
+          "exam_points": "2-3分",
           "difficulty": 0.5,
           "exam_frequency": 4,
           "prerequisites": [
@@ -702,31 +728,51 @@
               "name": "总线概念与定时方式",
               "weight": 1.0,
               "difficulty": 0.3
-            },
-            {
-              "id": "408-CO-06-02",
-              "name": "I/O接口功能与编址",
-              "weight": 1.0,
-              "difficulty": 0.4
-            },
-            {
-              "id": "408-CO-06-03",
-              "name": "程序查询与中断方式",
-              "weight": 1.5,
-              "difficulty": 0.5
-            },
-            {
-              "id": "408-CO-06-04",
-              "name": "DMA与通道方式",
-              "weight": 1.5,
-              "difficulty": 0.6
             }
           ],
           "linked_notes": [],
           "typical_questions": [
-            "DMA与中断方式对比",
-            "总线传输速率计算",
-            "I/O编址方式判断"
+            "总线的分类与性能指标",
+            "总线仲裁与定时方式"
+          ]
+        },
+        {
+          "id": "408-CO-07",
+          "name": "输入/输出系统",
+          "chapter": 7,
+          "exam_weight": 3,
+          "exam_points": "3-5分",
+          "difficulty": 0.6,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "408-CO-06"
+          ],
+          "subtopics": [
+            {
+              "id": "408-CO-07-01",
+              "name": "I/O接口功能与编址",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "408-CO-07-02",
+              "name": "程序查询与中断方式",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "408-CO-07-03",
+              "name": "DMA与通道方式",
+              "weight": 2,
+              "difficulty": 0.7
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "I/O 端口统一编址与独立编址的区别",
+            "中断处理流程与中断隐指令",
+            "DMA 与中断方式的对比",
+            "DMA 传送过程与 CPU 的并行性"
           ]
         }
       ],
@@ -739,7 +785,7 @@
       "topics": [
         {
           "id": "408-OS-01",
-          "name": "操作系统概述",
+          "name": "计算机系统概述",
           "chapter": 1,
           "exam_weight": 3,
           "exam_points": "2-4分",
@@ -793,7 +839,7 @@
         },
         {
           "id": "408-OS-02",
-          "name": "进程管理",
+          "name": "进程与线程",
           "chapter": 2,
           "exam_weight": 13,
           "exam_points": "10-14分",
@@ -982,7 +1028,7 @@
         },
         {
           "id": "408-OS-05",
-          "name": "I/O管理",
+          "name": "输入输出管理",
           "chapter": 5,
           "exam_weight": 3,
           "exam_points": "2-4分",
