@@ -235,6 +235,10 @@ async function callDeepSeek(messages, cfg, fetchImpl, maxTokens, opts = {}) {
       text: msg.content || '',
       reasoning: String(msg.reasoning_content || ''),
       finish: json.choices?.[0]?.finish_reason || '',
+      // function calling 用（2026-09-22）：工具调用要**原样交回下一轮**——
+      // assistant 的 tool_calls 与随后的 tool 结果必须配成对，少一个字段这条链就断了。
+      tool_calls: Array.isArray(msg.tool_calls) ? msg.tool_calls : [],
+      message: msg,
     };
   } finally {
     clearTimeout(timer);
@@ -503,11 +507,123 @@ async function coachChat(history, system, opts = {}) {
   return { ok: true, text: resp.text.trim(), finish: resp.finish };
 }
 
+/**
+ * 带工具的一轮对话（function calling）——给「网页里的 AI 自己调接口」用（2026-09-22）。
+ *
+ * 与 coachChat 的差别只在一点：它要把**模型的原始 message**（含 tool_calls）交回调用方，
+ * 因为多轮工具调用要靠 tool_call_id 把「模型要求调什么」和「工具返回了什么」配成对。
+ * tools 传空 / 不传就是普通对话（轮次用完后逼模型收尾时用这一档）。
+ *
+ * @returns {Promise<{ok:boolean, message?:object, tool_calls?:Array, error?:string}>}
+ */
+async function agentTurn(messages, tools, opts = {}) {
+  const cfg = opts.config || loadConfig();
+  const useTools = Array.isArray(tools) && tools.length;
+  const resp = await callDeepSeek(messages, cfg, opts.fetchImpl, opts.maxTokens || 2500,
+    Object.assign({ quick: !!opts.quick },
+      useTools ? { extra: { tools, tool_choice: opts.toolChoice || 'auto' } } : null));
+  if (!resp.ok) return { ok: false, error: resp.error, raw: resp.raw };
+  return {
+    ok: true,
+    message: resp.message || { role: 'assistant', content: resp.text || '' },
+    tool_calls: resp.tool_calls || [],
+    finish: resp.finish,
+  };
+}
+
+/**
+ * 流式的一轮（+工具）。给「边做边播」用（2026-09-22 用户反馈：工具回路十几秒，
+ * 只给一个「思考中…」等于什么都看不见）。
+ *
+ * onDelta 会收到两类事件，分开报是为了界面能区分两件事：
+ *   {type:'reasoning', text} —— 还在推演（DeepSeek 默认开思考，这段可能好几秒）
+ *   {type:'content', text}   —— 正文在长
+ *
+ * ⚠️ 流式下 tool_calls 是**分片**来的（同一个 index 多次 delta），必须按 index 归并、
+ *    把 arguments 拼起来，否则拿到的是一段残缺 JSON，工具参数就废了。
+ */
+async function agentTurnStream(messages, tools, opts = {}, onDelta) {
+  const cfg = opts.config || loadConfig();
+  const emit = typeof onDelta === 'function' ? onDelta : () => {};
+  const useTools = Array.isArray(tools) && tools.length;
+  const doFetch = opts.fetchImpl || globalThis.fetch;
+  if (!cfg.apiKey) return { ok: false, error: '未配置 DeepSeek API key（src/.secrets.json 或 DEEPSEEK_API_KEY）' };
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), cfg.timeoutMs);
+  try {
+    const payload = Object.assign({
+      model: cfg.model, messages, max_tokens: opts.maxTokens || 2500,
+      temperature: 0.2, stream: true,
+    }, opts.quick ? NO_THINK : null,
+      useTools ? { tools, tool_choice: opts.toolChoice || 'auto' } : null);
+    const resp = await doFetch(`${cfg.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
+      body: JSON.stringify(payload),
+      signal: ctl.signal,
+    });
+    if (!resp.ok) {
+      let bodyText = '';
+      try { bodyText = await resp.text(); } catch (e) {}
+      let msg = `HTTP ${resp.status}`;
+      try { msg += ': ' + (JSON.parse(bodyText).error?.message || ''); } catch (e) {}
+      return { ok: false, error: msg, raw: String(bodyText).slice(0, 500) };
+    }
+    if (!resp.body) return { ok: false, error: '服务端没有返回流（resp.body 为空）' };
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', content = '', reasoning = '', finish = '';
+    const calls = [];
+    for (;;) {
+      const step = await reader.read();
+      if (step.done) break;
+      buf += dec.decode(step.value, { stream: true });
+      let nl;
+      // SSE 行可能被切开，所以按「完整行」消费
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).replace(/\r$/, '').trim();
+        buf = buf.slice(nl + 1);
+        if (!line || line.indexOf('data:') !== 0) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        let j = null;
+        try { j = JSON.parse(data); } catch (e) { continue; }
+        const ch = j.choices && j.choices[0];
+        if (!ch) continue;
+        if (ch.finish_reason) finish = ch.finish_reason;
+        const d = ch.delta || {};
+        if (d.reasoning_content) { reasoning += d.reasoning_content; emit({ type: 'reasoning', text: d.reasoning_content }); }
+        if (d.content) { content += d.content; emit({ type: 'content', text: d.content }); }
+        if (Array.isArray(d.tool_calls)) {
+          for (const tc of d.tool_calls) {
+            const i = Number.isInteger(tc.index) ? tc.index : 0;
+            if (!calls[i]) calls[i] = { id: '', type: 'function', function: { name: '', arguments: '' } };
+            if (tc.id) calls[i].id = tc.id;
+            if (tc.function) {
+              if (tc.function.name) calls[i].function.name += tc.function.name;
+              if (tc.function.arguments) calls[i].function.arguments += tc.function.arguments;
+            }
+          }
+        }
+      }
+    }
+    const tool_calls = calls.filter(Boolean);
+    return {
+      ok: true,
+      message: { role: 'assistant', content: content, tool_calls: tool_calls },
+      tool_calls: tool_calls, finish: finish, reasoning: reasoning,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 module.exports = {
   loadConfig, hasKey, buildMessages, extractJson, normalizeResult,
   scoreToRating, gradeAnswer, RATING_BANDS,
   buildExplainMessages, explainAnswer, explainFollowup, explainSystem,
-  coachChat, toApiMessages,
+  coachChat, agentTurn, agentTurnStream, toApiMessages,
 };
 
 // CLI 自测：node grade_llm.js --qid Q-xxx --text "答案"

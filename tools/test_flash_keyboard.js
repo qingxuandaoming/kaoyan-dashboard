@@ -55,12 +55,29 @@ function mkEl(tag) {
     tagName: (tag || "div").toUpperCase(),
     children: [], _cls: new Set(), dataset: {}, style: {},
     disabled: false, onclick: null, _html: "", _text: "",
-    appendChild(c) { this.children.push(c); return c; },
+    // parentNode 要跟着更新、并且**从原父摘走**：浮窗是「节点搬家」（把练习区整块
+    // 挪进 #fs-float），用例靠这两条判断搬走了没有 / 搬回来没有（2026-09-22）。
+    appendChild(c) {
+      if (c && c.parentNode && c.parentNode.children) {
+        const k = c.parentNode.children.indexOf(c);
+        if (k >= 0) c.parentNode.children.splice(k, 1);
+      }
+      this.children.push(c); if (c) c.parentNode = this; return c;
+    },
     // 复用解析的说明条用 insertBefore 插到正文最前面（2026-09-21）
     insertBefore(node, ref) {
+      if (node && node.parentNode && node.parentNode.children) {
+        const k = node.parentNode.children.indexOf(node);
+        if (k >= 0) node.parentNode.children.splice(k, 1);
+      }
       const i = ref ? this.children.indexOf(ref) : -1;
       if (i >= 0) this.children.splice(i, 0, node); else this.children.push(node);
+      if (node) node.parentNode = this;
       return node;
+    },
+    // 浮窗拖动要先读一次起手位置（真实浏览器里返回视口坐标）
+    getBoundingClientRect() {
+      return { left: 100, top: 60, width: 720, height: 560, right: 820, bottom: 620 };
     },
     get firstChild() { return this.children[0] || null; },
     // toast() 靠 1.8 秒后 self-remove 收尾；桩里没有 remove 就会把进程炸掉
@@ -227,14 +244,26 @@ function boot(seed) {
   // 不放进来的话计时相关的断言全都看不到 DOM。
   // flash-practice / fs-full-toggle 是闪卡全屏的容器与按钮（同样那天改的：
   // 现在会申请原生全屏，得让这段代码跑起来才能验）。
+  // fs-float* 是闪卡浮窗（2026-09-22）：其余页也能把练习区借过去当浮窗用，
+  // 不给这几个容器的话浮窗那段会整段退出，等于测不到。
   const PRESENT = ["flash-studio", "flash-filter", "fs-timer", "fs-stop",
-                   "flash-practice", "fs-full-toggle"];
+                   "flash-practice", "fs-full-toggle",
+                   "fs-float", "fs-float-body", "fs-float-bar", "fs-float-title",
+                   "fs-float-close", "fs-float-home"];
   doc.getElementById = id => (PRESENT.includes(id) ? (reg[id] || (reg[id] = mkEl("div"))) : reg[id] || null);
+  // 「老家」：真实页面里 #flash-practice 在闪卡页那个 .page 里。浮窗把它整块搬走，
+  // 收起时要放回原位，所以桩里也得有个父节点，否则测不出「搬回来没有」。
+  const flashPage = mkEl("div");
+  flashPage._cls.add("page");
+  flashPage.appendChild(doc.getElementById("flash-practice"));
+  doc.__flashPage = flashPage;      // 用例要用
+  doc.__store = null;               // 由下面的 localStorage 桩填上（读落盘结果用）
   const localStorage = {
     getItem: k => (k in store ? store[k] : null),
     setItem: (k, v) => { store[k] = String(v); },
     removeItem: k => { delete store[k]; },
   };
+  doc.__store = store;              // 用例要能看见落盘结果（浮窗位置 / 收起状态）
   // 允许用例预置 localStorage（比如「上一组没刷完就刷新了」这种场景）
   if (seedStore) for (const k of Object.keys(seedStore)) store[k] = String(seedStore[k]);
   const fetchStub = (url, opts) => {
@@ -1180,6 +1209,122 @@ function check(name, cond, extra) {
         /mode=extra/.test(last.url), last.url);
     }
   }
+  // ---------- 21. 闪卡浮窗：别的页也能直接刷（2026-09-22 用户要求）----------
+  console.log("\n[21] 闪卡浮窗：节点搬家（只借不复制）");
+  {
+    const d = boot();
+    await tick();
+    const api = globalThis.__flashFloat;
+    check("暴露了 __flashFloat 接口（学习页只碰这一个）",
+      !!api && typeof api.open === "function" && typeof api.close === "function"
+      && typeof api.practice === "function" && typeof api.isOpen === "function");
+
+    const fbox = registry["fs-float"];
+    const fbody = registry["fs-float-body"];
+    const home = d.__flashPage;
+    const practice = registry["flash-practice"];
+    check("浮窗容器、练习区、老家都在场", !!fbox && !!fbody && !!practice && !!home);
+    // 桩里 hidden 初始是 undefined（真实 HTML 上是 hidden 属性），所以断言 =「没被显式打开」
+    check("默认是收起的", fbox.hidden !== false && api.isOpen() === false);
+
+    api.open("🧠 刚出的 2 张");
+    check("打开后浮窗不再 hidden", fbox.hidden === false && api.isOpen() === true);
+    check("★ 练习区整块被搬进浮窗（不是复制一套 UI）",
+      fbody.children.indexOf(practice) >= 0 && practice.parentNode === fbody,
+      "children=" + fbody.children.length);
+    check("搬走后闪卡页里那块暂时空了", home.children.indexOf(practice) < 0);
+    check("标题栏写上了这一组的名字", registry["fs-float-title"].textContent === "🧠 刚出的 2 张");
+
+    // 全屏态下收起：必须连全屏一起退，否则 body 的 fs-lock 留着，整页滚不动
+    globalThis.__flashSetFull(true);
+    check("（前置）进了全屏", practice._cls.has("is-full"));
+    api.close();
+    check("★ 收起浮窗时把全屏一起退了（不留 body 滚动锁）", !practice._cls.has("is-full"));
+    check("收起后练习区搬回闪卡页", home.children.indexOf(practice) >= 0);
+    check("收起后浮窗 hidden 回去", fbox.hidden === true && api.isOpen() === false);
+  }
+
+  console.log("\n[21b] 「用闪卡练这几张」：按卡号精确组题");
+  {
+    boot();
+    await tick();
+    const api = globalThis.__flashFloat;
+    const okDone = api.practice(["C-STUDY-AAAA1111", "C-STUDY-BBBB2222"], "🧠 刚出的 2 张");
+    await tick(); await tick();
+    check("practice 返回 true（真的开练了）", okDone === true);
+    const last = groupCalls().slice(-1)[0] || { url: "" };
+    check("★ 组题 URL 点名了这两张卡",
+      /ids=C-STUDY-AAAA1111%2CC-STUDY-BBBB2222/.test(last.url), last.url);
+    check("★ 走 mode=browse：点名要的卡不受每日额度拦截", /mode=browse/.test(last.url), last.url);
+    check("limit 跟着抬到 50（够装下点名的卡）", /limit=50/.test(last.url), last.url);
+    check("浮窗跟着开了", api.isOpen() === true);
+  }
+
+  console.log("\n[21c] 卡号白名单：来路不明的字符串不许进 URL");
+  {
+    boot();
+    await tick();
+    const api = globalThis.__flashFloat;
+    api.practice(["C-OK_1", "有中文", "'; DROP TABLE cards; --", "", null, "C-OK-2"]);
+    await tick(); await tick();
+    const url = (groupCalls().slice(-1)[0] || { url: "" }).url;
+    check("★ 只留合法卡号（中文 / SQL 片段 / 空值全被过滤）", /ids=C-OK_1%2CC-OK-2/.test(url), url);
+    check("非法串没进 URL", url.indexOf("DROP") < 0 && url.indexOf("%E4") < 0, url);
+    const groups = groupCalls().length;
+    check("★ 全是非法卡号时直接拒绝，不组一个空组", api.practice(["中文", "x y"]) === false);
+    check("拒绝了就不再发组题请求", groupCalls().length === groups, String(groupCalls().length));
+  }
+
+  console.log("\n[21d] 拖动、落盘、切回闪卡页自动收起");
+  {
+    const d = boot();
+    await tick();
+    const api = globalThis.__flashFloat;
+    api.open();
+    const bar = registry["fs-float-bar"];
+    const fbox = registry["fs-float"];
+    const evt = (x, y, target) => ({ clientX: x, clientY: y, button: 0, pointerId: 1,
+      target: target || { closest: () => null } });
+
+    // open() 已经按「记住的位置 / 缺省位置」摆好了，这里比的是「拖没拖动」
+    const openedAt = fbox.style.left + "/" + fbox.style.top;
+    bar.dispatch("pointerdown", evt(200, 100));
+    bar.dispatch("pointermove", evt(202, 101));      // 只走 3px：手抖，不算拖动
+    check("手抖 2~3px 不算拖动（位置一动不动）",
+      fbox.style.left + "/" + fbox.style.top === openedAt,
+      openedAt + " → " + fbox.style.left + "/" + fbox.style.top);
+    bar.dispatch("pointermove", evt(260, 140));      // 走够 60px：真的拖
+    check("真的拖动才移动（起手 100/60 → 左 +60、上 +40）",
+      fbox.style.left === "160px" && fbox.style.top === "100px",
+      fbox.style.left + " / " + fbox.style.top);
+    bar.dispatch("pointerup", evt(260, 140));
+    check("松手把位置落盘（下次打开还在那儿）", !!d.__store["kaoyan_flash_float_geo_v1"],
+      JSON.stringify(d.__store));
+
+    // 按在标题栏的按钮上不进入拖拽（pointer capture 会把 click 改派走）
+    const keep = fbox.style.left;
+    bar.dispatch("pointerdown", evt(300, 200, { closest: () => ({ tagName: "BUTTON" }) }));
+    bar.dispatch("pointermove", evt(420, 320));
+    check("按在按钮上不进入拖拽", fbox.style.left === keep, fbox.style.left + " vs " + keep);
+
+    // 记住的位置下次打开要接着用
+    // ⚠️ 每次 boot 都是**新实例**（新一套闭包），所以接口要当场重取，
+    //    不能沿用上一轮那个 api —— 否则断言看的是上一轮那个还开着的浮窗。
+    boot({ kaoyan_flash_float_geo_v1: JSON.stringify({ x: 20, y: 30, w: 600, h: 400 }) });
+    await tick();
+    const api2 = globalThis.__flashFloat;
+    api2.open();
+    check("★ 上次拖到哪儿，下次就从哪儿开",
+      registry["fs-float"].style.left === "20px" && registry["fs-float"].style.top === "30px",
+      registry["fs-float"].style.left + " / " + registry["fs-float"].style.top);
+
+    check("切页前浮窗还开着", api2.isOpen() === true);
+    globalThis.__flashTestLoc.hash = "#/flash";
+    fireWin("hashchange", {});
+    check("★ 切回闪卡页自动收起（练习区该回家了，闪卡页看上去才是完整的）",
+      api2.isOpen() === false);
+  }
+
   cardsPayload = null;
   console.log("\n" + (fail === 0 ? "全部通过" : "有失败") + "：pass=" + pass + " fail=" + fail);
   process.exit(fail === 0 ? 0 : 1);

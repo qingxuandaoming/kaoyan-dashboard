@@ -414,6 +414,12 @@ const readCfgValue = (db, k, dflt) => {
 // ============================================================
 const { FSRS, parseConfig } = require('./fsrs_core');
 const gradeLlm = require('./grade_llm');
+// AI 手写的练习题 → 题库卡片（抠 cards 块 / 规范化 / 入库）。单独成模块是为了能
+// 单独跑用例——那段规则最脏，见 tools/test_study_cards.js。
+const studyCards = require('./study_cards');
+// 「网页里的 AI 自己调接口」的工具层（搜题库/搜笔记/归卡/开浮窗）。
+// 单独成模块：以后要把它包成 MCP 喂给 DeepSeek Harness，工具本身一行不用改。
+const studyAgent = require('./study_agent');
 
 // ---- 闪卡调度辅助 --------------------------------------------------------
 
@@ -718,7 +724,8 @@ const isPrivateAddress = (ip) => {
 
 /** 吃 AI 额度或能改配置的路径：只让内网来源碰。 */
 const SENSITIVE_PATHS = [
-  '/api/explain', '/api/notes/ask', '/api/study/chat', '/api/grade',
+  '/api/explain', '/api/notes/ask', '/api/study/chat', '/api/study/agent',
+  '/api/study/cards', '/api/grade',
   '/api/review/chat', '/api/ark', '/api/settings',
 ];
 const isSensitivePath = (u) => SENSITIVE_PATHS.some(p => String(u || '').indexOf(p) === 0);
@@ -1065,6 +1072,19 @@ const server = http.createServer((req, res) => {
     const rawTopic = (params.get('topic') || '').trim();
     const topic = /^[0-9A-Za-z\u4e00-\u9fa5-]{1,40}$/.test(rawTopic) ? rawTopic : '';
     if (topic) { where.push('t.id LIKE ?'); bind.push(topic + '%'); }
+    // ids：点名要哪几张卡（2026-09-22，薄弱点学习页「用闪卡练这几张」用）。
+    // AI 手写的题在 /api/study/cards 归卡后拿到 card_id，这里精确取回那几张。
+    // 卡号形态先过一遍白名单、上限 40 张，且全部走 ? 绑定 —— 前端传来的字符串
+    // 一律不许拼进 SQL。前端会同时带 mode=browse，于是不受每日额度影响
+    // （与筛选页自选同一条通道：用户点名要的就是这几张）。
+    const ids = String(params.get('ids') || '').split(',')
+      .map(s => s.trim())
+      .filter(s => /^[A-Za-z0-9_-]{1,40}$/.test(s))
+      .slice(0, 40);
+    if (ids.length) {
+      where.push('c.id IN (' + ids.map(() => '?').join(',') + ')');
+      ids.forEach(x => bind.push(x));
+    }
     const whereSql = 'WHERE ' + where.join(' AND ');   // 恒非空：至少有一条 suspended 条件
       // 今天已经答过的卡不再进**智能组**（review_log 是所有端共同的）→ 同一题一天只问一次。
       // 自选（browse）不过滤：用户就是想专门再刷一遍那个范围。
@@ -2593,7 +2613,23 @@ const server = http.createServer((req, res) => {
     '2. 讲清原理后，立刻给 1-2 道小题让他做（或指出该去刷哪类卡），不要只讲不练。',
     '3. 如果他有相关历史错因，明确点出来：「你上次就栽在这」。',
     '4. 需要他重读笔记时，给出笔记标题与路径，让他点开看，不要替他大段抄笔记原文。',
-    '5. 公式用 $...$；回复控制在 250 字以内。',
+    '5. 公式用 $...$；正文控制在 250 字以内。',
+    '',
+    '【出题必须机器可读（重要）】只要这一轮给了小题，就在回复最后追加一个 cards 代码块：',
+    '用 ```cards 开头、``` 结尾，块里放一个 JSON 数组，把这几道题原样再给一遍。',
+    '大盘靠这个块把题存进题库，学生才能一键在闪卡里练（有评分、有 FSRS 调度、有解析追问）；',
+    '没有这个块，题就只能留在聊天记录里，练不了。块内格式（示例）：',
+    '```cards',
+    '[{"type":"choice","stem":"题干","options":["甲","乙","丙","丁"],"answer":2,'
+      + '"explanation":"解析：为什么对、其余项为什么错","traps":["最容易犯的错"],"topic":"考点名称"}]',
+    '```',
+    '规则：',
+    '· 选择题：type 写 "choice"，options 恰好 4 条且**不要**自带 A./B./C./D. 前缀，渲染层自己加徽章；',
+    '  answer 是**正确项下标**（从 0 起，不是字母）。',
+    '· 判断题：type 写 "judge"，不要 options，answer 写 "正确" 或 "错误"。',
+    '· 填空题：type 写 "fill"，answer 写答案本身，题干里用 ____ 表示空缺。',
+    '· stem 只写题干，不要重复选项；explanation / traps 尽量写全，练的时候会显示出来。',
+    '· 这个 JSON 块不计入上面的字数限制；这一轮没出题就不要这个块。',
   ];
 
   // GET /api/review/overview — L1 热数据：会话索引 + 错因画像摘要
@@ -2851,6 +2887,54 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  /** 给归卡来的题找个 topic_id：先按模型给的考点名匹配，再用题干去 topics 里检索
+   *  （复用学习区那套口径）。匹配不上就留空——题目照样能练，只是统计里算「未归类」。 */
+  function studyTopicId(db, subject, topicName, stem) {
+    try {
+      if (topicName) {
+        const r = db.prepare('SELECT id FROM topics WHERE name = ? LIMIT 1').get(topicName);
+        if (r) return r.id;
+        const r2 = db.prepare('SELECT id FROM topics WHERE name LIKE ? ORDER BY LENGTH(name) LIMIT 1')
+          .get('%' + topicName + '%');
+        if (r2) return r2.id;
+      }
+      const hits = searchTopics(db, String(subject || '') || 'all', stem, 1);
+      if (hits && hits.length) return hits[0].id;
+    } catch (e) { /* 匹配不上不算失败 */ }
+    return '';
+  }
+
+  /** 学习区共同的上下文：题库命中的考点（含卡数与正确率）+ 可引用笔记 + 历史错因。
+   *  chat（只聊天）与 agent（能动手）两个端点共用，免得两处的检索口径慢慢跑偏。 */
+  function studyContext(db, subject, message, extraHint) {
+    const topics = searchTopics(db, subject, message, 8);
+    const subjList = (subject && subject !== 'all') ? [subject] : reviewStore.SUBJECTS;
+    const notes = [];
+    for (const s of subjList) for (const n of searchNotes(s, message, 3)) notes.push(n);
+    const causes = [];
+    for (const s of subjList) for (const line of causeDigest(s, 4)) causes.push(s + ' ' + line);
+    const ctx = [STUDY_SYSTEM.join('\n'), ''].join('\n')
+      + '\n【题库里对得上的考点（含现有卡数与正确率）】'
+      + (topics.length ? '\n' + topics.map(t => '- ' + t.id + ' ' + t.name
+          + '｜权重' + (t.exam_weight ?? '?') + '｜卡' + t.cards
+          + (t.acc != null ? '｜正确率' + t.acc + '%(' + t.answered + '次)' : '｜没练过')).join('\n') : '（无）')
+      + '\n\n【可引用的笔记】'
+      + (notes.length ? '\n' + notes.map(noteLine).join('\n') : '（无）')
+      + '\n\n【该生历史错因】' + (causes.length ? '\n' + causes.slice(0, 8).join('\n') : '（暂无）')
+      + (extraHint || '');
+    return { topics: topics, notes: notes, causes: causes, ctx: ctx };
+  }
+
+  /** 前端传来的对话历史：只留 role/content。
+   *  assistant 轮里还挂着 cards/trace（前端渲染用的），原样塞进 messages 会让模型
+   *  看到一段它没写过的 JSON，没必要；顺带把长度收一下防 prompt 膨胀。 */
+  function sanitizeHistory(raw) {
+    return (Array.isArray(raw) ? raw : []).slice(-12)
+      .map(h => ({ role: (h && h.role === 'assistant') ? 'assistant' : 'user',
+                   content: String((h && h.content) || '').slice(0, 4000) }))
+      .filter(h => h.content);
+  }
+
   // GET /api/study/context?q=&subject= — 学习区检索（L1：只给索引，正文按需再取）
   if (url.startsWith('/api/study/context') && req.method === 'GET') {
     try {
@@ -2886,33 +2970,274 @@ const server = http.createServer((req, res) => {
         if (!message) { sendJson(400, { ok: false, error: '消息不能为空' }); return; }
         if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 DeepSeek API key' }); return; }
         const subject = String(p.subject || 'all');
+        // 检索与上下文组装跟 agent 端点同源（studyContext），两处口径别各写一份
         const db = new DatabaseSync(DB_PATH, { readOnly: true });
-        const topics = searchTopics(db, subject, message, 8);
-        db.close();
-        const subjList = subject !== 'all' ? [subject] : reviewStore.SUBJECTS;
-        const notes = [];
-        for (const s of subjList) for (const n of searchNotes(s, message, 3)) notes.push(n);
-        const causes = [];
-        for (const s of subjList) for (const line of causeDigest(s, 4)) causes.push(s + ' ' + line);
-
-        const ctx = [STUDY_SYSTEM.join('\n'), ''].join('\n')
-          + '\n【题库里对得上的考点（含现有卡数与正确率）】'
-          + (topics.length ? '\n' + topics.map(t => '- ' + t.id + ' ' + t.name
-              + '｜权重' + (t.exam_weight ?? '?') + '｜卡' + t.cards
-              + (t.acc != null ? '｜正确率' + t.acc + '%(' + t.answered + '次)' : '｜没练过')).join('\n') : '（无）')
-          + '\n\n【可引用的笔记】'
-          + (notes.length ? '\n' + notes.map(noteLine).join('\n') : '（无）')
-          + '\n\n【该生历史错因】' + (causes.length ? '\n' + causes.slice(0, 8).join('\n') : '（暂无）');
-
-        const history = Array.isArray(p.history) ? p.history.slice(-12) : [];
+        let sc;
+        try { sc = studyContext(db, subject, message); }
+        finally { try { db.close(); } catch (e) {} }
+        const history = sanitizeHistory(p.history);
         const r = await gradeLlm.coachChat(
-          history.concat([{ role: 'user', content: message }]), ctx, { maxTokens: 3500 });
+          history.concat([{ role: 'user', content: message }]), sc.ctx, { maxTokens: 3500 });
         if (!r.ok) { sendJson(502, { ok: false, error: r.error }); return; }
+        // 手写题藏在末尾的 cards 块里：抠出来单独给前端（正文不留那段 JSON）。
+        // 前端拿 cards 才能显示「用闪卡练这 N 张」——那是没有工具时的退路。
+        const sp = studyCards.splitCards(r.text);
         sendJson(200, {
-          ok: true, text: r.text,
-          topics: topics.map(t => ({ ...t, prefix: topicPrefix(t.id) })),
-          notes: notes.slice(0, 6),
+          ok: true, text: sp.text,
+          cards: sp.cards,
+          topics: sc.topics.map(t => ({ ...t, prefix: topicPrefix(t.id) })),
+          notes: sc.notes.slice(0, 6),
         });
+      } catch (e) { sendJson(500, { ok: false, error: e.message }); }
+    });
+    return;
+  }
+
+  // POST /api/study/agent {message, subject?, history?} —— 会自己调接口的薄弱点学习 AI（2026-09-22）
+  //
+  // 与 /api/study/chat 的差别：那一版只能聊天（题写在正文里，学生再点按钮归卡），
+  // 这一版给模型一双手 —— 工具定义在 src/study_agent.js：
+  //   search_bank / search_notes / make_cards / open_practice
+  // 于是「我要练微分方程解的结构」这一句，它会自己查题库、自己出题、自己归卡、
+  // **自己把闪卡浮窗弹出来**（open_practice 只登记意图，真正弹窗是前端收到 actions 后做的）。
+  //
+  // 为什么放在服务端做这个回路：密钥只在服务端，浏览器的页面没法直接调模型；
+  // 而且工具里有「写题库」这种动作，放服务端才好记日志、好加闸门。
+  // ⚠️ 库要**读写**打开（make_cards 要写 questions+cards），整轮共用一个连接。
+  if (url === '/api/study/agent' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      let db = null;
+      try {
+        const p = JSON.parse(body || '{}');
+        const message = String(p.message || '').slice(0, 4000);
+        if (!message) { sendJson(400, { ok: false, error: '消息不能为空' }); return; }
+        if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 DeepSeek API key' }); return; }
+        const subject = String(p.subject || 'all');
+        db = new DatabaseSync(DB_PATH);
+        const sc = studyContext(db, subject, message, studyAgent.AGENT_HINT);
+        const history = sanitizeHistory(p.history);
+        const actions = [];
+        const runTool = studyAgent.makeToolRunner({
+          db, subject, today: localToday(), actions,
+          searchTopics: (d, subj, q, lim) => searchTopics(d, subj, q, lim),
+          searchNotes: (subj, q, lim) => searchNotes(subj, q, lim),
+          insertCards: (cards, subj) => studyCards.insertCards(db, cards, {
+            subject: subj === 'all' ? '' : subj, today: localToday(), findTopic: studyTopicId,
+          }),
+        });
+        const messages = [{ role: 'system', content: sc.ctx }]
+          .concat(history, [{ role: 'user', content: message }]);
+        const trace = [];
+        let text = '';
+        for (let round = 0; round < studyAgent.MAX_ROUNDS; round++) {
+          const r = await gradeLlm.agentTurn(messages, studyAgent.TOOLS, { maxTokens: 2500 });
+          if (!r.ok) { sendJson(502, { ok: false, error: r.error }); return; }
+          const calls = r.tool_calls || [];
+          if (!calls.length) { text = String(r.message.content || ''); break; }
+          // 工具调用必须原样回灌：assistant 的 tool_calls 与随后的 tool 结果要配成对
+          messages.push({ role: 'assistant', content: r.message.content || '', tool_calls: calls });
+          for (const call of calls) {
+            const name = String((call.function && call.function.name) || '');
+            let args = {};
+            try { args = JSON.parse((call.function && call.function.arguments) || '{}'); }
+            catch (e) { args = {}; }
+            let result;
+            try { result = await runTool(name, args); }
+            catch (e) { result = { ok: false, summary: name + ' 出错', error: e.message }; }
+            trace.push({ tool: name, summary: result.summary || name });
+            console.log('[Study/agent] tool ' + name + ' → ' + (result.summary || ''));
+            messages.push({ role: 'tool', tool_call_id: call.id,
+                            content: JSON.stringify(result).slice(0, 4000) });
+          }
+        }
+        if (!text) {
+          // 轮次用完了还没收尾：再问一次但**不给工具**，逼它给结论（不给就一直调工具）
+          const r2 = await gradeLlm.agentTurn(messages, null, { maxTokens: 2500 });
+          text = r2.ok ? String(r2.message.content || '') : '';
+          if (!text) { sendJson(502, { ok: false, error: r2.error || '模型没给出正文' }); return; }
+        }
+        const sp = studyCards.splitCards(text);
+        sendJson(200, {
+          ok: true, text: sp.text,
+          cards: sp.cards,             // 老前端（按钮那条路）的退路，照旧给
+          actions: actions,            // 前端要执行的动作：practice = 弹浮窗开练
+          trace: trace,                // 「AI 刚才干了什么」，显示在气泡下面
+          topics: sc.topics.map(t => ({ ...t, prefix: topicPrefix(t.id) })),
+          notes: sc.notes.slice(0, 6),
+        });
+      } catch (e) { sendJson(500, { ok: false, error: e.message }); }
+      finally { if (db) { try { db.close(); } catch (e) {} } }
+    });
+    return;
+  }
+
+  // POST /api/study/agent/stream —— 同上，但**边做边播**（SSE，2026-09-22）
+  //
+  // 为什么非流式不行：工具回路一轮十几秒，人只看到一个「思考中…」，完全不知道它是
+  // 在查题库、在写卡，还是卡住了。这里把三件事实时报出去：
+  //   ① round/thinking —— 还在想（连推演了多少字都报，证明它没死）
+  //   ② tool_start/tool —— 正在搜什么 / 搜到了什么
+  //   ③ delta —— 正文逐字
+  // 前端拿到就画在气泡里，中途还能看见「已 7s」在走。
+  //
+  // ⚠️ 这个端点**不能用 sendJson**（那是 JSON 一次性回的），必须自己 writeHead + write。
+  // ⚠️ 客户端中途关页面要停：res 的 'close' 一响就不再往外写，也别再做无谓的 LLM 调用。
+  if (url === '/api/study/agent/stream' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      let closed = false;
+      res.on('close', () => { closed = true; });
+      const sse = (obj) => {
+        if (closed || res.writableEnded) return;
+        try { res.write('data: ' + JSON.stringify(obj) + '\n\n'); } catch (e) {}
+      };
+      const finishStream = () => { if (!res.writableEnded) { try { res.end(); } catch (e) {} } };
+      let db = null;
+      try {
+        const p = JSON.parse(body || '{}');
+        const message = String(p.message || '').slice(0, 4000);
+        if (!message) { sse({ type: 'error', error: '消息不能为空' }); finishStream(); return; }
+        if (!gradeLlm.hasKey()) { sse({ type: 'error', error: '未配置 DeepSeek API key' }); finishStream(); return; }
+        const subject = String(p.subject || 'all');
+        db = new DatabaseSync(DB_PATH);
+        const sc = studyContext(db, subject, message, studyAgent.AGENT_HINT);
+        const history = sanitizeHistory(p.history);
+        const actions = [];
+        const runTool = studyAgent.makeToolRunner({
+          db, subject, today: localToday(), actions,
+          searchTopics: (d, subj, q, lim) => searchTopics(d, subj, q, lim),
+          searchNotes: (subj, q, lim) => searchNotes(subj, q, lim),
+          insertCards: (cards, subj) => studyCards.insertCards(db, cards, {
+            subject: subj === 'all' ? '' : subj, today: localToday(), findTopic: studyTopicId,
+          }),
+        });
+        const messages = [{ role: 'system', content: sc.ctx }]
+          .concat(history, [{ role: 'user', content: message }]);
+        const trace = [];
+        let text = '', useTools = studyAgent.TOOLS, noToolHinted = false;
+        // spoken：这一轮 AI **说过的所有话**（含调工具那几轮的开场白）。
+        // ⚠️ 收尾要用它而不是只用最后一轮的正文：模型常常在「要调工具」那条消息里
+        //    先说半句（实测 0.85s 就吐了字），那些字已经流到用户眼前了 —— 收尾再拿
+        //    最后一轮覆盖，用户会看到「刚写的字突然没了」。看到的要等于最后留下的。
+        let spoken = '';
+        sse({ type: 'start' });
+        for (let round = 0; round < studyAgent.MAX_ROUNDS; round++) {
+          if (closed) break;
+          sse({ type: 'round', n: round + 1 });
+          let rChars = 0, lastTick = 0;
+          const r = await gradeLlm.agentTurnStream(messages, useTools, {
+            maxTokens: 2500,
+          }, (ev) => {
+            if (closed) return;
+            if (ev.type === 'content') { spoken += ev.text; sse({ type: 'delta', text: ev.text }); return; }
+            // 推演按 250ms 上报一次字数就够（每个字都报会把连接刷爆，人也看不过来）
+            rChars += String(ev.text || '').length;
+            const now = Date.now();
+            if (now - lastTick > 250) { lastTick = now; sse({ type: 'thinking', chars: rChars }); }
+          });
+          if (!r.ok) {
+            // 模型/端点不支持工具调用：**不把这一轮废掉**，改成「没有工具」再试一次，
+            // 让模型退回 cards 块那条路（前端照旧能出「用闪卡练这几张」按钮）。
+            if (round === 0 && !noToolHinted && /tool|function|400|422/i.test(r.error || '')) {
+              console.warn('[Study/agent/stream] 工具调用不被支持，退回无工具模式：' + r.error);
+              noToolHinted = true; useTools = null;
+              messages.push({ role: 'system',
+                content: '本轮没有工具可用。出了小题就把它们放进正文末尾的 cards JSON 块里（格式见前文）。' });
+              continue;
+            }
+            sse({ type: 'error', error: r.error || '模型调用失败' });
+            finishStream(); return;
+          }
+          const calls = r.tool_calls || [];
+          if (!calls.length) { text = String(r.message.content || ''); break; }
+          messages.push({ role: 'assistant', content: r.message.content || '', tool_calls: calls });
+          for (const call of calls) {
+            if (closed) break;
+            const name = String((call.function && call.function.name) || '');
+            let args = {};
+            try { args = JSON.parse((call.function && call.function.arguments) || '{}'); }
+            catch (e) { args = {}; }
+            sse({ type: 'tool_start', tool: name, label: studyAgent.runningLabel(name, args) });
+            let result;
+            try { result = await runTool(name, args); }
+            catch (e) { result = { ok: false, summary: name + ' 出错', error: e.message }; }
+            trace.push({ tool: name, summary: result.summary || name });
+            console.log('[Study/agent] tool ' + name + ' → ' + (result.summary || ''));
+            sse({ type: 'tool', tool: name, summary: result.summary || name, ok: result.ok !== false });
+            messages.push({ role: 'tool', tool_call_id: call.id,
+                            content: JSON.stringify(result).slice(0, 4000) });
+          }
+        }
+        if (!text && !closed) {
+          // 轮次用完了还没收尾：再问一次但**不给工具**，逼它给结论
+          sse({ type: 'round', n: studyAgent.MAX_ROUNDS + 1 });
+          const r2 = await gradeLlm.agentTurnStream(messages, null, { maxTokens: 2500 }, (ev) => {
+            if (closed || ev.type !== 'content') return;
+            spoken += ev.text;
+            sse({ type: 'delta', text: ev.text });
+          });
+          text = r2.ok ? String(r2.message.content || '') : '';
+          if (!text && !closed) { sse({ type: 'error', error: r2.error || '模型没给出正文' }); finishStream(); return; }
+        }
+        // 用「说过的话」收尾（见 spoken 的说明）；真的一句都没说过才退回最后一轮的正文
+        const sp = studyCards.splitCards(spoken.trim() ? spoken : text);
+        sse({
+          type: 'done', text: sp.text, cards: sp.cards, actions: actions, trace: trace,
+          topics: sc.topics.map(t => ({ ...t, prefix: topicPrefix(t.id) })),
+          notes: sc.notes.slice(0, 6),
+        });
+      } catch (e) {
+        console.warn('[Study/agent/stream] 出错：' + e.message);
+        sse({ type: 'error', error: e.message });
+      } finally {
+        if (db) { try { db.close(); } catch (e) {} }
+        finishStream();
+      }
+    });
+    return;
+  }
+
+  // POST /api/study/cards {cards:[…], subject?} —— 「用闪卡练这几张」的归卡口（2026-09-22）
+  //
+  // 学习页里 AI 手写的题必须先落进题库，才有卡号可练：闪卡的评分、撤销、进度存档、
+  // 多端续刷全都以 card_id 为准，拿一批「临时卡」去练等于练完就散、还进不了 FSRS。
+  // 所以这里写库（questions + cards），前端拿 card_ids 后交给闪卡模块精确组题
+  // （?ids=…&mode=browse，见 /api/flashcards/session）。
+  // 同题干不重复入库：直接复用已有那张卡，卡号照给——「再问一遍同一个知识点」很常见。
+  if (url === '/api/study/cards' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const p = JSON.parse(body || '{}');
+        const cards = studyCards.normalizeCards(Array.isArray(p.cards) ? p.cards : []);
+        if (!cards.length) {
+          sendJson(400, { ok: false, error: '没有可入库的题（题干或选项不完整）' });
+          return;
+        }
+        const db = new DatabaseSync(DB_PATH);
+        let out;
+        try {
+          out = studyCards.insertCards(db, cards, {
+            subject: String(p.subject || ''),
+            today: localToday(),
+            findTopic: studyTopicId,
+          });
+        } finally {
+          try { db.close(); } catch (e) {}
+        }
+        console.log('[Study] 归卡：新增 ' + out.inserted + ' 张，复用 ' + out.reused + ' 张');
+        sendJson(200, { ok: true, inserted: out.inserted, reused: out.reused,
+                        card_ids: out.card_ids, total: cards.length });
       } catch (e) { sendJson(500, { ok: false, error: e.message }); }
     });
     return;
