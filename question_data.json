@@ -1639,8 +1639,8 @@
       "created_at": "2026-07-11 02:33:34"
     },
     {
-      "id": "Q-POL-MZ-04-0001",
-      "topic_id": "POL-MZ-04",
+      "id": "Q-POL-MZ-06-0001",
+      "topic_id": "POL-MZ-06",
       "type": "choice",
       "difficulty": 0.5,
       "source": "AI生成",
@@ -1723,8 +1723,8 @@
       "created_at": "2026-07-11 02:33:34"
     },
     {
-      "id": "Q-POL-XX-01-0001",
-      "topic_id": "POL-XX-01",
+      "id": "Q-POL-XX-00-0001",
+      "topic_id": "POL-XX-00",
       "type": "choice",
       "difficulty": 0.4,
       "source": "AI生成",
@@ -1737,8 +1737,8 @@
       "created_at": "2026-07-11 02:33:34"
     },
     {
-      "id": "Q-POL-XX-01-0002",
-      "topic_id": "POL-XX-01",
+      "id": "Q-POL-XX-00-0002",
+      "topic_id": "POL-XX-00",
       "type": "choice",
       "difficulty": 0.5,
       "source": "AI生成",
@@ -3720,8 +3720,8 @@
       "interval_days": 0.0
     },
     {
-      "id": "C-POL-MZ-04-0001",
-      "question_id": "Q-POL-MZ-04-0001",
+      "id": "C-POL-MZ-06-0001",
+      "question_id": "Q-POL-MZ-06-0001",
       "state": 0,
       "difficulty": 0.0,
       "stability": 0.0,
@@ -3798,8 +3798,8 @@
       "interval_days": 0.0
     },
     {
-      "id": "C-POL-XX-01-0001",
-      "question_id": "Q-POL-XX-01-0001",
+      "id": "C-POL-XX-00-0001",
+      "question_id": "Q-POL-XX-00-0001",
       "state": 0,
       "difficulty": 0.0,
       "stability": 0.0,
@@ -3811,8 +3811,8 @@
       "interval_days": 0.0
     },
     {
-      "id": "C-POL-XX-01-0002",
-      "question_id": "Q-POL-XX-01-0002",
+      "id": "C-POL-XX-00-0002",
+      "question_id": "Q-POL-XX-00-0002",
       "state": 0,
       "difficulty": 0.0,
       "stability": 0.0,
@@ -5570,22 +5570,6 @@
         "created_at": "2026-07-11 02:33:34"
       }
     ],
-    "POL-MZ-04": [
-      {
-        "id": "Q-POL-MZ-04-0001",
-        "topic_id": "POL-MZ-04",
-        "type": "choice",
-        "difficulty": 0.5,
-        "source": "AI生成",
-        "year": null,
-        "content": "{\"stem\": \"社会主义初级阶段的两层含义是：\", \"explanation\": \"社会主义初级阶段两层含义：①我国已经是社会主义社会（性质），必须坚持而不能离开社会主义；②我国的社会主义还处在初级阶段（程度），必须从这个实际出发，不能超越这个阶段。\", \"tags\": [\"概念辨析\", \"初级阶段\"], \"options\": [\"我国已经是社会主义社会，我国的社会主义还处在初级阶段\", \"我国经济落后，政治制度不完善\", \"我国是发展中国家，需要快速发展\", \"我国生产力水平低，人民生活水平不高\"], \"answer\": 0}",
-        "times_asked": 0,
-        "times_correct": 0,
-        "avg_time_sec": 0.0,
-        "last_asked": null,
-        "created_at": "2026-07-11 02:33:34"
-      }
-    ],
     "POL-SG-01": [
       {
         "id": "Q-POL-SG-01-0001",
@@ -5655,36 +5639,6 @@
         "source": "AI生成",
         "year": null,
         "content": "{\"stem\": \"法律权利和法律义务是对立统一的关系，两者不可分离。\", \"explanation\": \"正确。法律权利与法律义务是对立统一的：①结构上相互关联（权利的存在以义务的存在为前提）；②总量上等值（权利总量=义务总量）；③功能上互补；④价值上主次不同（现代法治以权利为本位）。\", \"tags\": [\"概念辨析\", \"权利\", \"义务\"], \"options\": [\"正确\", \"错误\"], \"answer\": true}",
-        "times_asked": 0,
-        "times_correct": 0,
-        "avg_time_sec": 0.0,
-        "last_asked": null,
-        "created_at": "2026-07-11 02:33:34"
-      }
-    ],
-    "POL-XX-01": [
-      {
-        "id": "Q-POL-XX-01-0001",
-        "topic_id": "POL-XX-01",
-        "type": "choice",
-        "difficulty": 0.4,
-        "source": "AI生成",
-        "year": null,
-        "content": "{\"stem\": \"中国特色社会主义最本质的特征是：\", \"explanation\": \"中国共产党的领导是中国特色社会主义最本质的特征，是中国特色社会主义制度的最大优势。党是最高政治领导力量。这是习近平新时代中国特色社会主义思想的核心要义之一。\", \"tags\": [\"笔记要点\", \"党的领导\"], \"options\": [\"人民民主专政\", \"中国共产党的领导\", \"社会主义市场经济\", \"依法治国\"], \"answer\": 1}",
-        "times_asked": 0,
-        "times_correct": 0,
-        "avg_time_sec": 0.0,
-        "last_asked": null,
-        "created_at": "2026-07-11 02:33:34"
-      },
-      {
-        "id": "Q-POL-XX-01-0002",
-        "topic_id": "POL-XX-01",
-        "type": "choice",
-        "difficulty": 0.5,
-        "source": "AI生成",
-        "year": null,
-        "content": "{\"stem\": \"'四个全面'战略布局中，作为战略目标的是：\", \"explanation\": \"四个全面：①全面建设社会主义现代化国家（战略目标）；②全面深化改革（战略举措/动力）；③全面依法治国（战略举措/保障）；④全面从严治党（战略举措/保证）。注意：原来是'全面建成小康社会'，2020年后更新为'现代化'。\", \"tags\": [\"易错点\", \"四个全面\"], \"options\": [\"全面建设社会主义现代化国家\", \"全面深化改革\", \"全面依法治国\", \"全面从严治党\"], \"answer\": 0}",
         "times_asked": 0,
         "times_correct": 0,
         "avg_time_sec": 0.0,
@@ -5945,6 +5899,52 @@
         "source": "AI生成",
         "year": null,
         "content": "{\"stem\": \"完形填空中，选择最佳答案的第一步应该是：\", \"explanation\": \"完形填空的正确做题步骤：①先通读全文（跳过空格），把握文章主旨和逻辑脉络；②再逐空分析，结合上下文语境选择；③最后通读检查。不看全文直接填空容易选错，因为很多空需要上下文线索。\", \"tags\": [\"方法总结\", \"完形填空\"], \"options\": [\"看四个选项的区别\", \"通读全文了解大意\", \"直接根据语法选择\", \"从第一个空开始逐个填\"], \"answer\": 1}",
+        "times_asked": 0,
+        "times_correct": 0,
+        "avg_time_sec": 0.0,
+        "last_asked": null,
+        "created_at": "2026-07-11 02:33:34"
+      }
+    ],
+    "POL-MZ-06": [
+      {
+        "id": "Q-POL-MZ-06-0001",
+        "topic_id": "POL-MZ-06",
+        "type": "choice",
+        "difficulty": 0.5,
+        "source": "AI生成",
+        "year": null,
+        "content": "{\"stem\": \"社会主义初级阶段的两层含义是：\", \"explanation\": \"社会主义初级阶段两层含义：①我国已经是社会主义社会（性质），必须坚持而不能离开社会主义；②我国的社会主义还处在初级阶段（程度），必须从这个实际出发，不能超越这个阶段。\", \"tags\": [\"概念辨析\", \"初级阶段\"], \"options\": [\"我国已经是社会主义社会，我国的社会主义还处在初级阶段\", \"我国经济落后，政治制度不完善\", \"我国是发展中国家，需要快速发展\", \"我国生产力水平低，人民生活水平不高\"], \"answer\": 0}",
+        "times_asked": 0,
+        "times_correct": 0,
+        "avg_time_sec": 0.0,
+        "last_asked": null,
+        "created_at": "2026-07-11 02:33:34"
+      }
+    ],
+    "POL-XX-00": [
+      {
+        "id": "Q-POL-XX-00-0001",
+        "topic_id": "POL-XX-00",
+        "type": "choice",
+        "difficulty": 0.4,
+        "source": "AI生成",
+        "year": null,
+        "content": "{\"stem\": \"中国特色社会主义最本质的特征是：\", \"explanation\": \"中国共产党的领导是中国特色社会主义最本质的特征，是中国特色社会主义制度的最大优势。党是最高政治领导力量。这是习近平新时代中国特色社会主义思想的核心要义之一。\", \"tags\": [\"笔记要点\", \"党的领导\"], \"options\": [\"人民民主专政\", \"中国共产党的领导\", \"社会主义市场经济\", \"依法治国\"], \"answer\": 1}",
+        "times_asked": 0,
+        "times_correct": 0,
+        "avg_time_sec": 0.0,
+        "last_asked": null,
+        "created_at": "2026-07-11 02:33:34"
+      },
+      {
+        "id": "Q-POL-XX-00-0002",
+        "topic_id": "POL-XX-00",
+        "type": "choice",
+        "difficulty": 0.5,
+        "source": "AI生成",
+        "year": null,
+        "content": "{\"stem\": \"'四个全面'战略布局中，作为战略目标的是：\", \"explanation\": \"四个全面：①全面建设社会主义现代化国家（战略目标）；②全面深化改革（战略举措/动力）；③全面依法治国（战略举措/保障）；④全面从严治党（战略举措/保证）。注意：原来是'全面建成小康社会'，2020年后更新为'现代化'。\", \"tags\": [\"易错点\", \"四个全面\"], \"options\": [\"全面建设社会主义现代化国家\", \"全面深化改革\", \"全面依法治国\", \"全面从严治党\"], \"answer\": 0}",
         "times_asked": 0,
         "times_correct": 0,
         "avg_time_sec": 0.0,
@@ -7551,7 +7551,7 @@
       "interval_days": 0.0
     },
     "C-POL-MZ-04-0001": {
-      "question_id": "Q-POL-MZ-04-0001",
+      "question_id": "Q-POL-MZ-06-0001",
       "state": 0,
       "difficulty": 0.0,
       "stability": 0.0,
@@ -7623,7 +7623,7 @@
       "interval_days": 0.0
     },
     "C-POL-XX-01-0001": {
-      "question_id": "Q-POL-XX-01-0001",
+      "question_id": "Q-POL-XX-00-0001",
       "state": 0,
       "difficulty": 0.0,
       "stability": 0.0,
@@ -7635,7 +7635,7 @@
       "interval_days": 0.0
     },
     "C-POL-XX-01-0002": {
-      "question_id": "Q-POL-XX-01-0002",
+      "question_id": "Q-POL-XX-00-0002",
       "state": 0,
       "difficulty": 0.0,
       "stability": 0.0,

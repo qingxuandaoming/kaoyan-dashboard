@@ -39,7 +39,9 @@ EN_PREFIX_ALIAS = {"ENG-TRN": "ENG-TRAN"}
 
 # 跨科目方法论专题：内容本就是跨章的横向汇总，强行归到某一格反而是错的，
 # 因此解析为空前缀，调用方按「不计入任何章节」处理。
-CROSS_SUBJECT_PREFIXES = {"ZT"}
+#   ZT = Politics/专题/ 下的方法论专题
+#   QT = 政治强化.md 里的优题库错题知识点（散记，无章节归属，二刷中持续补充）
+CROSS_SUBJECT_PREFIXES = {"ZT", "QT"}
 
 
 def note_entry_prefix(eid) -> str:
