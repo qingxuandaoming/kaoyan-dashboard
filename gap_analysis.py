@@ -571,8 +571,10 @@ def apply_english_overlay(topic_results, progress_data):
     ENGLISH_PROBE_WARN.extend(warns)
 
     # coverage_info 沿用原结构：{子科: {"metric": 摘要, "details": {topic_id: bool}}}
+    # key 是考点 ID 的第二段；value 必须与图谱的 sub 名逐字一致，否则覆盖结果会被丢掉。
+    # 「翻译与完形」拆成两个题型后，TRN 换成 CLOZE/TRAN（2026-09-17）。
     SUB_OF = {"VOC": "词汇", "GRAM": "语法与长难句", "READ": "阅读理解",
-              "WRITE": "写作", "TRN": "翻译与完形"}
+              "WRITE": "写作", "CLOZE": "完形填空", "TRAN": "翻译"}
     coverage_info = {s: {"metric": metrics.get(s, ""), "details": {}}
                      for s in SUB_OF.values()}
     for tid, (ok, _why) in cov.items():

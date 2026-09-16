@@ -24,9 +24,9 @@ import os
 TYPE_KEYS = [
     "ENG-VOC-01", "ENG-VOC-02", "ENG-VOC-03", "ENG-VOC-04",
     "ENG-GRAM-01", "ENG-GRAM-02",
-    "ENG-READ-01", "ENG-READ-02", "ENG-READ-03", "ENG-READ-04",
+    "ENG-READ-01", "ENG-READ-02", "ENG-READ-03",
     "ENG-WRITE-01", "ENG-WRITE-02", "ENG-WRITE-03",
-    "ENG-TRN-01", "ENG-TRN-02",
+    "ENG-CLOZE-01", "ENG-TRAN-01",
 ]
 
 # Part B 的专项材料长什么样：七选五 / 小标题匹配 / 段落排序 / 信息匹配
@@ -174,9 +174,10 @@ def english_type_coverage(kaoyan_root, progress_data, review_counts=None):
     # 阅读
     decide("ENG-READ-01", len(read_topics) >= 3 or synonym,
            f"阅读专题{len(read_topics)}讲+同义替换{'✓' if synonym else '✗'}")
-    decide("ENG-READ-02", len(partb) >= 1, f"PartB专项材料{len(partb)}份")
+    decide("ENG-READ-02", len(partb) >= 1, f"PartB/新题型专项材料{len(partb)}份")
     decide("ENG-READ-03", len(papers_y1) >= 1, f"英一真题逐词翻译{len(papers_y1)}份")
-    decide("ENG-READ-04", len(partb) >= 2, f"新题型材料{len(partb)}份")
+    # ENG-READ-04「新题型专项」已删除：Part B 就是新题型，与 ENG-READ-02 重复，
+    # 两者原先都靠同一个 partb 列表判定（2026-09-17）。
     metrics["阅读理解"] = (f"阅读专题{len(read_topics)}讲 同义替换{'✓' if synonym else '✗'} "
                           f"英一真题{len(papers_y1)}份 PartB/新题型材料{len(partb)}份")
     if not cov["ENG-READ-02"][0]:
@@ -190,12 +191,14 @@ def english_type_coverage(kaoyan_root, progress_data, review_counts=None):
     metrics["写作"] = (f"小作文批改{len(small_essay)}篇 大作文批改{len(big_essay)}篇 "
                       f"积累{'✓' if write_accum else '✗'}")
 
-    # 完形与翻译
-    decide("ENG-TRN-01", len(cloze) >= 1, f"完形材料{len(cloze)}份")
-    decide("ENG-TRN-02", len(translation_files) >= 1,
+    # 完形填空 / 翻译 —— 原为同一个科目「翻译与完形」，前缀都是 ENG-TRN（误导：
+    # 用户笔记规范里 ENG-TRN 专指翻译练习），2026-09-17 拆成两个独立题型。
+    decide("ENG-CLOZE-01", len(cloze) >= 1, f"完形材料{len(cloze)}份")
+    decide("ENG-TRAN-01", len(translation_files) >= 1,
            f"翻译练习{len(translation_files)}篇（真题精讲{len(translation_real)}）")
-    metrics["翻译与完形"] = (f"完形材料{len(cloze)}份 翻译练习{len(translation_files)}篇"
-                            f"（含真题精讲{len(translation_real)}）")
+    metrics["完形填空"] = f"完形材料{len(cloze)}份"
+    metrics["翻译"] = (f"翻译练习{len(translation_files)}篇"
+                      f"（含真题精讲{len(translation_real)}）")
 
     return cov, metrics, warn
 

@@ -74,13 +74,15 @@ NOTE_PREFIX_MAP = {
     # 英语写作笔记的闪卡联动因此长期为 0（2026-09-14 修正）。
     "English/word&phrase": "ENG-VOC", "English/grammar": "ENG-GRAM",
     "English/reading&magazines": "ENG-READ", "English/translation&write": "ENG-WRITE",
-    "English/past-papers": "ENG-TRN",
+    # past-papers 是混合目录（完形填空方法论.md + 真题笔记.md），按其中的
+    # 题型专属材料归到完形；ENG-TRN 这个前缀已随「翻译与完形」拆分取消（2026-09-17）。
+    "English/past-papers": "ENG-CLOZE",
 }
 SUBJECT_ALL_PREFIXES = {
     "408": ["408-DS", "408-CO", "408-OS", "408-CN"],
     "数学": ["MATH-GS", "MATH-XD", "MATH-GL"],
     "政治": ["POL-MY", "POL-SG", "POL-MZ", "POL-SX", "POL-XX"],
-    "英语": ["ENG-VOC", "ENG-GRAM", "ENG-READ", "ENG-WRITE", "ENG-TRN"],
+    "英语": ["ENG-VOC", "ENG-GRAM", "ENG-READ", "ENG-WRITE", "ENG-CLOZE", "ENG-TRAN"],
 }
 
 # 政治笔记的短编号（MY-001 / 思修-001 / ZT-001）与图谱前缀（POL-MY）不是一套体系，
@@ -5549,7 +5551,7 @@ REVIVE_JS = '''
         "POL-SX": "政治/思修", "POL-XX": "政治/习思想",
         "ENG-VOC": "英语/词汇", "ENG-GRAM": "英语/语法",
         "ENG-READ": "英语/阅读", "ENG-WRITE": "英语/写作",
-        "ENG-TRN": "英语/翻译与完形"
+        "ENG-CLOZE": "英语/完形", "ENG-TRAN": "英语/翻译"
     };
     const CAT_META = {
         hot: { label: "热", color: PALETTE.zhuqing }, warm: { label: "温", color: PALETTE.xiang },

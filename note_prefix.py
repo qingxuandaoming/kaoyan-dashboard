@@ -32,6 +32,11 @@ NOTE_PREFIX_ALIAS = {
     "思修": "POL-SX",   # 思修（该科笔记用的是中文前缀，不是拼音缩写）
 }
 
+# 英语：既有笔记 ID 沿用 ENG-TRN（用户笔记规范里 ENG-TRN = 翻译练习），
+# 但 ENG-TRN 这个考点前缀已随「翻译与完形」拆分取消，翻译现为 ENG-TRAN，
+# 故把笔记侧的前缀桥接过去。完形侧没有历史笔记。
+EN_PREFIX_ALIAS = {"ENG-TRN": "ENG-TRAN"}
+
 # 跨科目方法论专题：内容本就是跨章的横向汇总，强行归到某一格反而是错的，
 # 因此解析为空前缀，调用方按「不计入任何章节」处理。
 CROSS_SUBJECT_PREFIXES = {"ZT"}
@@ -55,7 +60,8 @@ def note_entry_prefix(eid) -> str:
     if root in CROSS_SUBJECT_PREFIXES:
         return ""
     if len(parts) >= 2:
-        return "-".join(parts[:2])
+        two = "-".join(parts[:2])
+        return EN_PREFIX_ALIAS.get(two, two)
     return root
 
 
