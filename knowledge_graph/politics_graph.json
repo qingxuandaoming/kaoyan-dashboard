@@ -930,6 +930,134 @@
             "（多选）新民主主义革命胜利的基本经验",
             "（多选）新中国成立的历史意义"
           ]
+        },
+        {
+          "id": "POL-SG-08",
+          "name": "中华人民共和国的成立与中国社会主义建设道路的探索",
+          "chapter": 8,
+          "exam_weight": 3,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "POL-SG-07"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SG-08-01",
+              "name": "新民主主义革命胜利的意义与基本经验",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-08-02",
+              "name": "社会主义改造（一化三改）",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-SG-08-03",
+              "name": "人民代表大会制度的确立",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-08-04",
+              "name": "社会主义基本制度确立的历史意义",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）社会主义改造基本完成的标志",
+            "（多选）党在过渡时期总路线的内容",
+            "（多选）人民代表大会制度确立的过程",
+            "（分析题）为什么说社会主义改造是历史必然"
+          ]
+        },
+        {
+          "id": "POL-SG-09",
+          "name": "改革开放与中国特色社会主义的开创和发展",
+          "chapter": 9,
+          "exam_weight": 3,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-SG-08"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SG-09-01",
+              "name": "十一届三中全会与历史性伟大转折",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-SG-09-02",
+              "name": "农村经济体制改革与家庭联产承包责任制",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-09-03",
+              "name": "社会主义市场经济体制的确立",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-09-04",
+              "name": "中国特色社会主义理论体系的形成与发展",
+              "weight": 1,
+              "difficulty": 0.6
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）十一届三中全会的意义",
+            "（多选）家庭联产承包责任制的推行",
+            "（多选）邓小平南方谈话的主要内容",
+            "（分析题）改革开放的历史必然性"
+          ]
+        },
+        {
+          "id": "POL-SG-10",
+          "name": "中国特色社会主义进入新时代",
+          "chapter": 10,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "POL-SG-09"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SG-10-01",
+              "name": "新时代的内涵与我国社会主要矛盾的转化",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-SG-10-02",
+              "name": "全面建成小康社会与脱贫攻坚",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-10-03",
+              "name": "新时代的历史性成就与历史性变革",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）我国社会主要矛盾的转化",
+            "（多选）新时代的历史性成就",
+            "（多选）脱贫攻坚的意义"
+          ]
         }
       ]
     },
@@ -1210,7 +1338,7 @@
         }
       ]
     },
-    "形势与政策以及当代世界经济与政治": {
+    "习近平新时代中国特色社会主义思想概论": {
       "code": "POL-XX",
       "total_weight": 21,
       "weight_percent": "22%",
@@ -1625,6 +1753,164 @@
             "（单选）总体国家安全观的宗旨",
             "（多选）一带一路建设的原则",
             "（多选）新型国际关系的内涵"
+          ]
+        },
+        {
+          "id": "POL-XX-10",
+          "name": "建设社会主义文化强国",
+          "chapter": 10,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 4,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "POL-XX-10-01",
+              "name": "文化自信与建设社会主义文化强国",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-10-02",
+              "name": "意识形态工作的领导权",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-10-03",
+              "name": "中华优秀传统文化的创造性转化、创新性发展",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）文化自信的地位",
+            "（多选）掌握意识形态工作领导权的举措",
+            "（多选）\"两个结合\"的内涵"
+          ]
+        },
+        {
+          "id": "POL-XX-11",
+          "name": "以保障和改善民生为重点加强社会建设",
+          "chapter": 11,
+          "exam_weight": 3,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "POL-XX-11-01",
+              "name": "民生是最大的政治",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-11-02",
+              "name": "实施就业优先战略",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-XX-11-03",
+              "name": "社会保障体系与健康中国建设",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-11-04",
+              "name": "打造共建共治共享的社会治理格局",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）民生是最大的政治",
+            "（多选）实施就业优先战略的举措",
+            "（多选）社会保障体系的主要内容",
+            "（分析题）共同富裕的实践路径"
+          ]
+        },
+        {
+          "id": "POL-XX-12",
+          "name": "建设社会主义生态文明",
+          "chapter": 12,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 4,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "POL-XX-12-01",
+              "name": "人与自然和谐共生的现代化",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-12-02",
+              "name": "绿水青山就是金山银山",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-12-03",
+              "name": "碳达峰碳中和与绿色低碳发展",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）生态文明建设的核心理念",
+            "（多选）\"双碳\"目标的内涵",
+            "（多选）推动绿色低碳发展的举措"
+          ]
+        },
+        {
+          "id": "POL-XX-13",
+          "name": "坚持\"一国两制\"和推进祖国完全统一",
+          "chapter": 13,
+          "exam_weight": 3,
+          "exam_points": "2-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "POL-XX-13-01",
+              "name": "\"一国两制\"的形成与科学内涵",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-13-02",
+              "name": "\"一国\"与\"两制\"的关系",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-XX-13-03",
+              "name": "港澳融入国家发展大局（粤港澳大湾区）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-13-04",
+              "name": "推进祖国完全统一",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）\"一国两制\"的前提和基础",
+            "（多选）\"一国\"与\"两制\"的辩证关系",
+            "（多选）粤港澳大湾区建设的意义",
+            "（多选）推进祖国完全统一的举措"
           ]
         }
       ]

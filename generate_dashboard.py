@@ -83,33 +83,10 @@ SUBJECT_ALL_PREFIXES = {
     "英语": ["ENG-VOC", "ENG-GRAM", "ENG-READ", "ENG-WRITE", "ENG-TRN"],
 }
 
-# 政治笔记用 MY-001 / SG-003 这类短编号，知识图谱用 POL-MY-01 / POL-SG-03。
-# 两套 ID 体系互不相通，取前两段永远拼不出图谱前缀，所以政治笔记在热力图上
-# 长期整片 0%（2026-09-14 加桥修正）。
-NOTE_PREFIX_ALIAS = {
-    "MY":  "POL-MY",   # 马原
-    "MZT": "POL-MZ",   # 毛中特
-    "SG":  "POL-SG",   # 史纲
-    "XSX": "POL-SX",   # 思修
-    "ZT":  "POL-XX",   # 习思想（专题类汇总）
-}
-
-
-def note_entry_prefix(eid) -> str:
-    """笔记条目 ID → 知识图谱科目前缀。
-
-    408/数学写成 408-DS-01 / MATH-GS-04，前两段即图谱前缀；
-    政治写成 MY-001 / SG-003，需经 NOTE_PREFIX_ALIAS 换成 POL-MY / POL-SG。
-    """
-    parts = str(eid or "").split("-")
-    if not parts or not parts[0]:
-        return ""
-    root = parts[0]
-    if root in NOTE_PREFIX_ALIAS:
-        return NOTE_PREFIX_ALIAS[root]
-    if len(parts) >= 2:
-        return "-".join(parts[:2])
-    return root
+# 政治笔记的短编号（MY-001 / 思修-001 / ZT-001）与图谱前缀（POL-MY）不是一套体系，
+# 映射表抽到 note_prefix.py 与 gap_analysis.py 共用——两个脚本各存一份正是
+# 「XSX 被错映射到 POL-SX」和「思修笔记无人认领」两个 bug 的来源（2026-09-17 修）。
+from note_prefix import note_entry_prefix  # noqa: E402
 
 def note_files_for(rel: str) -> list:
     """列出某个笔记前缀对应的 .md 文件。
@@ -631,7 +608,7 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
 
     if not covered_topic_ids:
         entry_chapters = {}   # "MATH-GS" -> {4, 5, ...}
-        unmapped_notes = {}   # 前缀 -> 落不到任何图谱章节的条目数
+        no_chapter_notes = {}   # 前缀 -> 无章节号（跨章汇总）的条目数
         for e in entries:
             pfx = note_entry_prefix(e.get("id", ""))
             if not pfx:
@@ -641,7 +618,7 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
                 entry_chapters.setdefault(pfx, set()).add(int(m.group()))
             else:
                 # 「专题」这类无章节号条目跨章汇总，无法归属到某一格
-                unmapped_notes[pfx] = unmapped_notes.get(pfx, 0) + 1
+                no_chapter_notes[pfx] = no_chapter_notes.get(pfx, 0) + 1
 
         graph_chapters = {}
         for subj, graph in graphs.items():
@@ -656,13 +633,18 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
 
         # 笔记章节号超出图谱章节范围（如史纲第 9 章 vs 图谱只到第 7 章）会被
         # 静默丢掉——这正是「政治整片 0%」最难发现的一层，所以显式报出来。
+        # 与「无章节号」分开报：前者是图谱缺内容（真问题），后者是跨章专题（正常）。
+        out_of_range = {}
         for pfx, chs in entry_chapters.items():
-            extra = chs - graph_chapters.get(pfx, set())
+            extra = sorted(chs - graph_chapters.get(pfx, set()))
             if extra:
-                unmapped_notes[pfx] = unmapped_notes.get(pfx, 0) + len(extra)
-        if unmapped_notes:
-            print("  WARN: 有笔记未能落到图谱章节 -> "
-                  + ", ".join(f"{k}={v} 处" for k, v in sorted(unmapped_notes.items())))
+                out_of_range[pfx] = extra
+        if out_of_range:
+            print("  WARN: 笔记章节号超出图谱范围（图谱缺章节）-> "
+                  + ", ".join(f"{k} 第{v}章" for k, v in sorted(out_of_range.items())))
+        if no_chapter_notes:
+            print("  INFO: 无章节号笔记（跨章专题，不计入章节覆盖）-> "
+                  + ", ".join(f"{k}={v} 处" for k, v in sorted(no_chapter_notes.items())))
 
     # --- 英语题型证据补覆盖（与 gap_analysis 共用 english_coverage，避免两边口径打架）---
     # 大盘原本只认「笔记索引里有没有条目」，但用户的作文批改、阅读专题讲义、完形讲义都躺在
@@ -1201,6 +1183,49 @@ FLASH_CSS = '''
         .fs-exp-body .md-table th { background: var(--bg-secondary); color: var(--text-primary);
             font-weight: 600; white-space: nowrap; }
         .fs-exp-body strong { color: var(--text-primary); }
+
+        /* --- 闪卡浮窗（2026-09-22）---
+           「别的页也能直接刷闪卡」：练习区**整个节点**被搬进这一层浮窗（同番茄钟的
+           节点搬家，不是复制一套 UI），所以全屏、音效、学习计时、键盘、评分、
+           AI 解析、进度同步全部照旧，一行都不用重写（见 FLASH_JS 的浮窗段）。
+           z-index 860：高于正文与侧边栏，低于右上角整页全屏(880)与番茄钟(1200)。
+           ⚠️ 这一层**绝不能加 transform / filter / backdrop-filter / contain**：
+              那会给内部的 .section.is-full（position:fixed）换一个包含块，
+              全屏就从「铺满视口」缩成「铺满浮窗」，功能直接残掉。
+           位置与尺寸由 FLASH_JS 的 applyFloatGeo() 设内联样式（带视口钳制）。 */
+        .fs-float { position: fixed; left: 0; top: 0; z-index: 860; display: flex;
+            flex-direction: column; width: 720px; height: 560px;
+            min-width: 320px; min-height: 240px; overflow: hidden; resize: both;
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: var(--border-radius); box-shadow: 0 14px 48px rgba(0,0,0,.45); }
+        .fs-float[hidden] { display: none; }
+        .fs-float-bar { flex: none; display: flex; align-items: center; gap: 8px;
+            padding: 6px 10px; background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            cursor: move; touch-action: none; user-select: none; }
+        .fs-float-title { font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fs-float-tag { flex: 1; min-width: 0; font-size: 0.7rem; color: var(--text-muted);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fs-float-btn { flex: none; font: inherit; font-size: 0.75rem; cursor: pointer;
+            padding: 2px 10px; border-radius: 4px; color: var(--text-secondary);
+            background: transparent; border: 1px solid var(--border-color); transition: all .15s; }
+        .fs-float-btn:hover { color: var(--text-primary); border-color: var(--dianqing);
+            background: var(--bg-primary); }
+        .fs-float-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+        /* 搬进来的练习区：在窗口里就贴着排，不再重复一层卡片边框与内边距。
+           ⚠️ 必须排除 .is-full——两者同特异度，写在后面会把全屏那层的背景刷成透明，
+              于是全屏只剩一个能看见底下页面的空壳。 */
+        .fs-float-body > .section:not(.is-full) { margin: 0; border: none;
+            border-radius: 0; background: transparent; box-shadow: none;
+            padding: 12px 14px 18px; }
+        .fs-float-body .chart-head { margin-bottom: 10px; }
+        /* 小屏（平板竖屏）：浮窗默认就铺到快满，别让人开了却看不见题目。
+           用 !important 压过 JS 写的内联尺寸——窄屏上「记住上次位置」没有意义。 */
+        @media (max-width: 820px) {
+            .fs-float { width: calc(100vw - 16px) !important;
+                        height: calc(100vh - 96px) !important; left: 8px !important; }
+        }
 '''
 
 FLASH_JS = '''
@@ -1783,8 +1808,16 @@ const SFX = (function () {
         //    否则 Python 会先把 \\u4e00 解释成汉字「一」，正则就废了。
         const raw = String(f.topic || "");
         const topic = /^[0-9A-Za-z\\u4e00-\\u9fa5-]{1,40}$/.test(raw) ? raw : "";
-        return (subject || bucket || topic)
-            ? { subject: subject, bucket: bucket, topic: topic } : null;
+        // ids：精确点名几张卡（2026-09-22）。薄弱点学习页让 AI 手写的题先在服务端
+        // 归卡，拿到 card_id 后用这一条**只练这几张**——不走智能组题，也就不受
+        // 每日新卡/复习额度影响（服务端按 mode=browse 处理，与筛选页自选同一条通道）。
+        // 只认卡号形态、最多 40 个：这段最后会拼进 URL，不能放任何来路不明的字符。
+        const ids = (Array.isArray(f.ids) ? f.ids : [])
+            .map(function (x) { return String(x == null ? "" : x); })
+            .filter(function (x) { return /^[A-Za-z0-9_-]{1,40}$/.test(x); })
+            .slice(0, 40);
+        return (subject || bucket || topic || ids.length)
+            ? { subject: subject, bucket: bucket, topic: topic, ids: ids } : null;
     }
     function applyFilter(f) {
         state.filter = f ? normalizeFilter(f) : null;
@@ -1960,10 +1993,15 @@ const SFX = (function () {
         // 避免误触发 browse 模式导致每日额度完全不生效。
         const effectiveFilter = state.filter ? normalizeFilter(state.filter) : null;
         if (effectiveFilter !== state.filter) state.filter = effectiveFilter;
+        // 指定卡号（AI 手写题归卡后马上练）：一次最多 40 张，limit 得跟着抬起来，
+        // 否则服务端按 limit 截断，人点「练这几张」却只拿到前 30 张。
+        const idFilter = (effectiveFilter && Array.isArray(effectiveFilter.ids))
+            ? effectiveFilter.ids : [];
         // 智能组题：一次把「今日额度内」的卡全部取回，一组=当日计划量，
         // 不再写死 30（额度才是决定数量的因素，服务端会自动收敛到剩余额度）。
         // 自选（browse）模式不受额度约束，50 张足够挑。
-        let url = API + "/api/flashcards/session?limit=" + (effectiveFilter ? 50 : 200);
+        let url = API + "/api/flashcards/session?limit="
+            + (effectiveFilter ? Math.max(50, idFilter.length) : 200);
         if (mode === "extra") {
             // 今日额度刷完后的「再来一组」：数量取设置里的 flash_extra_count（默认 10），
             // 同样不受额度限制，但优先级排序不变 → 有没复习完的会先复习。
@@ -1973,6 +2011,8 @@ const SFX = (function () {
             if (effectiveFilter.bucket) url += "&bucket=" + encodeURIComponent(effectiveFilter.bucket);
             // 考点前缀：复盘页「按错因去专项练习」靠它把范围收到一个考点上
             if (effectiveFilter.topic) url += "&topic=" + encodeURIComponent(effectiveFilter.topic);
+            // 点名要哪几张卡（学习页「练这几张」）：与服务端 ?ids= 一一对应
+            if (idFilter.length) url += "&ids=" + encodeURIComponent(idFilter.join(","));
             url += "&mode=browse";
         }
         try {
@@ -3285,6 +3325,11 @@ const SFX = (function () {
         if (bm && bm.key) parts.push(bm.label);
         // 复盘页跳过来时会带 topic 前缀，必须让用户看得见、也清得掉
         if (pending.topic) parts.push("考点 " + pending.topic);
+        // 学习页「练这几张」是按卡号点名的：不写出来的话，范围看着像「全部闪卡」，
+        // 人会以为额度或筛选坏了。数量同 loadSession 的上限（40）。
+        if (state.filter && Array.isArray(state.filter.ids) && state.filter.ids.length) {
+            parts.push("指定 " + state.filter.ids.length + " 张");
+        }
         const scope = parts.length ? parts.join(" · ") : "全部闪卡";
         fbox.innerHTML =
             '<h2>闪卡筛选</h2>'
@@ -3375,6 +3420,171 @@ const SFX = (function () {
         }
     });
 
+    // ============================================================
+    // 闪卡浮窗（2026-09-22）：让别的页也能「直接调用闪卡模块」
+    //
+    // 做法是**节点搬家**：打开浮窗时把练习区（#flash-practice 整块）搬进 body 层的
+    // #fs-float，关掉再放回「闪卡」页。为什么不复制一套练习 UI —— 全屏、音效、
+    // 学习计时、键盘、AI 解析、评分回写、进度同步全都挂在练习区自己那套 DOM 与
+    // 闭包上，复制等于把这些逻辑重写一遍，之后每改一处都要改两遍。
+    //
+    // ⚠️ 这条路上唯一必须守的规矩：**别给 .fs-float 加 transform / filter /
+    //    backdrop-filter / contain**（拖动只能改 left/top）。那会给里面的
+    //    .section.is-full（position:fixed）换一个包含块，全屏就从「铺满视口」
+    //    缩成「铺满浮窗」，功能直接残掉——而且现象看着像「全屏坏了」，很难查。
+    //
+    // 对外只开一个接口 window.__flashFloat（学习页/复盘页都只碰这一个）：
+    //   open(title?)               打开浮窗（顺带把练习区搬进来）
+    //   close()                    收起浮窗并放回闪卡页
+    //   isOpen()
+    //   practice(cardIds, title?)  「就练这几张」：按卡号精确组题并直接开练
+    // ============================================================
+    const FLOAT_GEO_KEY = "kaoyan_flash_float_geo_v1";
+    const floatBox = document.getElementById("fs-float");
+    const floatBody = document.getElementById("fs-float-body");
+    const floatTitleEl = document.getElementById("fs-float-title");
+    const practiceEl = document.getElementById("flash-practice");
+    // 老家：关浮窗要放回去。.page 容器是 HTML 里写死的、永不重建，所以这里记一次就够。
+    const practiceHome = practiceEl ? practiceEl.parentNode : null;
+    const practiceHomeNext = practiceEl ? practiceEl.nextSibling : null;
+    let floatShowing = false;
+
+    function saveFloatGeo() {
+        if (!floatBox) return;
+        try {
+            localStorage.setItem(FLOAT_GEO_KEY, JSON.stringify({
+                x: floatBox.offsetLeft, y: floatBox.offsetTop,
+                w: floatBox.offsetWidth, h: floatBox.offsetHeight,
+            }));
+        } catch (e) {}
+    }
+    function readFloatGeo() {
+        try {
+            const g = JSON.parse(localStorage.getItem(FLOAT_GEO_KEY) || "null");
+            return (g && typeof g === "object") ? g : {};
+        } catch (e) { return {}; }
+    }
+    // 把浮窗摆到视口内的合法位置。缺省尺寸 720×560、右上偏移 24/72。
+    // ⚠️ 只设 left/top/width/height —— 设 transform 会破全屏（见上面那段）。
+    function applyFloatGeo(g) {
+        if (!floatBox) return;
+        const vw = (typeof window !== "undefined" && window.innerWidth) || 1280;
+        const vh = (typeof window !== "undefined" && window.innerHeight) || 800;
+        const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+        const w = Math.max(320, Math.min(num(g.w) || 720, Math.max(320, vw - 16)));
+        const h = Math.max(240, Math.min(num(g.h) || 560, Math.max(240, vh - 16)));
+        const gx = num(g.x), gy = num(g.y);
+        const x = Math.max(0, Math.min(gx == null ? (vw - w - 24) : gx, Math.max(0, vw - w)));
+        const y = Math.max(0, Math.min(gy == null ? 72 : gy, Math.max(0, vh - h)));
+        floatBox.style.width = w + "px";
+        floatBox.style.height = h + "px";
+        floatBox.style.left = x + "px";
+        floatBox.style.top = y + "px";
+    }
+
+    function openFloat(title) {
+        if (!floatBox || !floatBody || !practiceEl) return;
+        if (!floatShowing) {
+            applyFloatGeo(readFloatGeo());
+            floatBody.appendChild(practiceEl);   // 搬家（同一个节点，状态与计时都不重置）
+            floatBox.hidden = false;
+            floatShowing = true;
+        }
+        if (title && floatTitleEl) floatTitleEl.textContent = title;
+    }
+    function closeFloat() {
+        if (!floatShowing || !floatBox) return;
+        saveFloatGeo();
+        // 先退全屏再搬：全屏态下 body 上有 fs-lock（overflow:hidden），
+        // 直接收起来会留一个「页面锁死滚不动」的壳。
+        if (typeof globalThis.__flashSetFull === "function") {
+            try { globalThis.__flashSetFull(false); } catch (e) {}
+        }
+        if (practiceHome) practiceHome.insertBefore(practiceEl, practiceHomeNext);
+        floatBox.hidden = true;
+        floatShowing = false;
+    }
+    globalThis.__flashFloat = {
+        open: openFloat,
+        close: closeFloat,
+        isOpen: function () { return floatShowing; },
+        // 精确到卡号开练：AI 手写的题先在服务端归卡（/api/study/cards），拿着
+        // card_id 回来走这一条。组题仍走闪卡自己那条 filter 通道（ids），
+        // 所以评分、撤销、进度存档、多端续刷全都照旧，不是一套「简化版练习」。
+        practice: function (ids, title) {
+            const list = (Array.isArray(ids) ? ids : [])
+                .map(function (x) { return String(x == null ? "" : x); })
+                .filter(function (x) { return /^[A-Za-z0-9_-]{1,40}$/.test(x); })
+                .slice(0, 40);
+            if (!list.length) return false;
+            openFloat(title);
+            startWithFilter({ ids: list });
+            return true;
+        },
+    };
+
+    (function wireFloat() {
+        const bar = document.getElementById("fs-float-bar");
+        const closeBtn = document.getElementById("fs-float-close");
+        const homeBtn = document.getElementById("fs-float-home");
+        if (closeBtn) closeBtn.onclick = closeFloat;
+        if (homeBtn) homeBtn.onclick = function () {
+            // 收起 + 跳回闪卡页：练习区回了老家，那边看上去才是完整的
+            closeFloat();
+            try { location.hash = "#/flash"; } catch (e) {}
+        };
+        if (!bar || !floatBox) return;
+
+        // 拖动：pointerdown 只记起点，走够 5px 才认为是在拖。
+        // ⚠️ 先放行按钮（pointer capture 会把 click 改派走），且不 preventDefault
+        //    ——防滚动靠标题栏上的 touch-action: none，不是靠吃掉默认行为。
+        let drag = null;
+        bar.addEventListener("pointerdown", function (ev) {
+            if (ev.target && ev.target.closest && ev.target.closest("button,input,a,select")) return;
+            if (ev.button != null && ev.button !== 0) return;
+            const r = floatBox.getBoundingClientRect();
+            drag = { px: ev.clientX, py: ev.clientY, left: r.left, top: r.top, moved: false };
+        });
+        bar.addEventListener("pointermove", function (ev) {
+            if (!drag) return;
+            const dx = ev.clientX - drag.px, dy = ev.clientY - drag.py;
+            if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+            if (!drag.moved) {
+                drag.moved = true;
+                try { if (bar.setPointerCapture) bar.setPointerCapture(ev.pointerId); } catch (e) {}
+            }
+            applyFloatGeo({ x: drag.left + dx, y: drag.top + dy,
+                            w: floatBox.offsetWidth, h: floatBox.offsetHeight });
+        });
+        const endDrag = function (ev) {
+            if (!drag) return;
+            const moved = drag.moved;
+            drag = null;
+            try {
+                if (ev && bar.hasPointerCapture && bar.hasPointerCapture(ev.pointerId)) {
+                    bar.releasePointerCapture(ev.pointerId);
+                }
+            } catch (e) {}
+            if (moved) saveFloatGeo();
+        };
+        bar.addEventListener("pointerup", endDrag);
+        bar.addEventListener("pointercancel", endDrag);
+
+        if (typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+        // 窗口尺寸变了（横屏↔竖屏、缩放）要重新钳制，否则浮窗会留在屏幕外
+        window.addEventListener("resize", function () {
+            if (!floatShowing) return;
+            applyFloatGeo({ x: floatBox.offsetLeft, y: floatBox.offsetTop,
+                            w: floatBox.offsetWidth, h: floatBox.offsetHeight });
+        });
+        // 切回闪卡页 = 练习区该回家了。留着浮窗的话，闪卡页看上去像「练习区没了」。
+        window.addEventListener("hashchange", function () {
+            let h = "";
+            try { h = String(location.hash || ""); } catch (e) {}
+            if (floatShowing && h.indexOf("flash") >= 0) closeFloat();
+        });
+    })();
+
     // 启动时把上次的筛选选择也恢复出来，让筛选页显示的选择和场上正在刷的卡一致
     const savedFilter = readFilter();
     if (savedFilter) {
@@ -3438,6 +3648,10 @@ const SFX = (function () {
             try { const pr = document.exitFullscreen(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
         }
     }
+
+    // 浮窗收起时要连全屏一起退——否则浮窗关了，body 上的 fs-lock（overflow:hidden）
+    // 还留着，整页滚不动。浮窗模块在另一个 IIFE 里，只能走 globalThis 搭桥。
+    globalThis.__flashSetFull = setFull;
 
     // 原生那层被 Esc 退掉时，CSS 这层要跟着退——否则会剩一个「铺满但已经不是全屏」的壳，
     // 用户得再按一次 Esc 才出得去（番茄钟那边同理）。
@@ -4394,6 +4608,20 @@ def generate_html(data: dict) -> str:
      DOM 节点搬家，状态与计时都不重置）。它必须在 .dashboard 之外、body 之下，
      否则会被「总览」页的 hidden 一起藏掉——切到别的子页番茄钟就凭空消失了。 -->
 <div class="pm-overlay" id="pm-overlay" hidden></div>
+
+<!-- 闪卡浮窗（2026-09-22）：让「薄弱点学习」「错题复盘」这些页不必跳走就能刷闪卡。
+     #fs-float-body 里**没有**练习区的内容——它是空的，练习区实体由 FLASH_JS 在
+     打开浮窗时整块搬进来（节点搬家，同番茄钟全屏的做法），关掉再搬回闪卡页。
+     放在 .dashboard 之外、body 之下：和番茄钟同理，切子页才不会被一起藏掉。 -->
+<div class="fs-float" id="fs-float" hidden>
+    <div class="fs-float-bar" id="fs-float-bar">
+        <span class="fs-float-title" id="fs-float-title">🧠 闪卡浮窗</span>
+        <span class="fs-float-tag" id="fs-float-tag">拖动标题栏移动 · 右下角拉伸 · 练习进度与闪卡页共用</span>
+        <button class="fs-float-btn" id="fs-float-home" title="收起浮窗并回到「闪卡」页">↩ 回闪卡页</button>
+        <button class="fs-float-btn" id="fs-float-close" title="收起浮窗（进度不丢，回闪卡页可继续）">✕ 收起</button>
+    </div>
+    <div class="fs-float-body" id="fs-float-body"></div>
+</div>
 
 <script>
 // ============================================================
@@ -9980,6 +10208,28 @@ RV_CSS = '''
         .rv-msg ul, .rv-msg ol { margin: 4px 0 4px 18px; }
         .rv-msg pre { margin: 6px 0; padding: 8px 10px; background: var(--bg-primary);
             border-radius: 4px; overflow-x: auto; font-size: .78rem; }
+        /* AI 手写的练习题：正文照常看，想练就一键进闪卡浮窗（2026-09-22） */
+        .rv-flashbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--border-color); }
+        .rv-flashbar .rv-hint { flex: 1; min-width: 0; }
+        /* AI 自己调接口的留痕（2026-09-22）：一行小芯片，写清它刚才干了什么 */
+        .rv-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .rv-tools:empty { display: none; }
+        .rv-tool { font-size: .68rem; color: var(--text-muted); padding: 1px 8px;
+            border: 1px dashed var(--border-color); border-radius: 10px;
+            background: var(--bg-primary); }
+        /* 正在跑的那一步：呼吸的圆点 + 亮一点的字，一眼能看出「它还在动」 */
+        .rv-tool.pending { color: var(--zhuqing-lt); border-style: solid;
+            border-color: var(--zhuqing); }
+        .rv-tool.pending::before { content: "◍ "; }
+        /* 流式期间的状态行（正在思考 / 正在搜题库 / 已 7s） */
+        .rv-live-state { display: flex; align-items: center; gap: 6px;
+            font-size: .72rem; color: var(--zhuqing-lt); }
+        .rv-live-state::before { content: ""; width: 6px; height: 6px; border-radius: 50%;
+            background: currentColor; animation: rvLivePulse 1s ease-in-out infinite; }
+        @keyframes rvLivePulse { 0%,100% { opacity: .25 } 50% { opacity: 1 } }
+        .rv-live-text:empty { display: none; }
+        .rv-live-text { margin-top: 6px; }
         .rv-thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
         .rv-thumb { position: relative; }
         .rv-thumb img { width: 74px; height: 74px; object-fit: cover; display: block;
@@ -10460,10 +10710,39 @@ RV_JS = '''
                 + ((h.causes || []).length ? '<div class="rv-hint" style="margin-top:8px">你的历史错因命中：'
                     + esc((h.causes || []).join('；')) + '</div>' : '')
                 + '</div></div>' : '')
-            + '<div class="rv-card"><div class="rv-card-h">💬 对话</div>'
+            // 「闪卡浮窗」入口：不跳页就能刷，练习区实体是从闪卡页搬过来的那一块
+            // （全屏、音效、键盘、评分、进度同步都在，见 FLASH_JS 的浮窗段）。
+            + '<div class="rv-card"><div class="rv-card-h">💬 对话'
+            + '<button class="rv-btn" id="st-float" style="margin-left:auto" '
+            + 'title="把闪卡练习区以浮窗打开：全屏 / 音效 / 快捷键 / 评分都一样">🧠 闪卡浮窗</button></div>'
             + '<div class="rv-chat" id="st-chat">'
-            + (ST.history.length ? ST.history.map(t => '<div class="rv-msg ' + (t.role === "user" ? "me" : "ai") + '">'
-                + '<span class="rv-who">' + (t.role === "user" ? "我" : "AI") + '</span>' + md(t.content) + '</div>').join("")
+            + (ST.history.length ? ST.history.map((t, ti) =>
+                '<div class="rv-msg ' + (t.role === "user" ? "me" : "ai") + (t.streaming ? " streaming" : "") + '">'
+                + '<span class="rv-who">' + (t.role === "user" ? "我" : "AI") + '</span>'
+                // 流式中：正文还没定稿，先给一块「活区」，由 sSend 往里写状态/工具/正文
+                // （见 sSend 的 SSE 段）。结束后照旧走 md(t.content) 那条静态路。
+                + (t.streaming
+                    ? '<div class="rv-live">'
+                      + '<div class="rv-live-state" data-live-state>正在思考…</div>'
+                      + '<div class="rv-tools" data-live-tools></div>'
+                      + '<div class="rv-live-text" data-live-text></div>'
+                      + '</div>'
+                    : md(t.content)
+                      // AI 这一轮自己调了什么接口（搜题库/搜笔记/归卡/开练），一行芯片写清楚，
+                      // 免得它做了事人却不知道。见 sSend 的 viaAgent 与 sRunActions。
+                      + ((Array.isArray(t.trace) && t.trace.length)
+                          ? '<div class="rv-tools">' + t.trace.map(x =>
+                              '<span class="rv-tool">🔧 ' + esc(x.summary || x.tool) + '</span>').join('') + '</div>'
+                          : '')
+                      // AI 手写的题：正文照常读，想练就一键归卡 + 进浮窗（见 sPractice）
+                      + ((Array.isArray(t.cards) && t.cards.length)
+                          ? '<div class="rv-flashbar">'
+                            + '<button class="rv-btn primary" data-st-flash="' + ti + '">🧠 用闪卡练这 '
+                            + t.cards.length + ' 张</button>'
+                            + '<span class="rv-hint">先归到题库，再按卡号精确组题——同题干复用已有卡，'
+                            + '评分/进度与闪卡页同一套</span></div>'
+                          : ''))
+                + '</div>').join("")
                 : '<div class="rv-empty">说个知识点开始。</div>')
             + '</div>'
             + ((ST.hits && (ST.hits.notes || []).length)
@@ -10497,6 +10776,62 @@ RV_JS = '''
         const sb = document.getElementById("st-send"); if (sb) sb.onclick = sSend;
         document.querySelectorAll("#rv-study [data-st-drill]").forEach(b =>
             b.onclick = () => goPractice(ST.subject === "all" ? "" : ST.subject, b.dataset.stDrill));
+        // 闪卡浮窗：只碰 FLASH_JS 暴露的那一个接口，不自己造一套练习 UI
+        const fw = document.getElementById("st-float");
+        if (fw) fw.onclick = () => {
+            const api = window.__flashFloat;
+            if (!api) { toast("闪卡模块还没就绪，刷新一下再试"); return; }
+            api.open("🧠 闪卡浮窗");
+            toast("闪卡浮窗已打开：全屏 / 音效 / 快捷键都在");
+        };
+        document.querySelectorAll("#rv-study [data-st-flash]").forEach(b =>
+            b.onclick = () => sPractice(ST.history[Number(b.dataset.stFlash)]));
+    }
+
+    // ============================================================
+    // 「练这几张」：把 AI 手写的题真正练起来（2026-09-22）
+    // 两步——① 归卡：POST /api/study/cards 把题写进 questions+cards，拿回 card_id；
+    //          ② 开练：把 card_id 交给闪卡模块，在浮窗里按卡号精确组题。
+    // 为什么非归卡不可：闪卡的评分、撤销、进度存档、多端续刷全靠 card_id，
+    // 临时卡练完就散、还写不进 FSRS，等于练了个寂寞。
+    // 归卡失败就如实说（选项不全、模型没给 cards 块），别装作练起来了。
+    // ============================================================
+    async function sPractice(turn) {
+        const cards = (turn && Array.isArray(turn.cards)) ? turn.cards : [];
+        if (!cards.length) { toast("这一轮没有可练的题"); return; }
+        const api = window.__flashFloat;
+        if (!api) { toast("闪卡模块还没就绪，刷新一下再试"); return; }
+        try {
+            const r = await post("/api/study/cards", {
+                cards: cards,
+                subject: ST.subject === "all" ? "" : ST.subject,
+            });
+            const ids = r.card_ids || [];
+            if (!ids.length) throw new Error("这几张都没能入库（题干或选项不完整）");
+            api.practice(ids, "🧠 刚出的 " + ids.length + " 张");
+            const bits = [];
+            if (r.inserted) bits.push("新增 " + r.inserted + " 张");
+            if (r.reused) bits.push("复用已有 " + r.reused + " 张");
+            toast("已归卡（" + (bits.join(" · ") || ids.length + " 张") + "），浮窗开练");
+        } catch (e) {
+            toast("开练失败：" + e.message);
+        }
+    }
+
+    // AI 自己调接口时留下的「动作」。目前只有一种：让它把闪卡浮窗弹出来开练。
+    // ⚠️ 服务端不在浏览器里，弹窗这一下只能前端做 —— 所以服务端只登记意图
+    // （actions 里一条 practice），真正调 __flashFloat 的是这里。
+    function sRunActions(actions) {
+        const list = Array.isArray(actions) ? actions : [];
+        const api = window.__flashFloat;
+        list.forEach(function (a) {
+            if (!a || a.type !== "practice") return;   // card_filed 只是留痕，不用动界面
+            const ids = Array.isArray(a.card_ids) ? a.card_ids : [];
+            if (!ids.length) return;
+            if (!api) { toast("闪卡模块还没就绪，刷新一下再试"); return; }
+            api.practice(ids, a.title || ("🧠 刚出的 " + ids.length + " 张"));
+            toast("AI 自己调了闪卡：已开练 " + ids.length + " 张");
+        });
     }
 
     async function sSearch() {
@@ -10510,6 +10845,32 @@ RV_JS = '''
         } catch (e) { toast("检索失败：" + e.message); }
     }
 
+    // ============================================================
+    // 流式：让「AI 在干什么」看得见（2026-09-22 用户反馈「无法感知工作状态」）
+    //
+    // 工具回路一轮十几秒，非流式只给一个「思考中…」，人没法判断它是在查题库、在写卡
+    // 还是卡住了。这里走 SSE：服务端把「正在推演（已写多少字）→ 正在搜什么 → 搜到了
+    // 什么 → 正文逐字」实时推过来，画在气泡里，旁边还有「已 Ns」在走。
+    //
+    // ⚠️ 流式期间**不整页重绘**（sRender）：每个字重绘整段对话会闪，还会把滚动条和
+    //    输入焦点一起弄丢。只更新那一条气泡里的活区，结束后再整页重绘收尾。
+    // ⚠️ 三级退路：SSE → 非流式 agent → 老 chat。任一环挂了下一级顶上，不留白屏。
+    // ============================================================
+    function stLive() {
+        const b = document.querySelector("#st-chat .rv-msg.ai:last-child");
+        if (!b) return null;
+        return { box: b,
+                 state: b.querySelector("[data-live-state]"),
+                 tools: b.querySelector("[data-live-tools]"),
+                 text: b.querySelector("[data-live-text]") };
+    }
+    function stScroll() {
+        const c = document.getElementById("st-chat");
+        if (!c) return;
+        // 只有本来就贴底才跟着走：人往上翻在看历史时别把他拽回来
+        if (c.scrollHeight - c.scrollTop - c.clientHeight < 90) c.scrollTop = c.scrollHeight;
+    }
+
     async function sSend() {
         const box = document.getElementById("st-msg");
         if (!box || ST.busy) return;
@@ -10519,20 +10880,157 @@ RV_JS = '''
         const btn = document.getElementById("st-send");
         if (btn) { btn.disabled = true; btn.textContent = "思考中…"; }
         ST.history.push({ role: "user", content: text });
+        const payload = { message: text, subject: ST.subject, history: ST.history.slice(0, -1) };
+        // 先挂一条「正在干活」的空回复：流式内容会往它的活区里长
+        const turn = { role: "assistant", content: "", cards: [], trace: [], streaming: true };
+        ST.history.push(turn);
         box.value = "";
         sRender();
+
+        const live = stLive();
+        const t0 = Date.now();
+        let lastState = "正在思考", acc = "", paintTimer = null, started = false;
+        let doneEv = null, errMsg = "", actions = [];
+        const setState = (s) => {
+            lastState = s;
+            if (live && live.state) {
+                live.state.textContent = s + "（已 " + Math.round((Date.now() - t0) / 1000) + "s）";
+            }
+        };
+        // 秒表：证明它还活着（模型推演时可能好几秒一个字都不吐）
+        const tick = setInterval(() => {
+            if (!live || !live.state) return;
+            live.state.textContent = lastState + "（已 " + Math.round((Date.now() - t0) / 1000) + "s）";
+        }, 1000);
+        const paintText = () => {
+            if (paintTimer) return;      // 合并到 60ms 一次：逐字重排会很卡
+            paintTimer = setTimeout(() => {
+                paintTimer = null;
+                if (!live || !live.text) return;
+                try { live.text.innerHTML = md(acc); }
+                catch (e) { live.text.textContent = acc; }   // 半截公式可能渲染不出来，退回纯文本
+                stScroll();
+            }, 60);
+        };
+        const paintTools = () => {
+            if (!live || !live.tools) return;
+            live.tools.innerHTML = turn.trace.map(x => '<span class="rv-tool' + (x.pending ? " pending" : "") + '">🔧 '
+                + esc(x.pending ? x.summary : (x.summary || x.tool)) + '</span>').join("");
+            stScroll();
+        };
+        const handle = (ev) => {
+            if (!ev || !ev.type) return;
+            if (ev.type === "start") { setState("正在思考"); return; }
+            if (ev.type === "round") { setState(ev.n > 1 ? ("第 " + ev.n + " 轮") : "正在思考"); return; }
+            if (ev.type === "thinking") { setState("正在推演（已写 " + ev.chars + " 字）"); return; }
+            if (ev.type === "delta") {
+                acc += ev.text || "";
+                if (!started) { started = true; setState("正文"); }
+                paintText();
+                return;
+            }
+            if (ev.type === "tool_start") {
+                turn.trace.push({ tool: ev.tool, summary: ev.label || "正在调用工具…", pending: true });
+                setState(ev.label || "正在调用工具");
+                paintTools();
+                return;
+            }
+            if (ev.type === "tool") {
+                for (let i = turn.trace.length - 1; i >= 0; i--) {
+                    if (turn.trace[i].pending && turn.trace[i].tool === ev.tool) {
+                        turn.trace[i].summary = ev.summary || ev.tool;
+                        turn.trace[i].pending = false;
+                        break;
+                    }
+                }
+                paintTools();
+                setState(ev.summary || "继续");
+                return;
+            }
+            if (ev.type === "done") { doneEv = ev; return; }
+            if (ev.type === "error") { errMsg = ev.error || "出错了"; return; }
+        };
+
         try {
-            const d = await post("/api/study/chat", { message: text, subject: ST.subject, history: ST.history.slice(0, -1) });
-            ST.history.push({ role: "assistant", content: d.text });
-            if (d.topics && d.topics.length) {
-                ST.hits = Object.assign({}, ST.hits || {}, { topics: d.topics, notes: d.notes || (ST.hits && ST.hits.notes) || [] });
+            const resp = await fetch(API + "/api/study/agent/stream", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!resp.ok || !resp.body) throw new Error("HTTP " + resp.status);
+            const reader = resp.body.getReader();
+            const dec = new TextDecoder();
+            let buf = "";
+            for (;;) {
+                const step = await reader.read();
+                if (step.done) break;
+                buf += dec.decode(step.value, { stream: true });
+                let i;
+                // ⚠️ 下面那几个转义必须**双写反斜杠**：RV_JS 是 Python 普通字符串，
+                //    写单个转义会被 Python 先解释成真换行/真回车，JS 字符串当场断开
+                //    （整段 RV_JS 报 SyntaxError，页面上那一块什么都点不动）。
+                //    连注释里也不能出现单反斜杠 —— 这个坑前后踩了三次，
+                //    所以立了 tools/test_js_syntax.js 当闸门。
+                while ((i = buf.indexOf("\\n\\n")) >= 0) {
+                    const chunk = buf.slice(0, i);
+                    buf = buf.slice(i + 2);
+                    chunk.split("\\n").forEach(line => {
+                        line = line.replace(/\\r$/, "");
+                        if (line.indexOf("data:") !== 0) return;
+                        let ev = null;
+                        try { ev = JSON.parse(line.slice(5).trim()); } catch (e) { return; }
+                        if (ev && ev.type) { started = true; handle(ev); }
+                    });
+                }
             }
         } catch (e) {
-            ST.history.push({ role: "assistant", content: "⚠ " + e.message });
+            if (!errMsg) errMsg = e.message;
         } finally {
-            ST.busy = false;
-            sRender();
+            clearInterval(tick);
+            if (paintTimer) { clearTimeout(paintTimer); paintTimer = null; }
         }
+
+        const wasStreaming = started;   // 连上过没有（决定要不要走退路）
+        const hadText = acc.length > 0;
+        if (doneEv) {
+            turn.content = String(doneEv.text || acc || "");
+            turn.cards = Array.isArray(doneEv.cards) ? doneEv.cards : [];
+            if (Array.isArray(doneEv.trace) && doneEv.trace.length) turn.trace = doneEv.trace;
+            actions = doneEv.actions || [];
+            if (doneEv.topics && doneEv.topics.length) {
+                ST.hits = Object.assign({}, ST.hits || {}, { topics: doneEv.topics,
+                    notes: doneEv.notes || (ST.hits && ST.hits.notes) || [] });
+            }
+        } else if (!wasStreaming || !hadText) {
+            // 一个字都没出来就断了 → 这条路走不通（老服务端没重启 / 模型不支持流式），
+            // 老实退回非流式：agent → 老 chat，两级都试，功能降级但不报错。
+            try {
+                const d = await post("/api/study/agent", payload);
+                turn.content = d.text;
+                turn.cards = Array.isArray(d.cards) ? d.cards : [];
+                turn.trace = Array.isArray(d.trace) ? d.trace : [];
+                actions = d.actions || [];
+                if (d.topics && d.topics.length) {
+                    ST.hits = Object.assign({}, ST.hits || {}, { topics: d.topics,
+                        notes: d.notes || (ST.hits && ST.hits.notes) || [] });
+                }
+            } catch (e1) {
+                try {
+                    const d2 = await post("/api/study/chat", payload);
+                    turn.content = d2.text;
+                    turn.cards = Array.isArray(d2.cards) ? d2.cards : [];
+                } catch (e2) {
+                    turn.content = "⚠ " + e2.message;
+                }
+            }
+        } else {
+            // 吐了一半才断：把已有的留下，说清是断的，不要重跑一遍（免得答案来两份）
+            turn.content = acc + "\\n\\n⚠ 回答中断：" + (errMsg || "连接被断开");
+        }
+        turn.streaming = false;
+        ST.busy = false;
+        if (btn) { btn.disabled = false; btn.textContent = "发送"; }
+        sRender();
+        sRunActions(actions);
     }
 
     // ========================= 首页：错因可视化 =========================

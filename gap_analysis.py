@@ -20,6 +20,11 @@ import sqlite3
 import sys
 from datetime import datetime
 
+# 政治笔记用 MY-001 / 思修-001 这类短编号，与图谱前缀 POL-MY 不是一套体系。
+# 本文件原先没有这张映射表，把 "MY-001" 整体当前缀，导致政治笔记永远匹配不上图谱，
+# 「笔记覆盖」恒为 0（2026-09-17 修，表与 generate_dashboard.py 共用）。
+from note_prefix import note_entry_prefix, is_cross_subject
+
 # Force UTF-8 on Windows stdout to avoid GBK encoding errors with CJK output
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -75,7 +80,10 @@ SUB_DISPLAY = {
     "毛泽东思想和中国特色社会主义理论体系概论": "毛中特",
     "中国近现代史纲要": "史纲",
     "思想道德与法治": "思修",
-    "形势与政策以及当代世界经济与政治": "习思想",
+    # 图谱该 sub 的 key 原先误写成「形势与政策以及当代世界经济与政治」，
+    # 但它下面 9 个考点全是习思想内容（populate_questions.py 也标注为习思想），
+    # 2026-09-17 把图谱 key 更名为「习近平新时代中国特色社会主义思想概论」。
+    "习近平新时代中国特色社会主义思想概论": "习思想",
 }
 
 # ---------------------------------------------------------------------------
@@ -259,11 +267,11 @@ def get_note_prefix(note_id):
     Return the sub-level prefix from a note entry ID.
     '408-DS-001' -> '408-DS'
     'MATH-GS-001' -> 'MATH-GS'
+    'MY-001' -> 'POL-MY'      （政治短编号需查表换算）
+    '思修-001' -> 'POL-SX'
+    'ZT-001' -> ''            （跨科目专题，不计入任何科目）
     """
-    parts = note_id.split("-")
-    if len(parts) >= 2:
-        return "-".join(parts[:2])
-    return note_id
+    return note_entry_prefix(note_id)
 
 
 def extract_chapter_number(chapter_str):
@@ -292,6 +300,9 @@ def build_note_lookup(entries):
         if not nid:
             continue
         prefix = get_note_prefix(nid)
+        if not prefix:
+            # 跨科目方法论专题（ZT-*）：横向汇总，无对应图谱科目，不参与覆盖率
+            continue
         ch = extract_chapter_number(entry.get("chapter", ""))
 
         if prefix not in prefix_total:

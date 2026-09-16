@@ -1,16 +1,16 @@
 {
-  "updated": "2026-08-14",
+  "updated": "2026-09-17",
   "method": {
-    "408": "王道四本书一轮复习",
-    "数学": "张宇30讲一轮复习",
-    "英语": "不背单词APP + 红宝书正序版",
-    "政治": "徐涛强化课 + 优题库基础篇"
+    "408": "王道四本书一轮复习 → 强化（DS强化中）",
+    "数学": "张宇30讲一轮复习 → 强化（线代强化中）",
+    "英语": "不背单词APP + 红宝书正序版 + 真题阅读",
+    "政治": "徐涛强化课 + 优题库基础篇 + 背诵手册"
   },
   "subjects": {
     "408": {
-      "phase": "一轮复习",
-      "resource": "王道四本",
-      "overall_progress": 0.85,
+      "phase": "强化阶段（数据结构强化中）",
+      "resource": "王道四本 + 强化阶段",
+      "overall_progress": 1.0,
       "subs": {
         "DS": {
           "progress": 1.0,
@@ -51,16 +51,12 @@
           ]
         },
         "CN": {
-          "progress": 0.42,
-          "status": "数据链路层进行中",
+          "progress": 1.0,
+          "status": "一轮完成",
           "chapters_completed": [
             1,
-            2
-          ],
-          "chapters_in_progress": [
-            3
-          ],
-          "chapters_remaining": [
+            2,
+            3,
             4,
             5,
             6
@@ -71,6 +67,11 @@
         {
           "phase": "基础",
           "resource": "王道四本",
+          "status": "已完成"
+        },
+        {
+          "phase": "强化",
+          "resource": "王道强化 + 单科书二刷（当前：数据结构）",
           "status": "进行中"
         },
         {
@@ -87,9 +88,9 @@
       "code_practice_daily": "30分钟DS算法手写代码"
     },
     "数学": {
-      "phase": "一轮复习",
-      "resource": "张宇30讲",
-      "overall_progress": 0.71,
+      "phase": "强化阶段（线性代数强化中）",
+      "resource": "张宇30讲（一轮完成）",
+      "overall_progress": 1.0,
       "subs": {
         "高等数学": {
           "progress": 1.0,
@@ -99,14 +100,15 @@
         },
         "线性代数": {
           "progress": 1.0,
-          "status": "一轮完成(第7讲)",
+          "status": "一轮完成(第7讲)·强化中",
           "lectures_completed": 7,
-          "total_lectures_est": 7
+          "total_lectures_est": 7,
+          "phase": "强化"
         },
         "概率论与数理统计": {
-          "progress": 0.14,
-          "status": "第1讲开始",
-          "lectures_completed": 1,
+          "progress": 1.0,
+          "status": "一轮完成(第7讲)",
+          "lectures_completed": 7,
           "total_lectures_est": 7
         }
       },
@@ -114,12 +116,12 @@
         {
           "phase": "基础",
           "resource": "张宇30讲",
-          "status": "进行中"
+          "status": "已完成"
         },
         {
           "phase": "强化",
           "resource": "武忠祥17堂课/张宇18讲 + 李永乐线代辅导讲义",
-          "status": "未开始"
+          "status": "进行中"
         },
         {
           "phase": "强化习题",
@@ -139,13 +141,14 @@
       ]
     },
     "英语": {
-      "phase": "单词一轮完成·真题刷题",
-      "resource": "不背单词APP + 红宝书",
+      "phase": "真题阅读一轮进行中",
+      "resource": "不背单词APP + 红宝书 + 真题",
       "vocabulary_size": 5500,
       "phrases_learned": 800,
       "phrases_phase": "一轮完成",
       "word_progress": "基础词一轮完成",
-      "overall_progress": 0.55,
+      "overall_progress": 0.62,
+      "zhenti_phase": "阅读一轮进行中（近15年）",
       "vocab_target": 5500,
       "vocab_gap": 0,
       "vocab_sprint_deadline": "2026-08-31",
@@ -156,8 +159,8 @@
       "flashcard_start": "2026-07-13"
     },
     "政治": {
-      "phase": "一轮完成（强化课+优题库基础篇）",
-      "resource": "徐涛强化课 + 优题库基础篇",
+      "phase": "背诵启动（强化课+优题库已完成，肖1000未开始）",
+      "resource": "徐涛强化课 + 优题库基础篇 + 背诵手册",
       "overall_progress": 1.0,
       "course": {
         "马原": 1.0,
@@ -173,6 +176,7 @@
         "毛中特": 1.0,
         "习思想": 1.0
       },
+      "recite_phase": "背诵手册已启动",
       "xiaoxiurong_plan": {
         "1000题": {
           "status": "未开始",

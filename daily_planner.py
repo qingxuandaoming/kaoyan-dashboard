@@ -19,9 +19,13 @@ import io
 import json
 import math
 import os
+import re
 import sqlite3
 import sys
 from datetime import date, datetime, timedelta
+
+# 政治笔记短编号（MY-001 / 思修-001）与图谱前缀（POL-MY）的映射，三处共用一份
+from note_prefix import note_entry_prefix
 
 # ---------------------------------------------------------------------------
 # Force UTF-8 on Windows to avoid GBK encoding errors
@@ -370,35 +374,45 @@ def _get_main_topic_ids_for_subject(subject, graphs):
 
 def _get_covered_main_topic_ids(subject, notes_index, graphs):
     """Determine which main topic IDs have at least one note entry.
-    A note entry covers a main topic if its ID starts with the main topic ID prefix.
+
+    口径与 gap_analysis.py 统一：笔记按「图谱前缀 + 章节号」落到考点上。
+
+    原先的写法是拿笔记 ID 去 startswith 考点 ID，只在不巧的巧合下成立——
+    '408-DS-001' 确实以 '408-DS-01' 开头，所以 408/数学/英语看着像是对的；
+    但政治是 MY-001 / POL-MY-01 两套编号，永远匹配不上，覆盖率恒为 0，
+    「政治笔记没挂上图谱」的直接原因（2026-09-17 修）。
     """
-    main_ids = _get_main_topic_ids_for_subject(subject, graphs)
+    graph = graphs.get(subject, {})
 
     reverse_map = {v: k for k, v in NOTES_SUBJECT_MAP.items()}
     notes_subj_label = reverse_map.get(subject, subject)
 
     entries = notes_index.get("entries", [])
-    note_ids = set()
+    prefix_chapters = {}   # "POL-MY" -> {1, 2, 3}
     if isinstance(entries, list):
         for entry in entries:
-            if isinstance(entry, dict):
-                entry_subj = entry.get("subject", "")
-                if entry_subj == notes_subj_label or entry_subj == subject:
-                    tid = entry.get("id", "")
-                    if tid:
-                        note_ids.add(tid)
+            if not isinstance(entry, dict):
+                continue
+            entry_subj = entry.get("subject", "")
+            if entry_subj != notes_subj_label and entry_subj != subject:
+                continue
+            pfx = note_entry_prefix(entry.get("id", ""))
+            if not pfx:
+                # 跨科目方法论专题（ZT-*）：不归属任何图谱考点
+                continue
+            m = re.search(r"\d+", str(entry.get("chapter", "")))
+            if m:
+                prefix_chapters.setdefault(pfx, set()).add(int(m.group()))
 
-    # A main topic is "covered" if any note ID starts with it as a prefix
     covered = set()
-    for mid in main_ids:
-        if mid in note_ids:
-            covered.add(mid)
-        else:
-            # Check if any note ID starts with this main topic ID
-            for nid in note_ids:
-                if nid.startswith(mid + "-") or nid.startswith(mid):
-                    covered.add(mid)
-                    break
+    for sub_key, sub_data in graph.get("subs", {}).items():
+        for topic in sub_data.get("topics", []):
+            tid = topic.get("id", "")
+            if not tid:
+                continue
+            pfx = "-".join(tid.split("-")[:2])
+            if topic.get("chapter") in prefix_chapters.get(pfx, set()):
+                covered.add(tid)
     return covered
 
 
