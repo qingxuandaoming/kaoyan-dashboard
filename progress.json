@@ -100,16 +100,16 @@
         },
         "线性代数": {
           "progress": 1.0,
-          "status": "一轮完成(第7讲)·强化中",
-          "lectures_completed": 7,
-          "total_lectures_est": 7,
+          "status": "一轮完成(基础30讲·线代6讲)·强化中",
+          "lectures_completed": 6,
+          "total_lectures_est": 6,
           "phase": "强化"
         },
         "概率论与数理统计": {
           "progress": 1.0,
-          "status": "一轮完成(第7讲)",
-          "lectures_completed": 7,
-          "total_lectures_est": 7
+          "status": "一轮完成(基础30讲·概率6讲)",
+          "lectures_completed": 6,
+          "total_lectures_est": 6
         }
       },
       "resource_path": [
