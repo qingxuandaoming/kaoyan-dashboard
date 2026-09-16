@@ -1,0 +1,1671 @@
+{
+  "subject": "政治",
+  "total_score": 100,
+  "exam_date": "2026-12-20",
+  "subs": {
+    "马克思主义基本原理": {
+      "code": "POL-MY",
+      "total_weight": 24,
+      "weight_percent": "22%",
+      "topics": [
+        {
+          "id": "POL-MY-01",
+          "name": "世界的物质性",
+          "chapter": 1,
+          "exam_weight": 4,
+          "exam_points": "3-4分",
+          "difficulty": 0.4,
+          "exam_frequency": 6,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "POL-MY-01-01",
+              "name": "哲学基本问题",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-MY-01-02",
+              "name": "唯物主义与唯心主义",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MY-01-03",
+              "name": "辩证唯物主义",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MY-01-04",
+              "name": "物质观（列宁物质定义）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MY-01-05",
+              "name": "运动与时空",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MY-01-06",
+              "name": "意识观与世界的物质统一性",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）哲学的基本问题是",
+            "（单选）列宁对物质的定义",
+            "（多选）物质的根本属性与存在方式",
+            "（多选）意识能动作用的表现"
+          ]
+        },
+        {
+          "id": "POL-MY-02",
+          "name": "唯物辩证法",
+          "chapter": 2,
+          "exam_weight": 5,
+          "exam_points": "4-6分",
+          "difficulty": 0.6,
+          "exam_frequency": 8,
+          "prerequisites": [
+            "POL-MY-01"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MY-02-01",
+              "name": "联系与发展",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MY-02-02",
+              "name": "对立统一规律（矛盾规律）",
+              "weight": 2,
+              "difficulty": 0.7
+            },
+            {
+              "id": "POL-MY-02-03",
+              "name": "量变质变规律",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MY-02-04",
+              "name": "否定之否定规律",
+              "weight": 1,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-MY-02-05",
+              "name": "五对基本范畴（原因与结果/必然与偶然/可能与现实/现象与本质/内容与形式）",
+              "weight": 1,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-MY-02-06",
+              "name": "唯物辩证法是认识世界和改造世界的根本方法",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）唯物辩证法的实质和核心是",
+            "（多选）矛盾的同一性与斗争性的关系",
+            "（多选）量变与质变的辩证关系",
+            "（分析题）运用矛盾分析法分析社会现象"
+          ]
+        },
+        {
+          "id": "POL-MY-03",
+          "name": "认识论",
+          "chapter": 3,
+          "exam_weight": 5,
+          "exam_points": "4-6分",
+          "difficulty": 0.6,
+          "exam_frequency": 8,
+          "prerequisites": [
+            "POL-MY-02"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MY-03-01",
+              "name": "实践的本质与特征",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MY-03-02",
+              "name": "实践对认识的决定作用",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MY-03-03",
+              "name": "认识的本质（反映论与先验论）",
+              "weight": 1,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-MY-03-04",
+              "name": "认识过程（感性认识到理性认识到实践）",
+              "weight": 1,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-MY-03-05",
+              "name": "真理的客观性、绝对性与相对性",
+              "weight": 2,
+              "difficulty": 0.7
+            },
+            {
+              "id": "POL-MY-03-06",
+              "name": "真理与价值、认识世界与改造世界",
+              "weight": 1,
+              "difficulty": 0.6
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）实践是检验真理的唯一标准",
+            "（多选）感性认识与理性认识的关系",
+            "（多选）真理的绝对性与相对性的辩证关系",
+            "（分析题）结合材料分析实践与认识的辩证关系"
+          ]
+        },
+        {
+          "id": "POL-MY-04",
+          "name": "唯物史观",
+          "chapter": 4,
+          "exam_weight": 5,
+          "exam_points": "4-6分",
+          "difficulty": 0.5,
+          "exam_frequency": 8,
+          "prerequisites": [
+            "POL-MY-03"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MY-04-01",
+              "name": "社会存在与社会意识",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MY-04-02",
+              "name": "社会基本矛盾（生产力与生产关系、经济基础与上层建筑）",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-MY-04-03",
+              "name": "社会发展的动力",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MY-04-04",
+              "name": "人民群众是历史的创造者",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MY-04-05",
+              "name": "个人在历史中的作用",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）社会存在决定社会意识",
+            "（单选）生产力和生产关系的辩证关系",
+            "（多选）社会发展的根本动力",
+            "（多选）人民群众在历史中的作用"
+          ]
+        },
+        {
+          "id": "POL-MY-05",
+          "name": "资本主义",
+          "chapter": 5,
+          "exam_weight": 5,
+          "exam_points": "4-6分",
+          "difficulty": 0.6,
+          "exam_frequency": 8,
+          "prerequisites": [
+            "POL-MY-04"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MY-05-01",
+              "name": "商品经济（商品二因素/劳动二重性/价值规律）",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-MY-05-02",
+              "name": "剩余价值理论",
+              "weight": 2,
+              "difficulty": 0.7
+            },
+            {
+              "id": "POL-MY-05-03",
+              "name": "资本积累",
+              "weight": 1,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-MY-05-04",
+              "name": "资本循环与周转",
+              "weight": 1,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-MY-05-05",
+              "name": "资本主义经济危机",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MY-05-06",
+              "name": "当代资本主义新变化",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）商品的二因素与劳动的二重性的关系",
+            "（单选）剩余价值的生产方法",
+            "（多选）价值规律的作用",
+            "（分析题）分析资本主义经济危机的根源"
+          ]
+        },
+        {
+          "id": "POL-MY-06",
+          "name": "社会主义与共产主义",
+          "chapter": 6,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-MY-05"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MY-06-01",
+              "name": "社会主义发展史",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MY-06-02",
+              "name": "科学社会主义基本原则",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MY-06-03",
+              "name": "共产主义崇高理想",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-MY-06-04",
+              "name": "社会主义发展的多样性与统一性",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）科学社会主义创立的理论基石",
+            "（多选）科学社会主义的基本原则",
+            "（多选）共产主义社会的基本特征"
+          ]
+        }
+      ]
+    },
+    "毛泽东思想和中国特色社会主义理论体系概论": {
+      "code": "POL-MZ",
+      "total_weight": 20,
+      "weight_percent": "13%",
+      "topics": [
+        {
+          "id": "POL-MZ-01",
+          "name": "毛泽东思想",
+          "chapter": 1,
+          "exam_weight": 4,
+          "exam_points": "3-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "POL-MZ-01-01",
+              "name": "毛泽东思想形成与发展",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MZ-01-02",
+              "name": "毛泽东思想的主要内容",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MZ-01-03",
+              "name": "活的灵魂（实事求是/群众路线/独立自主）",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "POL-MZ-01-04",
+              "name": "毛泽东思想的历史地位",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）毛泽东思想活的灵魂",
+            "（单选）毛泽东思想形成的时代背景",
+            "（多选）毛泽东思想的主要内容",
+            "（分析题）如何评价毛泽东和毛泽东思想"
+          ]
+        },
+        {
+          "id": "POL-MZ-02",
+          "name": "新民主主义革命理论",
+          "chapter": 2,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-MZ-01"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MZ-02-01",
+              "name": "新民主主义革命总路线",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MZ-02-02",
+              "name": "新民主主义基本纲领",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MZ-02-03",
+              "name": "三大法宝（统一战线/武装斗争/党的建设）",
+              "weight": 2,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MZ-02-04",
+              "name": "新民主主义革命道路",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）新民主主义革命的对象",
+            "（单选）新民主主义革命的领导力量",
+            "（多选）新民主主义革命的三大法宝",
+            "（多选）新民主主义的经济纲领"
+          ]
+        },
+        {
+          "id": "POL-MZ-03",
+          "name": "社会主义改造理论",
+          "chapter": 3,
+          "exam_weight": 2,
+          "exam_points": "1-2分",
+          "difficulty": 0.4,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-MZ-02"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MZ-03-01",
+              "name": "从新民主主义到社会主义的转变",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MZ-03-02",
+              "name": "社会主义改造道路",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MZ-03-03",
+              "name": "社会主义改造的历史经验",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MZ-03-04",
+              "name": "社会主义制度在中国的确立",
+              "weight": 1,
+              "difficulty": 0.3
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）过渡时期总路线的内容",
+            "（多选）对农业社会主义改造的原则",
+            "（多选）对资本主义工商业改造的方式"
+          ]
+        },
+        {
+          "id": "POL-MZ-04",
+          "name": "邓小平理论",
+          "chapter": 4,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-MZ-03"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MZ-04-01",
+              "name": "邓小平理论的形成发展",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-MZ-04-02",
+              "name": "首要基本理论问题（什么是社会主义、怎样建设社会主义）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-MZ-04-03",
+              "name": "邓小平理论的主要内容",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MZ-04-04",
+              "name": "邓小平理论的历史地位",
+              "weight": 1,
+              "difficulty": 0.3
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）邓小平理论的首要基本理论问题",
+            "（单选）社会主义本质的内涵",
+            "（多选）邓小平理论的主要内容"
+          ]
+        },
+        {
+          "id": "POL-MZ-05",
+          "name": "\"三个代表\"重要思想",
+          "chapter": 5,
+          "exam_weight": 2,
+          "exam_points": "1-2分",
+          "difficulty": 0.3,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-MZ-04"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MZ-05-01",
+              "name": "\"三个代表\"重要思想的形成发展",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-MZ-05-02",
+              "name": "核心观点（始终代表中国先进生产力的发展要求/先进文化的前进方向/最广大人民的根本利益）",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-MZ-05-03",
+              "name": "\"三个代表\"重要思想的主要内容",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-MZ-05-04",
+              "name": "\"三个代表\"重要思想的历史地位",
+              "weight": 1,
+              "difficulty": 0.3
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）\"三个代表\"重要思想的核心观点",
+            "（多选）\"三个代表\"重要思想回答的重大问题"
+          ]
+        },
+        {
+          "id": "POL-MZ-06",
+          "name": "科学发展观",
+          "chapter": 6,
+          "exam_weight": 2,
+          "exam_points": "1-2分",
+          "difficulty": 0.3,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-MZ-05"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-MZ-06-01",
+              "name": "科学发展观的形成发展",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-MZ-06-02",
+              "name": "科学发展观的科学内涵（第一要义是发展/核心是以人为本/基本要求是全面协调可持续/根本方法是统筹兼顾）",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-MZ-06-03",
+              "name": "科学发展观的主要内容",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-MZ-06-04",
+              "name": "科学发展观的历史地位",
+              "weight": 1,
+              "difficulty": 0.3
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）科学发展观的科学内涵",
+            "（单选）科学发展观的核心立场",
+            "（多选）科学发展观的基本要求"
+          ]
+        }
+      ]
+    },
+    "中国近现代史纲要": {
+      "code": "POL-SG",
+      "total_weight": 17,
+      "weight_percent": "15%",
+      "topics": [
+        {
+          "id": "POL-SG-01",
+          "name": "反对外国侵略的斗争",
+          "chapter": 1,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 6,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "POL-SG-01-01",
+              "name": "资本帝国主义对中国的侵略",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-01-02",
+              "name": "抵御外国武装侵略",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-01-03",
+              "name": "反侵略战争的失败与民族意识觉醒",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-01-04",
+              "name": "近代中国社会性质的演变",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）近代中国的社会性质",
+            "（单选）近代中国的主要矛盾",
+            "（多选）资本帝国主义侵略中国的方式",
+            "（多选）反侵略战争失败的原因"
+          ]
+        },
+        {
+          "id": "POL-SG-02",
+          "name": "对国家出路的早期探索",
+          "chapter": 2,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-SG-01"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SG-02-01",
+              "name": "太平天国运动",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-02-02",
+              "name": "洋务运动",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-02-03",
+              "name": "维新变法",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-02-04",
+              "name": "早期探索失败的原因与教训",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）太平天国运动的纲领性文件",
+            "（单选）洋务运动的指导思想",
+            "（多选）维新派与守旧派论战的问题",
+            "（多选）洋务运动失败的原因"
+          ]
+        },
+        {
+          "id": "POL-SG-03",
+          "name": "辛亥革命",
+          "chapter": 3,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-SG-02"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SG-03-01",
+              "name": "辛亥革命的背景与经过",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-03-02",
+              "name": "辛亥革命的历史意义",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-03-03",
+              "name": "北洋军阀统治",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-03-04",
+              "name": "旧民主主义革命的终结",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）辛亥革命的指导思想",
+            "（单选）三民主义的内容",
+            "（多选）辛亥革命的历史意义",
+            "（多选）辛亥革命失败的原因"
+          ]
+        },
+        {
+          "id": "POL-SG-04",
+          "name": "开天辟地的大事变",
+          "chapter": 4,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-SG-03"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SG-04-01",
+              "name": "新文化运动与五四运动",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-04-02",
+              "name": "马克思主义在中国的传播",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-04-03",
+              "name": "中国共产党的创立",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-04-04",
+              "name": "大革命（国共第一次合作）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-04-05",
+              "name": "中国共产党成立的伟大意义",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）五四运动的历史特点",
+            "（单选）中国共产党成立的历史条件",
+            "（多选）新文化运动的主要内容",
+            "（多选）大革命失败的原因"
+          ]
+        },
+        {
+          "id": "POL-SG-05",
+          "name": "中国革命的新道路",
+          "chapter": 5,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-SG-04"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SG-05-01",
+              "name": "农村包围城市武装夺取政权道路的探索",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-05-02",
+              "name": "遵义会议",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-05-03",
+              "name": "长征",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-05-04",
+              "name": "土地革命战争时期的重要会议与决策",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）中国革命新道路的开辟",
+            "（单选）遵义会议的历史意义",
+            "（多选）长征精神",
+            "（多选）工农武装割据的内容"
+          ]
+        },
+        {
+          "id": "POL-SG-06",
+          "name": "中华民族的抗日战争",
+          "chapter": 6,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-SG-05"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SG-06-01",
+              "name": "抗日民族统一战线",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-06-02",
+              "name": "正面战场与敌后战场",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-06-03",
+              "name": "抗日战争的胜利",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-06-04",
+              "name": "抗日战争胜利的意义与经验",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）抗日民族统一战线正式形成的标志",
+            "（单选）中国共产党在抗战中的中流砥柱作用",
+            "（多选）抗日战争胜利的意义",
+            "（多选）抗日民族统一战线的特点"
+          ]
+        },
+        {
+          "id": "POL-SG-07",
+          "name": "为新中国而奋斗",
+          "chapter": 7,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-SG-06"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SG-07-01",
+              "name": "两种命运两个前途",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-07-02",
+              "name": "土地改革",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SG-07-03",
+              "name": "人民解放战争",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-07-04",
+              "name": "政协会议与新中国成立",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SG-07-05",
+              "name": "新民主主义革命胜利的原因与经验",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）重庆谈判的成果",
+            "（单选）《中国土地法大纲》的内容",
+            "（多选）新民主主义革命胜利的基本经验",
+            "（多选）新中国成立的历史意义"
+          ]
+        }
+      ]
+    },
+    "思想道德与法治": {
+      "code": "POL-SX",
+      "total_weight": 18,
+      "weight_percent": "15%",
+      "topics": [
+        {
+          "id": "POL-SX-01",
+          "name": "人生的青春之问",
+          "chapter": 1,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.3,
+          "exam_frequency": 6,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "POL-SX-01-01",
+              "name": "世界观、人生观、价值观",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-SX-01-02",
+              "name": "人生观的核心内容",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-SX-01-03",
+              "name": "人生价值的评价与实现",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SX-01-04",
+              "name": "创造有意义的人生",
+              "weight": 1,
+              "difficulty": 0.3
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）人生观的核心",
+            "（单选）人生价值评价的根本尺度",
+            "（多选）世界观、人生观、价值观的关系"
+          ]
+        },
+        {
+          "id": "POL-SX-02",
+          "name": "理想信念",
+          "chapter": 2,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.3,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-SX-01"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SX-02-01",
+              "name": "理想信念的内涵与特征",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-SX-02-02",
+              "name": "信仰马克思主义",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-SX-02-03",
+              "name": "树立共产主义远大理想",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-SX-02-04",
+              "name": "在实现中国梦的实践中化理想为现实",
+              "weight": 1,
+              "difficulty": 0.3
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）理想与现实的关系",
+            "（单选）马克思主义信仰的特征",
+            "（多选）理想信念的作用"
+          ]
+        },
+        {
+          "id": "POL-SX-03",
+          "name": "中国精神",
+          "chapter": 3,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-SX-02"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SX-03-01",
+              "name": "爱国主义",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-SX-03-02",
+              "name": "民族精神",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SX-03-03",
+              "name": "时代精神",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SX-03-04",
+              "name": "改革创新",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）爱国主义的基本要求",
+            "（单选）中华民族精神的核心",
+            "（多选）时代精神的核心与内涵"
+          ]
+        },
+        {
+          "id": "POL-SX-04",
+          "name": "社会主义核心价值观",
+          "chapter": 4,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-SX-03"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SX-04-01",
+              "name": "国家层面（富强、民主、文明、和谐）",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-SX-04-02",
+              "name": "社会层面（自由、平等、公正、法治）",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SX-04-03",
+              "name": "个人层面（爱国、敬业、诚信、友善）",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-SX-04-04",
+              "name": "践行社会主义核心价值观",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）社会主义核心价值观的基本内容",
+            "（单选）社会主义核心价值观与社会主义核心价值体系的关系",
+            "（多选）培育和践行社会主义核心价值观的途径"
+          ]
+        },
+        {
+          "id": "POL-SX-05",
+          "name": "道德",
+          "chapter": 5,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-SX-04"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SX-05-01",
+              "name": "社会主义道德核心和原则",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SX-05-02",
+              "name": "社会公德、职业道德、家庭美德、个人品德",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SX-05-03",
+              "name": "中华传统美德",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-SX-05-04",
+              "name": "革命道德",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）社会主义道德的核心",
+            "（单选）社会主义道德的原则",
+            "（多选）社会公德的主要内容",
+            "（多选）中华传统美德的基本精神"
+          ]
+        },
+        {
+          "id": "POL-SX-06",
+          "name": "法治",
+          "chapter": 6,
+          "exam_weight": 3,
+          "exam_points": "3-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-SX-05"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-SX-06-01",
+              "name": "社会主义法律特征与运行",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-SX-06-02",
+              "name": "宪法",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SX-06-03",
+              "name": "中国特色社会主义法律体系",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SX-06-04",
+              "name": "法治思维",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-SX-06-05",
+              "name": "法律权利与法律义务",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）我国宪法的基本原则",
+            "（单选）法治思维的基本内容",
+            "（多选）社会主义法律的特征",
+            "（多选）法律权利与法律义务的关系"
+          ]
+        }
+      ]
+    },
+    "形势与政策以及当代世界经济与政治": {
+      "code": "POL-XX",
+      "total_weight": 21,
+      "weight_percent": "22%",
+      "topics": [
+        {
+          "id": "POL-XX-01",
+          "name": "习近平新时代中国特色社会主义思想的历史地位",
+          "chapter": 1,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 6,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "POL-XX-01-01",
+              "name": "创立背景与条件",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-XX-01-02",
+              "name": "科学体系（十个明确/十四个坚持/十三个方面成就）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-01-03",
+              "name": "历史地位与指导意义",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-01-04",
+              "name": "六个必须坚持（世界观和方法论）",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）习近平新时代中国特色社会主义思想的核心要义",
+            "（多选）十个明确的内容",
+            "（多选）十四个坚持的内容",
+            "（分析题）如何理解习近平新时代中国特色社会主义思想的历史地位"
+          ]
+        },
+        {
+          "id": "POL-XX-02",
+          "name": "以中国式现代化全面推进中华民族伟大复兴",
+          "chapter": 2,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-XX-01"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-XX-02-01",
+              "name": "中国式现代化的中国特色",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-02-02",
+              "name": "中国式现代化的本质要求",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-02-03",
+              "name": "中国式现代化的重大原则",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-02-04",
+              "name": "中华民族伟大复兴的战略安排",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）中国式现代化的特征",
+            "（多选）中国式现代化的本质要求",
+            "（多选）前进道路上必须把握的重大原则",
+            "（分析题）论述中国式现代化与西方现代化的区别"
+          ]
+        },
+        {
+          "id": "POL-XX-03",
+          "name": "坚持党的全面领导",
+          "chapter": 3,
+          "exam_weight": 3,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-XX-02"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-XX-03-01",
+              "name": "党的领导是最大优势",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-03-02",
+              "name": "两个维护",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-03-03",
+              "name": "全面从严治党",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-03-04",
+              "name": "党的自我革命",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）中国特色社会主义最本质的特征",
+            "（单选）两个维护的内容",
+            "（多选）全面从严治党的要求"
+          ]
+        },
+        {
+          "id": "POL-XX-04",
+          "name": "坚持以人民为中心",
+          "chapter": 4,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-XX-03"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-XX-04-01",
+              "name": "人民立场",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-XX-04-02",
+              "name": "共同富裕",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-04-03",
+              "name": "全过程人民民主",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-04-04",
+              "name": "在发展中保障和改善民生",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）发展的根本目的",
+            "（单选）全过程人民民主的特征",
+            "（多选）共同富裕的内涵"
+          ]
+        },
+        {
+          "id": "POL-XX-05",
+          "name": "全面深化改革",
+          "chapter": 5,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-XX-04"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-XX-05-01",
+              "name": "改革开放决定当代中国命运",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-05-02",
+              "name": "全面深化改革总目标",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-05-03",
+              "name": "经济体制改革",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-05-04",
+              "name": "进一步全面深化改革",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）全面深化改革的总目标",
+            "（单选）经济体制改革的核心问题",
+            "（多选）全面深化改革的方法论"
+          ]
+        },
+        {
+          "id": "POL-XX-06",
+          "name": "推动高质量发展",
+          "chapter": 6,
+          "exam_weight": 3,
+          "exam_points": "3-4分",
+          "difficulty": 0.5,
+          "exam_frequency": 6,
+          "prerequisites": [
+            "POL-XX-05"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-XX-06-01",
+              "name": "新发展理念（创新/协调/绿色/开放/共享）",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-06-02",
+              "name": "新发展格局",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-06-03",
+              "name": "供给侧结构性改革",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-06-04",
+              "name": "科技自立自强",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-06-05",
+              "name": "建设现代化经济体系",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）新发展理念的内容",
+            "（单选）新发展格局的内涵",
+            "（多选）供给侧结构性改革的举措",
+            "（分析题）结合材料分析如何推动高质量发展"
+          ]
+        },
+        {
+          "id": "POL-XX-07",
+          "name": "社会主义现代化建设",
+          "chapter": 7,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-XX-06"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-XX-07-01",
+              "name": "经济建设",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-07-02",
+              "name": "政治建设",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-07-03",
+              "name": "文化建设",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-07-04",
+              "name": "社会建设",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-07-05",
+              "name": "生态文明建设",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）社会主义政治发展的必然要求",
+            "（单选）文化自信的意义",
+            "（多选）生态文明建设的要求",
+            "（多选）社会治理格局的内容"
+          ]
+        },
+        {
+          "id": "POL-XX-08",
+          "name": "全面依法治国",
+          "chapter": 8,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.5,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-XX-07"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-XX-08-01",
+              "name": "中国特色社会主义法治道路",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-08-02",
+              "name": "中国特色社会主义法治体系",
+              "weight": 1,
+              "difficulty": 0.5
+            },
+            {
+              "id": "POL-XX-08-03",
+              "name": "全面依法治国的基本原则",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-08-04",
+              "name": "建设法治中国",
+              "weight": 1,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）全面依法治国的总目标",
+            "（单选）法治体系的内容",
+            "（多选）全面依法治国的基本原则",
+            "（分析题）论述法治与德治的关系"
+          ]
+        },
+        {
+          "id": "POL-XX-09",
+          "name": "外交与国家安全",
+          "chapter": 9,
+          "exam_weight": 2,
+          "exam_points": "2-3分",
+          "difficulty": 0.4,
+          "exam_frequency": 4,
+          "prerequisites": [
+            "POL-XX-08"
+          ],
+          "subtopics": [
+            {
+              "id": "POL-XX-09-01",
+              "name": "构建人类命运共同体",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-09-02",
+              "name": "一带一路",
+              "weight": 1,
+              "difficulty": 0.3
+            },
+            {
+              "id": "POL-XX-09-03",
+              "name": "总体国家安全观",
+              "weight": 1,
+              "difficulty": 0.4
+            },
+            {
+              "id": "POL-XX-09-04",
+              "name": "中国特色大国外交",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "（单选）人类命运共同体的核心理念",
+            "（单选）总体国家安全观的宗旨",
+            "（多选）一带一路建设的原则",
+            "（多选）新型国际关系的内涵"
+          ]
+        }
+      ]
+    }
+  },
+  "cross_dependencies": [
+    {
+      "from": "POL-MY-05",
+      "to": "POL-SG-01",
+      "type": "conceptual",
+      "description": "资本主义章节中的帝国主义本质与史纲中资本帝国主义对中国的侵略相互印证，理解帝国主义扩张的经济根源"
+    },
+    {
+      "from": "POL-MY-04",
+      "to": "POL-MZ-01",
+      "type": "methodological",
+      "description": "唯物史观中社会存在决定社会意识的原理与毛泽东思想活的灵魂之实事求是方法论一脉相承"
+    },
+    {
+      "from": "POL-SG-04",
+      "to": "POL-MZ-01",
+      "type": "historical",
+      "description": "开天辟地大事变中马克思主义传播与中国共产党的创立，是毛泽东思想形成的历史前提和实践基础"
+    },
+    {
+      "from": "POL-SG-07",
+      "to": "POL-MZ-03",
+      "type": "historical",
+      "description": "新中国的成立为社会主义改造提供了政治前提，社会主义改造是新中国成立后的必然历史进程"
+    },
+    {
+      "from": "POL-SX-06",
+      "to": "POL-XX-08",
+      "type": "conceptual",
+      "description": "思修中法治基础知识与习思想中全面依法治国理论衔接，前者是基础概念，后者是战略部署"
+    },
+    {
+      "from": "POL-MY-03",
+      "to": "POL-MZ-01",
+      "type": "methodological",
+      "description": "认识论中实践对认识的决定作用与毛泽东思想活的灵魂之实事求是、群众路线方法论相通"
+    }
+  ]
+}

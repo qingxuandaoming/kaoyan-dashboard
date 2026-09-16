@@ -1,0 +1,245 @@
+/* ============================================================
+   考研笔记 PDF 样式 — 模仿 QoderWork widget 渲染风格
+   适配平板阅读：A4 / 舒适行距 / 中文优化 / 公式 MathML
+   ============================================================ */
+
+:root {
+  --accent: #4a90d9;
+  --accent-light: #eef6ff;
+  --accent-border: #b8d4f0;
+  --text-primary: #1f2430;
+  --text-secondary: #5a6270;
+  --bg-block: #f6f8fa;
+  --border-light: #e2e6ec;
+  --green: #2a9d5c;
+  --red: #e05555;
+  --amber: #d9930d;
+}
+
+/* ---------- 页面与基础排版 ---------- */
+@page {
+  size: A4;
+  margin: 18mm 16mm 20mm 16mm;
+  @bottom-center {
+    content: counter(page);
+    font-size: 9pt;
+    color: #9aa2ae;
+  }
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  font-family: "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei",
+               "PingFang SC", "Hiragino Sans GB", sans-serif;
+  color: var(--text-primary);
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 标题 ---------- */
+h1 {
+  font-size: 1.7rem;
+  color: var(--accent);
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 0.4rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+h2 {
+  font-size: 1.35rem;
+  color: var(--accent);
+  border-left: 5px solid var(--accent);
+  padding-left: 0.7rem;
+  margin-top: 2rem;
+  margin-bottom: 0.8rem;
+}
+
+h3 {
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  margin-top: 1.6rem;
+  margin-bottom: 0.6rem;
+}
+
+h4 {
+  font-size: 1.05rem;
+  color: var(--accent);
+  background: var(--accent-light);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.7rem;
+  page-break-after: avoid;
+}
+
+h5, h6 {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-top: 1.2rem;
+}
+
+/* ---------- 引用块（核心结论 / 来源标注） ---------- */
+blockquote {
+  background: var(--accent-light);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 0.7rem 1rem;
+  margin: 1rem 0;
+  color: var(--text-primary);
+  page-break-inside: avoid;
+}
+
+blockquote p {
+  margin: 0.3rem 0;
+}
+
+blockquote strong {
+  color: var(--accent);
+}
+
+/* ---------- 表格 ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  page-break-inside: avoid;
+}
+
+thead th {
+  background: var(--bg-block);
+  color: var(--accent);
+  font-weight: 700;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 2px solid var(--accent);
+}
+
+tbody td {
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) {
+  background: #fafbfc;
+}
+
+/* ---------- 代码块与行内代码 ---------- */
+code {
+  font-family: "Cascadia Code", "Consolas", "JetBrains Mono", monospace;
+  font-size: 0.88em;
+  background: var(--bg-block);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+}
+
+pre {
+  background: var(--bg-block);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  page-break-inside: avoid;
+}
+
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* ---------- 列表 ---------- */
+ul, ol {
+  padding-left: 1.6rem;
+  margin: 0.6rem 0;
+}
+
+li {
+  margin: 0.35rem 0;
+}
+
+li::marker {
+  color: var(--accent);
+}
+
+/* ---------- 强调 ---------- */
+strong {
+  color: #16324f;
+  font-weight: 700;
+}
+
+em {
+  color: var(--text-secondary);
+}
+
+/* ---------- 链接 ---------- */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent-border);
+}
+
+/* ---------- 分隔线 ---------- */
+hr {
+  border: none;
+  border-top: 1px solid var(--border-light);
+  margin: 1.8rem 0;
+}
+
+/* ---------- 公式 (MathML) ---------- */
+math {
+  font-size: 1.05em;
+}
+
+/* 块级公式容器 */
+p math[display="block"],
+div math[display="block"] {
+  display: block;
+  margin: 0.8rem 0;
+  overflow-x: auto;
+}
+
+/* ---------- 复习标记 (HTML 注释不渲染，但保留类样式备用) ---------- */
+.review-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--amber);
+  border-radius: 4px;
+  padding: 0.1em 0.5em;
+  margin-left: 0.4em;
+  vertical-align: middle;
+}
+
+/* ---------- 图片 ---------- */
+img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 0.8rem 0;
+  page-break-inside: avoid;
+}
+
+/* ---------- 打印分页控制 ---------- */
+h1, h2, h3, h4 {
+  page-break-after: avoid;
+}
+
+table, blockquote, pre, img {
+  page-break-inside: avoid;
+}
+
+/* ---------- 自测区复选框 ---------- */
+input[type="checkbox"] {
+  accent-color: var(--accent);
+  margin-right: 0.4em;
+}

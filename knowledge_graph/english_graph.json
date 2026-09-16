@@ -1,0 +1,848 @@
+{
+  "subject": "英语一",
+  "total_score": 100,
+  "exam_date": "2026-12-19",
+  "subs": {
+    "词汇": {
+      "description": "基础能力，贯穿全卷",
+      "total_exam_weight": 0,
+      "topics": [
+        {
+          "id": "ENG-VOC-01",
+          "name": "考研核心词汇",
+          "chapter": 1,
+          "exam_weight": 0,
+          "exam_points": "贯穿全卷",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "ENG-VOC-01-01",
+              "name": "大纲5500词汇",
+              "weight": 3,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-VOC-01-02",
+              "name": "高频词约2000",
+              "weight": 3,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-VOC-01-03",
+              "name": "词根词缀记忆法",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "ENG-VOC-01-04",
+              "name": "一词多义",
+              "weight": 2,
+              "difficulty": 0.6
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "根据上下文推断生词含义（如 'The word \"impinging\" (Line 2, Para. 2) is closest in meaning to...'）",
+            "识别同义词在语境中的细微差异",
+            "通过词根词缀推测陌生词义"
+          ]
+        },
+        {
+          "id": "ENG-VOC-02",
+          "name": "词汇辨析与易混词",
+          "chapter": 2,
+          "exam_weight": 0,
+          "exam_points": "贯穿全卷",
+          "difficulty": 0.6,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-VOC-01"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-VOC-02-01",
+              "name": "近义词辨析（如cite/quote/refer）",
+              "weight": 3,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-VOC-02-02",
+              "name": "形近词辨析（如causal/casual）",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-VOC-02-03",
+              "name": "同义替换（阅读+写作必备）",
+              "weight": 3,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-VOC-02-04",
+              "name": "易混词组对比",
+              "weight": 2,
+              "difficulty": 0.6
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "完形填空中辨析四个近义词选项（如 affect/effect/influence/impact）",
+            "区分形近词在句中的正确使用",
+            "阅读中识别作者的同义替换手法"
+          ]
+        },
+        {
+          "id": "ENG-VOC-03",
+          "name": "固定搭配与短语",
+          "chapter": 3,
+          "exam_weight": 0,
+          "exam_points": "贯穿全卷",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-VOC-01"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-VOC-03-01",
+              "name": "动词短语（搭配介词/副词）",
+              "weight": 3,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-VOC-03-02",
+              "name": "名词短语",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "ENG-VOC-03-03",
+              "name": "介词短语",
+              "weight": 2,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-VOC-03-04",
+              "name": "学术英语搭配",
+              "weight": 3,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "完形填空中选择正确的介词搭配（如 account ___ → for）",
+            "识别动词短语的多个含义（如 take off: 起飞/脱掉/成功）",
+            "写作中使用学术搭配提升语言档次（如 give rise to, be attributed to）"
+          ]
+        },
+        {
+          "id": "ENG-VOC-04",
+          "name": "学科专业词汇",
+          "chapter": 4,
+          "exam_weight": 0,
+          "exam_points": "贯穿全卷",
+          "difficulty": 0.4,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-VOC-01"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-VOC-04-01",
+              "name": "社科类高频词",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "ENG-VOC-04-02",
+              "name": "科技类高频词",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "ENG-VOC-04-03",
+              "name": "经济类高频词",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "ENG-VOC-04-04",
+              "name": "法律类高频词",
+              "weight": 2,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "阅读社科类文章理解 policy, reform, institution 等词的具体语境含义",
+            "科技类文章中理解 algorithm, genome, neural 等专业术语",
+            "经济类文章中理解 inflation, recession, fiscal 等核心概念"
+          ]
+        }
+      ]
+    },
+    "语法与长难句": {
+      "description": "基础能力，阅读与翻译的基石",
+      "total_exam_weight": 0,
+      "topics": [
+        {
+          "id": "ENG-GRAM-01",
+          "name": "核心语法",
+          "chapter": 1,
+          "exam_weight": 0,
+          "exam_points": "贯穿全卷",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [],
+          "subtopics": [
+            {
+              "id": "ENG-GRAM-01-01",
+              "name": "时态与语态",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "ENG-GRAM-01-02",
+              "name": "三大从句（名词性/定语/状语）",
+              "weight": 3,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-GRAM-01-03",
+              "name": "虚拟语气",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-GRAM-01-04",
+              "name": "非谓语动词",
+              "weight": 3,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-GRAM-01-05",
+              "name": "倒装句",
+              "weight": 2,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-GRAM-01-06",
+              "name": "强调句",
+              "weight": 1,
+              "difficulty": 0.4
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "翻译中正确还原虚拟语气句（如 If he had studied harder, he would have passed）",
+            "长难句中识别非限制性定语从句的先行词",
+            "写作中运用倒装句提升句式层次（如 Not only... but also...）"
+          ]
+        },
+        {
+          "id": "ENG-GRAM-02",
+          "name": "长难句分析",
+          "chapter": 2,
+          "exam_weight": 0,
+          "exam_points": "贯穿全卷",
+          "difficulty": 0.7,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-GRAM-01"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-GRAM-02-01",
+              "name": "嵌套从句",
+              "weight": 3,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-GRAM-02-02",
+              "name": "分隔结构（插入语/破折号）",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-GRAM-02-03",
+              "name": "省略与还原",
+              "weight": 2,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-GRAM-02-04",
+              "name": "多重后置定语",
+              "weight": 2,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-GRAM-02-05",
+              "name": "同位语与独立主格",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-GRAM-02-06",
+              "name": "长难句拆分方法论",
+              "weight": 3,
+              "difficulty": 0.7
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "拆分三层嵌套从句找到主句主干（如 It is... that... which...）",
+            "还原省略结构补全句子成分",
+            "翻译中将英文长句拆分为多个中文短句"
+          ]
+        }
+      ]
+    },
+    "阅读理解": {
+      "description": "Part A (40分) + Part B (10分)，共50分，占全卷半壁江山",
+      "total_exam_weight": 50,
+      "topics": [
+        {
+          "id": "ENG-READ-01",
+          "name": "阅读策略与题型",
+          "chapter": 1,
+          "exam_weight": 10,
+          "exam_points": "8-10分",
+          "difficulty": 0.6,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-GRAM-01",
+            "ENG-VOC-01"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-READ-01-01",
+              "name": "主旨大意题",
+              "weight": 2,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-READ-01-02",
+              "name": "细节理解题",
+              "weight": 3,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-READ-01-03",
+              "name": "推理判断题",
+              "weight": 3,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-READ-01-04",
+              "name": "词义猜测题",
+              "weight": 2,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-READ-01-05",
+              "name": "观点态度题",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-READ-01-06",
+              "name": "例证题",
+              "weight": 2,
+              "difficulty": 0.6
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "Which of the following best expresses the main idea of the passage?",
+            "According to Paragraph 3, the author believes that...",
+            "The author's attitude towards... can be described as...",
+            "The example in Paragraph 2 is used to illustrate..."
+          ]
+        },
+        {
+          "id": "ENG-READ-02",
+          "name": "阅读Part B",
+          "chapter": 2,
+          "exam_weight": 10,
+          "exam_points": "10分",
+          "difficulty": 0.7,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-READ-01",
+            "ENG-GRAM-02"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-READ-02-01",
+              "name": "七选五（排序/填段）",
+              "weight": 3,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-READ-02-02",
+              "name": "小标题匹配",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-READ-02-03",
+              "name": "信息匹配",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-READ-02-04",
+              "name": "段落排序",
+              "weight": 3,
+              "difficulty": 0.7
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "从7个选项中选出5个填入文章空白处，使文章连贯完整",
+            "为每个段落选择最合适的小标题",
+            "将打乱顺序的段落重新排列为逻辑通顺的文章"
+          ]
+        },
+        {
+          "id": "ENG-READ-03",
+          "name": "阅读真题精练",
+          "chapter": 3,
+          "exam_weight": 16,
+          "exam_points": "12-16分",
+          "difficulty": 0.7,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-READ-01",
+            "ENG-GRAM-02",
+            "ENG-VOC-01"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-READ-03-01",
+              "name": "2010-2025真题训练",
+              "weight": 3,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-READ-03-02",
+              "name": "文章结构分析",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-READ-03-03",
+              "name": "同义替换识别",
+              "weight": 3,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-READ-03-04",
+              "name": "干扰选项排除",
+              "weight": 3,
+              "difficulty": 0.7
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "精读2015年Text 1分析文章论证结构（提出问题-分析原因-给出建议）",
+            "识别选项中的同义替换（原文用 decline，选项用 decrease/drop）",
+            "排除偷换概念、以偏概全、无中生有等干扰选项"
+          ]
+        },
+        {
+          "id": "ENG-READ-04",
+          "name": "新题型专项",
+          "chapter": 4,
+          "exam_weight": 6,
+          "exam_points": "4-6分",
+          "difficulty": 0.6,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-READ-02"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-READ-04-01",
+              "name": "排序题专项训练",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-READ-04-02",
+              "name": "匹配题专项训练",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-READ-04-03",
+              "name": "小标题题专项训练",
+              "weight": 2,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-READ-04-04",
+              "name": "新题型综合模拟",
+              "weight": 2,
+              "difficulty": 0.6
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "利用段首衔接词（however, therefore, for example）判断段落顺序",
+            "通过段落主题句与选项关键词匹配完成信息对应",
+            "综合模拟限时训练，控制在15分钟内完成"
+          ]
+        }
+      ]
+    },
+    "写作": {
+      "description": "Part A 小作文 (10分) + Part B 大作文 (20分)，共30分",
+      "total_exam_weight": 30,
+      "topics": [
+        {
+          "id": "ENG-WRITE-01",
+          "name": "小作文",
+          "chapter": 1,
+          "exam_weight": 10,
+          "exam_points": "10分",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-GRAM-01",
+            "ENG-VOC-02"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-WRITE-01-01",
+              "name": "书信类（建议/申请/道歉/邀请/投诉）",
+              "weight": 3,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-WRITE-01-02",
+              "name": "通知与告示",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "ENG-WRITE-01-03",
+              "name": "格式与语域",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "ENG-WRITE-01-04",
+              "name": "常用模板句式",
+              "weight": 3,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "Write a letter to the university president to make suggestions about improving campus services.",
+            "Write a notice to inform international students about the upcoming cultural festival.",
+            "Write an email to apologize for missing a meeting and propose a new time."
+          ]
+        },
+        {
+          "id": "ENG-WRITE-02",
+          "name": "大作文",
+          "chapter": 2,
+          "exam_weight": 20,
+          "exam_points": "20分",
+          "difficulty": 0.7,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-GRAM-01",
+            "ENG-GRAM-02",
+            "ENG-VOC-02"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-WRITE-02-01",
+              "name": "图画描述段",
+              "weight": 3,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-WRITE-02-02",
+              "name": "意义阐释段",
+              "weight": 3,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-WRITE-02-03",
+              "name": "措施建议段",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-WRITE-02-04",
+              "name": "图表类作文",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-WRITE-02-05",
+              "name": "高级句式（倒装/虚拟/非限制定语）",
+              "weight": 3,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-WRITE-02-06",
+              "name": "论证逻辑与衔接",
+              "weight": 3,
+              "difficulty": 0.7
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "根据漫画描述场景并阐释其社会寓意（如'低头族'现象）",
+            "Write an essay of 160-200 words based on the drawing below, interpreting its meaning and giving your comments.",
+            "运用倒装句、虚拟语气等高级句式提升文章层次"
+          ]
+        },
+        {
+          "id": "ENG-WRITE-03",
+          "name": "写作积累与批改",
+          "chapter": 3,
+          "exam_weight": 0,
+          "exam_points": "辅助提分",
+          "difficulty": 0.5,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-WRITE-01",
+            "ENG-WRITE-02"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-WRITE-03-01",
+              "name": "高分范文分析",
+              "weight": 2,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-WRITE-03-02",
+              "name": "常见语法错误",
+              "weight": 2,
+              "difficulty": 0.4
+            },
+            {
+              "id": "ENG-WRITE-03-03",
+              "name": "论证素材积累",
+              "weight": 2,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-WRITE-03-04",
+              "name": "作文批改与复盘",
+              "weight": 2,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "分析满分范文的段落结构与衔接手段",
+            "识别并纠正常见错误（如主谓不一致、时态混乱、中式英语）",
+            "积累社会热点话题的英文论证素材（如环境保护、科技创新、文化传承）"
+          ]
+        }
+      ]
+    },
+    "翻译与完形": {
+      "description": "完形填空 (10分) + 翻译英译汉 (15分)，共25分",
+      "total_exam_weight": 25,
+      "topics": [
+        {
+          "id": "ENG-TRN-01",
+          "name": "完形填空",
+          "chapter": 1,
+          "exam_weight": 10,
+          "exam_points": "10分",
+          "difficulty": 0.6,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-VOC-02",
+            "ENG-GRAM-01"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-TRN-01-01",
+              "name": "词汇辨析题",
+              "weight": 3,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-TRN-01-02",
+              "name": "语法结构题",
+              "weight": 2,
+              "difficulty": 0.5
+            },
+            {
+              "id": "ENG-TRN-01-03",
+              "name": "逻辑关系题",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-TRN-01-04",
+              "name": "上下文推理",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-TRN-01-05",
+              "name": "完形高频词",
+              "weight": 2,
+              "difficulty": 0.5
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "从四个近义词中选出最符合语境的选项（如 maintain/sustain/retain/preserve）",
+            "根据上下文逻辑选择正确的连接词（however/therefore/moreover/nevertheless）",
+            "利用前后句语义关系推断空格处应填入的词义方向"
+          ]
+        },
+        {
+          "id": "ENG-TRN-02",
+          "name": "翻译（英译汉）",
+          "chapter": 2,
+          "exam_weight": 15,
+          "exam_points": "15分",
+          "difficulty": 0.7,
+          "exam_frequency": 5,
+          "prerequisites": [
+            "ENG-GRAM-02",
+            "ENG-VOC-01"
+          ],
+          "subtopics": [
+            {
+              "id": "ENG-TRN-02-01",
+              "name": "长句拆分翻译",
+              "weight": 3,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-TRN-02-02",
+              "name": "定语从句翻译",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-TRN-02-03",
+              "name": "被动语态翻译",
+              "weight": 2,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-TRN-02-04",
+              "name": "抽象名词翻译",
+              "weight": 2,
+              "difficulty": 0.7
+            },
+            {
+              "id": "ENG-TRN-02-05",
+              "name": "增词/减词/转换技巧",
+              "weight": 3,
+              "difficulty": 0.6
+            },
+            {
+              "id": "ENG-TRN-02-06",
+              "name": "翻译真题精练（2000-2025）",
+              "weight": 3,
+              "difficulty": 0.7
+            }
+          ],
+          "linked_notes": [],
+          "typical_questions": [
+            "将含有嵌套从句的英文长句拆分为通顺的中文短句",
+            "将英文被动句转换为中文主动表达（如 It is believed that... → 人们认为...）",
+            "翻译抽象名词时适当增词使其具体化（如 his failure → 他的失败经历）"
+          ]
+        }
+      ]
+    }
+  },
+  "cross_dependencies": [
+    {
+      "from": "ENG-VOC-01",
+      "to": [
+        "ENG-READ-01",
+        "ENG-READ-02",
+        "ENG-READ-03",
+        "ENG-WRITE-01",
+        "ENG-WRITE-02",
+        "ENG-TRN-01",
+        "ENG-TRN-02"
+      ],
+      "type": "foundation",
+      "description": "核心词汇是全卷基础，贯穿阅读、写作、翻译与完形所有题型"
+    },
+    {
+      "from": "ENG-VOC-02",
+      "to": [
+        "ENG-TRN-01",
+        "ENG-WRITE-01",
+        "ENG-WRITE-02"
+      ],
+      "type": "skill_transfer",
+      "description": "词汇辨析能力直接应用于完形填空选词和写作中的精准用词"
+    },
+    {
+      "from": "ENG-VOC-03",
+      "to": [
+        "ENG-WRITE-01",
+        "ENG-WRITE-02",
+        "ENG-TRN-01"
+      ],
+      "type": "skill_transfer",
+      "description": "固定搭配能力支撑写作表达和完形填空中的搭配选择"
+    },
+    {
+      "from": "ENG-GRAM-01",
+      "to": [
+        "ENG-GRAM-02",
+        "ENG-READ-01",
+        "ENG-READ-02",
+        "ENG-WRITE-01",
+        "ENG-WRITE-02",
+        "ENG-TRN-01"
+      ],
+      "type": "foundation",
+      "description": "核心语法是长难句分析、阅读理解、写作和完形的基础"
+    },
+    {
+      "from": "ENG-GRAM-02",
+      "to": [
+        "ENG-READ-01",
+        "ENG-READ-02",
+        "ENG-READ-03",
+        "ENG-TRN-02",
+        "ENG-WRITE-02"
+      ],
+      "type": "skill_transfer",
+      "description": "长难句分析能力是阅读理解和翻译的核心技能，同时提升大作文高级句式运用"
+    },
+    {
+      "from": "ENG-READ-01",
+      "to": [
+        "ENG-READ-02",
+        "ENG-READ-03"
+      ],
+      "type": "progression",
+      "description": "阅读策略与题型方法论是Part B和真题精练的前置技能"
+    },
+    {
+      "from": "ENG-WRITE-01",
+      "to": [
+        "ENG-WRITE-02"
+      ],
+      "type": "progression",
+      "description": "小作文的格式与语域意识为大作文写作奠定基础"
+    }
+  ]
+}

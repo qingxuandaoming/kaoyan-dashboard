@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考研闪卡复习系统</title>
+    <style>
+        :root {
+            --bg-primary: #0f1419;
+            --bg-secondary: #1a1f2e;
+            --bg-card: #1e2530;
+            --bg-card-hover: #252d3a;
+            --text-primary: #e8eaf0;
+            --text-secondary: #a0a8b8;
+            --text-muted: #6b7280;
+            --accent-blue: #3b82f6;
+            --accent-blue-hover: #2563eb;
+            --color-success: #10b981;
+            --color-error: #ef4444;
+            --color-warning: #f59e0b;
+            --color-info: #06b6d4;
+            --border-color: #2d3748;
+            --border-radius: 8px;
+            --font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .main-layout {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        .main-left {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .side-panel {
+            width: 220px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 16px;
+        }
+
+        header {
+            text-align: center;
+            padding: 16px 0 24px;
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .countdown {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .progress-bar {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        select, button {
+            font-family: var(--font-family);
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        select:hover, button:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-blue);
+        }
+
+        button:focus, select:focus {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-blue-hover);
+        }
+
+        .card-container {
+            position: relative;
+            min-height: 320px;
+            perspective: 1000px;
+            margin: 0 auto 20px;
+            max-width: 700px;
+        }
+
+        .card-inner {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            backface-visibility: hidden;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 24px;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .type-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .type-choice { background: var(--accent-blue); color: white; }
+        .type-fill { background: var(--color-info); color: white; }
+        .type-judge { background: var(--color-warning); color: #1a1f2e; }
+        .type-short_answer { background: var(--color-success); color: white; }
+
+        .card-stem {
+            font-size: 1.05rem;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .option-item {
+            padding: 10px 14px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .option-item:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-blue);
+        }
+
+        .option-item.selected {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .option-item.correct {
+            border-color: var(--color-success);
+            background: rgba(16, 185, 129, 0.15);
+        }
+
+        .option-item.wrong {
+            border-color: var(--color-error);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .option-item.selected-multi {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.12);
+            position: relative;
+        }
+        .option-item.selected-multi::after {
+            content: '✓';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent-blue);
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .choice-type-badge {
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            font-weight: 600;
+        }
+        .choice-type-badge.single { background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); }
+        .choice-type-badge.multi { background: rgba(245, 158, 11, 0.15); color: var(--color-warning); }
+        .multi-confirm-btn {
+            display: block;
+            margin: 14px auto 0;
+            padding: 8px 28px;
+            font-size: 0.88rem;
+            background: var(--accent-blue);
+            color: #fff;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        .multi-confirm-btn:hover { opacity: 0.85; }
+
+        .judge-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .judge-btn {
+            padding: 14px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: var(--border-radius);
+            border: 2px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 120px;
+        }
+
+        .judge-btn:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .judge-btn.selected-correct {
+            border-color: var(--color-success);
+            background: rgba(16, 185, 129, 0.15);
+        }
+
+        .judge-btn.selected-wrong {
+            border-color: var(--color-error);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .fill-blank {
+            background: var(--bg-secondary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .answer-section {
+            margin-top: 16px;
+        }
+
+        .answer-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .answer-content {
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+
+        .explanation {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            padding: 12px;
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: var(--border-radius);
+            margin-top: 12px;
+            line-height: 1.7;
+        }
+
+        .question-ref {
+            margin-top: 14px;
+            padding: 10px 12px;
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--border-color);
+            border-radius: 0 var(--border-radius) var(--border-radius) 0;
+        }
+        .question-ref-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .question-ref-stem {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .source-info {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: right;
+        }
+
+        .rating-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 20px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .rating-btn {
+            flex: 1;
+            padding: 12px 8px;
+            border-radius: var(--border-radius);
+            border: 2px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .rating-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .rating-btn .rating-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .rating-btn .rating-key {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .rating-btn .rating-interval {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .rating-btn.again { border-color: var(--color-error); }
+        .rating-btn.again:hover { background: rgba(239, 68, 68, 0.15); }
+        .rating-btn.hard { border-color: var(--color-warning); }
+        .rating-btn.hard:hover { background: rgba(245, 158, 11, 0.15); }
+        .rating-btn.good { border-color: var(--color-success); }
+        .rating-btn.good:hover { background: rgba(16, 185, 129, 0.15); }
+        .rating-btn.easy { border-color: var(--accent-blue); }
+        .rating-btn.easy:hover { background: rgba(59, 130, 246, 0.15); }
+
+        .stats-panel {
+            width: 100%;
+        }
+
+        .stats-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .keyboard-hints {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .keyboard-hints kbd {
+            background: var(--bg-card);
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid var(--border-color);
+            font-family: monospace;
+        }
+
+        .demo-banner {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--color-warning);
+            padding: 8px 16px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+            color: var(--color-warning);
+        }
+
+        .nav-toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--color-warning);
+            color: #1a1f2e;
+            padding: 8px 20px;
+            border-radius: var(--border-radius);
+            font-size: 0.85rem;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 200;
+        }
+        .nav-toast.show { opacity: 1; }
+
+        /* Distractor traps */
+        .trap-section { margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.08); border-left: 3px solid var(--color-warning); border-radius: var(--border-radius); }
+        .trap-title { font-size: 0.85rem; color: var(--color-warning); font-weight: 600; margin-bottom: 8px; }
+        .trap-item { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px; padding-left: 8px; }
+        .trap-item .trap-opt { color: var(--color-warning); font-weight: 600; margin-right: 6px; }
+
+        /* Mock exam summary overlay */
+        .mock-results {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+        }
+        .mock-results-inner {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 28px 32px;
+            max-width: 480px;
+            width: 90%;
+            text-align: center;
+        }
+        .mock-results-inner h2 {
+            margin-bottom: 16px;
+            font-size: 1.3rem;
+        }
+        .mock-results-inner button {
+            margin-top: 16px;
+            padding: 8px 28px;
+        }
+
+        /* Wrong-answer review banner */
+        .wrong-banner {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: var(--color-warning);
+            color: #1a1f2e;
+            text-align: center;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 250;
+        }
+
+        /* Fill-in-the-blank input */
+        .fill-input {
+            width: 100%;
+            padding: 10px 14px;
+            margin-top: 12px;
+            font-size: 1rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+        }
+        .fill-input:focus { border-color: var(--accent-blue); outline: none; }
+        .fill-input::placeholder { color: var(--text-muted); }
+
+        /* User fill answer display on back */
+        .user-answer {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(59,130,246,0.08);
+            border-radius: var(--border-radius);
+            font-size: 0.9rem;
+        }
+        .user-answer.correct { background: rgba(16,185,129,0.12); }
+        .user-answer.wrong { background: rgba(239,68,68,0.08); }
+        .user-answer-correct {
+            color: var(--color-success);
+            font-weight: 600;
+        }
+        .user-answer-wrong {
+            color: var(--color-error);
+            font-weight: 600;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 600px) {
+            .card-container { min-height: 280px; }
+            .card-face { padding: 16px; }
+            .rating-buttons { flex-wrap: wrap; }
+            .rating-btn { flex: 1 1 45%; }
+            .controls { flex-direction: column; align-items: stretch; }
+            select, button { width: 100%; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>考研闪卡复习系统</h1>
+            <div class="countdown" id="countdown"></div>
+            <div class="progress-bar">
+                <span id="todayProgress">今日: 0/0 完成</span>
+                <span>|</span>
+                <span id="accuracy">正确率: --</span>
+            </div>
+        </header>
+
+        <div id="demoBanner" class="demo-banner hidden">
+            Demo Mode - inject window.__QUESTION_DATA__ for full question bank
+        </div>
+
+        <div class="controls">
+            <select id="subjectFilter">
+                <option value="all">全部科目</option>
+                <option value="408">408</option>
+                <option value="数学">数学</option>
+                <option value="政治">政治</option>
+                <option value="英语">英语</option>
+            </select>
+            <select id="typeFilter">
+                <option value="all">全部题型</option>
+                <option value="choice">选择题</option>
+                <option value="fill">填空题</option>
+                <option value="judge">判断题</option>
+                <option value="short_answer">简答题</option>
+            </select>
+            <select id="filter-source" onchange="applyFilters()">
+                <option value="">全部来源</option>
+                <option value="真题">真题</option>
+                <option value="笔记提取">笔记提取</option>
+                <option value="AI生成">AI生成</option>
+            </select>
+            <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;padding:6px 12px;border-radius:var(--border-radius);border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;">
+                <input type="checkbox" id="filter-cross" onchange="applyFilters()"> 仅跨科综合题
+            </label>
+            <button id="mockExamBtn" class="btn-primary">模拟测试</button>
+            <button id="wrongBtn" onclick="toggleWrongMode()">错题本</button>
+            <button id="exportBtn">导出结果</button>
+        </div>
+
+        <div class="main-layout">
+            <div class="main-left">
+                <div class="card-container" id="cardContainer">
+                    <div class="card-inner" id="cardInner">
+                        <div class="card-face card-front" id="cardFront"></div>
+                        <div class="card-face card-back" id="cardBack"></div>
+                    </div>
+                </div>
+
+                <div class="rating-buttons hidden" id="ratingButtons">
+                    <button class="rating-btn again" data-rating="1">
+                        <span class="rating-label">没记住</span>
+                        <span class="rating-key">1</span>
+                        <span class="rating-interval" id="interval1"></span>
+                    </button>
+                    <button class="rating-btn good" data-rating="3">
+                        <span class="rating-label">记住</span>
+                        <span class="rating-key">2</span>
+                        <span class="rating-interval" id="interval3"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="side-panel">
+                <div class="stats-panel">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="statReviewed">0</div>
+                            <div class="stat-label">已复习</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statCorrect">0</div>
+                            <div class="stat-label">正确</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statAccuracy">--</div>
+                            <div class="stat-label">正确率</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statStreak">0</div>
+                            <div class="stat-label">连续正确</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statNew">0</div>
+                            <div class="stat-label">新卡</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statLearning">0</div>
+                            <div class="stat-label">学习中</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="keyboard-hints">
+            <kbd>j</kbd>/<kbd>k</kbd>=上/下一张 &nbsp; <kbd>Space</kbd>/<kbd>Enter</kbd>=翻转 &nbsp; <kbd>1</kbd>/<kbd>2</kbd>=评分 &nbsp; <kbd>A</kbd>-<kbd>D</kbd>=选选项 &nbsp; <kbd>E</kbd>=错题本
+        </div>
+    </div>
+
+    <div class="nav-toast" id="navToast">请先评级 (1/2)</div>
+
+    <div id="wrongBanner" class="wrong-banner hidden"></div>
+
+    <div id="mockResults" class="mock-results hidden">
+        <div class="mock-results-inner">
+            <h2>模拟测试结果</h2>
+            <div id="mockResultsContent"></div>
+            <button onclick="closeMockResults()">关闭</button>
+        </div>
+    </div>
+
+    <script>
+    // ============ FSRS-5 SCHEDULER ============
+    const FSRS_PARAMS = [
+        0.4072, 1.1829, 3.1262, 15.4722,  // w0-w3: init stability (Again/Hard/Good/Easy)
+        7.2102, 0.5316, 1.0651, 0.0234,   // w4-w7: init difficulty + difficulty update
+        1.616,  0.1544, 1.0824, 1.9813,   // w8-w11: recall stability growth
+        0.0953, 0.2975, 2.2042, 0.2407,   // w12-w15: forget decay, hard penalty, easy bonus
+        2.9466, 0.5014, 0.6539            // w16-w17: lapse decay, difficulty decay
+    ];
+    const DECAY = -0.5;
+    const FACTOR = 19 / 81;
+    const DESIRED_RETENTION = 0.9;
+
+    function getInterval(S, desiredRetention) {
+        return Math.max(1, Math.round(S / FACTOR * (Math.pow(desiredRetention || DESIRED_RETENTION, 1 / DECAY) - 1)));
+    }
+
+    function getRetrievability(elapsedDays, S) {
+        if (S <= 0) return 0;
+        return Math.pow(1 + FACTOR * elapsedDays / S, DECAY);
+    }
+
+    function initDifficulty(rating) {
+        const D = FSRS_PARAMS[4] - (rating - 3) * FSRS_PARAMS[5];
+        return Math.max(1, Math.min(10, D));
+    }
+
+    function initStability(rating) {
+        return Math.max(0.1, FSRS_PARAMS[rating - 1]);
+    }
+
+    function nextDifficulty(d, rating) {
+        const delta = -FSRS_PARAMS[6] * (rating - 3);
+        const D0_3 = FSRS_PARAMS[4]; // initDifficulty(3) = w4 - 0 = w4
+        const newD = FSRS_PARAMS[7] * D0_3 + (1 - FSRS_PARAMS[7]) * (d + delta);
+        return Math.max(1, Math.min(10, newD));
+    }
+
+    function nextStability(S, D, R, rating) {
+        if (rating === 1) {
+            // Again - lapse
+            const newS = FSRS_PARAMS[11] * Math.pow(D, -FSRS_PARAMS[12]) *
+                         (Math.pow(S + 1, FSRS_PARAMS[13]) - 1) *
+                         Math.exp(FSRS_PARAMS[14] * (1 - R));
+            return Math.max(0.1, newS);
+        }
+        // Hard/Good/Easy - recall success
+        const hardPenalty = rating === 2 ? FSRS_PARAMS[14] : 1;
+        const easyBonus = rating === 4 ? FSRS_PARAMS[15] : 1;
+        const newS = S * (1 + Math.exp(FSRS_PARAMS[8]) *
+                    (11 - D) * Math.pow(S, -FSRS_PARAMS[9]) *
+                    (Math.exp((1 - R) * FSRS_PARAMS[10]) - 1) *
+                    hardPenalty * easyBonus);
+        return Math.max(0.1, newS);
+    }
+
+    function scheduleCard(card, rating, now) {
+        now = now || new Date();
+        const c = Object.assign({}, card);
+        const state = c.state;
+        let newState, newD, newS, dueDays;
+
+        if (state === 0) {
+            // New card
+            newD = initDifficulty(rating);
+            newS = initStability(rating);
+            if (rating === 1) {
+                newState = 1; // Learning
+                dueDays = 1;
+            } else {
+                // Hard/Good/Easy → graduate to Review
+                newState = 2; // Review
+                dueDays = getInterval(newS);
+            }
+        } else if (state === 1 || state === 3) {
+            // Learning or Relearning
+            newD = nextDifficulty(c.difficulty, rating);
+            if (rating === 1) {
+                newS = Math.max(0.1, c.stability * 0.5);
+                newState = state;
+                dueDays = 1;
+                c.lapses = (c.lapses || 0) + 1;
+            } else if (rating === 4) {
+                newS = Math.max(c.stability, initStability(3));
+                newState = 2;
+                dueDays = getInterval(newS);
+            } else {
+                newS = Math.max(c.stability, initStability(rating));
+                newState = state;
+                dueDays = 1;
+            }
+        } else {
+            // Review
+            const lastReview = c.last_review ? new Date(c.last_review) : now;
+            const elapsedDays = Math.max(0, (now - lastReview) / 86400000);
+            const R = getRetrievability(elapsedDays, c.stability);
+
+            newD = nextDifficulty(c.difficulty, rating);
+            if (rating === 1) {
+                newS = nextStability(c.stability, c.difficulty, R, 1);
+                newState = 3; // Relearning
+                dueDays = 1;
+                c.lapses = (c.lapses || 0) + 1;
+            } else {
+                newS = nextStability(c.stability, c.difficulty, R, rating);
+                newState = 2;
+                dueDays = getInterval(newS);
+            }
+        }
+
+        c.state = newState;
+        c.difficulty = newD;
+        c.stability = newS;
+        c.reps = (c.reps || 0) + 1;
+        c.last_review = now.toISOString();
+        const dueDate = new Date(now);
+        dueDate.setDate(dueDate.getDate() + dueDays);
+        c.due_date = dueDate.toISOString().slice(0, 10);
+
+        return { card: c, interval: dueDays };
+    }
+
+    function predictIntervals(card) {
+        const now = new Date();
+        return [1, 2, 3, 4].map(r => {
+            const result = scheduleCard(card, r, now);
+            return result.interval;
+        });
+    }
+
+    // ============ DEMO DATA ============
+    const DEMO_DATA = {
+        meta: { generated: "2026-07-11", exam_date: "2026-12-19", subject_filter: "all" },
+        questions: [
+            {
+                id: "Q-408-DS-0001", topic_id: "408-DS-04", type: "choice", difficulty: 0.5, source: "笔记提取",
+                content: {
+                    stem: "在数据结构中，栈(Stack)的特点是？",
+                    options: ["先进先出(FIFO)", "后进先出(LIFO)", "随机访问", "双向访问"],
+                    answer: 1, explanation: "栈是后进先出(Last In First Out)的线性表，只能在栈顶进行插入和删除操作。", tags: ["数据结构", "栈"]
+                },
+                card: { state: 0, difficulty: 0, stability: 0, due_date: "2026-07-12", last_review: null, reps: 0, lapses: 0 }
+            },
+            {
+                id: "Q-MATH-001", topic_id: "MATH-01", type: "fill", difficulty: 0.6, source: "笔记提取",
+                content: {
+                    stem: "函数 f(x) = x^2 在 x=3 处的导数为 {{c1::6}}。",
+                    answer: "6", explanation: "f'(x) = 2x，当 x=3 时，f'(3) = 6。", tags: ["高等数学", "导数"]
+                },
+                card: { state: 0, difficulty: 0, stability: 0, due_date: "2026-07-12", last_review: null, reps: 0, lapses: 0 }
+            },
+            {
+                id: "Q-POL-001", topic_id: "POL-01", type: "judge", difficulty: 0.4, source: "笔记提取",
+                content: {
+                    stem: "马克思主义认为，实践是检验真理的唯一标准。",
+                    answer: true, explanation: "这是马克思主义认识论的基本观点，1978年真理标准大讨论的核心命题。", tags: ["政治", "马原"]
+                },
+                card: { state: 0, difficulty: 0, stability: 0, due_date: "2026-07-12", last_review: null, reps: 0, lapses: 0 }
+            },
+            {
+                id: "Q-ENG-001", topic_id: "ENG-01", type: "short_answer", difficulty: 0.5, source: "笔记提取",
+                content: {
+                    stem: "简述考研英语中定语从句的基本结构及其功能。",
+                    answer: "定语从句由关系词(who/which/that/whose/where/when等)引导，修饰先行词，在句中充当定语。限制性定语从句不加逗号，非限制性定语从句用逗号隔开。",
+                    explanation: "定语从句是考研英语阅读和翻译中的高频语法点。", tags: ["英语", "语法"]
+                },
+                card: { state: 0, difficulty: 0, stability: 0, due_date: "2026-07-12", last_review: null, reps: 0, lapses: 0 }
+            },
+            {
+                id: "Q-408-CO-001", topic_id: "408-CO-02", type: "choice", difficulty: 0.7, source: "真题",
+                content: {
+                    stem: "某计算机主频为2GHz，每个时钟周期执行一条指令，则该计算机的MIPS值为？",
+                    options: ["1000", "2000", "500", "4000"],
+                    answer: 1, explanation: "MIPS = 主频 / (CPI * 10^6) = 2*10^9 / (1 * 10^6) = 2000 MIPS。", tags: ["计组", "性能指标"]
+                },
+                card: { state: 0, difficulty: 0, stability: 0, due_date: "2026-07-12", last_review: null, reps: 0, lapses: 0 }
+            }
+        ]
+    };
+
+    // ============ APP STATE ============
+    let questions = [];
+    let filteredQuestions = [];
+    let currentIndex = 0;
+    let isFlipped = false;
+    let sessionReviews = [];
+    let sessionStats = { reviewed: 0, correct: 0, streak: 0, maxStreak: 0 };
+    let selectedOption = null;
+    let selectedOptions = [];  // multi-choice: array of selected indices
+    let judgeSelected = null;
+    let isDemoMode = false;
+    let isMockExam = false;
+    let mockExamQuestions = [];
+    let mockExamIndex = 0;
+    let sessionStartTime = Date.now();
+    let savedCardId = null;
+    let currentCardRated = false;
+    let wrongQuestions = [];
+    let isWrongMode = false;
+    let capturedFillAnswer = '';
+    let mockExamStats = { reviewed: 0, correct: 0, subjectBreakdown: {} };
+
+    // ============ INITIALIZATION ============
+    function init() {
+        const injectedData = window.__QUESTION_DATA__;
+        if (injectedData && injectedData.questions && injectedData.questions.length > 0) {
+            questions = injectedData.questions;
+            isDemoMode = false;
+        } else {
+            questions = DEMO_DATA.questions;
+            isDemoMode = true;
+            document.getElementById('demoBanner').classList.remove('hidden');
+        }
+
+        // Load session from localStorage
+        loadSession();
+
+        // Load wrong questions from localStorage
+        try {
+            const savedWrong = localStorage.getItem('flashcard_wrong');
+            if (savedWrong) wrongQuestions = JSON.parse(savedWrong);
+        } catch (e) { console.warn('Failed to load wrong questions:', e); }
+
+        // Setup filters
+        document.getElementById('subjectFilter').addEventListener('change', applyFilters);
+        document.getElementById('typeFilter').addEventListener('change', applyFilters);
+        document.getElementById('mockExamBtn').addEventListener('click', startMockExam);
+        document.getElementById('exportBtn').addEventListener('click', exportResults);
+
+        // Setup rating buttons
+        document.querySelectorAll('.rating-btn').forEach(btn => {
+            btn.addEventListener('click', () => rateCard(parseInt(btn.dataset.rating)));
+        });
+
+        // Keyboard handler
+        document.addEventListener('keydown', handleKeyboard);
+
+        applyFilters();
+        updateCountdown();
+    }
+
+    function loadSession() {
+        try {
+            const saved = localStorage.getItem('flashcard_session');
+            if (saved) {
+                const session = JSON.parse(saved);
+                savedCardId = session.currentCardId || null;
+                const today = new Date().toISOString().slice(0, 10);
+                if (session.date && session.date.slice(0, 10) === today) {
+                    sessionReviews = session.reviews || [];
+                    sessionStats = session.stats || sessionStats;
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load session:', e);
+        }
+    }
+
+    function saveSession() {
+        const q = filteredQuestions[currentIndex];
+        const session = {
+            date: new Date().toISOString(),
+            reviews: sessionReviews,
+            stats: sessionStats,
+            currentCardId: q ? q.id : null
+        };
+        localStorage.setItem('flashcard_session', JSON.stringify(session));
+    }
+
+    function exportResults() {
+        const exportData = {
+            meta: { exported: new Date().toISOString(), source: isDemoMode ? 'demo' : 'injected' },
+            reviews: sessionReviews,
+            stats: sessionStats,
+            updatedCards: questions.map(q => ({
+                id: q.id,
+                card: q.card
+            }))
+        };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `session_results_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // ============ FILTERING ============
+    function sortByDueDate(questions) {
+        const today = new Date().toISOString().slice(0, 10);
+        return [...questions].sort((a, b) => {
+            const da = a.card.due_date || '9999-12-31';
+            const db = b.card.due_date || '9999-12-31';
+            return da.localeCompare(db);
+        });
+    }
+
+    function applyFilters() {
+        const subject = document.getElementById('subjectFilter').value;
+        const type = document.getElementById('typeFilter').value;
+        const source = document.getElementById('filter-source').value;
+        const crossOnly = document.getElementById('filter-cross').checked;
+
+        if (isMockExam) {
+            filteredQuestions = mockExamQuestions;
+        } else if (isWrongMode) {
+            filteredQuestions = questions.filter(q => q.card.wrong === true);
+        } else {
+            filteredQuestions = questions.filter(q => {
+                const topicMatch = subject === 'all' || q.topic_id.startsWith(subject) ||
+                    (subject === '408' && q.topic_id.startsWith('408')) ||
+                    (subject === '数学' && q.topic_id.startsWith('MATH')) ||
+                    (subject === '政治' && q.topic_id.startsWith('POL')) ||
+                    (subject === '英语' && q.topic_id.startsWith('ENG'));
+                const typeMatch = type === 'all' || q.type === type;
+                const sourceMatch = !source || q.source === source;
+                const crossMatch = !crossOnly || (q.content.tags && q.content.tags.some(t => t === '跨科' || t === '综合'));
+                return topicMatch && typeMatch && sourceMatch && crossMatch;
+            });
+        }
+
+        // Sort by due-date priority (skip for mock exam which is randomized)
+        if (!isMockExam) {
+            filteredQuestions = sortByDueDate(filteredQuestions);
+        }
+
+        // Wrong-mode banner
+        const wrongBanner = document.getElementById('wrongBanner');
+        if (isWrongMode) {
+            wrongBanner.textContent = '错题复习模式 — 共 ' + filteredQuestions.length + ' 题';
+            wrongBanner.classList.remove('hidden');
+        } else {
+            wrongBanner.classList.add('hidden');
+        }
+
+        currentIndex = 0;
+        if (savedCardId && filteredQuestions.length > 0) {
+            const savedIdx = filteredQuestions.findIndex(q => q.id === savedCardId);
+            if (savedIdx >= 0) currentIndex = savedIdx;
+            savedCardId = null; // only restore once
+        }
+        renderCard();
+        updateStats();
+    }
+
+    // ============ MOCK EXAM ============
+    function startMockExam() {
+        if (isMockExam) {
+            // Exiting mock exam - show summary
+            showMockResults();
+            isMockExam = false;
+            document.getElementById('mockExamBtn').textContent = '模拟测试';
+            applyFilters();
+            return;
+        }
+        isMockExam = true;
+        document.getElementById('mockExamBtn').textContent = '退出测试';
+        const pool = [...questions];
+        mockExamQuestions = [];
+        const count = Math.min(20, pool.length);
+        for (let i = 0; i < count; i++) {
+            const idx = Math.floor(Math.random() * pool.length);
+            mockExamQuestions.push(pool.splice(idx, 1)[0]);
+        }
+        filteredQuestions = mockExamQuestions;
+        currentIndex = 0;
+        sessionStats = { reviewed: 0, correct: 0, streak: 0, maxStreak: 0 };
+        sessionReviews = [];
+        mockExamStats = { reviewed: 0, correct: 0, subjectBreakdown: {}, startTime: Date.now() };
+        renderCard();
+        updateStats();
+    }
+
+    function showMockResults() {
+        const elapsed = Date.now() - (mockExamStats.startTime || sessionStartTime);
+        const minutes = Math.floor(elapsed / 60000);
+        const seconds = Math.floor((elapsed % 60000) / 1000);
+        const accuracy = mockExamStats.reviewed > 0
+            ? Math.round(mockExamStats.correct / mockExamStats.reviewed * 100) : 0;
+
+        let html = '';
+        // Summary stats
+        html += '<div style="display:flex;justify-content:space-around;margin-bottom:16px;">';
+        html += '<div style="text-align:center;"><div style="font-size:2rem;font-weight:700;color:var(--accent-blue);">' + mockExamStats.reviewed + '</div><div style="font-size:0.8rem;color:var(--text-muted);">总题数</div></div>';
+        html += '<div style="text-align:center;"><div style="font-size:2rem;font-weight:700;color:var(--color-success);">' + mockExamStats.correct + '</div><div style="font-size:0.8rem;color:var(--text-muted);">正确</div></div>';
+        html += '<div style="text-align:center;"><div style="font-size:2rem;font-weight:700;color:' + (accuracy >= 60 ? 'var(--color-success)' : 'var(--color-error)') + ';">' + accuracy + '%</div><div style="font-size:0.8rem;color:var(--text-muted);">正确率</div></div>';
+        html += '<div style="text-align:center;"><div style="font-size:2rem;font-weight:700;color:var(--color-info);">' + minutes + ':' + seconds.toString().padStart(2, '0') + '</div><div style="font-size:0.8rem;color:var(--text-muted);">用时</div></div>';
+        html += '</div>';
+
+        // Subject breakdown
+        const breakdown = mockExamStats.subjectBreakdown || {};
+        const subjectNames = { '408': '408', 'MATH': '数学', 'POL': '政治', 'ENG': '英语' };
+        const entries = Object.entries(breakdown);
+        if (entries.length > 0) {
+            html += '<div style="margin-bottom:12px;"><div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:8px;">科目分析</div>';
+            for (const [subject, data] of entries) {
+                const subAcc = data.total > 0 ? Math.round(data.correct / data.total * 100) : 0;
+                const label = subjectNames[subject] || subject;
+                html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.1);">';
+                html += '<span>' + label + '</span><span>' + data.correct + '/' + data.total + ' (' + subAcc + '%)</span></div>';
+            }
+            html += '</div>';
+        }
+
+        document.getElementById('mockResultsContent').innerHTML = html;
+        document.getElementById('mockResults').classList.remove('hidden');
+    }
+
+    function closeMockResults() {
+        document.getElementById('mockResults').classList.add('hidden');
+    }
+
+    // ============ WRONG ANSWER REVIEW ============
+    function toggleWrongMode() {
+        if (isWrongMode) {
+            // Exit wrong mode
+            isWrongMode = false;
+            document.getElementById('wrongBtn').textContent = '错题本';
+            document.getElementById('wrongBtn').style.background = '';
+            applyFilters();
+            return;
+        }
+        // Enter wrong mode
+        const wrongCount = questions.filter(q => q.card.wrong === true).length;
+        if (wrongCount === 0) {
+            showToast('暂无错题');
+            return;
+        }
+        isWrongMode = true;
+        document.getElementById('wrongBtn').textContent = '退出错题';
+        document.getElementById('wrongBtn').style.background = 'var(--color-error)';
+        applyFilters();
+    }
+
+    function saveWrongQuestions() {
+        localStorage.setItem('flashcard_wrong', JSON.stringify(wrongQuestions));
+    }
+
+    // ============ CARD RENDERING ============
+    function renderCard() {
+        if (filteredQuestions.length === 0) {
+            document.getElementById('cardFront').innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">暂无符合条件的卡片</div>';
+            document.getElementById('cardBack').innerHTML = '';
+            document.getElementById('ratingButtons').classList.add('hidden');
+            document.getElementById('cardContainer').style.height = '320px';
+            return;
+        }
+
+        currentIndex = Math.max(0, Math.min(currentIndex, filteredQuestions.length - 1));
+        const q = filteredQuestions[currentIndex];
+        isFlipped = false;
+        selectedOption = null;
+        selectedOptions = [];
+        judgeSelected = null;
+        capturedFillAnswer = '';
+        currentCardRated = false;
+        document.getElementById('cardInner').classList.remove('flipped');
+        document.getElementById('ratingButtons').classList.add('hidden');
+
+        renderFront(q);
+        renderBack(q);
+        resizeCardContainer();
+        updateProgress();
+        saveSession();  // persist position on every card view
+    }
+
+    function resizeCardContainer() {
+        const container = document.getElementById('cardContainer');
+        const front = document.getElementById('cardFront');
+        const back = document.getElementById('cardBack');
+        const h = Math.max(front.scrollHeight, back.scrollHeight, 320);
+        container.style.height = h + 'px';
+    }
+
+    function renderFront(q) {
+        const typeLabels = { choice: '选择题', fill: '填空题', judge: '判断题', short_answer: '简答题' };
+        const front = document.getElementById('cardFront');
+        const isMulti = q.type === 'choice' && q.content.multiChoice;
+        let typeBadge = typeLabels[q.type] || q.type;
+        if (q.type === 'choice') {
+            typeBadge += isMulti
+                ? ' <span class="choice-type-badge multi">多选</span>'
+                : ' <span class="choice-type-badge single">单选</span>';
+        }
+        let html = `<div class="card-header">
+            <span>Card ${currentIndex + 1} of ${filteredQuestions.length}</span>
+            <span class="type-badge type-${q.type}">${typeBadge}</span>
+        </div>`;
+
+        if (q.type === 'choice') {
+            html += `<div class="card-stem">${escapeHtml(q.content.stem)}</div>`;
+            html += '<div class="options-list">';
+            const labels = ['A', 'B', 'C', 'D'];
+            q.content.options.forEach((opt, i) => {
+                html += `<div class="option-item" data-index="${i}" onclick="selectOption(${i})">
+                    <strong>${labels[i]}.</strong> ${escapeHtml(opt)}
+                </div>`;
+            });
+            html += '</div>';
+            if (isMulti) {
+                html += `<button class="multi-confirm-btn" onclick="confirmMultiChoice()">确认选择 (Enter)</button>`;
+            }
+        } else if (q.type === 'fill') {
+            const stemHtml = q.content.stem.replace(/\{\{c1::([^}]+)\}\}/g, '<span class="fill-blank">______</span>');
+            html += `<div class="card-stem">${stemHtml}</div>`;
+            html += `<input type="text" class="fill-input" id="fillInput" placeholder="输入答案后按 Enter 翻转" autocomplete="off">`;
+        } else if (q.type === 'judge') {
+            html += `<div class="card-stem">${escapeHtml(q.content.stem)}</div>`;
+            html += `<div class="judge-buttons">
+                <button class="judge-btn" onclick="selectJudge(true)">正确 (1)</button>
+                <button class="judge-btn" onclick="selectJudge(false)">错误 (2)</button>
+            </div>`;
+        } else if (q.type === 'short_answer') {
+            html += `<div class="card-stem">${escapeHtml(q.content.stem)}</div>`;
+            html += '<div style="margin-top:16px;color:var(--text-muted);font-size:0.85rem;">按 Space/Enter 查看答案</div>';
+        }
+
+        front.innerHTML = html;
+    }
+
+    function renderBack(q) {
+        const back = document.getElementById('cardBack');
+        let html = `<div class="card-header">
+            <span>Card ${currentIndex + 1} of ${filteredQuestions.length}</span>
+            <span style="color:var(--text-muted);font-size:0.8rem;">答案</span>
+        </div>`;
+
+        html += '<div class="answer-section">';
+
+        if (q.type === 'choice') {
+            const labels = ['A', 'B', 'C', 'D'];
+            const correctAnswers = q.content.multiChoice
+                ? (Array.isArray(q.content.answer) ? q.content.answer : [q.content.answer])
+                : [q.content.answer];
+            const userPicks = q.content.multiChoice ? selectedOptions : (selectedOption !== null ? [selectedOption] : []);
+            html += '<div class="options-list">';
+            q.content.options.forEach((opt, i) => {
+                const isCorrect = correctAnswers.includes(i);
+                const isUserPick = userPicks.includes(i);
+                let cls = '';
+                let icon = '';
+                if (isCorrect && isUserPick) { cls = 'correct'; icon = ' ✓'; }
+                else if (isCorrect) { cls = 'correct'; icon = ' ✓'; }
+                else if (isUserPick) { cls = 'wrong'; icon = ' ✗'; }
+                html += `<div class="option-item ${cls}" data-index="${i}">
+                    <strong>${labels[i]}.</strong> ${escapeHtml(opt)}${icon}
+                </div>`;
+            });
+            html += '</div>';
+            // Distractor traps
+            if (q.content.traps && Array.isArray(q.content.traps)) {
+                const trapLabels = ['A', 'B', 'C', 'D'];
+                const trapItems = [];
+                q.content.traps.forEach((desc, idx) => {
+                    if (desc && desc.trim()) {
+                        trapItems.push('<div class="trap-item"><span class="trap-opt">' + trapLabels[idx] + '.</span>' + escapeHtml(desc) + '</div>');
+                    }
+                });
+                if (trapItems.length > 0) {
+                    html += '<div class="trap-section">';
+                    html += '<div class="trap-title">⚠ 干扰项陷阱</div>';
+                    html += trapItems.join('');
+                    html += '</div>';
+                }
+            }
+        } else if (q.type === 'fill') {
+            const stemHtml = q.content.stem.replace(/\{\{c1::([^}]+)\}\}/g, '<span class="fill-blank" style="color:var(--accent-blue);font-weight:700;">$1</span>');
+            html += `<div class="card-stem">${stemHtml}</div>`;
+            // Show user's answer vs correct answer
+            const userAns = (capturedFillAnswer || '').trim();
+            const correctAns = (q.content.answer || '').trim();
+            const isMatch = userAns.length > 0 && userAns.toLowerCase() === correctAns.toLowerCase();
+            if (userAns.length > 0) {
+                if (isMatch) {
+                    html += `<div class="user-answer correct">你的回答: <span class="user-answer-correct">${escapeHtml(userAns)} ✓</span></div>`;
+                } else {
+                    html += `<div class="user-answer wrong">你的回答: <span class="user-answer-wrong">${escapeHtml(userAns)} ✗</span></div>`;
+                    html += `<div style="margin-top:4px;font-size:0.9rem;">正确答案: <span style="color:var(--color-success);font-weight:600;">${escapeHtml(correctAns)}</span></div>`;
+                }
+            } else {
+                html += `<div style="margin-top:8px;font-size:0.9rem;color:var(--text-muted);">未输入答案</div>`;
+                html += `<div style="margin-top:4px;font-size:0.9rem;">正确答案: <span style="color:var(--color-success);font-weight:600;">${escapeHtml(correctAns)}</span></div>`;
+            }
+        } else if (q.type === 'judge') {
+            const ansText = q.content.answer ? '正确' : '错误';
+            const userCorrect = judgeSelected === q.content.answer;
+            const userText = judgeSelected !== null
+                ? `<div style="margin-top:8px;font-size:0.9rem;">你的选择: ${judgeSelected ? '正确' : '错误'} ${userCorrect ? '✓' : '✗'}</div>`
+                : '';
+            const ansColor = q.content.answer ? 'var(--color-success)' : 'var(--color-error)';
+            html += `<div class="answer-content" style="color:${ansColor};font-weight:600;font-size:1.1rem;text-align:center;">
+                答案: ${ansText}${userText}
+            </div>`;
+        } else if (q.type === 'short_answer') {
+            html += `<div class="answer-label">参考答案</div>`;
+            html += `<div class="answer-content">${escapeHtml(q.content.answer || '')}</div>`;
+        }
+
+        if (q.content.explanation) {
+            html += `<div class="explanation">${escapeHtml(q.content.explanation)}</div>`;
+        }
+
+        // Original question at the bottom for reference
+        html += `<div class="question-ref">
+            <div class="question-ref-label">原题</div>
+            <div class="question-ref-stem">${escapeHtml(q.content.stem)}</div>
+        </div>`;
+
+        const tags = (q.content.tags || []).join(', ');
+        html += `<div class="source-info">${q.source || ''} ${tags ? '| ' + tags : ''}</div>`;
+        html += '</div>';
+
+        back.innerHTML = html;
+    }
+
+    function flipCard() {
+        if (filteredQuestions.length === 0) return;
+        const q = filteredQuestions[currentIndex];
+        // Capture fill input before flipping
+        if (isFlipped === false && q && q.type === 'fill') {
+            const fillInput = document.getElementById('fillInput');
+            if (fillInput) capturedFillAnswer = fillInput.value;
+        }
+        isFlipped = !isFlipped;
+        const inner = document.getElementById('cardInner');
+        if (isFlipped) {
+            inner.classList.add('flipped');
+            document.getElementById('ratingButtons').classList.remove('hidden');
+            updateIntervals();
+        } else {
+            inner.classList.remove('flipped');
+            document.getElementById('ratingButtons').classList.add('hidden');
+        }
+    }
+
+
+
+    function updateIntervals() {
+        const q = filteredQuestions[currentIndex];
+        if (!q) return;
+        const intervals = predictIntervals(q.card);
+        document.getElementById('interval1').textContent = formatInterval(intervals[0]);
+        document.getElementById('interval3').textContent = formatInterval(intervals[2]);
+    }
+
+    function formatInterval(days) {
+        if (days <= 0) return '1分钟';
+        if (days === 1) return '1天';
+        if (days < 30) return days + '天';
+        if (days < 365) return Math.round(days / 30) + '月';
+        return Math.round(days / 365) + '年';
+    }
+
+    // ============ INTERACTION ============
+    function selectOption(index) {
+        if (isFlipped) return;
+        const q = filteredQuestions[currentIndex];
+        if (!q || q.type !== 'choice') return;
+
+        if (q.content.multiChoice) {
+            // Multi-choice: toggle selection
+            const pos = selectedOptions.indexOf(index);
+            if (pos >= 0) {
+                selectedOptions.splice(pos, 1);
+            } else {
+                selectedOptions.push(index);
+            }
+            document.querySelectorAll('.option-item').forEach((el, i) => {
+                el.classList.toggle('selected-multi', selectedOptions.includes(i));
+            });
+        } else {
+            // Single-choice: select one and auto-flip
+            if (selectedOption !== null) return;
+            selectedOption = index;
+            document.querySelectorAll('.option-item').forEach((el, i) => {
+                el.classList.toggle('selected', i === index);
+            });
+            setTimeout(() => { if (!isFlipped) flipCard(); }, 400);
+        }
+    }
+
+    function confirmMultiChoice() {
+        if (isFlipped || selectedOptions.length === 0) return;
+        flipCard();
+    }
+
+    function selectJudge(value) {
+        if (isFlipped || judgeSelected !== null) return;
+        judgeSelected = value;
+        document.querySelectorAll('.judge-btn').forEach(btn => {
+            btn.classList.remove('selected-correct', 'selected-wrong');
+        });
+        if (value === true) {
+            document.querySelectorAll('.judge-btn')[0].classList.add('selected-correct');
+        } else {
+            document.querySelectorAll('.judge-btn')[1].classList.add('selected-wrong');
+        }
+        // Auto-flip after selection for judge questions
+        setTimeout(() => { if (!isFlipped) flipCard(); }, 400);
+    }
+
+    function syncToServer() {
+        try {
+            fetch('/api/flashcard-sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reviews: sessionReviews,
+                    stats: sessionStats,
+                    date: new Date().toISOString().slice(0, 10)
+                })
+            }).then(r => r.json()).then(data => {
+                if (data.ok) console.log('[Sync] Reviews synced to server:', data.total_reviews);
+            }).catch(e => console.warn('[Sync] Failed to sync reviews:', e.message));
+        } catch (e) { /* offline / server not running — silently ignore */ }
+    }
+
+    function rateCard(rating) {
+        if (!isFlipped || filteredQuestions.length === 0) return;
+
+        const q = filteredQuestions[currentIndex];
+        const result = scheduleCard(q.card, rating);
+        q.card = result.card;
+
+        // Set card.wrong flag based on rating
+        if (rating === 1) {
+            q.card.wrong = true;
+        } else if (rating === 3) {
+            q.card.wrong = false;
+        }
+
+        // Compute actual answer correctness (independent of FSRS rating)
+        let answerCorrect = false;
+        if (q.type === 'choice') {
+            if (q.content.multiChoice) {
+                const correct = Array.isArray(q.content.answer) ? [...q.content.answer].sort() : [q.content.answer];
+                answerCorrect = selectedOptions.length === correct.length &&
+                    [...selectedOptions].sort().every((v, i) => v === correct[i]);
+            } else {
+                answerCorrect = selectedOption !== null && selectedOption === q.content.answer;
+            }
+        } else if (q.type === 'judge') {
+            answerCorrect = judgeSelected !== null && judgeSelected === q.content.answer;
+        } else if (q.type === 'fill') {
+            const userAns = (capturedFillAnswer || '').trim().toLowerCase();
+            const correctAns = (q.content.answer || '').trim().toLowerCase();
+            answerCorrect = userAns.length > 0 && userAns === correctAns;
+        }
+
+        // Track wrong questions
+        if (!answerCorrect) {
+            q.card.wrong = true;
+            if (!wrongQuestions.includes(q.id)) {
+                wrongQuestions.push(q.id);
+                saveWrongQuestions();
+            }
+        } else {
+            // If answered correctly, clear wrong flag and remove from wrong list
+            q.card.wrong = false;
+            const wrongIdx = wrongQuestions.indexOf(q.id);
+            if (wrongIdx >= 0) {
+                wrongQuestions.splice(wrongIdx, 1);
+                saveWrongQuestions();
+            }
+        }
+
+        // Track mock exam stats
+        if (isMockExam) {
+            mockExamStats.reviewed++;
+            if (answerCorrect) mockExamStats.correct++;
+            const subject = q.topic_id.split('-')[0];
+            if (!mockExamStats.subjectBreakdown[subject]) {
+                mockExamStats.subjectBreakdown[subject] = { total: 0, correct: 0 };
+            }
+            mockExamStats.subjectBreakdown[subject].total++;
+            if (answerCorrect) mockExamStats.subjectBreakdown[subject].correct++;
+        }
+
+        sessionStats.reviewed++;
+        if (answerCorrect) {
+            sessionStats.correct++;
+            sessionStats.streak++;
+            sessionStats.maxStreak = Math.max(sessionStats.maxStreak, sessionStats.streak);
+        } else {
+            sessionStats.streak = 0;
+        }
+
+        sessionReviews.push({
+            question_id: q.id,
+            topic_id: q.topic_id,
+            rating: rating,
+            answer_correct: answerCorrect,
+            interval: result.interval,
+            timestamp: new Date().toISOString(),
+            card_state: q.card.state
+        });
+
+        saveSession();
+        syncToServer();
+        updateStats();
+        currentCardRated = true;
+    }
+
+    // Track if current flipped card has been rated — variable declared in state section
+
+    function showToast(msg) {
+        const toast = document.getElementById('navToast');
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 1500);
+    }
+
+    function nextCard() {
+        if (filteredQuestions.length === 0) return;
+        if (isFlipped && !currentCardRated) {
+            showToast('请先评级 (1/2)，或按 Space 跳过');
+            return;
+        }
+        currentIndex = (currentIndex + 1) % filteredQuestions.length;
+        // Auto-show mock summary when all questions reviewed
+        if (isMockExam && currentIndex === 0 && mockExamStats.reviewed >= mockExamQuestions.length) {
+            showMockResults();
+            isMockExam = false;
+            document.getElementById('mockExamBtn').textContent = '模拟测试';
+            applyFilters();
+            return;
+        }
+        currentCardRated = false;
+        renderCard();
+    }
+
+    function prevCard() {
+        if (filteredQuestions.length === 0) return;
+        if (isFlipped && !currentCardRated) {
+            showToast('请先评级 (1/2)，或按 Space 跳过');
+            return;
+        }
+        currentIndex = (currentIndex - 1 + filteredQuestions.length) % filteredQuestions.length;
+        currentCardRated = false;
+        renderCard();
+    }
+
+    // ============ KEYBOARD HANDLER ============
+    function handleKeyboard(e) {
+        // Ignore if focused on input/select (except Enter in fill input to flip)
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+            if (e.target.id === 'fillInput' && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                e.target.blur();
+                flipCard();
+            }
+            return;
+        }
+
+        const key = e.key.toLowerCase();
+
+        // j = next card
+        if (key === 'j') {
+            e.preventDefault();
+            nextCard();
+            return;
+        }
+
+        // k = previous card
+        if (key === 'k') {
+            e.preventDefault();
+            prevCard();
+            return;
+        }
+
+        // Space or Enter: before flip → flip/confirm; after flip → force next card (skip guard)
+        if (key === ' ' || key === 'enter') {
+            e.preventDefault();
+            if (isFlipped) {
+                currentCardRated = true; // bypass nav guard
+                nextCard();
+            } else {
+                const q = filteredQuestions[currentIndex];
+                if (q && q.type === 'choice' && q.content.multiChoice) {
+                    confirmMultiChoice();
+                } else {
+                    flipCard();
+                }
+            }
+            return;
+        }
+
+        const q = filteredQuestions[currentIndex];
+
+        // e = toggle wrong-answer mode
+        if (key === 'e') {
+            e.preventDefault();
+            toggleWrongMode();
+            return;
+        }
+
+        if (!q) return;
+
+        // Before flip: selection keys
+        if (!isFlipped) {
+            if (q.type === 'choice') {
+                // A/B/C or 1/2/3/4
+                const optMap = { 'a': 0, 'b': 1, 'c': 2, 'd': 3, '1': 0, '2': 1, '3': 2, '4': 3 };
+                if (key in optMap && optMap[key] < q.content.options.length) {
+                    e.preventDefault();
+                    selectOption(optMap[key]);
+                }
+            } else if (q.type === 'judge') {
+                if (key === '1') { e.preventDefault(); selectJudge(true); }
+                if (key === '2') { e.preventDefault(); selectJudge(false); }
+            }
+            return;
+        }
+
+        // After flip: rating keys (1=没记住, 2=记住)
+        if (isFlipped) {
+            if (key === '1') { e.preventDefault(); rateCard(1); }
+            if (key === '2') { e.preventDefault(); rateCard(3); }
+        }
+    }
+
+    // ============ UI UPDATES ============
+    function updateCountdown() {
+        const examDateStr = (window.__QUESTION_DATA__ && window.__QUESTION_DATA__.meta && window.__QUESTION_DATA__.meta.exam_date)
+            || DEMO_DATA.meta.exam_date;
+        const examDate = new Date(examDateStr);
+        const now = new Date();
+        const diffDays = Math.ceil((examDate - now) / 86400000);
+
+        let phase = '基础期';
+        if (diffDays <= 30) phase = '冲刺期';
+        else if (diffDays <= 90) phase = '强化期';
+
+        document.getElementById('countdown').textContent = diffDays > 0
+            ? `距考试 ${diffDays} 天 · ${phase}`
+            : '考试已过';
+    }
+
+    function updateProgress() {
+        const total = filteredQuestions.length;
+        const reviewedToday = sessionReviews.filter(r => {
+            const d = new Date(r.timestamp);
+            return d.toDateString() === new Date().toDateString();
+        }).length;
+        const acc = sessionStats.reviewed > 0
+            ? Math.round(sessionStats.correct / sessionStats.reviewed * 100) + '%'
+            : '--';
+
+        document.getElementById('todayProgress').textContent = `今日: ${reviewedToday}/${total} 完成`;
+        document.getElementById('accuracy').textContent = `正确率: ${acc}`;
+    }
+
+    function updateStats() {
+        document.getElementById('statReviewed').textContent = sessionStats.reviewed;
+        document.getElementById('statCorrect').textContent = sessionStats.correct;
+        document.getElementById('statAccuracy').textContent = sessionStats.reviewed > 0
+            ? Math.round(sessionStats.correct / sessionStats.reviewed * 100) + '%'
+            : '--';
+        document.getElementById('statStreak').textContent = sessionStats.streak;
+
+        // Card state distribution
+        const states = { 0: 0, 1: 0, 2: 0, 3: 0 };
+        questions.forEach(q => {
+            if (states[q.card.state] !== undefined) states[q.card.state]++;
+        });
+        document.getElementById('statNew').textContent = states[0];
+        document.getElementById('statLearning').textContent = states[1] + states[3];
+
+        updateProgress();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    // ============ START ============
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

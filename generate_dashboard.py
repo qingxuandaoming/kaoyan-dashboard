@@ -1,0 +1,10712 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+r"""
+generate_dashboard.py — Local HTML Dashboard Generator
+
+Generates C:\Users\92534\Desktop\考研\src\dashboard.html — a single-file analytics dashboard
+with inline D3.js visualizations for the 考研 study project.
+
+Usage:
+    python generate_dashboard.py
+"""
+
+import io
+import json
+import os
+import sqlite3
+import sys
+import time
+from datetime import datetime, date, timedelta
+from pathlib import Path
+
+# Force UTF-8 on Windows
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
+try:
+    import yaml
+except ImportError:
+    print("ERROR: PyYAML is required. Install with: pip install pyyaml")
+    sys.exit(1)
+
+# 标签页图标。图形定义在 tools/icon_design.py，与桌面快捷方式的 .ico 同源。
+# 用 data URI 内联而不是外链 favicon.ico：大盘既可能走 http://localhost:8080，
+# 也可能被直接 file:// 打开，内联两边都不用额外部署。
+# 取不到就退化成 data:,（浏览器视为「没有图标」），不能因为一个图标让大盘生成失败。
+try:
+    sys.path.append(str(Path(__file__).resolve().parent / "tools"))
+    from icon_design import favicon_href as _favicon_href
+    FAVICON_HREF = _favicon_href()
+except Exception as _e:                                   # noqa: BLE001
+    print("WARN: favicon 生成失败（%s），本次不写入图标" % _e)
+    FAVICON_HREF = "data:,"
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+BASE_DIR      = Path(r"C:\Users\92534\Desktop\考研")
+INDEX_PATH    = BASE_DIR / "src" / "笔记索引.yaml"
+GRAPH_DIR     = BASE_DIR / "src" / "knowledge_graph"
+DB_PATH       = BASE_DIR / "src" / "question_bank.db"
+STATE_PATH    = BASE_DIR / "src" / "sync_state.json"
+DASH_DATA_OUT = BASE_DIR / "src" / "dashboard_data.json"
+DECKS_DIR     = BASE_DIR / "src" / "flashcards" / "decks"
+OUTPUT_PATH   = BASE_DIR / "src" / "dashboard.html"
+
+EXAM_DATE = date(2026, 12, 19)
+
+# 四科的规范名（与 topics.subject 的原值一致）。
+# 活动页的「各科正确率」要**固定**按这个顺序输出四个，缺的补 0——
+# 早先用 GROUP BY t.subject 直接从答题记录取，没练过的科目干脆不出现，
+# 用户看到的是「缺失」而不是「0%」，会以为数据坏了。
+ALL_SUBJECTS = ["408", "政治", "数学一", "英语一"]
+
+# 笔记目录 → 闪卡知识点前缀映射（用于“近日笔记→针对性闪卡”的选题加权）
+NOTE_PREFIX_MAP = {
+    "408/DS": "408-DS", "408/CO": "408-CO", "408/OS": "408-OS", "408/CN": "408-CN",
+    "Math/高数": "MATH-GS", "Math/线代": "MATH-XD", "Math/概率论": "MATH-GL",
+    "Politics/马原": "POL-MY", "Politics/史纲": "POL-SG", "Politics/毛中特": "POL-MZ",
+    "Politics/思修": "POL-SX", "Politics/习思想": "POL-XX",
+    # 英语前缀必须和图谱/题库的 ENG-WRITE 对齐：写成 ENG-WRIT 时
+    # load_card_linkage() 的 key（由 topics.id 前两段得出）永远匹配不上，
+    # 英语写作笔记的闪卡联动因此长期为 0（2026-09-14 修正）。
+    "English/word&phrase": "ENG-VOC", "English/grammar": "ENG-GRAM",
+    "English/reading&magazines": "ENG-READ", "English/translation&write": "ENG-WRITE",
+    "English/past-papers": "ENG-TRN",
+}
+SUBJECT_ALL_PREFIXES = {
+    "408": ["408-DS", "408-CO", "408-OS", "408-CN"],
+    "数学": ["MATH-GS", "MATH-XD", "MATH-GL"],
+    "政治": ["POL-MY", "POL-SG", "POL-MZ", "POL-SX", "POL-XX"],
+    "英语": ["ENG-VOC", "ENG-GRAM", "ENG-READ", "ENG-WRITE", "ENG-TRN"],
+}
+
+# 政治笔记用 MY-001 / SG-003 这类短编号，知识图谱用 POL-MY-01 / POL-SG-03。
+# 两套 ID 体系互不相通，取前两段永远拼不出图谱前缀，所以政治笔记在热力图上
+# 长期整片 0%（2026-09-14 加桥修正）。
+NOTE_PREFIX_ALIAS = {
+    "MY":  "POL-MY",   # 马原
+    "MZT": "POL-MZ",   # 毛中特
+    "SG":  "POL-SG",   # 史纲
+    "XSX": "POL-SX",   # 思修
+    "ZT":  "POL-XX",   # 习思想（专题类汇总）
+}
+
+
+def note_entry_prefix(eid) -> str:
+    """笔记条目 ID → 知识图谱科目前缀。
+
+    408/数学写成 408-DS-01 / MATH-GS-04，前两段即图谱前缀；
+    政治写成 MY-001 / SG-003，需经 NOTE_PREFIX_ALIAS 换成 POL-MY / POL-SG。
+    """
+    parts = str(eid or "").split("-")
+    if not parts or not parts[0]:
+        return ""
+    root = parts[0]
+    if root in NOTE_PREFIX_ALIAS:
+        return NOTE_PREFIX_ALIAS[root]
+    if len(parts) >= 2:
+        return "-".join(parts[:2])
+    return root
+
+def note_files_for(rel: str) -> list:
+    """列出某个笔记前缀对应的 .md 文件。
+
+    ⚠️ 必须同时支持两种形态（2026-08-07 起 Politics 改为一科一文件）：
+      * 目录形态：408/DS/*.md      —— 408、数学、英语仍是这种
+      * 单文件形态：Politics/马原.md —— 政治已改成一科一个文件
+    历史上这里只判断 is_dir()，导致政治笔记永远匹配不上，
+    「近日笔记加权」对政治完全失效（2026-09-13 修复）。
+    """
+    base = BASE_DIR / rel
+    try:
+        if base.is_dir():
+            return [f for f in base.iterdir()
+                    if f.suffix.lower() == ".md" and not f.name.startswith("_")]
+        single = base.with_suffix(".md")
+        if single.is_file():
+            return [single]
+    except OSError:
+        pass
+    return []
+
+
+GRAPH_FILES = {
+    "408":  "408_graph.json",
+    "数学": "math_graph.json",
+    "政治": "politics_graph.json",
+    "英语": "english_graph.json",
+}
+
+
+# ---------------------------------------------------------------------------
+# Data loading
+# ---------------------------------------------------------------------------
+
+def load_index() -> dict:
+    """Load the notes index."""
+    with open(INDEX_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def load_graphs() -> dict:
+    """Load all knowledge graph JSON files."""
+    graphs = {}
+    for subj, fname in GRAPH_FILES.items():
+        fpath = GRAPH_DIR / fname
+        if fpath.exists():
+            with open(fpath, "r", encoding="utf-8") as f:
+                graphs[subj] = json.load(f)
+    return graphs
+
+
+def load_db_stats() -> dict:
+    """Load flashcard statistics from SQLite."""
+    stats = {
+        "card_states": {"New": 0, "Learning": 0, "Review": 0, "Relearning": 0},
+        "total_cards": 0,
+        "due_today": 0,
+        "reviewed_today": 0,
+        "accuracy_trend": [],
+    }
+
+    if not DB_PATH.exists():
+        return stats
+
+    conn = sqlite3.connect(str(DB_PATH))
+    c = conn.cursor()
+
+    # Card state distribution (FSRS states: 0=New, 1=Learning, 2=Review, 3=Relearning)
+    state_map = {0: "New", 1: "Learning", 2: "Review", 3: "Relearning"}
+    rows = c.execute("SELECT state, COUNT(*) FROM cards GROUP BY state").fetchall()
+    for state_val, count in rows:
+        label = state_map.get(state_val, "New")
+        stats["card_states"][label] = count
+    stats["total_cards"] = sum(stats["card_states"].values())
+
+    # Due today
+    today_str = date.today().isoformat()
+    try:
+        due = c.execute(
+            "SELECT COUNT(*) FROM cards WHERE due_date <= ?", (today_str,)
+        ).fetchone()
+        stats["due_today"] = due[0] if due else 0
+    except Exception:
+        stats["due_today"] = 0
+
+    # Reviewed today
+    try:
+        reviewed = c.execute(
+            "SELECT COUNT(*) FROM review_log WHERE date(review_date) = ?",
+            (today_str,),
+        ).fetchone()
+        stats["reviewed_today"] = reviewed[0] if reviewed else 0
+    except Exception:
+        stats["reviewed_today"] = 0
+
+    # Accuracy trend (last 14 days)
+    try:
+        rows = c.execute("""
+            SELECT date(review_date) as d,
+                   COUNT(*) as total,
+                   SUM(CASE WHEN rating >= 3 THEN 1 ELSE 0 END) as correct
+            FROM review_log
+            WHERE review_date >= date('now', '-14 days')
+            GROUP BY date(review_date)
+            ORDER BY d
+        """).fetchall()
+        for d, total, correct in rows:
+            stats["accuracy_trend"].append({
+                "date": d,
+                "accuracy": round(correct / total * 100, 1) if total > 0 else 0,
+                "total": total,
+            })
+    except Exception:
+        pass
+
+    conn.close()
+    return stats
+
+
+def load_weak_topics() -> dict:
+    """从闪卡数据库提取薄弱知识点：卡片遗忘次数(lapses) + 近30天错误评分(rating<=2)。
+
+    返回 {"weak": [...], "uncovered_weighty": [...]}。大盘只负责提醒薄弱处，
+    不评判每日任务完成情况（用户有自己的计划）。
+    """
+    result = {"weak": [], "uncovered_weighty": []}
+    if not DB_PATH.exists():
+        return result
+
+    conn = sqlite3.connect(str(DB_PATH))
+    c = conn.cursor()
+
+    # 1) 薄弱知识点：按 topic 汇总 lapses 与近30天错误次数
+    try:
+        rows = c.execute("""
+            SELECT t.id, t.name, t.subject,
+                   COALESCE(SUM(cd.lapses), 0) AS lapse_cnt,
+                   COALESCE(SUM(CASE WHEN rl.rating <= 2
+                          AND rl.review_date >= datetime('now', 'localtime', '-30 days')
+                          THEN 1 ELSE 0 END), 0) AS recent_wrong
+            FROM topics t
+            LEFT JOIN questions q  ON q.topic_id = t.id
+            LEFT JOIN cards cd     ON cd.question_id = q.id
+            LEFT JOIN review_log rl ON rl.question_id = q.id
+            GROUP BY t.id
+            HAVING lapse_cnt > 0 OR recent_wrong > 0
+            ORDER BY (recent_wrong * 2 + lapse_cnt) DESC, lapse_cnt DESC
+            LIMIT 8
+        """).fetchall()
+        for tid, name, subject, lapses, wrong in rows:
+            result["weak"].append({
+                "id": tid, "name": name, "subject": subject,
+                "lapses": int(lapses), "recent_wrong": int(wrong),
+            })
+    except Exception:
+        pass
+
+    # 2) 高分考点但尚未出卡（提醒针对性生成）
+    try:
+        rows = c.execute("""
+            SELECT t.id, t.name, t.subject, t.exam_weight
+            FROM topics t
+            WHERE t.exam_weight >= 2
+              AND t.id NOT IN (SELECT DISTINCT topic_id FROM questions)
+            ORDER BY t.exam_weight DESC
+            LIMIT 5
+        """).fetchall()
+        for tid, name, subject, weight in rows:
+            result["uncovered_weighty"].append({
+                "id": tid, "name": name, "subject": subject, "weight": weight,
+            })
+    except Exception:
+        pass
+
+    conn.close()
+    return result
+
+
+# 知识图谱的考点 ID 是两段前缀 + 章节号（408-OS-02）；题库会把同一考点再拆成
+# 子考点（408-OS-02-04 / 408-OS-02-05）。两边段数不同，直接拿题库 ID 去比对图谱
+# 会全部落空——2026-09-14 前 45 条答题记录里有 42 条因此被判成「无数据」。
+GRAPH_TOPIC_SEGMENTS = 3
+
+
+def normalize_topic_id(tid) -> str:
+    """把题库考点 ID 截到知识图谱粒度（前 3 段）。
+
+    ENG-VOC-01-03 -> ENG-VOC-01
+    408-OS-02-04  -> 408-OS-02
+    408-DS-03     -> 408-DS-03   （已是图谱粒度，原样返回）
+    """
+    if not tid:
+        return ""
+    return "-".join(str(tid).split("-")[:GRAPH_TOPIC_SEGMENTS])
+
+
+def load_topic_review_stats() -> dict:
+    """按归一化考点 ID 聚合答题记录。
+
+    返回 {topic_id: {"total": n, "correct": n, "recent_wrong": n}}，
+    recent_wrong 只统计近 14 天 rating <= 2 的次数。
+    """
+    stats = {}
+    if not DB_PATH.exists():
+        return stats
+
+    conn = sqlite3.connect(str(DB_PATH))
+    try:
+        rows = conn.execute("""
+            SELECT q.topic_id, rl.rating,
+                   CASE WHEN rl.review_date >= datetime('now', 'localtime', '-14 days')
+                        THEN 1 ELSE 0 END
+            FROM review_log rl
+            JOIN questions q ON q.id = rl.question_id
+            WHERE q.topic_id IS NOT NULL
+        """).fetchall()
+    except Exception:
+        rows = []
+    finally:
+        conn.close()
+
+    for tid, rating, is_recent in rows:
+        key = normalize_topic_id(tid)
+        if not key:
+            continue
+        s = stats.setdefault(key, {"total": 0, "correct": 0, "recent_wrong": 0})
+        s["total"] += 1
+        if rating is not None and rating >= 3:
+            s["correct"] += 1
+        elif is_recent:
+            s["recent_wrong"] += 1
+    return stats
+
+
+def load_topic_accuracy() -> dict:
+    """topic_id → 正确率(0-100)，key 已归一化到知识图谱粒度。"""
+    return {
+        tid: round(s["correct"] / s["total"] * 100)
+        for tid, s in load_topic_review_stats().items()
+        if s["total"]
+    }
+
+
+def compute_recent_prefixes(timeline: dict, days: int = 7) -> list:
+    """扫描近 N 天有修改的笔记目录，映射为闪卡知识点前缀（针对性选题用）。
+
+    若近 N 天无文件修改（如刚重建索引），回退到时间线最近一天涉及的科目。
+    """
+    cutoff = time.time() - days * 86400
+    found = set()
+    for rel, prefix in NOTE_PREFIX_MAP.items():
+        for f in note_files_for(rel):
+            try:
+                if f.stat().st_mtime >= cutoff:
+                    found.add(prefix)
+                    break
+            except OSError:
+                continue
+
+    if not found and timeline:
+        last_date = sorted(timeline.keys())[-1]
+        for subj, cnt in timeline[last_date].items():
+            if subj == "total" or not cnt:
+                continue
+            found.update(SUBJECT_ALL_PREFIXES.get(subj, []))
+
+    return sorted(found)
+
+
+def load_sync_state() -> dict:
+    """Load the sync state."""
+    if STATE_PATH.exists():
+        with open(STATE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+# ---------------------------------------------------------------------------
+# 笔记盘活（强化阶段核心）：新鲜度扫描 / 闪卡联动 / 练习活动
+# ---------------------------------------------------------------------------
+
+NOTE_TOUCH_PATH = BASE_DIR / "src" / "note_reviews.json"
+
+FRESH_HOT = 7      # ≤7 天：热（活跃）
+FRESH_WARM = 21    # ≤21 天：温（正常）
+FRESH_COLD = 60    # ≤60 天：冷（需盘活）
+# >60 天：冰冻（高危）
+
+
+def load_note_touch() -> dict:
+    """读取大盘内「读过并标记盘活」记录 {相对路径: ISO 时间}。"""
+    if NOTE_TOUCH_PATH.exists():
+        try:
+            with open(NOTE_TOUCH_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("touched", {}) if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _parse_iso_ts(s):
+    try:
+        return datetime.fromisoformat(str(s)[:19]).timestamp()
+    except Exception:
+        return 0.0
+
+
+def _chapter_weights(graphs: dict) -> dict:
+    """构建 (前缀, 章节号) → 考点权重和 的映射，用于衡量笔记重要性。"""
+    weights = {}
+    for subj, graph in graphs.items():
+        for sub_key, sub_data in graph.get("subs", {}).items():
+            for topic in sub_data.get("topics", []):
+                tid = topic.get("id", "")
+                parts = tid.split("-")
+                if len(parts) < 3:
+                    continue
+                pfx = "-".join(parts[:2])
+                ch = topic.get("chapter")
+                if ch is None:
+                    continue
+                weights[(pfx, int(ch))] = weights.get((pfx, int(ch)), 0) + float(
+                    topic.get("exam_weight", 1) or 1)
+    return weights
+
+
+def scan_note_freshness(graphs: dict, touched: dict) -> dict:
+    """扫描各科笔记文件的闲置天数，分级并生成盘活目标清单。
+
+    闲置天数 = 今天 - max(文件修改时间, 大盘内标记盘活时间)。
+    分级：热(≤7) / 温(≤21) / 冷(≤60) / 冰冻(>60)。
+    """
+    ch_weights = _chapter_weights(graphs)
+    by_prefix = {}
+    all_files = []
+
+    for rel, prefix in NOTE_PREFIX_MAP.items():
+        files = note_files_for(rel)
+        if not files:
+            continue
+        counts = {"hot": 0, "warm": 0, "cold": 0, "frozen": 0}
+        for f in files:
+            try:
+                mtime = f.stat().st_mtime
+            except OSError:
+                continue
+            relpath = f"{rel}/{f.name}".replace("\\", "/")
+            last_active = max(mtime, _parse_iso_ts(touched.get(relpath, "")))
+            days_idle = max(0, int((time.time() - last_active) // 86400))
+            if days_idle <= FRESH_HOT:
+                cat = "hot"
+            elif days_idle <= FRESH_WARM:
+                cat = "warm"
+            elif days_idle <= FRESH_COLD:
+                cat = "cold"
+            else:
+                cat = "frozen"
+            counts[cat] += 1
+
+            # 章节权重（文件名形如「第N章_xxx.md」）
+            m = __import__("re").match(r"第(\d+)章", f.name)
+            ch_w = ch_weights.get((prefix, int(m.group(1))), 0) if m else 0
+            all_files.append({
+                "prefix": prefix, "file": relpath, "name": f.stem,
+                "days_idle": days_idle, "cat": cat, "weight": round(ch_w, 1),
+            })
+        total = sum(counts.values())
+        if total > 0:
+            by_prefix[prefix] = {
+                "total": total,
+                **counts,
+                # 活跃分：热=1 温=0.6 冷=0.2 冰冻=0
+                "alive_score": round(
+                    (counts["hot"] + 0.6 * counts["warm"] + 0.2 * counts["cold"]) / total * 100),
+            }
+
+    summary = {"hot": 0, "warm": 0, "cold": 0, "frozen": 0, "total": len(all_files)}
+    for f in all_files:
+        summary[f["cat"]] += 1
+    summary["alive_score"] = round(
+        (summary["hot"] + 0.6 * summary["warm"] + 0.2 * summary["cold"])
+        / summary["total"] * 100) if summary["total"] else 100
+
+    # 盘活目标清单：冷/冰冻笔记，按 章节权重 × 闲置程度 排序
+    import math
+    targets = [f for f in all_files if f["cat"] in ("cold", "frozen")]
+    for t in targets:
+        idle_factor = min(t["days_idle"] / 60.0, 2.0)
+        t["urgency"] = round((t["weight"] + 1) * (1 + math.log1p(idle_factor * 3)), 1)
+    targets.sort(key=lambda x: x["urgency"], reverse=True)
+
+    return {"summary": summary, "by_prefix": by_prefix, "targets": targets[:15]}
+
+
+def load_card_linkage() -> dict:
+    """笔记→闪卡联动：每个前缀的卡片数与近30天真实练习次数。"""
+    linkage = {}
+    if not DB_PATH.exists():
+        return linkage
+    conn = sqlite3.connect(str(DB_PATH))
+    try:
+        rows = conn.execute("""
+            SELECT t.id,
+                   COUNT(DISTINCT cd.id) AS cards,
+                   COUNT(DISTINCT CASE WHEN rl.review_date >= datetime('now', 'localtime', '-30 days')
+                                       THEN rl.id END) AS reviews_30d
+            FROM topics t
+            LEFT JOIN questions q  ON q.topic_id = t.id
+            LEFT JOIN cards cd     ON cd.question_id = q.id
+            LEFT JOIN review_log rl ON rl.question_id = q.id
+            GROUP BY t.id
+        """).fetchall()
+        for tid, cards, reviews in rows:
+            pfx = "-".join(tid.split("-")[:2])
+            d = linkage.setdefault(pfx, {"cards": 0, "reviews_30d": 0})
+            d["cards"] += cards or 0
+            d["reviews_30d"] += reviews or 0
+    except Exception:
+        pass
+    conn.close()
+    return linkage
+
+
+def load_review_activity() -> dict:
+    """真实答题活动：近84天日历、连续练习天数、各科正确率。"""
+    result = {"calendar": [], "streak": 0, "total_reviews": 0, "by_subject": []}
+    if not DB_PATH.exists():
+        return result
+    conn = sqlite3.connect(str(DB_PATH))
+    today = date.today()
+    try:
+        counts = {}
+        for d, n in conn.execute("""
+            SELECT date(review_date) AS d, COUNT(*) FROM review_log
+            WHERE review_date >= datetime('now', 'localtime', '-84 days')
+            GROUP BY date(review_date)
+        """):
+            counts[d] = n
+        for i in range(83, -1, -1):
+            ds = (today - timedelta(days=i)).isoformat()
+            result["calendar"].append({"date": ds, "n": counts.get(ds, 0)})
+
+        result["total_reviews"] = conn.execute(
+            "SELECT COUNT(*) FROM review_log").fetchone()[0]
+
+        # 连续练习天数（今天没练则从昨天起算）
+        streak = 0
+        offset = 0 if counts.get(today.isoformat(), 0) > 0 else 1
+        while counts.get((today - timedelta(days=offset + streak)).isoformat(), 0) > 0:
+            streak += 1
+        result["streak"] = streak
+
+        # 各科正确率（rating>=3 为对）。先聚合进 dict，再按固定顺序输出四科：
+        # 没练过的科目补 0 行，而不是让它从列表里消失。
+        agg = {}
+        for subject, total, correct in conn.execute("""
+            SELECT t.subject, COUNT(*),
+                   SUM(CASE WHEN rl.rating >= 3 THEN 1 ELSE 0 END)
+            FROM review_log rl
+            JOIN questions q ON q.id = rl.question_id
+            JOIN topics t ON t.id = q.topic_id
+            WHERE t.subject IS NOT NULL
+            GROUP BY t.subject
+        """):
+            if subject:
+                agg[subject] = (total or 0, correct or 0)
+        for subject in ALL_SUBJECTS:
+            total, correct = agg.get(subject, (0, 0))
+            result["by_subject"].append({
+                "subject": subject,
+                "total": total,
+                "accuracy": round(correct / total * 100, 1) if total else 0.0,
+            })
+    except Exception:
+        pass
+    conn.close()
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Statistics computation
+# ---------------------------------------------------------------------------
+
+def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
+    """Compute all dashboard statistics."""
+    stats_data = index.get("stats", {})
+    entries = index.get("entries", [])
+    timeline = index.get("timeline", {})
+
+    # --- Countdown ---
+    today = date.today()
+    days_left = (EXAM_DATE - today).days
+    if days_left < 0:
+        phase = "考试已结束"
+    elif days_left <= 30:
+        phase = "冲刺阶段"
+    elif days_left <= 140:
+        phase = "强化阶段"
+    else:
+        phase = "基础阶段"
+
+    # --- Note totals ---
+    total_notes = sum(s.get("total", 0) for s in stats_data.values())
+    today_str = today.isoformat()
+    today_new = 0
+    if today_str in timeline:
+        today_new = timeline[today_str].get("total", 0)
+
+    # --- 笔记覆盖判定（topic 级）---
+    # 优先用 graph 的 linked_notes；若为空则按「笔记条目前缀+章节号」粗匹配
+    covered_topic_ids = set()
+    for subj, graph in graphs.items():
+        for sub_key, sub_data in graph.get("subs", {}).items():
+            for topic in sub_data.get("topics", []):
+                if topic.get("linked_notes"):
+                    covered_topic_ids.add(topic.get("id", ""))
+
+    if not covered_topic_ids:
+        entry_chapters = {}   # "MATH-GS" -> {4, 5, ...}
+        unmapped_notes = {}   # 前缀 -> 落不到任何图谱章节的条目数
+        for e in entries:
+            pfx = note_entry_prefix(e.get("id", ""))
+            if not pfx:
+                continue
+            m = __import__("re").search(r"\d+", str(e.get("chapter", "")))
+            if m:
+                entry_chapters.setdefault(pfx, set()).add(int(m.group()))
+            else:
+                # 「专题」这类无章节号条目跨章汇总，无法归属到某一格
+                unmapped_notes[pfx] = unmapped_notes.get(pfx, 0) + 1
+
+        graph_chapters = {}
+        for subj, graph in graphs.items():
+            for sub_key, sub_data in graph.get("subs", {}).items():
+                for topic in sub_data.get("topics", []):
+                    tid = topic.get("id", "")
+                    pfx = "-".join(tid.split("-")[:2])
+                    graph_chapters.setdefault(pfx, set()).add(topic.get("chapter"))
+                    chs = entry_chapters.get(pfx)
+                    if chs and topic.get("chapter") in chs:
+                        covered_topic_ids.add(tid)
+
+        # 笔记章节号超出图谱章节范围（如史纲第 9 章 vs 图谱只到第 7 章）会被
+        # 静默丢掉——这正是「政治整片 0%」最难发现的一层，所以显式报出来。
+        for pfx, chs in entry_chapters.items():
+            extra = chs - graph_chapters.get(pfx, set())
+            if extra:
+                unmapped_notes[pfx] = unmapped_notes.get(pfx, 0) + len(extra)
+        if unmapped_notes:
+            print("  WARN: 有笔记未能落到图谱章节 -> "
+                  + ", ".join(f"{k}={v} 处" for k, v in sorted(unmapped_notes.items())))
+
+    # --- 英语题型证据补覆盖（与 gap_analysis 共用 english_coverage，避免两边口径打架）---
+    # 大盘原本只认「笔记索引里有没有条目」，但用户的作文批改、阅读专题讲义、完形讲义都躺在
+    # English/ 目录下而没进笔记索引 → 小作文/大作文/翻译长期被误报成真缺口。
+    # 反过来 Part B（七选五/小标题/排序）一份专项材料都没有，却曾因「外刊篇数」被判已覆盖。
+    # 两边都读同一个模块，报告与大盘才不会互相矛盾。
+    try:
+        import english_coverage as _ec
+        _pp = BASE_DIR / "src" / "progress.json"
+        _prog = json.loads(_pp.read_text(encoding="utf-8")) if _pp.exists() else {}
+        _cov, _eng_metrics, _eng_warns = _ec.english_type_coverage(
+            str(BASE_DIR), _prog, _ec.english_review_counts(str(DB_PATH)))
+        _added = [t for t, (ok, _w) in _cov.items() if ok and t not in covered_topic_ids]
+        covered_topic_ids.update(_added)
+        if _added:
+            print(f"  英语题型证据补覆盖 {len(_added)} 个考点：" + "、".join(sorted(_added)))
+        for _w in _eng_warns:
+            print(f"  WARN(英语): {_w}")
+    except Exception as _e:
+        print(f"  WARN: 英语题型覆盖读不到（{_e}），缺口列表可能偏保守")
+
+    # --- 闪卡验证状态：答对过且近 14 天无错 → 视为已掌握 ---
+    # 用户可能因内容简单而不整理笔记，答对即证明掌握，不再提醒薄弱。
+    # 这里同样走归一化，否则四段式考点的答题记录在验证环节也会被漏掉。
+    topic_stats = load_topic_review_stats()
+    verified_topic_ids = {
+        tid for tid, s in topic_stats.items()
+        if s["correct"] > 0 and s["recent_wrong"] == 0
+    }
+
+    # --- Coverage：笔记覆盖或已验证掌握都算覆盖 ---
+    # Compute coverage from knowledge graphs: what fraction of topics have linked notes
+    total_topics = 0
+    covered_topics = 0
+    coverage_by_subject = {}
+
+    for subj, graph in graphs.items():
+        subj_topics = 0
+        subj_covered = 0
+        for sub_key, sub_data in graph.get("subs", {}).items():
+            for topic in sub_data.get("topics", []):
+                subj_topics += 1
+                tid = topic.get("id", "")
+                if tid in covered_topic_ids or tid in verified_topic_ids:
+                    subj_covered += 1
+        total_topics += subj_topics
+        covered_topics += subj_covered
+        if subj_topics > 0:
+            coverage_by_subject[subj] = round(subj_covered / subj_topics * 100, 1)
+        else:
+            coverage_by_subject[subj] = 0
+
+    overall_coverage = round(covered_topics / total_topics * 100, 1) if total_topics > 0 else 0
+
+    # --- Heatmap data: subject x chapter mastery ---
+    # 掌握度口径（2026-09-14 重做）：
+    #   有答题记录 → 真实正确率（唯一反映「练得怎么样」的信号）
+    #   只有笔记   → 100，但打 note_only 标记，前端用低饱和色标「已整理·未练」
+    #   两者都无   → 0
+    # 旧口径把「有笔记」直接钉成 100，加上答题记录因 ID 段数不同被整片丢弃，
+    # 结果绝大多数格子只剩 0/100 两档，热力图退化成一张清单。
+    topic_acc = load_topic_accuracy()
+    heatmap = []
+    for subj, graph in graphs.items():
+        for sub_key, sub_data in graph.get("subs", {}).items():
+            sub_name = sub_data.get("name", sub_key)
+            # Group topics by chapter
+            chapters = {}
+            for topic in sub_data.get("topics", []):
+                ch = topic.get("chapter", 0)
+                if ch not in chapters:
+                    chapters[ch] = {"total": 0, "sum": 0, "covered": 0,
+                                    "practiced": 0, "note_only": 0}
+                chapters[ch]["total"] += 1
+                tid = topic.get("id", "")
+                if tid in topic_acc:
+                    score = topic_acc[tid]
+                    chapters[ch]["practiced"] += 1
+                elif tid in covered_topic_ids or tid in verified_topic_ids:
+                    score = 100
+                    chapters[ch]["note_only"] += 1
+                else:
+                    score = 0
+                chapters[ch]["sum"] += score
+                if score > 0:
+                    chapters[ch]["covered"] += 1
+
+            for ch, counts in sorted(chapters.items()):
+                pct = round(counts["sum"] / counts["total"]) if counts["total"] > 0 else 0
+                heatmap.append({
+                    "subject": subj,
+                    "sub": sub_name,
+                    "chapter": ch,
+                    "coverage": int(pct),
+                    "total": counts["total"],
+                    "covered": counts["covered"],
+                    "practiced": counts["practiced"],
+                    "note_only": counts["note_only"],
+                })
+
+    # --- Timeline data（全量日粒度）---
+    # 以前只发近 14 天，前端没得聚合，所以只能画日视图。现在把整条时间线交给
+    # 前端，由它按日/周/月分桶——76 个点对页面体积可以忽略。
+    timeline_data = []
+    for d in sorted(timeline.keys()):
+        t = timeline[d]
+        timeline_data.append({
+            "date": d,
+            "total": t.get("total", 0),
+            "408": t.get("408", 0),
+            "数学": t.get("数学", 0),
+            "政治": t.get("政治", 0),
+            "英语": t.get("英语", 0),
+        })
+
+    # --- Level distribution ---
+    level_dist = []
+    for subj, s in stats_data.items():
+        level_dist.append({
+            "subject": subj,
+            "L1": s.get("L1", 0),
+            "L2": s.get("L2", 0),
+            "L3": s.get("L3", 0),
+        })
+
+    # --- Gap analysis top 5 ---
+    # 真缺口：无笔记且未通过闪卡验证的考点（已验证掌握的不再提醒）
+    gaps = []
+    for subj, graph in graphs.items():
+        for sub_key, sub_data in graph.get("subs", {}).items():
+            sub_name = sub_data.get("name", sub_key)
+            for topic in sub_data.get("topics", []):
+                tid = topic.get("id", "")
+                if tid in covered_topic_ids or tid in verified_topic_ids:
+                    continue
+                gaps.append({
+                    "id": tid,
+                    "topic": topic.get("name", ""),
+                    "subject": subj,
+                    "sub": sub_name,
+                    "weight": topic.get("exam_weight", 1),
+                    "chapter": topic.get("chapter", 0),
+                })
+
+    # Sort by weight descending, take top 5
+    gaps.sort(key=lambda x: x["weight"], reverse=True)
+    top_gaps = []
+    for i, g in enumerate(gaps[:5]):
+        top_gaps.append({
+            "rank": i + 1,
+            "id": g["id"],
+            "topic": g["topic"],
+            "subject": g["subject"],
+            "sub": g["sub"],
+            "weight": g["weight"],
+        })
+
+    return {
+        "countdown": {"days": days_left, "phase": phase, "exam_date": EXAM_DATE.isoformat()},
+        "notes": {"total": total_notes, "today_new": today_new},
+        "flashcard": {
+            "due": db_stats["due_today"],
+            "reviewed": db_stats["reviewed_today"],
+            "total": db_stats["total_cards"],
+        },
+        "coverage": {"overall": overall_coverage, "by_subject": coverage_by_subject},
+        "heatmap": heatmap,
+        "timeline": timeline_data,
+        "level_dist": level_dist,
+        "card_states": db_stats["card_states"],
+        "accuracy_trend": db_stats["accuracy_trend"],
+        "top_gaps": top_gaps,
+        "gap_count": len(gaps),
+        "verified_count": len(verified_topic_ids),
+        "weak_topics": load_weak_topics(),
+        "deck_library": load_deck_library(),
+        "recent_prefixes": compute_recent_prefixes(timeline),
+        "revival": compute_revival(graphs),
+        "sync": {
+            "last_sync": load_sync_state().get("last_incremental", "N/A"),
+        },
+    }
+
+
+def load_deck_library() -> list:
+    """扫描 flashcards/decks/*.json（html-flashcard-builder --register 登记的卡组）。
+
+    每个卡组注入：标题/副标题/storageKey/题型分布/构建时间，
+    大盘「闪卡库」子页据此渲染画廊，点开用 iframe 覆盖层加载同名 html（embed=1 莫兰迪深色）。
+    进度存 localStorage（按 storageKey），与独立打开的产物共享。
+    """
+    decks = []
+    if not DECKS_DIR.is_dir():
+        return decks
+    for jf in sorted(DECKS_DIR.glob("*.json")):
+        try:
+            data = json.loads(jf.read_text(encoding="utf-8"))
+            cards = data.get("cards", [])
+            if not cards:
+                continue
+            meta = data.get("meta", {})
+            types = {}
+            chs = set()
+            for c in cards:
+                t = c.get("type", "short")
+                types[t] = types.get(t, 0) + 1
+                if c.get("ch"):
+                    chs.add(c["ch"])
+            html_file = jf.stem + ".html"
+            decks.append({
+                "id": jf.stem,
+                "title": meta.get("title", jf.stem),
+                "subtitle": meta.get("subtitle", ""),
+                "storageKey": meta.get("storageKey", ""),
+                "total": len(cards),
+                "types": types,
+                "chs": len(chs),
+                "built": datetime.fromtimestamp(jf.stat().st_mtime).strftime("%m-%d %H:%M"),
+                "src": "flashcards/decks/" + html_file,
+                "hasHtml": (DECKS_DIR / html_file).exists(),
+            })
+        except Exception as e:
+            print(f"[deck-library] skip {jf.name}: {e}")
+    decks.sort(key=lambda d: d["built"], reverse=True)
+    return decks
+
+
+def compute_revival(graphs: dict) -> dict:
+    """笔记盘活数据：新鲜度 + 闪卡联动 + 练习活动（强化阶段核心指标）。"""
+    touched = load_note_touch()
+    fresh = scan_note_freshness(graphs, touched)
+    linkage = load_card_linkage()
+    # 为盘活目标附上闪卡联动信息（有卡/近30天是否练过）
+    for t in fresh["targets"]:
+        lk = linkage.get(t["prefix"], {})
+        t["cards"] = lk.get("cards", 0)
+        t["practiced_30d"] = lk.get("reviews_30d", 0) > 0
+    for pfx, info in fresh["by_prefix"].items():
+        lk = linkage.get(pfx, {})
+        info["cards"] = lk.get("cards", 0)
+        info["reviews_30d"] = lk.get("reviews_30d", 0)
+    return {
+        "freshness": fresh,
+        "activity": load_review_activity(),
+        "thresholds": {"hot": FRESH_HOT, "warm": FRESH_WARM, "cold": FRESH_COLD},
+    }
+
+
+# ---------------------------------------------------------------------------
+# HTML generation
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# 闪卡练习区（样式与交互脚本为普通字符串，避免 f-string 大括号转义）
+# ---------------------------------------------------------------------------
+FLASH_CSS = '''
+        /* overflow-anchor：出答案时 #fs-feedback 会一次性插入大段解析，
+           Chrome 的滚动锚定为了「保持可见内容不动」会自己改 scrollTop，
+           表现出来就是整页跳一下。关掉锚定，改由 showFeedback 主动平滑滚动。 */
+        .fs-box { min-height: 220px; overflow-anchor: none; }
+        .fs-loading, .fs-empty { color: var(--text-secondary); text-align: center; padding: 48px 0; font-size: 0.9rem; }
+        .fs-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+        .fs-progress { font-size: 0.85rem; color: var(--text-secondary); margin-right: auto; }
+        .fs-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; background: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .fs-badge.weak { background: rgba(var(--zhusha-rgb),.15); color: var(--zhusha-lt); border-color: rgba(var(--zhusha-rgb),.4); }
+        .fs-badge.due { background: rgba(var(--xiang-rgb),.15); color: var(--xiang-lt); border-color: rgba(var(--xiang-rgb),.4); }
+        .fs-badge.recent { background: rgba(var(--zhuqing-rgb),.15); color: var(--zhuqing-lt); border-color: rgba(var(--zhuqing-rgb),.4); }
+        .fs-topic { font-size: 0.75rem; color: var(--text-muted); }
+        .fs-topic-btn { font: inherit; font-size: 0.75rem; cursor: pointer; padding: 0 2px; background: none;
+                        border: none; border-bottom: 1px dashed var(--border-color); color: var(--text-secondary); }
+        .fs-topic-btn:hover { color: var(--dianqing-lt); border-bottom-color: var(--dianqing); }
+        .fs-stem { font-size: 1.05rem; font-weight: 600; margin: 10px 0 16px; line-height: 1.7; }
+        .fs-opt { display: block; width: 100%; text-align: left; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; font-size: 0.9rem; cursor: pointer; transition: border-color .15s; }
+        .fs-opt:hover { border-color: var(--accent-blue); }
+        .fs-opt.correct { border-color: var(--accent-green); background: rgba(16,185,129,.12); }
+        .fs-opt.wrong { border-color: var(--accent-red); background: rgba(239,68,68,.12); }
+        .fs-opt:disabled { cursor: default; }
+        .fs-explain { margin-top: 14px; padding: 12px 14px; background: var(--bg-primary); border-left: 3px solid var(--accent-blue); border-radius: 4px; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.7; }
+        .fs-traps { margin-top: 10px; font-size: 0.82rem; color: var(--accent-orange); }
+        .fs-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+        .fs-btn { border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 18px; font-size: 0.85rem; cursor: pointer; background: var(--bg-primary); color: var(--text-primary); }
+        .fs-btn:hover { border-color: var(--accent-blue); }
+        .fs-rate1 { border-color: var(--zhusha); color: var(--zhusha-lt); }
+        .fs-rate2 { border-color: var(--xiang); color: var(--xiang-lt); }
+        .fs-rate3 { border-color: var(--zhuqing); color: var(--zhuqing-lt); }
+        .fs-rate4 { border-color: var(--dianqing); color: var(--dianqing-lt); }
+        .fs-hint { margin-top: 10px; font-size: 0.72rem; color: var(--text-muted); }
+        .fs-summary { text-align: center; padding: 30px 0; }
+        .fs-summary h3 { margin-bottom: 12px; }
+        .fs-summary p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; }
+        /* --- 「开始」闸门 + 学习计时（2026-09-21）--- */
+        .fs-gate { text-align: center; padding: 44px 12px 40px; }
+        .fs-gate-icon { font-size: 2rem; opacity: .55; margin-bottom: 6px; }
+        .fs-gate-title { font-family: var(--font-serif); font-size: 1.2rem; color: var(--text-primary);
+            margin-bottom: 10px; }
+        .fs-gate-line { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 22px;
+            line-height: 1.9; }
+        .fs-gate-go { border-color: var(--zhuqing); color: var(--zhuqing-lt);
+            font-size: 1rem; padding: 12px 40px; letter-spacing: .05em; }
+        .fs-gate-go:hover { border-color: var(--zhuqing-lt); background: rgba(var(--zhuqing-rgb),.12); }
+        .fs-gate-alt { display: block; margin: 14px auto 0; font-size: 0.78rem; padding: 5px 14px;
+            opacity: .7; }
+        .fs-gate-alt:hover { opacity: 1; }
+        .fs-gate-hint { margin-top: 20px; font-size: 0.72rem; color: var(--text-muted); }
+        .fs-gate-back { margin-top: 18px; }
+        .fs-summary-time { font-size: 0.82rem !important; color: var(--text-secondary); }
+        .fs-summary-time b { color: var(--zhuqing-lt); font-variant-numeric: tabular-nums; }
+        .fs-muted { color: var(--text-muted); font-size: 0.85em; }
+        /* 计时徽标：小圆点是状态的第二信道——扫一眼就知道表在不在走 */
+        .fs-timer { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem;
+            color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 12px;
+            padding: 2px 11px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .fs-timer b { color: var(--text-primary); font-weight: 600; }
+        .fs-timer-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); flex: none; }
+        .fs-timer.run .fs-timer-dot { background: var(--zhuqing); animation: pmBeat 1.6s ease-in-out infinite; }
+        .fs-timer.pause { color: var(--xiang-lt); border-color: rgba(var(--xiang-rgb),.45); }
+        .fs-timer.pause .fs-timer-dot { background: var(--xiang); }
+        .fs-timer.off { opacity: .72; }
+        .fs-timer-tag { font-size: 0.68rem; color: var(--xiang-lt); }
+        .fs-timer-day { font-size: 0.68rem; color: var(--text-muted); margin-left: 2px; }
+        .fs-timer-idle { font-size: 0.74rem; }
+        @keyframes pmBeat { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.82); } }
+        @media (prefers-reduced-motion: reduce) {
+            .fs-timer.run .fs-timer-dot { animation: none; }
+        }
+        /* --- Anki 化补充（2026-09-13）--- */
+        .fs-badge.leech { background: rgba(var(--zi-rgb),.18); color: var(--zi-lt); border-color: rgba(var(--zi-rgb),.5); }
+        .fs-badge.learn { background: rgba(var(--dianqing-rgb),.15); color: var(--dianqing-lt); border-color: rgba(var(--dianqing-rgb),.4); }
+        .fs-limits { font-size: 0.7rem; color: var(--text-muted); }
+        .fs-rate { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 76px; }
+        .fs-rate-label { font-size: 0.85rem; }
+        .fs-rate-pv { font-size: 0.68rem; opacity: .8; }
+        .fs-undo-row { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .fs-undo { font-size: 0.75rem; padding: 5px 12px; opacity: .8; }
+        /* 删除卡（软删除）：低调但清晰，两步确认防误触 */
+        .fs-del { font-size: 0.72rem; padding: 5px 12px; opacity: .55; margin-left: auto;
+            border-color: var(--zhusha); color: var(--zhusha-lt); }
+        .fs-del:hover { opacity: 1; background: rgba(var(--zhusha-rgb), 0.12); }
+        .fs-del-confirm { font-size: 0.72rem; padding: 5px 12px;
+            background: var(--zhusha); color: #fff; border-color: var(--zhusha); }
+        .fs-del-confirm:hover { background: var(--zhusha-lt); }
+        .fs-toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); background: rgba(var(--mo-rgb),.96); color: var(--xuan); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 8px 18px; font-size: 0.82rem; z-index: 9999; }
+        .fs-stats-panel { margin-bottom: 12px; }
+        .fs-stats-panel:empty { display: none; }
+        .fs-stat-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.78rem; color: var(--text-secondary); padding: 8px 0; }
+        .fs-stat-row b { color: var(--text-primary); }
+        .fs-maturity { border-top: 1px dashed var(--border-color); }
+        .fs-forecast-label { font-size: 0.72rem; color: var(--text-muted); margin: 6px 0 4px; }
+        .fs-forecast { display: flex; align-items: flex-end; gap: 2px; height: 56px; padding: 4px 0; border-bottom: 1px solid var(--border-color); }
+        .fs-fbar { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+        .fs-fbar-fill { width: 100%; background: var(--accent-blue); border-radius: 2px 2px 0 0; min-height: 1px; opacity: .75; }
+        /* --- 键盘交互（2026-09-13）：选项键位徽章 + 选错后的翻页按钮 --- */
+        .fs-key { display: inline-block; min-width: 1.5em; margin-right: 9px; padding: 0 5px; border: 1px solid var(--border-color); border-radius: 3px; font-size: 0.72rem; line-height: 1.6; text-align: center; color: var(--text-muted); }
+        .fs-opt:hover:not(:disabled) .fs-key { color: var(--text-primary); border-color: var(--accent-blue); }
+        .fs-opt.correct .fs-key, .fs-opt.wrong .fs-key { color: inherit; border-color: currentColor; }
+        .fs-next { border-color: var(--zhuqing); color: var(--zhuqing-lt); padding: 8px 22px; }
+        .fs-next:hover { border-color: var(--zhuqing-lt); }
+        /* --- 按需 KaTeX（2026-09-13）：题面/选项/解析里的公式 --- */
+        .tex-host { display: inline; }
+        .fs-stem .katex, .fs-opt .katex, .fs-explain .katex, .fs-traps .katex,
+        .deck-title .katex, .deck-sub .katex { font-size: 1.02em; }
+        /* 独立行公式（$$...$$）可能超宽，给横向滚动而不是撑破卡片 */
+        .fs-stem .katex-display, .fs-explain .katex-display { margin: 8px 0; overflow-x: auto; overflow-y: hidden; }
+        /* KaTeX 未就绪时的兜底：以等宽字体原样显示 TeX 源码，加载完成后自动替换 */
+        .tex-fallback { font-family: Consolas, "Courier New", monospace; font-size: 0.86em; opacity: .85; }
+        /* --- 简答题：文字 + 手写照片批改（2026-09-13）--- */
+        .fs-textarea { width: 100%; box-sizing: border-box; min-height: 92px; resize: vertical;
+            padding: 10px 12px; background: var(--bg-primary); color: var(--text-primary);
+            border: 1px solid var(--border-color); border-radius: 6px;
+            font-family: inherit; font-size: 0.9rem; line-height: 1.65; }
+        .fs-textarea:focus { outline: none; border-color: var(--accent-blue); }
+        .fs-textarea:disabled { opacity: .7; }
+        .fs-imgrow { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+        .fs-imgrow .fs-hint-img { font-size: 0.72rem; color: var(--text-muted); }
+        .fs-imgbox { margin-top: 8px; }
+        .fs-imgbox img { max-width: 280px; max-height: 210px; border: 1px solid var(--border-color);
+            border-radius: 6px; display: block; }
+        .fs-imgbox .fs-img-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px;
+            font-size: 0.72rem; color: var(--text-muted); }
+        .fs-short-drop { margin-top: 8px; padding: 12px; border: 1px dashed var(--border-color);
+            border-radius: 6px; text-align: center; font-size: 0.8rem; color: var(--text-muted); }
+        .fs-short-drop.on { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .fs-grade { margin-top: 12px; padding: 12px 14px; border-radius: 6px; background: var(--bg-primary);
+            border-left: 3px solid var(--accent-blue); font-size: 0.86rem; line-height: 1.7;
+            color: var(--text-secondary); }
+        .fs-grade-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+        .fs-score { font-size: 1.12rem; font-weight: 700; color: var(--text-primary); }
+        .fs-verdict { padding: 1px 8px; border-radius: 10px; font-size: 0.74rem; border: 1px solid currentColor; }
+        .fs-verdict.ok { color: #6FCF97; } .fs-verdict.mid { color: var(--accent-orange); }
+        .fs-verdict.bad { color: #EB5757; }
+        .fs-grade ul { margin: 4px 0 6px 18px; padding: 0; }
+        .fs-grade li { margin: 2px 0; }
+        .fs-trans { margin-top: 6px; padding: 8px 10px; background: rgba(255,255,255,.03);
+            border-radius: 4px; font-size: 0.82rem; white-space: pre-wrap; }
+        .fs-btn { position: relative; }
+        .fs-rate-ai { position: absolute; top: -9px; right: -6px; background: var(--accent-blue);
+            color: #fff; font-size: 0.58rem; line-height: 1.5; padding: 0 4px; border-radius: 6px; }
+        .fs-btn.primary { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .fs-short-err { margin-top: 8px; font-size: 0.8rem; color: var(--accent-orange); }
+
+        /* 手写板（2026-09-20）：覆盖层 + 白底画布，给平板/触屏用笔书写 */
+        .fs-ink-pad { position: fixed; inset: 0; z-index: 950; background: rgba(0,0,0,.55);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 16px; animation: fsFullIn .18s ease; }
+        .fs-ink-paper { background: #fff; border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,.4);
+            max-width: 900px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; }
+        .fs-ink-bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px;
+            border-bottom: 1px solid #ddd; background: #f8f8f8; border-radius: 8px 8px 0 0; flex-wrap: wrap; }
+        .fs-ink-bar .fs-ink-title { font-size: 0.8rem; color: #555; margin-right: auto; font-weight: 600; }
+        .fs-ink-btn { font: inherit; font-size: 0.78rem; padding: 5px 14px; border: 1px solid #ccc;
+            background: #fff; border-radius: 5px; cursor: pointer; color: #333; }
+        .fs-ink-btn:hover { background: #f0f0f0; }
+        .fs-ink-btn.active { background: var(--zhuqing); color: #fff; border-color: var(--zhuqing); }
+        .fs-ink-btn.danger { color: var(--zhusha); border-color: var(--zhusha-lt); }
+        .fs-ink-btn.primary { background: var(--zhuqing); color: #fff; border-color: var(--zhuqing); }
+        .fs-ink-canvas-wrap { flex: 1; overflow: hidden; position: relative; background: #fff; min-height: 320px; }
+        .fs-ink-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+        .fs-ink-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #ccc; font-size: 1.1rem; pointer-events: none; user-select: none; }
+        /* --- 闪卡筛选页（2026-09-13）--- */
+        .ff-group { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+        .ff-label { flex: none; width: 42px; font-size: 0.78rem; color: var(--text-muted); letter-spacing: .08em; }
+        .ff-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+        .ff-chip { font: inherit; font-size: 0.82rem; cursor: pointer; padding: 5px 12px; border-radius: 14px;
+                   background: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border-color);
+                   display: inline-flex; align-items: center; gap: 7px; transition: all .14s; }
+        .ff-chip:hover:not(:disabled) { border-color: var(--dianqing); color: var(--text-primary); }
+        .ff-chip.on { border-color: var(--zhusha); color: var(--xuan); background: rgba(var(--zhusha-rgb),.14); }
+        .ff-chip.empty { opacity: .38; cursor: not-allowed; }
+        .ff-chip .ff-n { font-size: 0.72rem; color: var(--text-muted); }
+        .ff-chip.on .ff-n { color: var(--zhusha-lt); }
+        .ff-foot { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 12px;
+                   border-top: var(--rule); flex-wrap: wrap; }
+        .ff-summary { font-size: 0.8rem; color: var(--text-secondary); margin-right: auto; }
+        .ff-summary b { color: var(--xuan); }
+
+        /* --- 全屏练习（2026-09-14）---
+           练习区脱离文档流铺满视口、自己滚动。这样出答案时新增的解析只在
+           内部撑开，不会再顶动整页——这正是「学习时界面来回动」的根源。 */
+        /* 工具组允许换行：多了「学习计时 + 结束」两项后，窄屏（平板竖屏）不换行
+           就会把右边的按钮挤出卡片边界。 */
+        .fs-tools { display: flex; gap: 8px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+        .fs-full-toggle { font: inherit; font-size: 0.75rem; flex: none; cursor: pointer;
+            background: transparent; border: 1px solid var(--border-color); border-radius: 4px;
+            color: var(--text-secondary); padding: 3px 12px; transition: all .15s; }
+        .fs-full-toggle:hover { color: var(--text-primary); border-color: var(--dianqing);
+                                background: var(--bg-secondary); }
+        /* 静音态：整颗按钮压暗，一眼能看出音效是关着的 */
+        .fs-full-toggle.is-off { opacity: .5; }
+        .fs-full-toggle.is-off:hover { opacity: .8; }
+        .section.is-full {
+            position: fixed; inset: 0; z-index: 900; margin: 0; border: none; border-radius: 0;
+            background: var(--bg-primary); overflow-y: auto; overscroll-behavior: contain;
+            /* 顶部留一点呼吸空间，贴顶会显得很挤（2026-09-20） */
+            padding: 36px clamp(16px, 7vw, 96px) 56px;
+            animation: fsFullIn .18s ease;
+        }
+        @keyframes fsFullIn {
+            from { opacity: 0; transform: scale(.995); }
+            to   { opacity: 1; transform: none; }
+        }
+        /* 全屏后行宽会拉得很长，反而难读，给内容一个阅读宽度上限 */
+        .section.is-full .fs-box,
+        .section.is-full .chart-head { max-width: 900px; margin-left: auto; margin-right: auto; }
+        .section.is-full .chart-head { margin-bottom: 16px; }
+        body.fs-lock { overflow: hidden; }
+
+        /* --- AI 针对性解析 + 追问（2026-09-14）--- */
+        /* :empty 用于「答对/看答案」时不显示这个块——只有答错才会挂载内容 */
+        .fs-exp-wrap:empty { display: none; }
+        .fs-exp-wrap { margin-top: 14px; border: 1px solid var(--border-color);
+            border-left: 3px solid var(--zhuqing); border-radius: 4px;
+            background: var(--bg-primary); overflow: hidden; }
+        .fs-exp-head { display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+            border-bottom: 1px solid var(--border-color); font-size: 0.8rem;
+            color: var(--zhuqing-lt); }
+        .fs-exp-retry { margin-left: auto; font: inherit; font-size: 0.72rem; cursor: pointer;
+            background: none; border: 1px solid var(--border-color); border-radius: 4px;
+            color: var(--text-secondary); padding: 2px 10px; }
+        .fs-exp-retry:hover { color: var(--text-primary); border-color: var(--dianqing); }
+        .fs-exp-body { padding: 10px 14px; font-size: 0.88rem; line-height: 1.75;
+            color: var(--text-secondary); max-height: 420px; overflow-y: auto; }
+        /* 全屏时给解析更多可视高度，别让追问框被挤出视野 */
+        .section.is-full .fs-exp-body { max-height: 46vh; }
+        .fs-exp-turn + .fs-exp-turn { margin-top: 10px; padding-top: 10px;
+            border-top: 1px dashed var(--border-color); }
+        .fs-exp-mine { color: var(--text-secondary); font-size: 0.82rem; }
+        .fs-exp-mine::before { content: "我："; color: var(--text-muted); }
+        .fs-exp-loading { color: var(--text-muted); font-size: 0.82rem; }
+        .fs-exp-err { color: var(--accent-orange); font-size: 0.82rem; line-height: 1.7; }
+        .fs-exp-hint { color: var(--text-muted); font-size: 0.75rem; }
+        .fs-exp-ask { display: flex; gap: 8px; padding: 10px 14px;
+            border-top: 1px solid var(--border-color); }
+        .fs-exp-input { flex: 1; min-width: 0; box-sizing: border-box; font-family: inherit;
+            font-size: 0.84rem; padding: 7px 10px; background: var(--bg-secondary);
+            color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; }
+        .fs-exp-input:focus { outline: none; border-color: var(--dianqing); }
+        .fs-exp-send { flex: none; padding: 7px 16px; font-size: 0.82rem; }
+        /* Markdown 子集（mdTex 输出），只覆盖 AI 实际会用的那几种 */
+        .fs-exp-body .md-p { margin: 0 0 8px; }
+        .fs-exp-body .md-p:last-child { margin-bottom: 0; }
+        .fs-exp-body .md-h { margin: 12px 0 6px; font-size: 0.92rem; color: var(--text-primary); }
+        .fs-exp-body .md-ul { margin: 4px 0 8px 18px; padding: 0; }
+        .fs-exp-body .md-ul li { margin: 2px 0; }
+        .fs-exp-body .md-pre { margin: 8px 0; padding: 9px 11px; background: var(--bg-secondary);
+            border-radius: 4px; overflow-x: auto; font-size: 0.8rem; line-height: 1.6;
+            font-family: Consolas, "Courier New", monospace; }
+        .fs-exp-body .md-code { padding: 1px 5px; background: var(--bg-secondary);
+            border-radius: 3px; font-family: Consolas, "Courier New", monospace; font-size: 0.85em; }
+        .fs-exp-body .md-quote { margin: 6px 0; padding: 4px 10px;
+            border-left: 2px solid var(--border-color); color: var(--text-muted); }
+        .fs-exp-body .md-hr { margin: 10px 0; border: 0; border-top: 1px solid var(--border-color); }
+        .fs-exp-body .md-tex { margin: 8px 0; overflow-x: auto; overflow-y: hidden; }
+        /* 复用上次解析时的说明条（2026-09-21）：让人知道这是旧结果，并能一键重生成 */
+        .fs-exp-reuse { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            margin: 0 0 10px; padding: 7px 11px; border-radius: 6px; font-size: 0.74rem;
+            color: var(--text-secondary); background: rgba(var(--xiang-rgb), .10);
+            border: 1px dashed rgba(var(--xiang-rgb), .45); }
+        .fs-exp-reuse span { flex: 1; min-width: 0; }
+        .fs-exp-reuse button { font: inherit; font-size: 0.72rem; cursor: pointer;
+            padding: 3px 10px; border-radius: 6px; background: var(--bg-primary);
+            color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .fs-exp-reuse button:hover { color: var(--text-primary); border-color: var(--xiang); }
+        /* 卡片正文（题干/选项/题库自带解析）现在也认行内 Markdown 了：
+           <code> 若不给样式就是浏览器默认等宽裸字，跟解析区观感不一致 */
+        .fs-stem .md-code, .fs-opt .md-code, .fs-explain .md-code, .fs-traps .md-code {
+            padding: 1px 5px; background: var(--bg-secondary); border-radius: 3px;
+            font-family: Consolas, "Courier New", monospace; font-size: 0.9em; }
+        .fs-stem strong, .fs-opt strong, .fs-explain strong { color: var(--text-primary); }
+        /* 表格：AI 很爱用 | a | b | 讲对比，不渲染就成了一堆竖线（2026-09-20 补） */
+        .fs-exp-body .md-table { width: 100%; border-collapse: collapse; margin: 8px 0;
+            font-size: 0.82rem; line-height: 1.6; display: block; overflow-x: auto; }
+        .fs-exp-body .md-table th,
+        .fs-exp-body .md-table td { border: 1px solid var(--border-color); padding: 5px 10px;
+            text-align: left; vertical-align: top; }
+        .fs-exp-body .md-table th { background: var(--bg-secondary); color: var(--text-primary);
+            font-weight: 600; white-space: nowrap; }
+        .fs-exp-body strong { color: var(--text-primary); }
+'''
+
+FLASH_JS = '''
+// ============================================================
+// 全局按需 KaTeX：内容里的 $...$（行内）与 $$...$$（独立行）渲染成公式，其余原样输出
+// 供闪卡练习区、闪卡库、笔记预览等所有展示题面/解析的地方共用。
+//   1. 先按公式切段再转义——文本段走 escHtml()，公式段走 KaTeX。绝不能先整串转义，
+//      否则 \\frac 的反斜杠、a<b 的尖括号会先变成实体，KaTeX 收到的是坏源码。
+//   2. 真正按需：只有文本里出现 $ 才触发 KaTeX 懒加载（本地 tools/katex/，不内联，
+//      断网可用），页面本身不加载这 3MB。
+//   3. 未就绪时先渲染成兜底样式，并把原始文本登记进 texStore；加载完成后 flushMath()
+//      只重写这些元素的 innerHTML，不重画整张卡，避免丢掉作答状态。
+// ============================================================
+(function() {
+    let katexPromise = null;
+
+    function escHtml(s) {
+        const d = document.createElement("div");
+        d.textContent = s == null ? "" : String(s);
+        return d.innerHTML;
+    }
+
+    function ensureKatex() {
+        if (katexPromise) return katexPromise;
+        katexPromise = new Promise(resolve => {
+            if (window.katex) { resolve(true); return; }
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = "tools/katex/dist/katex.min.css";
+            document.head.appendChild(link);
+            const s = document.createElement("script");
+            s.src = "tools/katex/dist/katex.min.js";
+            s.onload = () => { flushMath(); resolve(true); };
+            s.onerror = () => resolve(false);
+            document.head.appendChild(s);
+        });
+        return katexPromise;
+    }
+
+    function katexHtml(tex, display) {
+        if (window.katex) {
+            try {
+                return window.katex.renderToString(tex, {
+                    displayMode: !!display, throwOnError: false, strict: false, output: "html",
+                });
+            } catch (e) { /* 落到下面的纯文本兜底 */ }
+        }
+        return '<code class="tex-fallback">' + escHtml(tex) + '</code>';
+    }
+
+    // 纯文本 → HTML：只把公式交给 KaTeX，其余一律转义。
+    // ⚠️ 必须用 exec 逐段扫描，不能 split() 之后再判断"这段像不像公式"：
+    //    split 出来的**纯文本段**也会落进判断里——“$$$$”、以及跨行未闭合的
+    //    “$a … b$”都匹配不到公式（正则要求同一行闭合），
+    //    公式（正则要求同一行闭合），整段原样传下去反而被当成行内公式渲染。
+    //    （2026-09-13 由 tools/test_math_render.js 抓出）
+    /**
+     * 行内 Markdown（粗体 / 斜体 / 行内代码）。
+     *
+     * 卡片题干、选项、**题库自带的 explanation 与 traps** 都走 richText，
+     * 而 AI 和题库作者都习惯写 **重点**。原先这里只认 $公式$、不认 Markdown，
+     * 页面上就是两颗裸露的星号（用户截图反馈：「却**是**拐点」）。
+     * 注意：先转义再认标记（标记都是 ASCII，转义不影响）。
+     */
+    function mdInline(t) {
+        let s = escHtml(t);
+        s = s.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
+        s = s.replace(/\\*\\*([^*]+)\\*\\*/g, "<strong>$1</strong>");
+        // 单个星号当斜体，但别把 2*3 这种算式吃掉：要求有配对的第二个星号
+        s = s.replace(/(^|[^*])\\*([^*\\n]+)\\*/g, "$1<em>$2</em>");
+        return s;
+    }
+
+    function richText(s) {
+        const raw = s == null ? "" : String(s);
+        const parts = splitMath(raw);
+        if (!parts.some(p => p.tex)) return mdInline(raw);   // 没有公式也照样认 Markdown
+        if (!window.katex) ensureKatex();   // 按需加载；就绪后 flushMath 会原地重渲染
+        return parts.map(p => p.tex
+            ? katexHtml(p.src, p.display)
+            : mdInline(p.text)).join("");
+    }
+
+    /**
+     * 把原文切成「文本 / 公式」片段（两个渲染器共用，所以挂在 window 上）。
+     *
+     * ① 显式定界：$$..$$ 与 \[..\]（独立行）、$..$ 与 \(..\)（行内）；
+     * ② ️ **没有定界的裸 LaTeX**：模型经常把 \sum a_n、\Rightarrow、\frac{...}
+     *    直接写在句子中间——尤其用户在设置里自己写了提示词、没要求用 $ 包裹时。
+     *    不认的话，页面上就是一堆裸露的 \sum \frac{(-1)^{n+1}}{n}（用户截图反馈过）。
+     *
+     * 裸 LaTeX 的判定刻意保守：整段必须只由「公式字符」组成、含 \命令，
+     * 遇到中文/中文标点就截断 —— 宁可漏判，也不能把中文正文卷进公式里。
+     * 返回 [{tex:false,text} | {tex:true,src,display}]。
+     */
+    // ️ 这里是**字符类正则**，不是字符串 indexOf —— 踩过：写成 "A-Za-z0-9…" 再用 indexOf，
+    //    只能匹配字面字符，`n`/`5` 都不在里面，于是 \sum a_n 被切成 `\sum a_` + `n`。
+    const TEX_BS = String.fromCharCode(92);
+    const TEX_NL = String.fromCharCode(10);
+    const TEX_CH = (n) => String.fromCharCode(n);
+    // 「非中文」字符类（用字符码拼，避免在普通 Python 字符串里写 \\uXXXX 那一堆转义）
+    const TEX_NOT_CJK = "^" + TEX_CH(0x3000) + "-" + TEX_CH(0x303f)      // 中文标点
+        + TEX_CH(0x4e00) + "-" + TEX_CH(0x9fff)                          // 汉字
+        + TEX_CH(0xff00) + "-" + TEX_CH(0xffef)                          // 全角
+        + TEX_CH(10) + TEX_CH(13);                                       // 换行
+    /**
+     * 裸 LaTeX（没有 $ 定界）：**按中文切开，非中文的片段里只要含 \命令 就整段当公式**。
+     *
+     * ⚠️ 为什么不用「找到命令再左右扩张」：那种写法要在字符串上算区间，一条句子里出现
+     *    两个命令时极易算错（踩了两次：把 `\sum a_n 和 \sum b` 并成一段、丢掉开头的反斜杠、
+     *    还把中文「和」卷进公式）。改成「先按中文切块」之后，块与块之间没有共享索引，
+     *    逻辑一眼可验。代价：非中文块里若还夹着英文散文，会一起当公式——
+     *    中文笔记里几乎不会出现，换来的是确定不会算错。
+     */
+    const TEX_CJK_SPLIT = new RegExp("([" + TEX_CH(0x3000) + "-" + TEX_CH(0x303f)
+        + TEX_CH(0x4e00) + "-" + TEX_CH(0x9fff) + TEX_CH(0xff00) + "-" + TEX_CH(0xffef) + "]+)");
+    const TEX_HAS_CMD = new RegExp(TEX_BS + TEX_BS + "[a-zA-Z]+");
+    function collectBareTex(text, out) {
+        // ⚠️ 只**登记公式区间**，正文按原样整段输出 —— 不能把正文也按中文切块，
+        //    否则 `却**是**拐点` 的 `**` 会被切到两个块里，行内 Markdown 就配不上对了
+        //    （踩过：粗体渲染回归）。切块只用来定公式的边界。
+        const spans = [];
+        const chunks = text.split(TEX_CJK_SPLIT);
+        let pos = 0;
+        chunks.forEach(function (chunk, idx) {
+            const start = pos;
+            pos += chunk.length;
+            if (idx % 2 === 1 || !chunk) return;         // 奇数项是中文块（split 带捕获组）
+            let a = 0, b = chunk.length;
+            while (b > a && (chunk.charAt(b - 1) === " " || chunk.charCodeAt(b - 1) === 9)) b--;
+            while (b > a && ".,;:".indexOf(chunk.charAt(b - 1)) >= 0) b--;
+            while (a < b && (chunk.charAt(a) === " " || chunk.charCodeAt(a) === 9)) a++;
+            if (b - a < 2 || b - a > 160) return;        // 太短没意义、太长多半不是公式
+            const body = chunk.slice(a, b);
+            if (!TEX_HAS_CMD.test(body)) return;         // 没有 \命令 → 不是公式
+            // 前面若只是个英文单词（"the \alpha"），把它留给正文，公式从命令开始
+            const mLead = /^[A-Za-z0-9]+ /.exec(body);
+            spans.push([start + a + (mLead ? mLead[0].length : 0), start + b]);
+        });
+        let last = 0;
+        spans.forEach(function (sp) {
+            if (sp[0] > last) out.push({ tex: false, text: text.slice(last, sp[0]) });
+            out.push({ tex: true, src: text.slice(sp[0], sp[1]), display: false });
+            last = sp[1];
+        });
+        if (last < text.length) out.push({ tex: false, text: text.slice(last) });
+    }
+    // 定界符：$$..$$ 与 \[..\]（独立行）、$..$ 与 \(..\)（行内）。
+    // ⚠️ 层数极易少写一层（踩过两次）：要匹配「反斜杠 + 左括号」这个组合，
+    //    pattern 必须是 \\( —— `\\` 是字面反斜杠、`\(` 才是字面左括号，
+    //    也就是**三个** TEX_BS 再拼括号。写成两个时正则把 `(` 当成**分组左括号**，
+    //    最后那条就成了「字面反斜杠 … 字面反斜杠」，于是 `\sum a_n 和 \sum b` 被从
+    //    两个反斜杠处切开、中间的中文和半截公式全被当成公式内容（查了很久的 bug）。
+    const TEX_D = TEX_BS + "$";                                  // 匹配字面 $（无需反斜杠）
+    const TEX_OB = TEX_BS + TEX_BS + TEX_BS + "[", TEX_CB = TEX_BS + TEX_BS + TEX_BS + "]";
+    const TEX_OP = TEX_BS + TEX_BS + TEX_BS + "(", TEX_CP = TEX_BS + TEX_BS + TEX_BS + ")";
+    // 原文里这两个字符组合的真身（判断是不是独立行公式、以及要剥几个字符时用）
+    const TEX_OB_TXT = TEX_BS + "[";
+    // 「任意字符（含换行）」：同样用字符码拼 —— 直接写 \s\S 会被 Python 与 JS 各吃一层，
+    // 到正则手里变成 [sS]（只匹配 s/S），`$$..$$` 就再也匹配不上了。
+    const TEX_ANY = "[" + TEX_BS + "s" + TEX_BS + "S]";
+    const TEX_OP_TXT = TEX_BS + "(";
+    const TEX_DELIM = new RegExp("(" + TEX_D + TEX_D + TEX_ANY + "+?" + TEX_D + TEX_D
+        + "|" + TEX_OB + TEX_ANY + "+?" + TEX_CB
+        + "|" + TEX_D + "[^$" + TEX_NL + "]+?" + TEX_D
+        + "|" + TEX_OP + "[^)]*?" + TEX_CP + ")", "g");
+    /**
+     * 把原文里的公式**换成占位符**，其余原样返回（笔记渲染器用：先把公式抠出来，
+     * 免得后面按行处理 Markdown 时把 `$$...$$` 拆坏）。
+     *
+     * 复用同一个 splitMath：所以笔记也自动获得「`\[..\]`、`\(..\)`、以及没有定界的裸 LaTeX」
+     * 的识别能力。以前 mdRender 里是自己两行正则，于是**笔记里的裸 LaTeX 全是源码**
+     * （用户问「你公式渲染的逻辑要一个一写吗？为什么不复用」）。
+     */
+    function maskMath(raw, maths) {
+        let out = "";
+        splitMath(raw).forEach(function (p) {
+            if (p.tex) {
+                maths.push({ tex: p.src, display: p.display });
+                out += "@@MATH" + (maths.length - 1) + "@@";
+            } else {
+                out += p.text;
+            }
+        });
+        return out;
+    }
+    window.maskMath = maskMath;
+
+    function splitMath(raw) {
+        const s = raw == null ? "" : String(raw);
+        const out = [];
+        TEX_DELIM.lastIndex = 0;
+        let last = 0, m;
+        while ((m = TEX_DELIM.exec(s)) !== null) {
+            if (m.index > last) collectBareTex(s.slice(last, m.index), out);
+            const seg = m[0];
+            const head2 = seg.slice(0, 2);
+            // ️ 定界符长度不一样：$$ 与 \[ ( 都是**两个字符**，$ 是一个。
+            //    一律按 1 剥会把 `\(a+b\)` 剥成 `(a+b\`（探针抓到过）。
+            const display = head2 === "$$" || head2 === TEX_OB_TXT;
+            const dlen = (head2 === "$$" || head2 === TEX_OB_TXT || head2 === TEX_OP_TXT) ? 2 : 1;
+            out.push({ tex: true, src: seg.slice(dlen, -dlen), display: display });
+            last = m.index + seg.length;
+        }
+        if (last < s.length) collectBareTex(s.slice(last), out);
+        return out;
+    }
+
+    // 登记待渲染元素：texWrap 返回带 data-texid 的容器，KaTeX 就绪后原地重渲染
+    let texSeq = 0;
+    const texStore = new Map();
+    function texWrap(raw) {
+        const id = ++texSeq;
+        texStore.set(id, raw == null ? "" : String(raw));
+        return '<span class="tex-host" data-texid="' + id + '">' + richText(raw) + '</span>';
+    }
+    // 换卡时清空登记（上一张的元素已从 DOM 移除，留着只会涨内存）
+    function resetTexStore() { texStore.clear(); }
+    function flushMath() {
+        if (!window.katex) return;
+        document.querySelectorAll("[data-texid]").forEach(el => {
+            const raw = texStore.get(+el.getAttribute("data-texid"));
+            if (raw != null) el.innerHTML = richText(raw);
+        });
+    }
+
+    window.ensureKatex = ensureKatex;
+    window.katexHtml = katexHtml;
+    window.richText = richText;
+    window.texWrap = texWrap;
+    window.resetTexStore = resetTexStore;
+    window.flushMath = flushMath;
+    // escHtml 也要导出：闪卡区新增的 mdTex（Markdown+LaTeX 子集渲染）在另一个
+    // IIFE 里，需要它做转义。原先只导出了 richText/texWrap，escHtml 是私有的。
+    window.escHtml = escHtml;
+    // ⚠️ mdInline 也要过这道桥：mdTex 在**后面另一个 IIFE** 里，跨 IIFE 只能走 window
+    //    （浏览器里裸名就是全局，所以 mdTex 里直接写 mdInline(t) 即可）。
+    //    忘了桥接的后果很实在：mdTex 一调用就 ReferenceError，AI 回复整块渲染不出来，
+    //    而 catch 把它吞了，表现成「复用没生效，又问了一遍 AI」。测试抓到的。
+    window.mdInline = mdInline;
+    // splitMath 也要过桥：mdTex 在后面那个 IIFE 里，且它同样需要认「裸 LaTeX」
+    window.splitMath = splitMath;
+})();
+
+// ============================================================
+// 答题音效（2026-09-14）
+// 用 Web Audio 现场合成，不引入任何音频文件：大盘是单文件、离线可用的，
+// 塞 mp3 会破坏这个前提，转成 base64 内联又会让 HTML 白白胖几百 KB。
+// AudioContext 必须在用户手势里创建/恢复，所以这里只在首次触发时惰性建。
+// ============================================================
+const SFX = (function () {
+    const KEY = "kaoyan.sfx.muted";
+    let ctx = null;
+    let muted = false;
+    try { muted = localStorage.getItem(KEY) === "1"; } catch (e) {}
+
+    function ac() {
+        if (!ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return null;              // 老浏览器：静默降级，不影响答题
+            ctx = new AC();
+        }
+        if (ctx.state === "suspended") ctx.resume();
+        return ctx;
+    }
+
+    // 一个音符 = 振荡器 + 指数衰减包络。
+    // 用 exponentialRamp 而不是 linear：人耳对响度是对数感知的，
+    // 线性衰减听起来像被硬切断，指数衰减才像自然的余音。
+    //
+    // 2026-09-20：整体增益上调约 70%，并加一个主音量 MASTER，
+    // 之后统一调音量只改一个地方。
+    // 2026-09-21：再上调一档 —— 用户反馈「答错和非选择题好像缺音效」。
+    // 实测原因不是没播，而是**低频 + 低增益在小喇叭上基本听不见**：
+    // correct 是 659~1318Hz（听得见），wrong 却是 220/185Hz、reveal 只是一声 440Hz/0.10s，
+    // 笔记本/平板喇叭在那一档几乎不出声。所以把低沉的几个往上抬频+抬增益。
+    const MASTER = 0.42;
+    function g(v) { return v * MASTER; }
+    function tone(freq, delay, dur, gain, type) {
+        const c = ac();
+        if (!c) return;
+        const t0 = c.currentTime + delay;
+        const osc = c.createOscillator();
+        const gn = c.createGain();
+        osc.type = type || "sine";
+        osc.frequency.setValueAtTime(freq, t0);
+        gn.gain.setValueAtTime(0.0001, t0);
+        gn.gain.exponentialRampToValueAtTime(g(gain), t0 + 0.012);
+        gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        osc.connect(gn).connect(c.destination);
+        osc.start(t0);
+        osc.stop(t0 + dur + 0.03);
+    }
+
+    const PATTERNS = {
+        // 答对：明亮大三度上行 + 高八度装饰音，清脆肯定
+        correct: function () {
+            tone(659.25, 0,     0.14, 0.22);
+            tone(987.77, 0.075, 0.22, 0.20);
+            tone(1318.5, 0.16,  0.18, 0.13, "triangle");
+        },
+        // 答错：下行小三度，低沉但不刺耳——是提示，不是惩罚。
+        // ⚠️ 原来用 220/185Hz，笔记本与平板喇叭那一档几乎不出声（用户反馈"没音效"）。
+        //    抬到 311/262Hz 并加大增益：还是"低"，但听得见。
+        wrong:   function () {
+            tone(311.13, 0,    0.20, 0.34);
+            tone(261.63, 0.11, 0.26, 0.30);
+        },
+        // 放弃看答案 / 翻卡：中性轻响，比 reveal 稍亮一点，给个"翻过去"的触感
+        flip:    function () {
+            tone(523.25, 0,    0.09, 0.20, "triangle");
+            tone(783.99, 0.05, 0.11, 0.16, "sine");
+        },
+        // 看答案按钮（不判对错）：一声短促中频，不抢戏。
+        // 0.10s/0.12 增益太轻了，几乎听不到 → 加长一点、抬亮一点。
+        reveal:  function () {
+            tone(587.33, 0,    0.12, 0.26, "triangle");
+            tone(880.00, 0.07, 0.12, 0.18, "sine");
+        },
+        // 评分按钮（1-4 自评）：按档位给不同音高，越低沉代表记得越差、越高代表越轻松
+        //   1 忘记 → 低；2 模糊 → 中低；3 记得 → 中；4 简单 → 高
+        rate: function (r) {
+            const map = { 1: [293.66, 0.20], 2: [369.99, 0.16], 3: [493.88, 0.14], 4: [622.25, 0.12] };
+            const pair = map[r] || map[3];
+            tone(pair[0], 0, pair[1], 0.24, "triangle");
+        },
+        // 一组刷完：主三和弦琶音，明亮收尾
+        done:    function () {
+            [523.25, 659.25, 783.99, 1046.50].forEach(function (f, i) {
+                tone(f, i * 0.08, 0.28, i === 3 ? 0.26 : 0.18, i < 2 ? "sine" : "triangle");
+            });
+        }
+    };
+
+    // 记录下来「播放过什么」：测试据此断言「答错确实响了 wrong」这类链路，
+    // 而不是只看代码里有没有那一行（名字写错时是**静默无声**的，最难查）。
+    const playedLog = [];
+    return {
+        play: function (name /* , ...args */) {
+            playedLog.push(String(name));
+            if (playedLog.length > 60) playedLog.shift();
+            if (muted) return;
+            const p = PATTERNS[name];
+            if (!p) { console.warn("[SFX] 没有这个音效名:", name); return; }
+            try { p.apply(null, Array.prototype.slice.call(arguments, 1)); } catch (e) { /* 音频不可用不该影响答题 */ }
+        },
+        names: function () { return Object.keys(PATTERNS); },
+        played: function () { return playedLog.slice(); },
+        isMuted: function () { return muted; },
+        setMuted: function (v) {
+            muted = !!v;
+            try { localStorage.setItem(KEY, muted ? "1" : "0"); } catch (e) {}
+        },
+        // 首次手势时预热，免得第一声因为 AudioContext 还 suspended 而被吞掉
+        unlock: function () { try { ac(); } catch (e) {} }
+    };
+})();
+
+// ============================================================
+// 闪卡练习区：看大盘时顺便刷题。选题由服务端完成
+// （薄弱卡 > 到期卡 > 近日笔记相关新卡），评分即时 FSRS 回写。
+// ============================================================
+(function() {
+    // API 基址：用当前页面 origin，平板/手机经局域网访问时才能正常调接口；
+    // 本地以 file:// 直开时回落到 localhost:8080
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+    const box = document.getElementById("flash-studio");
+    const LABELS = {1: "忘记", 2: "模糊", 3: "记得", 4: "简单"};
+    // lastRatedIdx：最近一次评分落在哪张卡上。撤销要靠它定位——「选错即判」的卡不会
+    //   立刻翻页，此时 idx 仍停在该卡，沿用旧的「idx-1」假设会把撤销打到上一张去。
+    // autoWrong：本张已按「选错即判」自动回写为忘记，只等翻页，不再要求自评。
+    // filter：筛选页选的 {subject, bucket}。为 null 时走原来的「智能选题」，
+    //   一旦有值就走 mode=browse 且不受每日限额约束（服务端见 session 端点）。
+    const state = { cards: [], idx: 0, revealed: false, answered: false, sending: false,
+                    stats: {1: 0, 2: 0, 3: 0, 4: 0}, reviewedToday: 0,
+                    limits: null, counts: null, lastRating: null,
+                    lastRatedIdx: null, autoWrong: false, saveFailed: false,
+                    filter: null };
+    // 自动判错的提交句柄：翻页前要等它落地，否则本地推进了而服务端没记账
+    let pendingSubmit = null;
+    const LS_KEY = "kaoyan_flash_session_v1";
+    const LS_FILTER = "kaoyan_flash_filter_v1";   // 筛选条件单独存，跨「重开一组」保留
+    // 筛选页上**待确认**的选择。与 state.filter（正在生效的）分开，否则点一下 chip
+    // 就会让筛选条件和场上正在刷的卡对不上。
+    let pending = { subject: "", bucket: "", topic: "" };
+
+    function esc(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+    // ⚠️ 本地日期，不要用 toISOString().slice(0,10)（那是 UTC，UTC+8 早 8 点前会差一天）
+    function todayStr() {
+        const d = new Date();
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+
+    // ---- 进度保持（2026-09-21 改成服务端为准）----
+    // 以前本组会话只存 localStorage：换设备各刷各的（同一题一天问好几遍），
+    // 浏览器存储被清/写入失败（还被 catch 吞了）时进度就"凭空重置"——用户两个都报过。
+    // 现在：**服务端 `flash_session` 是唯一事实源**，localStorage 只当离线兜底缓存。
+    const DEVICE = (function () {
+        // 只是个便于排查的标签，不参与任何判断
+        try {
+            const ua = navigator.userAgent || "";
+            if (/iPad|Tablet/i.test(ua)) return "平板";
+            if (/Mobile|Android|iPhone/i.test(ua)) return "手机";
+            return "电脑";
+        } catch (e) { return ""; }
+    })();
+    let pushPosTimer = 0, pushedOnce = false;
+    function pushPosition() {
+        // 轻量：只报「刷到第几张」。每翻一张调一次也无所谓；失败就算了（本地缓存还在）。
+        clearTimeout(pushPosTimer);
+        pushPosTimer = setTimeout(function () {
+            try {
+                fetch(API + "/api/flashcards/position", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ idx: state.idx, device: DEVICE }),
+                }).catch(function () {});
+            } catch (e) {}
+        }, 400);
+    }
+    function pushSessionNow() {
+        // 整份存服务端：新开一组 / 页面隐藏离开时用
+        try {
+            fetch(API + "/api/flashcards/session", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ cards: state.cards, idx: state.idx, filter: state.filter,
+                                       device: DEVICE }),
+            }).catch(function () {});
+        } catch (e) {}
+    }
+    function saveSession() {
+        try {
+            localStorage.setItem(LS_KEY, JSON.stringify({
+                date: todayStr(), cards: state.cards, idx: state.idx, stats: state.stats,
+                lastRatedIdx: state.lastRatedIdx, filter: state.filter
+            }));
+        } catch (e) {}   // 本地写失败不再等于进度丢失（服务端有）
+        if (!pushedOnce) { pushedOnce = true; pushSessionNow(); }
+        pushPosition();
+    }
+    function clearSession() { try { localStorage.removeItem(LS_KEY); } catch (e) {} }
+    // 只读、不改 state：「开始」闸门要先知道有没有没刷完的本组，
+    // 才能决定按钮上写「继续本组」还是「开始学习」。
+    function readSaved() {
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (!raw) return null;
+            const s = JSON.parse(raw);
+            if (s.date !== todayStr() || !Array.isArray(s.cards) || s.idx >= s.cards.length) return null;
+            return s;
+        } catch (e) { return null; }
+    }
+    function tryResume() {
+        const s = readSaved();
+        if (!s) return false;
+        state.cards = s.cards; state.idx = s.idx;
+        state.stats = s.stats || {1: 0, 2: 0, 3: 0, 4: 0};
+        state.lastRatedIdx = typeof s.lastRatedIdx === "number" ? s.lastRatedIdx : null;
+        // ⚠️ 恢复的 filter 必须过 normalizeFilter：旧版本/异常值可能写入 {subject:"",bucket:""}
+        // 或 {} 这类空对象，直接用会被 if(state.filter) 判真、误加 &mode=browse，
+        // 于是每日新卡/复习额度整个失效（服务端 browse 是豁免额度的）。
+        state.filter = (s.filter && typeof s.filter === "object")
+            ? normalizeFilter(s.filter) : readFilter();
+        return true;
+    }
+    function fetchToday() {
+        fetch(API + "/api/flashcards/today").then(r => r.json()).then(d => {
+            if (!d.ok) return;
+            state.reviewedToday = d.reviewed_today;
+            state.todayInfo = d;
+            // 闸门上的「待复习 N 张」要等这个回来才有数；回来了就补画一次
+            if (gateShowing) renderGate();
+        }).catch(() => {});
+    }
+
+    // ============================================================
+    // 学习计时（2026-09-21）：点了「开始学习」才走表，窗口失焦自动停。
+    //
+    // 为什么不用「blur 停表 / focus 起表」的事件配对：切标签页、Alt+Tab、弹出
+    // 系统对话框时，focus 并不总能等到的——漏一次配对，计时就永远停在那儿，
+    // 而用户看到的是「我明明在学，表却不动」。所以改成每 250ms 问一次
+    // 「此刻算不算在学」（document.hidden 与 document.hasFocus() 双条件），
+    // 焦点状态自己会恢复，不需要事件成对。
+    //
+    // 长空档（>2s）不计入：后台标签页的定时器会被浏览器限流甚至挂起，
+    // 回到页面那一下如果按墙钟补，离开的一小时会全被算成学习时长。
+    // ============================================================
+    const TIMER_KEY = "kaoyan_flash_study_ms_v1";
+    const STUDY = { ms: 0, dayMs: 0, started: false, last: 0, iv: null };
+    function pageFocused() {
+        if (typeof document === "undefined") return false;
+        // 测试桩里没有 hidden / hasFocus，缺省按「有焦点」处理，不能把计时判死
+        if (document.hidden === true) return false;
+        if (typeof document.hasFocus === "function" && !document.hasFocus()) return false;
+        return true;
+    }
+    function fmtClock(ms) {
+        const t = Math.max(0, Math.floor(ms / 1000));
+        const pad = n => (n < 10 ? "0" : "") + n;
+        const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+        return h > 0 ? (h + ":" + pad(m) + ":" + pad(s)) : (pad(m) + ":" + pad(s));
+    }
+    function loadDayMs() {
+        try {
+            const o = JSON.parse(localStorage.getItem(TIMER_KEY) || "null");
+            if (o && o.date === todayStr()) STUDY.dayMs = Number(o.ms) || 0;
+        } catch (e) {}
+    }
+    function saveDayMs() {
+        try { localStorage.setItem(TIMER_KEY, JSON.stringify({ date: todayStr(), ms: Math.round(STUDY.dayMs) })); } catch (e) {}
+    }
+    let lastTimerSig = "", lastTimerSave = 0;
+    function paintStudy() {
+        const live = STUDY.started && pageFocused();
+        // 秒级签名：没变化就不碰 DOM（每 250ms 一次重绘没必要）
+        const sig = (STUDY.started ? 1 : 0) + "" + (live ? 1 : 0) + fmtClock(STUDY.ms) + "/" + fmtClock(STUDY.dayMs);
+        if (sig === lastTimerSig) return;
+        lastTimerSig = sig;
+        const t = document.getElementById("fs-timer");
+        if (t) {
+            t.className = "fs-timer " + (!STUDY.started ? "off" : (live ? "run" : "pause"));
+            t.innerHTML = '<span class="fs-timer-dot"></span>'
+                + (STUDY.started
+                    ? (live ? "" : '<span class="fs-timer-tag">已暂停</span>')
+                      + '<b>' + fmtClock(STUDY.ms) + '</b>'
+                      + '<span class="fs-timer-day">今日 ' + fmtClock(STUDY.dayMs) + '</span>'
+                    : '<span class="fs-timer-idle">未开始 · 今日 ' + fmtClock(STUDY.dayMs) + '</span>');
+            t.title = STUDY.started
+                ? (live ? "学习中 · 本组 " + fmtClock(STUDY.ms) + "，今日累计 " + fmtClock(STUDY.dayMs)
+                        : "窗口失焦，计时已暂停；回到本窗口自动继续")
+                : "学习计时：点「开始学习」后才计时，切到别的窗口或标签页会自动暂停";
+        }
+        const stop = document.getElementById("fs-stop");
+        if (stop) stop.hidden = !STUDY.started;
+        if (STUDY.started && Date.now() - lastTimerSave > 5000) { lastTimerSave = Date.now(); saveDayMs(); }
+    }
+    function tickStudy() {
+        const now = Date.now();
+        let d = now - STUDY.last;
+        STUDY.last = now;
+        if (d > 2000) d = 0;
+        if (STUDY.started && d > 0 && pageFocused()) { STUDY.ms += d; STUDY.dayMs += d; }
+        paintStudy();
+    }
+    function startStudy() {
+        if (!STUDY.started) { STUDY.started = true; STUDY.ms = 0; }
+        STUDY.last = Date.now();
+        if (STUDY.iv == null) STUDY.iv = setInterval(tickStudy, 250);
+        paintStudy();
+    }
+    function endStudy() {
+        if (!STUDY.started) return;
+        tickStudy();
+        STUDY.started = false;
+        if (STUDY.iv != null) { clearInterval(STUDY.iv); STUDY.iv = null; }
+        saveDayMs();
+        paintStudy();
+    }
+    // 焦点变化时立刻归零 last 并重绘，让「已暂停」在 1 帧内出现，
+    // 不用等下一个 tick（也顺手切断挂起期间的长空档）。
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+        ["focus", "blur", "visibilitychange", "pageshow", "pagehide"].forEach(ev =>
+            window.addEventListener(ev, () => { STUDY.last = Date.now(); paintStudy(); }));
+    }
+
+    // ---- 筛选条件 ----
+    const SUBJECTS = ["政治", "408", "数学一", "英语一"];
+    const BUCKETS = ["", "new", "learning", "review", "mature", "leech", "suspended"];
+    function readFilter() {
+        try {
+            const f = JSON.parse(localStorage.getItem(LS_FILTER) || "null");
+            if (!f || typeof f !== "object") return null;
+            return normalizeFilter(f);
+        } catch (e) { return null; }
+    }
+    function normalizeFilter(f) {
+        const subject = SUBJECTS.includes(f.subject) ? f.subject : "";
+        const bucket = BUCKETS.includes(f.bucket) ? f.bucket : "";
+        // topic：考点前缀（如 408-OS），供复盘页「按错因去专项练习」用。
+        // ⚠️ 本文件是普通 Python 字符串，正则里的 \\u、\\d 必须双写，
+        //    否则 Python 会先把 \\u4e00 解释成汉字「一」，正则就废了。
+        const raw = String(f.topic || "");
+        const topic = /^[0-9A-Za-z\\u4e00-\\u9fa5-]{1,40}$/.test(raw) ? raw : "";
+        return (subject || bucket || topic)
+            ? { subject: subject, bucket: bucket, topic: topic } : null;
+    }
+    function applyFilter(f) {
+        state.filter = f ? normalizeFilter(f) : null;
+        try {
+            if (state.filter) localStorage.setItem(LS_FILTER, JSON.stringify(state.filter));
+            else localStorage.removeItem(LS_FILTER);
+        } catch (e) {}
+        renderFilterBar();
+    }
+    // 筛选页点「开始」走这里；也供卡片头部的科目快捷入口复用
+    function startWithFilter(f) {
+        applyFilter(f);
+        clearSession();
+        gateShowing = false;
+        startStudy();          // 明确点了「开始刷题」= 同时开始计时
+        loadSession(true);
+    }
+    // 暴露到 globalThis 而不是 window：test_flash_keyboard.js 用
+    // new Function("document","localStorage","fetch", js) 注入执行，
+    // 那个作用域里没有 window，写 window.xxx 会让 47 项测试全炸。
+    globalThis.__sfx = SFX;   // 给测试盯着「该响的地方真的响了吗」
+    globalThis.__flashApplyFilter = applyFilter;
+    globalThis.__flashStart = startWithFilter;
+    // ---- 离开闪卡时把整份进度推给服务端（2026-09-21）----
+    // 翻页只走轻量的 position；**切子页 / 切到后台 / 关页面**时推整份，
+    // 这样另一台设备（平板↔电脑）下次打开能接到同一组的同一位置。
+    function wireProgressSync() {
+        if (globalThis.__flashSyncWired) return;
+        globalThis.__flashSyncWired = true;
+        document.addEventListener("visibilitychange", function () {
+            if (document.hidden && state.cards.length) pushSessionNow();
+        });
+        window.addEventListener("beforeunload", function () {
+            if (state.cards.length) pushSessionNow();
+        });
+        window.addEventListener("hashchange", function () {
+            let h = "";
+            try { h = String(location.hash || ""); } catch (e) {}
+            if (h.indexOf("flash") < 0 && state.cards.length) pushSessionNow();
+        });
+    }
+    wireProgressSync();
+    // 复盘页/学习区的 AI 回复同样是 Markdown+LaTeX，直接复用本区已调好的
+    // mdTex（表格、KaTeX、代码块都认），不再写第二套渲染器。
+    globalThis.__mdTex = mdTex;
+    // 卡片正文/题库自带 explanation 走的是 richText（只认 $公式$，不认 Markdown），
+    // 暴露出来给测试盯着——用户截图反馈过「却**是**拐点」这种裸露星号。
+    globalThis.__richText = richText;
+
+    // 一组为空绝大多数情况是「今日额度用完」或「没有到期的卡」，而不是题库没卡。
+    // 原先一律显示「题库暂无卡片」，会误导人往库里加卡（2026-09-20）。
+    function emptySessionHtml(d) {
+        const L = d.limits || {}, C = d.counts || {};
+        const bits = [];
+        if (L.remaining_new === 0 && L.new_done != null) bits.push('新卡 ' + L.new_done + '/' + L.new_per_day + ' 已用完');
+        if (L.remaining_review === 0 && L.review_done != null) bits.push('复习 ' + L.review_done + '/' + L.reviews_per_day + ' 已用完');
+        if (C.due === 0 && L.remaining_review > 0) bits.push('暂无到期的复习卡');
+        const why = bits.length ? ('（' + bits.join('；') + '）') : '';
+        return '<div class="fs-empty">今日计划已完成 ' + why
+            + '<br><span style="font-size:0.75rem;color:var(--text-muted);line-height:1.8;">'
+            + '想接着练就点下面的「再来一组」：数量在「设置 → 每日闪卡数量」里调（默认 10 张），'
+            + '<b>优先级还是薄弱/到期/学习中的卡，所以有没复习完的会先复习</b>；'
+            + '也可以去「闪卡库」按科目/状态自选。</span>'
+            + '<div style="margin-top:12px;"><button class="fs-btn primary" id="fs-extra">'
+            + '▶ 再来一组（优先没复习完的）</button></div></div>';
+    }
+
+    // ============================================================
+    // 「开始」闸门（2026-09-21）
+    // 打开大盘就自动组题、自动计时的老做法有两个毛病：一是页面一挂上就向服务端
+    // 拉一整组卡（哪怕人不打算刷），二是人还没开始、计时已经在跑。改成进页面先
+    // 停在闸门上：看得见今日额度与未完成的本组，点一下才组题 + 起表。
+    // ============================================================
+    let gateShowing = false;
+    function gateLine() {
+        const info = state.todayInfo || {};
+        const bits = [];
+        const f = state.filter ? normalizeFilter(state.filter) : null;
+        bits.push("范围 " + (f
+            ? [f.subject, f.bucket, f.topic && ("考点 " + f.topic)].filter(Boolean).join(" · ")
+            : "智能组题（薄弱 > 到期 > 冷笔记）"));
+        if (info.due_today != null) bits.push("到期 " + info.due_today + " 张");
+        if (info.reviewed_today != null) bits.push("今日已复习 " + info.reviewed_today + " 张");
+        bits.push("今日专注 " + fmtClock(STUDY.dayMs));
+        return bits.join(" · ");
+    }
+    function renderGate() {
+        gateShowing = true;
+        // 先按本地缓存画一版（离线也能用），同时问服务端「有没有没刷完的那一组」——
+        // 服务端那份是所有端共用的，比本机缓存更可信（换设备 / 清过缓存都能接上）。
+        const saved = readSaved();
+        paintGate(saved, false, null);
+        fetch(API + "/api/flashcards/session?peek=1").then(r => r.json()).then(d => {
+            if (!gateShowing) return;
+            const s = d && d.ok ? d.saved : null;
+            if (s && s.total) paintGate({ cards: new Array(s.total), idx: s.idx }, true, s);
+            else if (!saved) paintGate(null, false, null);
+        }).catch(function () {});
+    }
+    /**
+     * 画闸门。saved 为 null 就是「今天还没开始」。
+     * fromServer=true 表示这份进度来自服务端（多端共享），文案里说明一下。
+     */
+    function paintGate(saved, fromServer, serverSaved) {
+        const total = saved ? saved.cards.length : 0;
+        const left = saved ? (total - saved.idx) : 0;
+        box.innerHTML = '<div class="fs-gate">'
+            + '<div class="fs-gate-icon"></div>'
+            + '<div class="fs-gate-title">' + (saved ? "继续本组？" : "开始这一组闪卡") + '</div>'
+            + '<div class="fs-gate-line">' + esc(gateLine()) + '</div>'
+            + (saved
+                ? '<button class="fs-btn fs-gate-go" id="fs-gate-resume">▶ 继续本组（还剩 ' + left + ' 张'
+                  + (fromServer && serverSaved && serverSaved.idx ? '，从第 ' + (serverSaved.idx + 1) + ' 张起' : '')
+                  + '）</button>'
+                  + '<button class="fs-btn fs-gate-alt" id="fs-gate-new">↺ 放弃，重新挑一组</button>'
+                : '<button class="fs-btn fs-gate-go" id="fs-gate-start">▶ 开始学习</button>')
+            + (fromServer && serverSaved && serverSaved.updated
+                ? '<div class="fs-gate-hint">进度存在服务端、多设备共用'
+                  + (serverSaved.device ? '（上次由' + esc(serverSaved.device) + '更新）' : '') + '。</div>'
+                : '')
+            + '<div class="fs-gate-hint">点了开始才计时；切到别的窗口或标签页会自动暂停，回来自动继续。</div>'
+            + '</div>';
+        const rs = document.getElementById("fs-gate-resume");
+        const st = document.getElementById("fs-gate-start");
+        const nw = document.getElementById("fs-gate-new");
+        const goOn = () => { gateShowing = false; startStudy(); renderCard(); };
+        const goNew = () => { gateShowing = false; startStudy(); loadSession(true); };
+        if (rs) rs.onclick = () => {
+            SFX.unlock();
+            // 服务端那份优先：它剔掉了「今天已经答过」的卡（别的设备答的也算）
+            resumeFromServer().then(function (okResume) {
+                if (okResume) goOn();
+                else if (tryResume()) goOn();
+                else goNew();
+            });
+        };
+        if (st) st.onclick = () => { SFX.unlock(); goNew(); };
+        if (nw) nw.onclick = () => { SFX.unlock(); clearSession(); goNew(); };
+        paintStudy();
+    }
+    /** 从服务端取回当日那一组（已剔除今天答过的卡）。成功返回 true。 */
+    async function resumeFromServer() {
+        try {
+            const r = await fetch(API + "/api/flashcards/session?resume=1");
+            const d = await r.json();
+            if (!d || !d.ok || !Array.isArray(d.cards) || !d.cards.length) return false;
+            state.cards = d.cards;
+            state.idx = Math.max(0, Math.min(Number(d.idx) || 0, d.cards.length));
+            state.stats = { 1: 0, 2: 0, 3: 0, 4: 0 };
+            state.lastRating = null;
+            state.lastRatedIdx = null;
+            state.autoWrong = false; state.saveFailed = false; pendingSubmit = null;
+            state.filter = (d.filter && typeof d.filter === "object") ? normalizeFilter(d.filter) : readFilter();
+            pushedOnce = false;        // 这一组重新提交一次，服务端与本地保持一致
+            saveSession();
+            return true;
+        } catch (e) { return false; }
+    }
+    // 组题失败/额度用尽 → 把表停下来，别让人替「今天没有卡可刷」付时间。
+    function renderBlocked(html) {
+        gateShowing = false;
+        endStudy();
+        box.innerHTML = html
+            + '<div class="fs-gate-back"><button class="fs-btn" id="fs-gate-back">返回</button></div>';
+        const b = document.getElementById("fs-gate-back");
+        if (b) b.onclick = renderGate;
+    }
+
+    async function loadSession(fresh, mode) {
+        if (fresh) clearSession();
+        box.innerHTML = '<div class="fs-loading">正在为你挑选针对性闪卡…</div>';
+         // 防御性 normalize：任何入口残留的异常 filter（空对象/残缺值）都在此收敛为 null，
+        // 避免误触发 browse 模式导致每日额度完全不生效。
+        const effectiveFilter = state.filter ? normalizeFilter(state.filter) : null;
+        if (effectiveFilter !== state.filter) state.filter = effectiveFilter;
+        // 智能组题：一次把「今日额度内」的卡全部取回，一组=当日计划量，
+        // 不再写死 30（额度才是决定数量的因素，服务端会自动收敛到剩余额度）。
+        // 自选（browse）模式不受额度约束，50 张足够挑。
+        let url = API + "/api/flashcards/session?limit=" + (effectiveFilter ? 50 : 200);
+        if (mode === "extra") {
+            // 今日额度刷完后的「再来一组」：数量取设置里的 flash_extra_count（默认 10），
+            // 同样不受额度限制，但优先级排序不变 → 有没复习完的会先复习。
+            url = API + "/api/flashcards/session?mode=extra";
+        } else if (effectiveFilter) {
+            if (effectiveFilter.subject) url += "&subject=" + encodeURIComponent(effectiveFilter.subject);
+            if (effectiveFilter.bucket) url += "&bucket=" + encodeURIComponent(effectiveFilter.bucket);
+            // 考点前缀：复盘页「按错因去专项练习」靠它把范围收到一个考点上
+            if (effectiveFilter.topic) url += "&topic=" + encodeURIComponent(effectiveFilter.topic);
+            url += "&mode=browse";
+        }
+        try {
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (!data.ok) {
+                renderBlocked('<div class="fs-empty">⚠ 选题失败：' + esc(data.error || ('HTTP ' + resp.status)) + '</div>');
+                return;
+            }
+            if (!data.cards || data.cards.length === 0) {
+                renderBlocked(emptySessionHtml(data));
+                // 「再来一组」：走 extra 模式（不受每日额度限制，数量取设置里的 flash_extra_count）
+                const ex = document.getElementById("fs-extra");
+                if (ex) ex.onclick = () => { SFX.unlock(); startStudy(); loadSession(true, "extra"); };
+                return;
+            }
+            state.cards = data.cards; state.idx = 0;
+            state.stats = {1: 0, 2: 0, 3: 0, 4: 0};
+            state.limits = data.limits || null;
+            state.counts = data.counts || null;
+            state.lastRating = null;
+            state.lastRatedIdx = null;
+            state.autoWrong = false; state.saveFailed = false; pendingSubmit = null;
+            saveSession();
+            renderCard();
+        } catch (e) {
+            renderBlocked('<div class="fs-empty">⚠️ 无法连接本地复习服务。<br>请关闭本页，改用桌面上的「考研大盘」快捷方式打开（它会自动启动服务）。</div>');
+        }
+    }
+
+    function badge(c) {
+        if (c.leech) return '<span class="fs-badge leech">水蛭卡 · 错' + c.lapses + '次</span>';
+        if (c.state === 1 || c.state === 3) {
+            const step = (c.learning_step || c.relearning_step || 0) + 1;
+            const tag = c.state === 3 ? "再学习" : "学习中";
+            return '<span class="fs-badge learn">' + tag + ' · 第' + step + '步</span>';
+        }
+        if (c.lapses > 0) return '<span class="fs-badge weak">薄弱 · 错' + c.lapses + '次</span>';
+        if (c.state === 0) return '<span class="fs-badge recent">新卡</span>';
+        return '<span class="fs-badge due">待复习</span>';
+    }
+
+    // 头部额度条：新卡 a/b · 待复习 c/d · 学习中 e
+    function limitsHtml() {
+        const L = state.limits, C = state.counts;
+        if (!L) return "";
+        const parts = [];
+        if (C) parts.push('新卡 ' + (L.new_done) + '/' + L.new_per_day + '（可抽 ' + C.new + '）');
+        if (C) parts.push('待复习 ' + L.review_done + '/' + L.reviews_per_day + '（到期 ' + C.due + '）');
+        if (C && C.learning) parts.push('学习中 ' + C.learning);
+        if (C && C.leech) parts.push('水蛭 ' + C.leech);
+        return '<span class="fs-limits">' + parts.map(esc).join(' · ') + '</span>';
+    }
+
+    // 一张卡的可选项：只有选择/判断有。判断题库里 answer 是布尔，选项由前端补成 正确/错误。
+    function optionsOf(c) {
+        const ct = (c || {}).content || {};
+        if (c.type === "choice" && Array.isArray(ct.options) && ct.options.length > 0) return ct.options;
+        if (c.type === "judge") return (Array.isArray(ct.options) && ct.options.length) ? ct.options : ["正确", "错误"];
+        return [];
+    }
+
+    function optionButtons() {
+        return Array.prototype.slice.call(document.querySelectorAll("#fs-body .fs-opt"));
+    }
+
+    // 底部快捷键提示随作答阶段变化：未答 → 选选项；答对 → 自评；答错 → 只等翻页
+    function updateHint() {
+        const el = box.querySelector(".fs-hint");
+        if (!el) return;
+        const c = state.cards[state.idx] || {};
+        const opts = optionsOf(c);
+        if (!state.revealed) {
+            if (c.type === "short") {
+                el.textContent = "快捷键：Ctrl+Enter 提交批改 · 空格 先看参考答案 · U 撤销";
+            } else if (!opts.length) el.textContent = "快捷键：空格 显示答案 · U 撤销上一张";
+            else if (c.type === "judge") el.textContent = "快捷键：1 正确 · 2 错误 · 空格 显示答案";
+            else el.textContent = "快捷键：A–D 或 1–4 选选项 · 空格 显示答案";
+        } else if (state.autoWrong) {
+            el.textContent = "已记「忘记」· 空格 / 回车 下一张 · U 撤销重答";
+        } else {
+            el.textContent = "自评：2 模糊 · 3 记得 · 4 简单（空格 = 记得）· U 撤销";
+        }
+    }
+
+    function renderCard() {
+        if (state.idx >= state.cards.length) { renderSummary(); return; }
+        const c = state.cards[state.idx];
+        const ct = c.content || {};
+        state.revealed = false; state.answered = false;
+        state.autoWrong = false; state.saveFailed = false; pendingSubmit = null;
+        resetTexStore();   // 上一张的 tex 登记随 DOM 一起作废，避免无限累积
+        state.short = null;   // 简答作答/批改结果随卡走
+        state.chosen = null;  // 本卡学生选的那一项，评分时随 review_log 落库
+
+        let html = '<div class="fs-head">'
+            + '<span class="fs-progress">第 ' + (state.idx + 1) + ' / ' + state.cards.length + ' 张</span>'
+            + '<span class="fs-badge due">今日已复习 ' + (state.reviewedToday || 0) + '</span>'
+            + badge(c)
+            + limitsHtml()
+            + '<span class="fs-topic">' + (c.subject
+                ? '<button class="fs-topic-btn" id="fs-topic-btn" title="只看 ' + esc(c.subject) + '">'
+                  + esc(c.subject) + '</button> · '
+                : '') + esc(c.topic_name) + '</span>'
+            + '<button class="fs-btn" id="fs-stats-btn" style="margin-left:auto;padding:2px 10px;font-size:0.7rem;">📊 统计</button>'
+            + '<button class="fs-btn" id="fs-restart" style="padding:2px 10px;font-size:0.7rem;">重开一组</button>'
+            + '</div>'
+            + '<div id="fs-stats-panel" class="fs-stats-panel" data-open="0"></div>';
+        // 填空题挖空（未揭晓时 {{c1::X}} → ______），揭晓后由 showFeedback 填回
+        const stemShown = hasCloze(ct.stem) ? clozeText(ct.stem, false) : (ct.stem || ct.question || "");
+        html += '<div class="fs-stem">' + texWrap(stemShown) + '</div>';
+        html += '<div id="fs-body"></div><div id="fs-feedback"></div>';
+        box.innerHTML = html;
+        const rs = document.getElementById("fs-restart");
+        if (rs) rs.onclick = () => loadSession(true);
+        const sb = document.getElementById("fs-stats-btn");
+        if (sb) sb.onclick = () => showStats();
+        // 点头部的科目名 = 只看这一科（单科复习的快捷入口）
+        const tb = document.getElementById("fs-topic-btn");
+        if (tb) tb.onclick = () => startWithFilter({ subject: c.subject, bucket: "" });
+
+        const body = document.getElementById("fs-body");
+        const isJudge = c.type === "judge";
+        const opts = optionsOf(c);
+
+        // 简答题：作答区（文字 + 手写照片）替代选项按钮
+        if (c.type === "short") {
+            body.innerHTML = shortHtml();
+            bindShort(body, c, ct);
+            const hint = document.createElement("div");
+            hint.className = "fs-hint";
+            box.appendChild(hint);
+            updateHint();
+            return;
+        }
+
+        if (opts.length) {
+            opts.forEach((opt, i) => {
+                const btn = document.createElement("button");
+                btn.className = "fs-opt";
+                // 键位徽章：选择显示 A/B/C/D，判断显示 1/2（判断无字母，数字更好按）
+                const key = isJudge ? String(i + 1) : String.fromCharCode(65 + i);
+                btn.innerHTML = '<span class="fs-key">' + key + '</span>' + texWrap(opt);
+                btn.onclick = () => answerChoice(i, opts, ct);
+                body.appendChild(btn);
+            });
+        } else {
+            const btn = document.createElement("button");
+            btn.className = "fs-btn";
+            btn.textContent = "显示答案（空格）";
+            btn.onclick = reveal;
+            body.appendChild(btn);
+        }
+        const hint = document.createElement("div");
+        hint.className = "fs-hint";
+        box.appendChild(hint);
+        updateHint();
+    }
+
+    // 判断题的 answer 在库中是**布尔**（true=正确 / false=错误），对应 opts 为 ["正确","错误"]。
+    // ⚠️ 2026-09-13 修复：此前布尔会掉进字符串分支 → String(false)="false" → 既不是 A-D
+    //    也匹配不到任何选项 → 返回 -1，连锁导致：正确项永不高亮、用户点任何选项都被标红、
+    //    答案文本显示成字面量 "false"。政治卡以判断/填空为主，此 bug 必须先修。
+    function correctIndex(ct, opts) {
+        if (typeof ct.answer === "boolean") return ct.answer ? 0 : 1;
+        if (typeof ct.answer === "number") return ct.answer;
+        const a = String(ct.answer == null ? "" : ct.answer).trim();
+        // 兼容历史数据里以字符串形式存的布尔答案
+        if (/^(true|false)$/i.test(a)) return /^true$/i.test(a) ? 0 : 1;
+        if (a === "正确" || a === "对") return 0;
+        if (a === "错误" || a === "错") return 1;
+        const single = /^[A-Da-d]$/.test(a) ? a.toUpperCase().charCodeAt(0) - 65 : -1;
+        if (single >= 0 && single < opts.length) return single;
+        const found = opts.findIndex(o => String(o).trim() === a);
+        if (found >= 0) return found;
+        return -1;
+    }
+
+    // 给选项上色并锁死。picked 传 -1 表示「没作答，直接看了答案」。
+    function paintOptions(ci, picked) {
+        document.querySelectorAll("#fs-body .fs-opt").forEach((b, j) => {
+            b.disabled = true;
+            if (j === ci) b.classList.add("correct");
+            if (j === picked && picked !== ci) b.classList.add("wrong");
+        });
+    }
+
+    // 选择/判断的作答。答对 → 交给用户自评（2/3/4）；答错 → 直接判「忘记」，不再要求自评。
+    function answerChoice(i, opts, ct) {
+        if (state.answered) return;
+        state.answered = true; state.revealed = true;
+        const ci = correctIndex(ct, opts);
+        paintOptions(ci, i);
+
+        if (ci >= 0 && i === ci) { SFX.play("correct"); showFeedback(ct); return; }
+
+        // 选错：立即按 Again(1) 回写，但卡片停在本页让用户看清正确答案与解析，
+        // 空格/回车才翻页。回写失败则退回手动评分（见 showFeedback 的 saveFailed 分支）。
+        SFX.play("wrong");
+        state.autoWrong = true;
+        showFeedback(ct);
+        // 按**实际的错选**生成针对性解析（异步，不阻塞上面的反馈展示）。
+        // 只在答错时触发：答对没有「错在哪」可讲，空跑既费 token 又没信息量。
+        const pickedText = (opts && opts[i] != null)
+            ? String.fromCharCode(65 + i) + ". " + opts[i] : "";
+        state.chosen = pickedText;
+        mountExplain(state.cards[state.idx] || {}, pickedText);
+        pendingSubmit = submitRating(1).then(ok => {
+            pendingSubmit = null;
+            if (!ok) { state.autoWrong = false; state.saveFailed = true; showFeedback(ct); }
+        });
+    }
+
+    // 空格直接看答案（放弃作答）。选择/判断也要把正确项标出来，否则只看得到解析。
+    function reveal() {
+        if (state.revealed) return;
+        state.revealed = true;
+        const c = state.cards[state.idx] || {};
+        const ct = c.content || {};
+        const opts = optionsOf(c);
+        if (opts.length) paintOptions(correctIndex(ct, opts), -1);
+        SFX.play("reveal");
+        showFeedback(ct);
+    }
+
+    // ============================================================
+    // 简答题（type === "short"）：文字作答 + 手写照片 → DeepSeek 批改
+    //   批改走服务端 /api/grade（密钥只在服务端，不下发到浏览器）。
+    //   图片先在本地 canvas 压缩：手机原图 3-5MB，直接 base64 上传会让请求体
+    //   和模型 token 都爆掉，压到最长边 1280 / JPEG q0.82 后通常 <300KB。
+    // ============================================================
+    const SHORT_MAX_SIDE = 1280;
+    const SHORT_QUALITY = 0.82;
+
+    function shortState() {
+        if (!state.short) state.short = { text: "", image: null, meta: "", grading: false, grade: null, error: "" };
+        return state.short;
+    }
+
+    function downscaleImage(file) {
+        return new Promise((resolve, reject) => {
+            if (!file || !/^image\//.test(file.type || "")) { reject(new Error("不是图片文件")); return; }
+            const fr = new FileReader();
+            fr.onerror = () => reject(new Error("读取图片失败"));
+            fr.onload = () => {
+                const img = new Image();
+                img.onerror = () => reject(new Error("图片解码失败（换一张试试）"));
+                img.onload = () => {
+                    const scale = Math.min(1, SHORT_MAX_SIDE / Math.max(img.width, img.height));
+                    const w = Math.max(1, Math.round(img.width * scale));
+                    const h = Math.max(1, Math.round(img.height * scale));
+                    const cv = document.createElement("canvas");
+                    cv.width = w; cv.height = h;
+                    cv.getContext("2d").drawImage(img, 0, 0, w, h);
+                    resolve({ dataUrl: cv.toDataURL("image/jpeg", SHORT_QUALITY), w: w, h: h });
+                };
+                img.src = fr.result;
+            };
+            fr.readAsDataURL(file);
+        });
+    }
+
+    // 贴图 / 选图 / 拖图都汇到这里
+    async function attachShortImage(file) {
+        const st = shortState();
+        try {
+            const r = await downscaleImage(file);
+            st.image = r.dataUrl;
+            st.meta = r.w + "×" + r.h + " · " + Math.round(r.dataUrl.length / 1365) + "KB";
+            st.error = "";
+        } catch (e) {
+            st.error = e.message;
+        }
+        renderShortImage();
+    }
+
+    function renderShortImage() {
+        const box = document.getElementById("fs-imgbox");
+        if (!box) return;
+        const st = shortState();
+        box.innerHTML = st.image
+            ? '<img src="' + st.image + '" alt="手写答案预览">'
+              + '<div class="fs-img-meta"><span>' + esc(st.meta) + '</span>'
+              + '<button class="fs-btn" id="fs-img-del" style="padding:1px 8px;font-size:0.7rem;">移除图片</button></div>'
+            : "";
+        const del = document.getElementById("fs-img-del");
+        if (del) del.onclick = () => { shortState().image = null; shortState().meta = ""; renderShortImage(); };
+        const err = document.getElementById("fs-short-err");
+        if (err) err.textContent = st.error || "";
+    }
+
+    function shortHtml() {
+        return '<div class="fs-short">'
+            + '<textarea id="fs-answer" class="fs-textarea" placeholder="在这里作答（支持 $...$ 公式）…也可以直接 Ctrl+V 粘贴手写答案照片"></textarea>'
+            + '<div class="fs-imgrow">'
+            + '<input type="file" id="fs-file" accept="image/*" capture="environment" style="display:none">'
+            + '<button class="fs-btn" id="fs-pick">📷 上传照片</button>'
+            + '<button class="fs-btn" id="fs-ink">✍️ 手写</button>'
+            + '<span class="fs-hint-img">支持拍照 / 手写板 / 粘贴 / 拖拽</span>'
+            + '</div>'
+            + '<div id="fs-imgbox" class="fs-imgbox"></div>'
+            + '<div class="fs-actions">'
+            + '<button class="fs-btn primary" id="fs-grade-btn">提交批改（Ctrl+Enter）</button>'
+            + '<button class="fs-btn" id="fs-skip">先看参考答案</button>'
+            + '</div>'
+            + '<div class="fs-short-err" id="fs-short-err"></div>'
+            + '</div>';
+    }
+
+    function bindShort(body, card, ct) {
+        const st = shortState();
+        const ta = document.getElementById("fs-answer");
+        const file = document.getElementById("fs-file");
+        const pick = document.getElementById("fs-pick");
+        const gradeBtn = document.getElementById("fs-grade-btn");
+        const skip = document.getElementById("fs-skip");
+
+        ta.value = st.text || "";
+        ta.oninput = () => { st.text = ta.value; };
+        // Ctrl+Enter 提交（单独 Enter 留给换行）
+        ta.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); gradeShort(card, ct); }
+        });
+        // 粘贴图片
+        ta.addEventListener("paste", (e) => {
+            const items = (e.clipboardData && e.clipboardData.items) || [];
+            for (const it of items) {
+                if (it.kind === "file" && /^image\//.test(it.type)) {
+                    e.preventDefault();
+                    attachShortImage(it.getAsFile());
+                    return;
+                }
+            }
+        });
+        // 拖拽图片到作答区
+        const zone = body.querySelector(".fs-short");
+        if (zone) {
+            zone.addEventListener("dragover", (e) => { e.preventDefault(); });
+            zone.addEventListener("drop", (e) => {
+                const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+                if (f) { e.preventDefault(); attachShortImage(f); }
+            });
+        }
+        pick.onclick = () => file.click();
+        const inkBtn = document.getElementById("fs-ink");
+        if (inkBtn) inkBtn.onclick = () => openInkPad();
+        file.onchange = () => { if (file.files && file.files[0]) attachShortImage(file.files[0]); };
+        gradeBtn.onclick = () => gradeShort(card, ct);
+        skip.onclick = () => { st.text = ta.value; reveal(); };
+        renderShortImage();
+    }
+
+    // AI 批改结果面板
+    function gradeHtml(g) {
+        const cls = g.score >= 75 ? "ok" : (g.score >= 45 ? "mid" : "bad");
+        let h = '<div class="fs-grade"><div class="fs-grade-head">'
+            + '<span class="fs-score">' + (g.score == null ? "—" : g.score) + '</span><span>分</span>'
+            + '<span class="fs-verdict ' + cls + '">' + esc(g.verdict || "已批改") + '</span>'
+            + '<span style="font-size:0.72rem;color:var(--text-muted);">AI 批改 · 建议 '
+            + g.suggested_rating + ' ' + LABELS[g.suggested_rating] + '</span>'
+            + '</div>';
+        if (g.transcription) h += '<div class="fs-trans"><b>手写辨认：</b>' + esc(g.transcription) + '</div>';
+        if (g.hits && g.hits.length)
+            h += '<div><b>命中得分点</b><ul>' + g.hits.map(x => '<li>' + esc(x) + '</li>').join("") + '</ul></div>';
+        if (g.missed && g.missed.length)
+            h += '<div><b>遗漏 / 答错</b><ul>' + g.missed.map(x => '<li>' + esc(x) + '</li>').join("") + '</ul></div>';
+        if (g.feedback) h += '<div style="margin-top:4px;">' + esc(g.feedback) + '</div>';
+        h += '</div>';
+        return h;
+    }
+
+    // ---- 手写板：触屏/笔在画布上书写，导出为图片交给 AI 批改 ----
+    function openInkPad() {
+        const overlay = document.createElement("div");
+        overlay.className = "fs-ink-pad";
+        overlay.innerHTML =
+            '<div class="fs-ink-paper">'
+            + '<div class="fs-ink-bar">'
+            + '  <span class="fs-ink-title">✍️ 手写答案</span>'
+            + '  <button class="fs-ink-btn active" data-tool="pen">🖊 画笔</button>'
+            + '  <button class="fs-ink-btn" data-tool="eraser">🧽 橡皮</button>'
+            + '  <button class="fs-ink-btn" data-act="clear">🗑 清除</button>'
+            + '  <button class="fs-ink-btn danger" data-act="cancel">取消</button>'
+            + '  <button class="fs-ink-btn primary" data-act="ok">✓ 使用</button>'
+            + '</div>'
+            + '<div class="fs-ink-canvas-wrap">'
+            + '  <canvas class="fs-ink-canvas"></canvas>'
+            + '  <div class="fs-ink-hint">在这里写字（支持笔 / 手指 / 鼠标）</div>'
+            + '</div>'
+            + '</div>';
+        document.body.appendChild(overlay);
+        // fs-lock 可能已被全屏练习占用，退出时不能无脑移除
+        const addedLock = !document.body.classList.contains("fs-lock");
+        if (addedLock) document.body.classList.add("fs-lock");
+
+        const canvas = overlay.querySelector("canvas");
+        const wrap = overlay.querySelector(".fs-ink-canvas-wrap");
+        const hint = overlay.querySelector(".fs-ink-hint");
+        const ctx = canvas.getContext("2d");
+        let tool = "pen";
+        let drawing = false;
+        let lastX = 0, lastY = 0;
+        let empty = true;
+
+        // 高 DPI：canvas 内部分辨率按 devicePixelRatio 放大，笔迹才不糊
+        function resize() {
+            const rect = wrap.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.max(100, Math.floor(rect.width * dpr));
+            canvas.height = Math.max(100, Math.floor(rect.height * dpr));
+            canvas.style.width = rect.width + "px";
+            canvas.style.height = rect.height + "px";
+            ctx.scale(dpr, dpr);
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            // 白底：导出 JPEG 时透明区会变黑，必须先铺白
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        }
+        resize();
+        window.addEventListener("resize", resize);
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+        function setTool(t) {
+            tool = t;
+            overlay.querySelectorAll("[data-tool]").forEach(b =>
+                b.classList.toggle("active", b.dataset.tool === t));
+            canvas.style.cursor = (t === "eraser") ? "cell" : "crosshair";
+        }
+        overlay.querySelectorAll("[data-tool]").forEach(b => {
+            b.onclick = () => setTool(b.dataset.tool);
+        });
+        overlay.querySelector('[data-act="clear"]').onclick = () => {
+            const dpr = window.devicePixelRatio || 1;
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+            empty = true;
+            if (hint) hint.style.display = "";
+        };
+
+        function doClose() {
+            window.removeEventListener("resize", resize);
+            document.removeEventListener("keydown", onKey);
+            if (addedLock) document.body.classList.remove("fs-lock");
+            overlay.remove();
+        }
+        const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); doClose(); } };
+        document.addEventListener("keydown", onKey);
+
+        overlay.querySelector('[data-act="cancel"]').onclick = doClose;
+        overlay.querySelector('[data-act="ok"]').onclick = () => {
+            if (empty) { doClose(); return; }
+            // 导出 JPEG dataURL，复用 attachShortImage 的图片通道（后端按图片识别手写）
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            const st = shortState();
+            st.image = dataUrl;
+            const dpr = window.devicePixelRatio || 1;
+            st.meta = Math.round(canvas.width / dpr) + "×" + Math.round(canvas.height / dpr)
+                + " · 手写板 · " + Math.round(dataUrl.length / 1365) + "KB";
+            st.error = "";
+            renderShortImage();
+            doClose();
+        };
+
+        // Pointer Events 统一处理鼠标/触控笔/手指
+        canvas.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+            drawing = true;
+            const p = getPos(e);
+            lastX = p.x; lastY = p.y;
+            // 点一下也留一个墨点
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, tool === "eraser" ? 12 : 1.8, 0, Math.PI * 2);
+            ctx.fillStyle = tool === "eraser" ? "#fff" : "#111";
+            ctx.fill();
+            if (hint) hint.style.display = "none";
+            empty = false;
+        });
+        canvas.addEventListener("pointermove", (e) => {
+            if (!drawing) return;
+            e.preventDefault();
+            const p = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(p.x, p.y);
+            ctx.strokeStyle = tool === "eraser" ? "#fff" : "#111";
+            ctx.lineWidth = tool === "eraser" ? 24 : 2.8;
+            ctx.stroke();
+            lastX = p.x; lastY = p.y;
+        });
+        const endDraw = (e) => {
+            if (!drawing) return;
+            drawing = false;
+            try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+        };
+        canvas.addEventListener("pointerup", endDraw);
+        canvas.addEventListener("pointercancel", endDraw);
+        // 画布上禁掉默认触摸滚动，否则写字会把页面带着滑
+        canvas.addEventListener("touchstart", e => e.preventDefault(), { passive: false });
+        canvas.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+    }
+
+    async function gradeShort(card, ct) {
+        const st = shortState();
+        if (st.grading || state.answered) return;
+        if (!st.text.trim() && !st.image) {
+            st.error = "请先写点答案，或上传手写照片";
+            renderShortImage();
+            return;
+        }
+        st.grading = true; st.error = "";
+        const btn = document.getElementById("fs-grade-btn");
+        if (btn) { btn.disabled = true; btn.textContent = "批改中…（识别手写 + 判分，约 5-20 秒）"; }
+        try {
+            const resp = await fetch(API + "/api/grade", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question_id: card.question_id, answer_text: st.text, image: st.image }),
+            });
+            const d = await resp.json();
+            st.grading = false;
+            if (!d.ok) {
+                st.error = d.error || "批改失败";
+                if (btn) { btn.disabled = false; btn.textContent = "提交批改（Ctrl+Enter）"; }
+                renderShortImage();
+                return;
+            }
+            st.grade = d;
+            // 简答题的反馈走同一套音型，阈值与 gradeHtml 的配色分档保持一致：
+            // ≥75 答对音、≥45 中性音、其余低沉音
+            SFX.play(d.score >= 75 ? "correct" : (d.score >= 45 ? "reveal" : "wrong"));
+            state.revealed = true; state.answered = true;
+            const ta = document.getElementById("fs-answer");
+            if (ta) ta.disabled = true;
+            if (btn) { btn.disabled = true; btn.textContent = "已批改"; }
+            showFeedback(ct);
+        } catch (e) {
+            st.grading = false;
+            st.error = "无法连接本地服务：批改需要 serve.js 在运行（用桌面「考研大盘」快捷方式启动即可）";
+            if (btn) { btn.disabled = false; btn.textContent = "提交批改（Ctrl+Enter）"; }
+            renderShortImage();
+        }
+    }
+
+    // 填空题的完形（cloze）语法：{{c1::答案}}
+    // ⚠️ 之前直接把 stem 原样渲染，`{{c1::that}}` 会**连答案一起显示**在题面上，
+    //    「先回忆再翻转」就废了。这里未揭晓时挖成下划线，揭晓后才填回答案。
+    const CLOZE_RE = /\{\{c\d+::([\s\S]*?)\}\}/g;
+
+    function clozeText(s, reveal) {
+        return String(s == null ? "" : s).replace(CLOZE_RE, (m, ans) => (reveal ? ans : "______"));
+    }
+
+    function hasCloze(s) { CLOZE_RE.lastIndex = 0; return CLOZE_RE.test(String(s == null ? "" : s)); }
+
+    // 把答案规范成可读文本（布尔 → 正确/错误）
+    function answerText(ct) {
+        if (typeof ct.answer === "boolean") return ct.answer ? "正确" : "错误";
+        const a = ct.answer != null ? String(ct.answer).trim() : "";
+        if (/^true$/i.test(a)) return "正确";
+        if (/^false$/i.test(a)) return "错误";
+        return a;
+    }
+
+    // ============================================================
+    // AI 针对性解析 + 追问（2026-09-14）
+    //
+    // 题库自带的 explanation 往往只讲「正确答案为什么对」，不讲「你选的那个为什么
+    // 不行」——而错选才暴露真正的理解偏差。这里在答错时按**你实际的错选**现生成
+    // 一段解析，并留一个追问框继续问。
+    //
+    // 全部问答由服务端落 explain_log：既是后续完善笔记的一手素材，也能在重刷同一
+    // 张卡时直接复用上次结果（不重复烧 token）。
+    // ============================================================
+
+    // AI 返回的是 Markdown + LaTeX。项目里的 richText 只认 $...$，不认 Markdown，
+    // 直接塞进去会把 ## 和 ** 原样显示。这里补一个够用的子集渲染器：
+    // 代码块 / 标题 / 列表 / 引用 / 分隔线 / 粗体 / 行内代码 / 公式。
+    // 只服务这一个用途，不追求完整 CommonMark。
+    function mdTex(raw) {
+        // 本函数所有反斜杠都写成双写形式。FLASH_JS 是普通 Python 字符串，
+        // 单写的转义序列会被 Python 先解释成真实控制字符，写进 JS 就成了残句
+        // （注释里也一样，所以这里刻意不写出那些序列）。
+        const src = String(raw == null ? "" : raw).replace(/\\r\\n/g, "\\n");
+        // 行内：先转义，再认标记（标记都是 ASCII，转义不影响），最后把 $..$ 交给 KaTeX
+        const inline = (t) => {
+            // 行内标记统一走 mdInline（与卡片正文同一套，由前一个 IIFE 挂在 window 上）。
+            // 公式走 splitMath：既认 $..$ / \(..\) / \[..\]，也认**没有定界的裸 LaTeX**
+            // （模型常把 \sum a_n 直接写在句子里，用户自己写了提示词时尤其常见）。
+            // 注意顺序：先按原文切段，再分别处理——先转义会把 & < 变成实体，喂给 KaTeX 就错了。
+            const raw = String(t == null ? "" : t);
+            if (typeof splitMath !== "function") {
+                // 桥没搭上（脚本被裁/顺序变了）时的兜底：退回只认 $..$
+                let s = mdInline(raw).replace(/^\\s*[-*]\\s+/, "");
+                return s.replace(/\\$([^$\\n]+)\\$/g, (m, tex) => katexHtml(tex, false));
+            }
+            let stripped = false;
+            return splitMath(raw).map(function (p) {
+                if (p.tex) return katexHtml(p.src, p.display);
+                let s = mdInline(p.text);
+                if (!stripped) { s = s.replace(/^\\s*[-*]\\s+/, ""); stripped = true; }
+                return s;
+            }).join("");
+        };
+        const out = [];
+        // --- 表格支持（2026-09-20 补）---
+        // AI 讲对比时几乎必用 Markdown 表格。原先没认表格，整块会退化成
+        // 一堆 "| 功能 | 例子 |" 的竖线文本，可读性很差。
+        // 判定：本行含 |，且下一行是 |---|---| 这类分隔行。
+        const isTableSep = (s) => {
+            const x = String(s == null ? "" : s).trim();
+            return x.indexOf("|") >= 0 && x.indexOf("-") >= 0
+                && /^\\|?[\\s:|-]+\\|?$/.test(x);
+        };
+        const splitRow = (s) => {
+            let x = String(s).trim();
+            if (x.charAt(0) === "|") x = x.slice(1);
+            if (x.charAt(x.length - 1) === "|") x = x.slice(0, -1);
+            return x.split("|").map(c => c.trim());
+        };
+        const tableHtml = (header, rows) => {
+            let h = '<table class="md-table"><thead><tr>'
+                + header.map(c => "<th>" + inline(c) + "</th>").join("")
+                + "</tr></thead><tbody>";
+            for (const r of rows) {
+                let tds = "";
+                // 按表头列数对齐，AI 偶尔会漏列
+                for (let i = 0; i < header.length; i++) {
+                    tds += "<td>" + inline(r[i] == null ? "" : r[i]) + "</td>";
+                }
+                h += "<tr>" + tds + "</tr>";
+            }
+            return h + "</tbody></table>";
+        };
+        const blocks = src.split(/```/);
+        blocks.forEach((blk, bi) => {
+            if (bi % 2 === 1) {   // 奇数段是代码块
+                const nl = blk.indexOf("\\n");
+                const body = nl >= 0 ? blk.slice(nl + 1) : blk;
+                out.push('<pre class="md-pre">' + escHtml(body.replace(/\\n$/, "")) + "</pre>");
+                return;
+            }
+            let listBuf = [];
+            const flushList = () => {
+                if (listBuf.length) {
+                    out.push('<ul class="md-ul">' + listBuf.map(x => "<li>" + x + "</li>").join("") + "</ul>");
+                    listBuf = [];
+                }
+            };
+            const lines = blk.split("\\n");
+            for (let li = 0; li < lines.length; li++) {
+                const line = lines[li];
+                const t = line.trim();
+                if (!t) { flushList(); continue; }
+                let m;
+                // 表格：本行含 |，且下一行是 |---|---| 分隔行
+                if (t.indexOf("|") >= 0 && li + 1 < lines.length && isTableSep(lines[li + 1])) {
+                    flushList();
+                    const header = splitRow(t);
+                    const rows = [];
+                    li += 2;   // 跳过表头行与分隔行
+                    while (li < lines.length && lines[li].trim().indexOf("|") >= 0) {
+                        rows.push(splitRow(lines[li]));
+                        li++;
+                    }
+                    li--;      // for 会自增，回退一格
+                    out.push(tableHtml(header, rows));
+                    continue;
+                }
+                if ((m = t.match(/^(#{1,6})\\s+(.*)$/))) {
+                    flushList();
+                    const lv = Math.min(6, m[1].length + 2);   // 别盖过卡片标题
+                    out.push("<h" + lv + ' class="md-h">' + inline(m[2]) + "</h" + lv + ">");
+                } else if (/^(-{3,}|\\*{3,})$/.test(t)) {
+                    flushList(); out.push('<hr class="md-hr">');
+                } else if ((m = t.match(/^>\\s?(.*)$/))) {
+                    flushList(); out.push('<blockquote class="md-quote">' + inline(m[1]) + "</blockquote>");
+                } else if ((m = t.match(/^\\s*(?:[-*+]|\\d+\\.)\\s+(.*)$/))) {
+                    listBuf.push(inline(m[1]));
+                } else if (t.indexOf("$$") === 0 && t.lastIndexOf("$$") > 0) {
+                    flushList();
+                    const tex = t.slice(2, t.lastIndexOf("$$"));
+                    out.push('<div class="md-tex">' + katexHtml(tex, true) + "</div>");
+                } else {
+                    flushList(); out.push('<p class="md-p">' + inline(t) + "</p>");
+                }
+            }
+            flushList();
+        });
+        return out.join("");
+    }
+
+    // 防竞态：上一张卡的异步结果不能覆盖当前卡
+    let explainSeq = 0;
+
+    function explainShellHtml(loading) {
+        return '<div class="fs-exp-head"><span>🤖 AI 针对性解析</span>'
+            // 单次要求深度思考：默认关思考是为了跟手，但想细想一遍时得够得着
+            + '<button class="fs-exp-retry" id="fs-exp-deep"'
+            + ' title="这一次让它多想一会儿，讲得更细（慢几秒）">🧠 深想一遍</button>'
+            + '<button class="fs-exp-retry" id="fs-exp-retry" hidden>重试</button></div>'
+            + '<div class="fs-exp-body" id="fs-exp-body">'
+            + (loading ? '<span class="fs-exp-loading">正在按你的错选生成解析…</span>' : "")
+            + "</div>"
+            + '<div class="fs-exp-ask" id="fs-exp-ask" hidden>'
+            + '<input class="fs-exp-input" id="fs-exp-input" maxlength="1000"'
+            + ' enterkeyhint="send" autocapitalize="off" autocorrect="off"'
+            + ' placeholder="输入你的问题（想问什么就写什么）">'
+            + '<button class="fs-btn fs-exp-send" id="fs-exp-send">发送</button></div>';
+    }
+
+    /**
+     * 往解析区追加一条消息。
+     *
+     * ⚠️ 默认**不动滚动条**（2026-09-21 用户要求）：
+     *   · 首次解析完 → 停在**最上面**（以前无条件滚到底，用户还得多翻上去看）
+     *   · 追问的回答回来 → 保持用户当前的阅读位置，别把人拽走
+     * 只有「用户自己发的那条 + 他本来就贴着底部」时才跟随到底（stick=true）。
+     */
+    function appendExplainMsg(role, text, stick) {
+        const body = document.getElementById("fs-exp-body");
+        if (!body) return;
+        const d = document.createElement("div");
+        d.className = role === "user" ? "fs-exp-turn fs-exp-mine" : "fs-exp-turn";
+        d.innerHTML = mdTex(text);
+        body.appendChild(d);
+        if (stick) body.scrollTop = body.scrollHeight;
+    }
+    /** 面板现在是不是贴着底部（差 24px 以内就算） */
+    function atExplainBottom() {
+        const body = document.getElementById("fs-exp-body");
+        if (!body) return true;
+        return (body.scrollHeight - body.scrollTop - body.clientHeight) < 24;
+    }
+
+    function showExplainError(msg, onRetry) {
+        const body = document.getElementById("fs-exp-body");
+        const retry = document.getElementById("fs-exp-retry");
+        if (!body) return;
+        body.innerHTML = '<div class="fs-exp-err">⚠ ' + escHtml(msg)
+            + '<br><span class="fs-exp-hint">解析需要本地服务在运行（用桌面「考研大盘」快捷方式启动）。</span></div>';
+        if (retry) {
+            retry.hidden = false;
+            retry.onclick = () => { retry.hidden = true; onRetry(); };
+        }
+    }
+
+    async function askExplain(qid, payload) {
+        const r = await fetch(API + "/api/explain", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || "生成失败");
+        return d;
+    }
+
+    /**
+     * 挂载解析区。优先复用该题上一次的解析（同一错选才复用），
+     * 没有才现生成——重刷同一张卡不必重复烧 token。
+     */
+    // mode='correct'：答对了但想追问（不确定/想深挖）。服务端换一套讲陷阱与边界的要求。
+    async function mountExplain(card, chosenText, mode, askFirst) {
+        const box = document.getElementById("fs-explain");
+        if (!box) return;
+        const qid = card.question_id;
+        if (!qid) return;
+        const seq = ++explainSeq;
+        const isCorrectAsk = mode === 'correct';
+        const st = { threadId: null, qid, chosen: chosenText || "", mode: isCorrectAsk ? 'correct' : 'wrong' };
+        state.explain = st;
+        box.innerHTML = explainShellHtml(!askFirst);
+
+        const generate = async (deep) => {
+            const body = document.getElementById("fs-exp-body");
+            const deepBtn = document.getElementById("fs-exp-deep");
+            if (deepBtn) deepBtn.disabled = true;
+            if (body) body.innerHTML = '<span class="fs-exp-loading">'
+                + (deep ? '正在深想一遍（会多想几秒）…'
+                        : (isCorrectAsk ? '正在整理这题的陷阱与判断依据…' : '正在按你的错选生成解析…'))
+                + '</span>';
+            try {
+                const d = await askExplain(qid, {
+                    question_id: qid, card_id: card.card_id,
+                    chosen: st.chosen, subject: card.subject, topic_id: card.topic_id,
+                    mode: st.mode,
+                    // 只有点了「深想一遍」才显式要求深度思考；否则交给设置页的默认值
+                    deep: deep === true ? true : undefined,
+                });
+                if (seq !== explainSeq) return;
+                st.threadId = d.thread_id;
+                const b = document.getElementById("fs-exp-body");
+                if (b) b.innerHTML = "";
+                appendExplainMsg("assistant", d.text);
+                const ask = document.getElementById("fs-exp-ask");
+                if (ask) ask.hidden = false;
+                wireAsk();
+            } catch (e) {
+                if (seq !== explainSeq) return;
+                showExplainError(e.message, generate);
+            } finally {
+                const db2 = document.getElementById("fs-exp-deep");
+                if (db2) db2.disabled = false;
+            }
+        };
+
+        // 「深想一遍」：这一次显式要求深度思考（不受设置页默认值影响）
+        const deepBtn0 = document.getElementById("fs-exp-deep");
+        if (deepBtn0) deepBtn0.onclick = () => generate(true);
+
+        const wireAsk = () => {
+            const input = document.getElementById("fs-exp-input");
+            const send = document.getElementById("fs-exp-send");
+            if (!input || !send || send.dataset.wired === "1") return;
+            send.dataset.wired = "1";
+            const submit = async () => {
+                const msg = input.value.trim();
+                if (!msg) return;
+                input.value = "";
+                send.disabled = true;
+                const b0 = document.getElementById("fs-exp-body");
+                // 用户自己发的那条：他本来就贴着底部时才跟随到底，否则别动他的位置
+                const stick = atExplainBottom();
+                // 首次提问（答对/看答案后直接问）：先把「有具体想问的…」那句提示清掉
+                if (!st.threadId && b0) b0.innerHTML = "";
+                appendExplainMsg("user", msg, stick);
+                const waiting = document.createElement("div");
+                waiting.className = "fs-exp-turn fs-exp-loading";
+                waiting.textContent = "思考中…";
+                if (b0) b0.appendChild(waiting);
+                try {
+                    let d;
+                    if (!st.threadId) {
+                        // 还没有解析 → 这一次把他的问题一起带上（服务端会把首轮记成【我问】…，
+                        // 之后同一线索的追问沿用同一口径，不会退回泛讲陷阱/边界）
+                        d = await askExplain(qid, {
+                            question_id: qid, card_id: card.card_id, chosen: st.chosen,
+                            subject: card.subject, topic_id: card.topic_id,
+                            mode: st.mode, question: msg,
+                        });
+                    } else {
+                        const r = await fetch(API + "/api/explain/followup", {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ thread_id: st.threadId, message: msg }),
+                        });
+                        d = await r.json();
+                    }
+                    if (seq !== explainSeq) return;
+                    waiting.remove();
+                    if (!d.ok) { appendExplainMsg("assistant", "⚠ " + (d.error || "回答失败")); }
+                    else {
+                        if (d.thread_id) st.threadId = d.thread_id;
+                        appendExplainMsg("assistant", d.text);
+                        const dbtn = document.getElementById("fs-exp-deep");
+                        if (dbtn) dbtn.hidden = false;   // 有解析了，「深想一遍」可以用了
+                    }
+                } catch (e) {
+                    if (seq === explainSeq) {
+                        waiting.remove();
+                        appendExplainMsg("assistant", "⚠ 提问失败：" + e.message
+                            + "（本地服务在跑吗？用桌面「启动考研大盘.bat」启动）");
+                    }
+                } finally {
+                    send.disabled = false;
+                    input.focus();
+                }
+            };
+            send.onclick = submit;
+            // ️ 移动端输入法的回车不能当提交（用户报「平板上用不了追问」的真凶）：
+            //    软键盘按回车往往是在**确认候选词**，那一刻 keydown 也是 Enter，但输入法
+            //    还没把字交给页面（isComposing=true；老安卓是 keyCode 229）。不判它，
+            //    表现就是「打了字按回车没反应」，或把半截拼音当问题发出去。
+            //    就地判、不用跨 IIFE 的 helper（裸名引用会在脚本顺序变化时炸）。
+            input.onkeydown = (e) => {
+                if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) {
+                    e.preventDefault(); submit();
+                }
+            };
+            // 软键盘弹出来会盖住底部：聚焦时把输入框滚进可视区（等键盘动画完再滚）
+            input.addEventListener("focus", () => {
+                setTimeout(() => {
+                    try { input.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e2) {}
+                }, 320);
+            });
+        };
+
+        // ---- 空的追问框（答对 / 直接看答案走这条）----
+        // 用户明确说过：他要问的肯定是针对性的问题，不要预设问题清单，也不要先烧 token
+        // 生成那种「陷阱/边界/判断依据」的泛讲。所以这里什么都不生成，等他自己输入。
+        // ️ 这段必须放在 wireAsk 定义之后（它是 const，提前调用会踩 TDZ）。
+        if (askFirst) {
+            const ab = document.getElementById("fs-exp-body");
+            if (ab) {
+                ab.innerHTML = '<span class="fs-exp-hint">'
+                    + '有具体想问的，直接在下面输入；没有就继续下一张。</span>';
+            }
+            const askRow = document.getElementById("fs-exp-ask");
+            if (askRow) askRow.hidden = false;
+            const deep0 = document.getElementById("fs-exp-deep");
+            if (deep0) deep0.hidden = true;    // 还没有解析可「深想」，先藏起来
+            wireAsk();
+            // ️ 不自动聚焦输入框（2026-09-21 用户反馈）：一聚焦就把键盘抢过去，
+            //    按 1/2/3/4 标熟练度全被输入框吃掉。等他自己点进去再输入。
+            return;
+        }
+
+        // 先看有没有可复用的历史解析：**同一题 + 同一个错选 + 同一种模式**才复用
+        // （服务端按这三个条件精确查，所以中间穿插过别的错选也不影响）
+        try {
+            const r = await fetch(API + "/api/explain?question_id=" + encodeURIComponent(qid)
+                + "&chosen=" + encodeURIComponent(st.chosen)
+                + "&mode=" + encodeURIComponent(st.mode));
+            const d = await r.json();
+            if (seq !== explainSeq) return;
+            const canReuse = d.ok && d.thread_id
+                && String(d.chosen || "") === st.chosen
+                // 模式也要一致：答错的讲解不能拿来回答答对的追问（反之亦然）
+                && String(d.mode || "wrong") === st.mode
+                && (d.messages || []).some(m => m.role === "assistant");
+
+            if (canReuse) {
+                st.threadId = d.thread_id;
+                const b = document.getElementById("fs-exp-body");
+                if (b) b.innerHTML = "";
+                d.messages.forEach(m => appendExplainMsg(m.role, m.content));
+                // 说清楚这是上次的结果，并留一个「重新生成」的口子——
+                // 不然想换个角度再听一遍就没路了。
+                // 用 createElement 拼而不是 innerHTML：省一层转义，也让测试桩能顺着
+                // children 找到这个按钮（桩的 innerHTML 只登记 id、不建子元素）。
+                if (b) {
+                    const bar = document.createElement("div");
+                    bar.className = "fs-exp-reuse";
+                    const txt = document.createElement("span");
+                    txt.textContent = "⚡ 上次这题你也是选这一项，下面是上次的解析"
+                        + (d.created_at ? "（" + String(d.created_at).slice(0, 16) + "）" : "")
+                        + "，没有重新问 AI";
+                    const regen = document.createElement("button");
+                    regen.type = "button";
+                    regen.textContent = "重新生成";
+                    regen.onclick = () => { bar.remove(); generate(); };
+                    bar.appendChild(txt);
+                    bar.appendChild(regen);
+                    b.insertBefore(bar, b.firstChild || null);
+                }
+                const ask = document.getElementById("fs-exp-ask");
+                if (ask) ask.hidden = false;
+                wireAsk();
+                return;
+            }
+        } catch (e) {
+            // ⚠️ 这里吞掉的只能是**真异常**（「没有历史」不是异常，服务端回的是 ok:true）。
+            // 悄悄吞掉会让人以为「复用没生效」，实际是渲染复用结果时炸了（踩过一次：
+            // 桩里 insertBefore 缺失 → 报错被吞 → 又去问了一遍 AI）。留个 warn。
+            console.warn("[Explain] 复用历史解析失败，改为现生成：", e);
+        }
+        if (seq === explainSeq) generate();
+    }
+
+    function showFeedback(ct) {
+        const fb = document.getElementById("fs-feedback");
+        const card = state.cards[state.idx] || {};
+        let html = "";
+
+        // 答案行：文本型答案（判断/填空/简答）直接显示；选择题库里 answer 是序号，
+        // 单靠 answerText 会得到空串，这里补成「正确答案：A. 选项原文」。
+        // 简答题优先展示 AI 批改结果（含手写辨认），再给参考答案
+        if (state.short && state.short.grade) html += gradeHtml(state.short.grade);
+
+        const ans = answerText(ct);
+        const refAns = typeof ct.reference_answer === "string" && ct.reference_answer.trim()
+            ? ct.reference_answer : "";
+        const isTextAnswer = typeof ct.answer === "boolean"
+            || (typeof ct.answer === "string" && !/^[A-Da-d]$/.test(String(ct.answer).trim()));
+        if (refAns) {
+            html += '<div class="fs-explain"><b>参考答案：</b>' + texWrap(refAns) + '</div>';
+        } else if (isTextAnswer && ans) {
+            html += '<div class="fs-explain"><b>答案：</b>' + texWrap(ans) + '</div>';
+        } else {
+            const opts = optionsOf(card);
+            const ci = correctIndex(ct, opts);
+            if (ci >= 0 && opts[ci] != null) {
+                html += '<div class="fs-explain"><b>正确答案：</b>'
+                    + texWrap(String.fromCharCode(65 + ci) + ". " + opts[ci]) + '</div>';
+            }
+        }
+        // 填空题揭晓后把挖空填回，给出完整句子
+        if (hasCloze(ct.stem)) {
+            html += '<div class="fs-explain"><b>完整原文：</b>' + texWrap(clozeText(ct.stem, true)) + '</div>';
+        }
+        if (ct.explanation) html += '<div class="fs-explain">' + texWrap(ct.explanation) + '</div>';
+        if (Array.isArray(ct.traps) && ct.traps.filter(Boolean).length)
+            html += '<div class="fs-traps">⚠ 易错点：' + ct.traps.filter(Boolean).map(texWrap).join("；") + '</div>';
+
+        // AI 解析容器。答错时自动挂载解析；答对/直接看答案时**不自动生成任何东西**——
+        // 用户明确要求：答对的场合给一个**空的追问框**，他要问的肯定是自己针对性的问题，
+        // 所以既不给预设问题清单、也不预先烧 token 生成「陷阱/边界/判断依据」那种泛讲。
+        // 输入框由 mountExplain(..., askFirst=true) 挂上，提交时才带着他的问题去问。
+        html += '<div class="fs-exp-wrap" id="fs-explain"></div>';
+
+        if (state.autoWrong) {
+            // 选错已自动记为「忘记」，不再给四档按钮，只留翻页
+            html += '<div class="fs-actions">'
+                + '<button class="fs-btn fs-next" id="fs-next">下一张（空格 / 回车）</button>'
+                + '</div>';
+        } else {
+            if (state.saveFailed)
+                html += '<div class="fs-traps">⚠ 评分未保存（无法连接本地服务），请手动选一档重试：</div>';
+            // Anki 风格：评分按钮副标题显示各档下次间隔
+            const pv = card.previews || {};
+            html += '<div class="fs-actions">'
+                + (function () {
+                    const aiR = (state.short && state.short.grade) ? state.short.grade.suggested_rating : null;
+                    return [1, 2, 3, 4].map(r => '<button class="fs-btn fs-rate' + r + '" data-rate="' + r + '">'
+                        + (r === aiR ? '<span class="fs-rate-ai">AI 建议</span>' : '')
+                        + '<span class="fs-rate-label">' + r + ' ' + LABELS[r] + '</span>'
+                        + (pv[r] ? '<span class="fs-rate-pv">' + esc(pv[r]) + '</span>' : '')
+                        + '</button>').join("");
+                })()
+                + '</div>';
+        }
+        html += '<div class="fs-undo-row"><button class="fs-btn fs-undo" id="fs-undo">'
+            + (state.autoWrong ? '↶ 撤销，重新作答（U）' : '↶ 撤销上一次评分（U）')
+            + '</button>'
+            + '<button class="fs-btn fs-del" id="fs-del" title="永久移除此卡，之后不再出现">🗑 这题没用，删掉</button>'
+            + '</div>';
+        fb.innerHTML = html;
+
+        fb.querySelectorAll("[data-rate]").forEach(b => {
+            b.onclick = () => rate(parseInt(b.dataset.rate, 10));
+        });
+        const nb = document.getElementById("fs-next");
+        if (nb) nb.onclick = () => goNext();
+        const ub = document.getElementById("fs-undo");
+        if (ub) ub.onclick = () => undo();
+        // 答对 / 直接看答案：不生成任何东西，直接给一个**空的追问框**（有想问的再问）。
+        // 把正确项当作「学生选的」带过去，模型才知道他在纠结哪一项。
+        if (!state.autoWrong) {
+            const opts = optionsOf(card);
+            const ci = correctIndex(ct, opts);
+            const mine = (ci >= 0 && opts[ci] != null)
+                ? String.fromCharCode(65 + ci) + ". " + opts[ci] : "";
+            mountExplain(card, state.chosen || mine, 'correct', true);
+        }
+        // 删除卡（软删除）：两步确认防误触——第一次点变红「确认删除」，再点才调 API。
+        // 删完把卡从当前组移除并跳到下一张，避免再看到它。
+        const delBtn = document.getElementById("fs-del");
+        if (delBtn) {
+            let confirming = false;
+            const resetDel = () => {
+                if (!delBtn) return;
+                confirming = false;
+                delBtn.className = "fs-btn fs-del";
+                delBtn.textContent = "🗑 这题没用，删掉";
+            };
+            delBtn.onclick = async () => {
+                if (!confirming) {
+                    confirming = true;
+                    delBtn.className = "fs-btn fs-del-confirm";
+                    delBtn.textContent = "⚠ 确认删除？（再点一次）";
+                    return;
+                }
+                delBtn.disabled = true;
+                delBtn.textContent = "删除中…";
+                try {
+                    const r0 = await fetch(API + "/api/flashcards/suspend", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ card_id: card.card_id })
+                    });
+                    const rj = await r0.json();
+                    if (!rj.ok) {
+                        toast("删除失败：" + (rj.error || ""));
+                        resetDel(); delBtn.disabled = false;
+                        return;
+                    }
+                    SFX.play("wrong");   // 低沉提示音表示"移除"
+                    toast("已删除，后续不会再出现");
+                    state.cards.splice(state.idx, 1);
+                    saveSession();
+                    if (state.idx >= state.cards.length) { renderSummary(); return; }
+                    renderCard();
+                } catch (e) {
+                    toast("删除失败：无法连接本地服务");
+                    resetDel(); delBtn.disabled = false;
+                }
+            };
+        }
+        updateHint();
+
+        // 解析一出来内容会突然变长。交给 scrollIntoView({block:"nearest"})：
+        // 只在没露出来时才滚，而且是平滑的——把被动抽搐换成一次有意的归位。
+        if (typeof fb.scrollIntoView === "function") {
+            try { fb.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) {}
+        }
+    }
+
+    // 撤销上一次评分：服务端按 review_log 快照还原卡片，本地回到那张卡重新作答。
+    // 目标卡由 lastRatedIdx 决定（不是 idx-1）：「选错即判」时 idx 还没翻页。
+    async function undo() {
+        if (state.sending) return;
+        const ti = (typeof state.lastRatedIdx === "number") ? state.lastRatedIdx : state.idx - 1;
+        const c = state.cards[ti];
+        if (!c) { toast("没有可撤销的评分"); return; }
+        state.sending = true;
+        try {
+            const resp = await fetch(API + "/api/flashcards/undo", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ card_id: c.card_id })
+            });
+            const d = await resp.json();
+            if (d.ok) {
+                state.idx = ti;
+                state.lastRatedIdx = null;
+                state.autoWrong = false; state.saveFailed = false; pendingSubmit = null;
+                if (state.stats[state.lastRating]) state.stats[state.lastRating] -= 1;
+                state.reviewedToday = Math.max(0, (state.reviewedToday || 0) - 1);
+                state.lastRating = null;
+                saveSession();
+                renderCard();
+                toast("已撤销");
+            } else {
+                toast(d.error || "撤销失败");
+            }
+        } catch (e) {
+            toast("撤销失败：无法连接本地服务");
+        }
+        state.sending = false;
+    }
+
+    function toast(msg) {
+        const t = document.createElement("div");
+        t.className = "fs-toast";
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 1800);
+    }
+
+    // 只提交评分，不翻页。自动判错要先回写、再等用户翻页，所以拆出来。
+    async function submitRating(r) {
+        if (state.sending) return false;
+        const c = state.cards[state.idx];
+        if (!c) return false;
+        state.sending = true;
+        let ok = false, resp = null;
+        try {
+            const r0 = await fetch(API + "/api/flashcards/review", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                // chosen 一并回写：复盘要能看出「错在哪」而不只是「错了」。
+                // 填空/简答与「直接看答案」时为 null，服务端会存 NULL。
+                body: JSON.stringify({ card_id: c.card_id, rating: r, chosen: state.chosen || null })
+            });
+            resp = await r0.json();
+            ok = !!resp.ok;
+        } catch (e) { ok = false; }
+
+        state.sending = false;
+        if (!ok) {
+            toast("评分未保存：" + ((resp && resp.error) || "无法连接本地服务"));
+            return false;
+        }
+        state.lastRating = r;
+        state.stats[r] = (state.stats[r] || 0) + 1;
+        state.reviewedToday = (state.reviewedToday || 0) + 1;
+        state.lastRatedIdx = state.idx;
+        state.saveFailed = false;
+        return true;
+    }
+
+    // 翻到下一张。若自动判错的回写还在路上，等它落地再翻，失败则不翻。
+    function goNext() {
+        const go = () => { state.idx += 1; saveSession(); renderCard(); };
+        SFX.play("flip");
+        if (pendingSubmit) { pendingSubmit.then(() => { if (!state.saveFailed) go(); }); return; }
+        if (state.saveFailed) return;
+        go();
+    }
+
+    async function rate(r) {
+        if (!state.revealed || state.sending) return;
+        SFX.play("rate", r);
+        if (await submitRating(r)) goNext();
+    }
+
+    function renderSummary() {
+        clearSession();
+        endStudy();            // 本组刷完 = 这一段的表停下来，用时留在 summary 上
+        SFX.play("done");
+        const s = state.stats;
+        const total = s[1] + s[2] + s[3] + s[4];
+        box.innerHTML = '<div class="fs-summary"><h3>本组完成 🎉</h3>'
+            + '<p>共 ' + total + ' 张 · 忘记 ' + s[1] + ' · 模糊 ' + s[2] + ' · 记得 ' + s[3] + ' · 简单 ' + s[4] + '</p>'
+            + '<p class="fs-summary-time">本组用时 <b>' + fmtClock(STUDY.ms) + '</b>'
+            + ' · 今日累计专注 <b>' + fmtClock(STUDY.dayMs) + '</b>'
+            + '<span class="fs-muted">（失焦期间不计时）</span></p>'
+            + '<p style="font-size:0.75rem;color:var(--text-muted);">今日累计已复习 ' + (state.reviewedToday || 0) + ' 张</p>'
+            + '<button class="fs-btn" id="fs-again">再来一组</button></div>';
+        const again = document.getElementById("fs-again");
+        if (again) again.onclick = () => { gateShowing = false; startStudy(); loadSession(true); };
+    }
+
+    // ---- 统计面板：30 天到期预测 + 成熟度分布 + 正确率（数据来自服务端聚合）----
+    async function showStats() {
+        const panel = document.getElementById("fs-stats-panel");
+        if (!panel) return;
+        if (panel.dataset.open === "1") { panel.innerHTML = ""; panel.dataset.open = "0"; return; }
+        panel.dataset.open = "1";
+        panel.innerHTML = '<div class="fs-loading">正在加载统计…</div>';
+        try {
+            const d = await (await fetch(API + "/api/flashcards/stats")).json();
+            if (!d.ok) throw new Error(d.error || "stats failed");
+            const m = d.maturity || {};
+            const maxF = Math.max(1, ...(d.forecast || []).map(x => x.count));
+            const bars = (d.forecast || []).map(x =>
+                '<div class="fs-fbar" title="' + x.date + '：' + x.count + ' 张">'
+                + '<div class="fs-fbar-fill" style="height:' + Math.round(100 * x.count / maxF) + '%"></div>'
+                + '</div>').join("");
+            const acc = d.accuracy_30d == null ? "—" : Math.round(d.accuracy_30d * 100) + "%";
+            panel.innerHTML = ''
+                + '<div class="fs-stat-row">'
+                +   '<span>总卡 <b>' + d.total_cards + '</b></span>'
+                +   '<span>待复习 <b>' + d.due_now + '</b></span>'
+                +   '<span>可学新卡 <b>' + d.new_available + '</b></span>'
+                +   '<span>水蛭 <b>' + d.leech + '</b></span>'
+                +   '<span>近30天正确率 <b>' + acc + '</b>（' + d.reviews_30d + ' 次）</span>'
+                + '</div>'
+                + '<div class="fs-stat-row fs-maturity">'
+                +   '<span>新卡 <b>' + (m.new || 0) + '</b></span>'
+                +   '<span>学习中 <b>' + (m.learning || 0) + '</b></span>'
+                +   '<span>年轻(&lt;21天) <b>' + (m.young || 0) + '</b></span>'
+                +   '<span>成熟(≥21天) <b>' + (m.mature || 0) + '</b></span>'
+                +   '<span>已暂停 <b>' + (m.suspended || 0) + '</b></span>'
+                + '</div>'
+                + '<div class="fs-forecast-label">未来 30 天到期预测</div>'
+                + '<div class="fs-forecast">' + bars + '</div>';
+        } catch (e) {
+            panel.innerHTML = '<div class="fs-empty">统计加载失败：' + esc(e.message) + '</div>';
+        }
+    }
+
+    // ============================================================
+    // 筛选页：状态桶 × 科目 + 数量（数量来自 /api/flashcards/facets）
+    // 桶的判定与服务端 session/facets 端点同源，「已掌握」= interval_days >= 21。
+    // 数量为 0 的桶显示成**禁用灰态而不是隐藏**——用户要的就是看见「水蛭 0 /
+    // 已暂停 0」这种真实状态，藏起来反而像在骗人。
+    // ============================================================
+    const fbox = document.getElementById("flash-filter");
+    const BUCKET_META = [
+        { key: "", label: "全部" }, { key: "new", label: "未学习" },
+        { key: "learning", label: "学习中" }, { key: "review", label: "复习中" },
+        { key: "mature", label: "已掌握" }, { key: "leech", label: "水蛭" },
+        { key: "suspended", label: "已暂停" },
+    ];
+    let facets = null;
+
+    async function loadFacets() {
+        try {
+            const d = await (await fetch(API + "/api/flashcards/facets")).json();
+            facets = (d && d.ok) ? d : null;
+        } catch (e) { facets = null; }
+        renderFilterBar();
+    }
+
+    // 桶计数：选了科目就看该科目的，否则看全局合计
+    function bucketCount(key) {
+        if (!facets) return null;
+        let src;
+        if (pending.subject) {
+            src = (facets.subjects || []).filter(s => s.subject === pending.subject)[0];
+        } else {
+            src = facets.totals;
+        }
+        if (!src) return 0;
+        return key ? (src[key] || 0) : (src.total || 0);
+    }
+    // 科目计数：选了桶就只数那个桶
+    function subjectCount(subject) {
+        if (!facets) return null;
+        let n = 0, seen = false;
+        for (const row of (facets.subjects || [])) {
+            if (subject && row.subject !== subject) continue;
+            seen = true;
+            n += pending.bucket ? (row[pending.bucket] || 0) : (row.total || 0);
+        }
+        return seen ? n : 0;
+    }
+
+    function chip(label, value, n, active, attr) {
+        const empty = (n === 0);
+        return '<button class="ff-chip' + (active ? " on" : "") + (empty ? " empty" : "") + '" '
+            + attr + '="' + esc(value) + '"' + (empty && !active ? " disabled" : "") + '>'
+            + esc(label) + (n == null ? "" : '<span class="ff-n">' + n + "</span>") + "</button>";
+    }
+
+    function renderFilterBar() {
+        if (!fbox) return;
+        const buckets = BUCKET_META.map(b =>
+            chip(b.label, b.key, bucketCount(b.key), pending.bucket === b.key, "data-bucket")).join("");
+        const subs = [""].concat(SUBJECTS).map(s =>
+            chip(s || "全部", s, subjectCount(s), pending.subject === s, "data-subject")).join("");
+        const n = subjectCount(pending.subject || "");
+        const parts = [];
+        if (pending.subject) parts.push(pending.subject);
+        const bm = BUCKET_META.filter(b => b.key === pending.bucket)[0];
+        if (bm && bm.key) parts.push(bm.label);
+        // 复盘页跳过来时会带 topic 前缀，必须让用户看得见、也清得掉
+        if (pending.topic) parts.push("考点 " + pending.topic);
+        const scope = parts.length ? parts.join(" · ") : "全部闪卡";
+        fbox.innerHTML =
+            '<h2>闪卡筛选</h2>'
+            + '<div class="ff-group"><div class="ff-label">状态</div><div class="ff-chips">' + buckets + '</div></div>'
+            + '<div class="ff-group"><div class="ff-label">科目</div><div class="ff-chips">' + subs + '</div></div>'
+            + '<div class="ff-foot">'
+            +   '<span class="ff-summary">当前范围：' + esc(scope)
+            +     (n == null ? "" : ' · <b>' + n + '</b> 张') + '</span>'
+            +   '<button class="fs-btn fs-next" id="ff-start">开始刷题</button>'
+            +   '<button class="fs-btn" id="ff-all">全部闪卡</button>'
+            + '</div>';
+        fbox.querySelectorAll("[data-bucket]").forEach(b => {
+            b.onclick = () => { pending.bucket = b.dataset.bucket; renderFilterBar(); };
+        });
+        fbox.querySelectorAll("[data-subject]").forEach(b => {
+            b.onclick = () => { pending.subject = b.dataset.subject; renderFilterBar(); };
+        });
+        const sb = fbox.querySelector("#ff-start");
+        if (sb) sb.onclick = () => startWithFilter(pending);
+        const ab = fbox.querySelector("#ff-all");
+        if (ab) ab.onclick = () => { pending = { subject: "", bucket: "", topic: "" }; startWithFilter(null); };
+    }
+
+    // 键盘分四个阶段，互不重叠（数字键在不同阶段含义不同，靠状态消歧）：
+    //   ① 未作答的选择/判断 → A–D / 1–4 选选项，空格看答案
+    //   ② 已自动判错        → 空格/回车 下一张，U 撤销重答
+    //   ③ 已显示答案        → 1–4 自评（空格 = 记得，Anki 惯例）
+    //   ④ 未显示答案的填空/简答 → 空格显示答案
+    document.addEventListener("keydown", (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        // 闸门态（还没点开始）不接键盘：那时按数字键是在翻网页，不是在答题。
+        // ⚠️ 必须显式看 STUDY.started——结束本组后 state.cards 可能还留着上一组的
+        //    数组（LS 里的进度要留给「继续本组」），只看长度会串台。
+        if (!STUDY.started) return;
+        if (!state.cards.length || state.idx >= state.cards.length) return;
+        const k = e.key;
+        const isEnter = e.code === "Space" || k === "Enter";
+        if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) {
+            // ⚠️ 追问框（#fs-exp-input）会吃掉数字键：用户点过它、或它刚被挂上时，
+            //    按 1/2/3/4 本想标熟练度，结果打进了输入框（2026-09-21 用户反馈）。
+            //    判据：**空输入框里第一个字符不可能是有意义的提问** —— 数字与空格一律放行给闪卡快捷键。
+            //    只在「空 + 数字/空格」时放行，所以正常打字、以及简答题作答区完全不受影响。
+            const empty = !String(e.target.value || "");
+            const ratingKey = /^[1-9]$/.test(k) || isEnter;
+            if (!(e.target.id === "fs-exp-input" && empty && ratingKey)) return;
+        }
+        // 读笔记弹层 / 卡组覆盖层打开时不要评分——那时数字键是在翻笔记，不是在答题
+        if (document.querySelector(".rev-modal, .deck-overlay")) return;
+        // 番茄钟全屏时同样要闭嘴：它盖在最上面，但按键事件还是会打到这一层来
+        if (typeof globalThis.__pomoFullscreen === "function" && globalThis.__pomoFullscreen()) return;
+
+        // U 在哪个阶段都是撤销，先拦下来。选项键只占 A–I / 1–9，不会和它撞。
+        if (k === "u" || k === "U") { e.preventDefault(); undo(); return; }
+
+        // ① 选选项
+        const opts = optionButtons();
+        if (opts.length && !state.answered && !state.revealed) {
+            let i = -1;
+            if (/^[a-iA-I]$/.test(k)) i = k.toUpperCase().charCodeAt(0) - 65;
+            else if (/^[1-9]$/.test(k)) i = parseInt(k, 10) - 1;
+            if (i >= 0) {
+                if (i < opts.length) { e.preventDefault(); opts[i].click(); }
+                return;   // 超出范围的键位不落到下面的分支去
+            }
+            if (isEnter) { e.preventDefault(); reveal(); }
+            return;
+        }
+
+        // ② 已自动判错：只等翻页
+        if (state.autoWrong) {
+            if (isEnter) { e.preventDefault(); goNext(); }
+            return;
+        }
+
+        // ③ 自评
+        if (state.revealed) {
+            if (["1", "2", "3", "4"].includes(k)) { e.preventDefault(); rate(parseInt(k, 10)); }
+            else if (isEnter) { e.preventDefault(); rate(3); }
+            return;
+        }
+
+        // ④ 填空/简答：先看答案
+        if (isEnter) {
+            e.preventDefault();
+            const skipBtn = document.getElementById("fs-skip");   // 简答卡：空格 = 先看参考答案
+            const bodyBtn = skipBtn || document.querySelector("#fs-body .fs-btn");
+            if (bodyBtn) bodyBtn.click();
+        }
+    });
+
+    // 启动时把上次的筛选选择也恢复出来，让筛选页显示的选择和场上正在刷的卡一致
+    const savedFilter = readFilter();
+    if (savedFilter) {
+        pending = { subject: savedFilter.subject, bucket: savedFilter.bucket, topic: savedFilter.topic || "" };
+        state.filter = savedFilter;
+    }
+    renderFilterBar();
+    loadDayMs();
+    // 「⏹ 结束」：把表停下来、回到闸门。localStorage 里没刷完的本组照旧留着，
+    // 所以回来还能「继续本组」——但时间不会再偷偷往上走。
+    const stopBtn = document.getElementById("fs-stop");
+    if (stopBtn) stopBtn.onclick = () => {
+        endStudy();
+        // 场上必须清空：闸门态下若还留着上一组的 cards，键盘评分与空格翻页会
+        // 打到已经看不见的卡上去（LS 里那份才是留给「继续本组」的）。
+        state.cards = []; state.idx = 0; state.revealed = false; state.answered = false;
+        renderGate();
+    };
+    fetchToday();
+    loadFacets();
+    // 2026-09-21：不再一加载就自动组题。以前脚本一跑就拉一整组卡并渲染第一张，
+    // 于是「还没打算刷」也被算进学习时长，人走开表照转。现在一律先停在闸门。
+    renderGate();
+})();
+
+// ============================================================
+// 闪卡全屏练习（2026-09-14）
+// 学习时最烦的是出答案把整页顶来顶去——内容一长，滚动位置就跟着跑。
+// 全屏后练习区 position:fixed 铺满视口并自己滚动，解析只在内部撑开。
+// ESC 退出；切走页面时自动退出，否则 body 上的 overflow:hidden 会留着，
+// 把「笔记盘活」「练习活动」也一起锁死滚不动。
+// ============================================================
+(function () {
+    const KEY = "kaoyan.flash.fullscreen";
+    const section = document.getElementById("flash-practice");
+    const btn = document.getElementById("fs-full-toggle");
+    if (!section || !btn) return;
+
+    const isFull = () => section.classList.contains("is-full");
+    const onFlashPage = () => (location.hash || "").replace(/^#\/?/, "") === "flash";
+
+    function setFull(on) {
+        section.classList.toggle("is-full", on);
+        document.body.classList.toggle("fs-lock", on);
+        const label = on ? "退出全屏（Esc）" : "全屏练习（Esc 退出）";
+        btn.textContent = on ? "✕ 退出全屏" : "⛶ 全屏";
+        btn.title = label;
+        btn.setAttribute("aria-label", label);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+        try { localStorage.setItem(KEY, on ? "1" : "0"); } catch (e) {}
+        // 2026-09-21 起和番茄钟一套做法：进全屏时向浏览器申请**对这个模块**的真全屏，
+        // 铺满物理屏幕、不再需要用户自己按 F11。拿不到（没有用户手势 / 浏览器不支持）
+        // 就退回 .is-full 的 CSS 铺满，功能不降级。
+        if (on) {
+            try {
+                const pr = section.requestFullscreen
+                    ? section.requestFullscreen() : Promise.reject(new Error("no fullscreen api"));
+                if (pr && pr.catch) pr.catch(function () { /* 被拦就用 CSS 铺满，够用 */ });
+            } catch (e) {}
+        } else if (document.fullscreenElement && document.exitFullscreen) {
+            try { const pr = document.exitFullscreen(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+        }
+    }
+
+    // 原生那层被 Esc 退掉时，CSS 这层要跟着退——否则会剩一个「铺满但已经不是全屏」的壳，
+    // 用户得再按一次 Esc 才出得去（番茄钟那边同理）。
+    document.addEventListener("fullscreenchange", function () {
+        if (!document.fullscreenElement && isFull()) setFull(false);
+    });
+
+    let saved = false;
+    try { saved = localStorage.getItem(KEY) === "1"; } catch (e) {}
+    // 上次退出时是全屏就恢复——但仅限当前就在闪卡页，否则一进大盘就被盖住
+    if (saved && onFlashPage()) setFull(true);
+
+    btn.addEventListener("click", () => setFull(!isFull()));
+
+    document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape" && isFull()) setFull(false);
+    });
+
+    window.addEventListener("hashchange", () => {
+        if (isFull() && !onFlashPage()) setFull(false);
+    });
+
+    // ---- 答题音效开关 ----
+    // 浏览器只允许在用户手势里启动音频，这里趁首次指针按下预热 AudioContext，
+    // 否则第一声「答对」会因为上下文还是 suspended 而被吞掉。
+    const sfxBtn = document.getElementById("fs-sfx-toggle");
+    document.addEventListener("pointerdown", function () { SFX.unlock(); }, { once: true });
+
+    function applySfx(m) {
+        SFX.setMuted(m);
+        if (!sfxBtn) return;
+        sfxBtn.textContent = m ? "🔇 音效" : "🔊 音效";
+        sfxBtn.classList.toggle("is-off", m);
+        const label = m ? "答题音效：已关闭" : "答题音效：已开启";
+        sfxBtn.title = label;
+        sfxBtn.setAttribute("aria-label", label);
+        sfxBtn.setAttribute("aria-pressed", m ? "false" : "true");
+    }
+
+    if (sfxBtn) {
+        applySfx(SFX.isMuted());
+        sfxBtn.addEventListener("click", function () {
+            const next = !SFX.isMuted();
+            applySfx(next);
+            // 刚开启时放一声，顺便让人确认音量合不合适
+            if (!next) SFX.play("correct");
+        });
+    }
+})();
+'''
+
+
+# ---------------------------------------------------------------------------
+# 闪卡库（html-flashcard-builder --register 登记的专题卡组，莫兰迪配色）
+# 画廊 + 点开 iframe 覆盖层练习；进度按 storageKey 存 localStorage，与独立产物共享
+# ---------------------------------------------------------------------------
+DECK_CSS = '''
+        .deck-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+        .deck-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 16px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 8px; }
+        .deck-card:hover { border-color: var(--dianqing); background: var(--bg-card-hover); transform: translateY(-2px); }
+        .deck-card.disabled { cursor: default; opacity: .55; }
+        .deck-card.disabled:hover { border-color: var(--border-color); background: var(--bg-card); transform: none; }
+        .deck-title { font-weight: 600; font-size: 0.95rem; color: var(--xuan); }
+        .deck-sub { font-size: 0.75rem; color: var(--text-muted); min-height: 1.2em; }
+        .deck-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+        .deck-chip { font-size: 0.68rem; padding: 1px 8px; border-radius: 9px; background: rgba(var(--dianqing-rgb),.12); color: var(--dianqing-lt); border: 1px solid rgba(var(--dianqing-rgb),.3); }
+        .deck-meta { font-size: 0.7rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+        .deck-bar { height: 5px; border-radius: 3px; background: var(--bg-primary); overflow: hidden; }
+        .deck-bar-fill { height: 100%; background: linear-gradient(90deg, var(--dianqing), var(--zhuqing)); border-radius: 3px; transition: width .3s; }
+        .deck-bar-label { font-size: 0.7rem; color: var(--text-secondary); display: flex; justify-content: space-between; }
+        .deck-empty { color: var(--text-muted); text-align: center; padding: 30px 0; font-size: 0.85rem; line-height: 1.8; }
+        .deck-overlay { position: fixed; inset: 0; background: rgba(var(--mo-rgb),.9); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); z-index: 1000; display: flex; flex-direction: column; padding: 22px; }
+        .deck-overlay-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .deck-overlay-title { color: var(--xuan); font-weight: 600; font-size: 1rem; font-family: var(--font-serif); }
+        .deck-overlay-tip { color: var(--text-muted); font-size: 0.72rem; }
+        .deck-overlay-close { margin-left: auto; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); border-radius: 6px; padding: 6px 16px; font-size: 0.85rem; cursor: pointer; }
+        .deck-overlay-close:hover { border-color: var(--dianqing); }
+        .deck-overlay iframe { flex: 1; width: 100%; border: none; border-radius: var(--border-radius); background: var(--mo-2); }
+'''
+
+DECK_JS = '''
+// ============================================================
+// 闪卡库：html-flashcard-builder --register 登记的专题卡组。
+// 画廊展示进度（localStorage 按 storageKey 共享）；点开用 iframe
+// 覆盖层加载卡组页（?embed=1 自动莫兰迪深色）；Esc / postMessage 关闭。
+// ============================================================
+(function() {
+    const wrap = document.getElementById("deck-library");
+    const decks = (D.deck_library || []);
+    const TYPE_CN = {choice: "选择", tf: "判断", fill: "填空", short: "简答"};
+    let overlay = null;
+
+    function deckProgress(key, total) {
+        if (!key) return { mastered: 0, practiced: 0 };
+        try {
+            const s = JSON.parse(localStorage.getItem(key) || "{}");
+            return {
+                mastered: Array.isArray(s.mastered) ? s.mastered.length : 0,
+                practiced: Array.isArray(s.practiced) ? s.practiced.length : 0
+            };
+        } catch (e) { return { mastered: 0, practiced: 0 }; }
+    }
+
+    function renderGallery() {
+        if (!decks.length) {
+            wrap.innerHTML = '<div class="deck-empty">闪卡库还是空的。<br>让 AI 用 html-flashcard-builder 从复习资料出题，构建时加 <b>--register</b> 即可出现在这里。</div>';
+            return;
+        }
+        wrap.innerHTML = '<div class="deck-grid">' + decks.map((d, i) => {
+            const p = deckProgress(d.storageKey, d.total);
+            const pct = d.total > 0 ? Math.round(p.mastered / d.total * 100) : 0;
+            const chips = Object.entries(d.types || {}).map(([t, n]) =>
+                '<span class="deck-chip">' + (TYPE_CN[t] || t) + "×" + n + '</span>').join("");
+            const click = d.hasHtml ? ' onclick="window.__openDeck(' + i + ')"' : '';
+            return '<div class="deck-card' + (d.hasHtml ? '' : ' disabled') + '"' + click + '>'
+                + '<div class="deck-title">' + richTitle(d.title) + '</div>'
+                + '<div class="deck-sub">' + richTitle(d.subtitle || "") + '</div>'
+                + '<div class="deck-chips">' + chips + '</div>'
+                + '<div class="deck-bar-label"><span>已掌握 ' + p.mastered + '/' + d.total + '</span><span>已练 ' + p.practiced + '</span></div>'
+                + '<div class="deck-bar"><div class="deck-bar-fill" style="width:' + pct + '%"></div></div>'
+                + '<div class="deck-meta"><span>构建 ' + d.built + '</span><span>' + (d.hasHtml ? "点击开练 →" : "缺 html 产物") + '</span></div>'
+                + '</div>';
+        }).join("") + '</div>';
+    }
+
+    function escDeck(s) {
+        const d = document.createElement("div");
+        d.textContent = s == null ? "" : String(s);
+        return d.innerHTML;
+    }
+
+    // 卡组名/副标题也走全局按需 KaTeX（名字里可能带公式）。
+    // 带兜底：本块要能脱离 FLASH_JS 单独跑，拿不到全局实现时退回纯转义。
+    function richTitle(s) {
+        return (window.richText || escDeck)(s);
+    }
+
+    function openDeck(i) {
+        const d = decks[i];
+        if (!d || !d.hasHtml || overlay) return;
+        overlay = document.createElement("div");
+        overlay.className = "deck-overlay";
+        overlay.innerHTML = '<div class="deck-overlay-head">'
+            + '<span class="deck-overlay-title">' + richTitle(d.title) + '</span>'
+            + '<span class="deck-overlay-tip">Esc 退出 · 进度自动保存并与独立打开的产物共享</span>'
+            + '<button class="deck-overlay-close">✕ 退出 (Esc)</button>'
+            + '</div>'
+            + '<iframe src="' + d.src + '?embed=1" title="' + escDeck(d.title) + '"></iframe>';
+        overlay.querySelector(".deck-overlay-close").onclick = closeDeck;
+        document.body.appendChild(overlay);
+        overlay.querySelector("iframe").focus();
+    }
+
+    function closeDeck() {
+        if (!overlay) return;
+        overlay.remove();
+        overlay = null;
+        renderGallery();  // 刷新画廊进度条
+    }
+
+    window.__openDeck = openDeck;
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay) closeDeck();
+    });
+    window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "flashcard-close") closeDeck();
+    });
+
+    renderGallery();
+})();
+'''
+
+
+def generate_html(data: dict) -> str:
+    """Generate the complete dashboard HTML."""
+
+    # Serialize data for JavaScript
+    data_json = json.dumps(data, ensure_ascii=False)
+
+    return f'''<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="{FAVICON_HREF}">
+    <title>考研学习仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <style>
+        /* ============================================================
+           新中式 · 墨色 色板（2026-09-13 重构）
+
+           约定：**所有颜色只在这里定义**。下面的"基础色"是新中式取色，
+           其后的"语义别名"把旧变量名指过去，这样既收拢了散落各处的硬编码色，
+           又不会出现「--accent-blue 却是绿色」这种名实不符。
+           要换肤只改这一块。
+           ============================================================ */
+        :root {{
+            /* ---- 基础色（新中式·青墨）----
+               底色统一走「青墨」：色相偏青（G≈B > R），饱和度压到 ~10%（哑），
+               明度保持很暗。2026-09-13 从暖赭墨调整为青墨——原来的底色是
+               R>G>B 的暖调，叠加朱砂强调色后整体发红，长时间看有刺激感。
+               若还想微调：只改这一组，且保证 R 是最小的那个通道。 */
+            --mo:        #151A1A;   /* 青墨    — 页面底 */
+            --mo-2:      #1A2020;   /* 次青墨  — 次级底 */
+            --mo-light:  #1F2626;   /* 淡青墨  — 卡片 */
+            --mo-hover:  #273030;   /* 青墨醒  — 悬停 */
+            --xuan:      #E5E9E7;   /* 月白    — 主文字 */
+            --tao:       #97A5A3;   /* 青灰    — 次文字 */
+            --hui:       #66726F;   /* 灰      — 弱文字 */
+            --zhusha:    #B84A42;   /* 朱砂  — 强调 / 错误 */
+            --zhuqing:   #6F9A8D;   /* 竹青  — 成功 / 主色 */
+            --dianqing:  #5B7C99;   /* 靛青  — 信息 / 蓝 */
+            --xiang:     #C89B4A;   /* 缃    — 警告 / 黄 */
+            --zi:        #8A6FA8;   /* 紫    — 特殊标记 */
+            --bian:      #2C3636;   /* 青墨边  — 边框 */
+
+            /* 亮调用色：深底上做小字/图标时的提亮版本 */
+            --zhusha-lt:   #E08A80;
+            --zhuqing-lt:  #9CC4B6;
+            --dianqing-lt: #92B4D0;
+            --xiang-lt:    #E0C07E;
+            --zi-lt:       #BCA3D6;
+
+            /* rgb 三元组：配合 rgba(var(--x-rgb), .15) 写半透明底，
+               避免各处再散落一遍硬编码色值 */
+            --zhusha-rgb:   184,74,66;
+            --zhuqing-rgb:  111,154,141;
+            --dianqing-rgb: 91,124,153;
+            --xiang-rgb:    200,155,74;
+            --zi-rgb:       138,111,168;
+            --xuan-rgb:     229,233,231;
+            --mo-rgb:       21,26,26;
+
+            /* ---- 语义别名（旧名保留，全部指向基础色）---- */
+            --bg-primary: var(--mo);
+            --bg-secondary: var(--mo-2);
+            --bg-card: var(--mo-light);
+            --bg-card-hover: var(--mo-hover);
+            --text-primary: var(--xuan);
+            --text-secondary: var(--tao);
+            --text-muted: var(--hui);
+            --accent-blue: var(--dianqing);
+            --accent-green: var(--zhuqing);
+            --accent-red: var(--zhusha);
+            --accent-orange: var(--xiang);
+            --accent-purple: var(--zi);
+            --border-color: var(--bian);
+
+            /* ---- 质感：新中式偏克制——小圆角、细边框、衬线标题 ---- */
+            --border-radius: 4px;
+            --font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+            --font-serif: "Songti SC", "STSong", "SimSun", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+            --rule: 1px solid var(--border-color);
+            --rule-strong: 2px solid var(--border-color);
+        }}
+
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+
+        body {{
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }}
+
+        .dashboard {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+
+        header {{
+            text-align: center;
+            padding: 16px 0 24px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }}
+
+        header h1 {{
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }}
+
+        header .subtitle {{
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }}
+
+        /* --- Metric Cards --- */
+        .metrics {{
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+
+        .metric-card {{
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            text-align: center;
+        }}
+
+        .metric-card .label {{
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }}
+
+        .metric-card .value {{
+            font-size: 1.75rem;
+            font-weight: 700;
+            font-family: var(--font-serif);
+            color: var(--accent-blue);
+        }}
+
+        .metric-card .detail {{
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }}
+
+        .metric-card .value.green {{ color: var(--accent-green); }}
+        .metric-card .value.orange {{ color: var(--accent-orange); }}
+        .metric-card .value.red {{ color: var(--accent-red); }}
+
+        /* --- Section --- */
+        .section {{
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 20px;
+        }}
+
+        .section h2 {{
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-family: var(--font-serif);
+            letter-spacing: .04em;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            border-left: 3px solid var(--zhusha);
+            padding-left: 10px;
+        }}
+
+        /* --- Two-column layout --- */
+        .row {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }}
+
+        /* --- Heatmap --- */
+        .heatmap-grid {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+        }}
+
+        .heatmap-cell {{
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            position: relative;
+        }}
+
+        .heatmap-cell:hover {{
+            outline: 2px solid var(--accent-blue);
+        }}
+
+        /* 有笔记但没刷过闪卡：虚线圈出，避免和「练过的实心格」混淆 */
+        .heatmap-cell.is-note-only {{
+            box-shadow: inset 0 0 0 1px var(--text-muted);
+            color: var(--text-secondary);
+        }}
+
+        .heatmap-tooltip {{
+            display: none;
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            z-index: 10;
+            color: var(--text-primary);
+        }}
+
+        .heatmap-cell:hover .heatmap-tooltip {{
+            display: block;
+        }}
+
+        .heatmap-legend {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }}
+
+        .heatmap-legend-bar {{
+            width: 120px;
+            height: 12px;
+            border-radius: 2px;
+            background: linear-gradient(to right, var(--bg-secondary), var(--dianqing));
+        }}
+
+        .heatmap-legend-note {{
+            margin-left: 8px;
+            color: var(--text-muted);
+        }}
+
+        .heatmap-row-label {{
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            width: 40px;
+            text-align: right;
+            padding-right: 8px;
+            flex-shrink: 0;
+        }}
+
+        .heatmap-row {{
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }}
+
+        /* --- Gap list --- */
+        .gap-list {{
+            list-style: none;
+        }}
+
+        .gap-item {{
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }}
+
+        .gap-item:last-child {{
+            border-bottom: none;
+        }}
+
+        .gap-rank {{
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }}
+
+        .gap-info {{
+            flex: 1;
+        }}
+
+        .gap-topic {{
+            font-weight: 600;
+            font-size: 0.9rem;
+        }}
+
+        .gap-meta {{
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }}
+
+        .gap-weight {{
+            font-size: 0.85rem;
+            color: var(--accent-orange);
+            font-weight: 600;
+            margin-left: 12px;
+        }}
+
+        /* --- Chart containers --- */
+        .chart-container {{
+            width: 100%;
+            min-height: 200px;
+        }}
+
+        .chart-container svg {{
+            width: 100%;
+        }}
+
+        /* --- 图表入场动效（2026-09-21）---
+           分工：柱/线的**形变**（从 0 长起来、线被画出来、饼图扫开）交给 d3 补间，
+           「整张图的出现」（坐标轴、图例、热力图格子、指标卡）用 CSS 动画最省事，
+           还能被 prefers-reduced-motion 一键关掉。STYLE 上刻意克制：位移不超过 8px，
+           时长 0.3~0.6s，只缓出不回弹——这是学习工具，不是展厅。 */
+        ⚠️ fill-mode 一律用 `backwards` 而不是 `both`：
+           `.metric-card` / `.heatmap-cell` 在 FX_CSS 里都有 :hover 的 transform
+           （卡片上浮 2px、格子放大 1.1）。CSS 动画的填充值优先级**高于**普通声明，
+           用 `both` 的话动画结束后那层 transform:none 会一直压着 :hover，
+           悬停反馈就永久失效了。`backwards` 只在延迟期占位，跑完就交还给基样式。 */
+        @keyframes chartFade {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
+        @keyframes chartRise {{
+            from {{ opacity: 0; transform: translateY(8px); }}
+            to   {{ opacity: 1; transform: none; }}
+        }}
+        @keyframes cellIn {{
+            from {{ opacity: 0; transform: scale(.86); }}
+            to   {{ opacity: 1; transform: none; }}
+        }}
+        .chart-container > svg {{ animation: chartFade .55s ease-out backwards; }}
+        .chart-legend {{ animation: chartRise .5s ease-out backwards; animation-delay: .26s; }}
+        .metric-card {{ animation: chartRise .5s ease-out backwards; }}
+        .heatmap-cell {{ animation: cellIn .34s ease-out backwards; }}
+        .heatmap-row-label {{ animation: chartRise .42s ease-out backwards; }}
+        .heatmap-legend {{ animation: chartFade .5s ease-out backwards; animation-delay: .3s; }}
+        .act-cell {{ animation: cellIn .3s ease-out backwards; }}
+        @media (prefers-reduced-motion: reduce) {{
+            .chart-container > svg, .chart-legend, .metric-card, .heatmap-cell,
+            .heatmap-row-label, .heatmap-legend, .act-cell {{ animation: none !important; }}
+        }}
+
+        /* 图表标题行：左标题右切换按钮，切按钮不会把图挤矮 */
+        .chart-head {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }}
+
+        .chart-head h2 {{
+            margin-bottom: 0;
+        }}
+
+        .range-toggle {{
+            display: flex;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }}
+
+        .range-btn {{
+            background: transparent;
+            border: 0;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.75rem;
+            line-height: 1.6;
+            padding: 3px 12px;
+            cursor: pointer;
+        }}
+
+        .range-btn:hover {{
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+        }}
+
+        .range-btn.is-active {{
+            background: var(--dianqing);
+            color: #fff;
+        }}
+
+        /* --- Axis styles --- */
+        .axis text {{
+            fill: var(--text-secondary);
+            font-size: 0.7rem;
+        }}
+
+        .axis line, .axis path {{
+            stroke: var(--border-color);
+        }}
+
+        .chart-legend {{
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }}
+
+        .chart-legend-item {{
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }}
+
+        .chart-legend-dot {{
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }}
+
+        /* --- Responsive --- */
+        @media (max-width: 768px) {{
+            .metrics {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+            .row {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
+        @media (max-width: 480px) {{
+            .metrics {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+
+        /* --- Alert Card --- */
+        .alert-card {{
+            background: rgba(var(--zhusha-rgb),.18);
+            border-left: 3px solid var(--zhusha);
+            padding: 12px 16px;
+            margin: 8px 0;
+            border-radius: var(--border-radius);
+        }}
+        .alert-card strong {{
+            color: var(--zhusha-lt);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+        }}
+        .alert-card p {{
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin: 0;
+        }}
+        .alert-card .alert-detail {{
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }}
+
+        footer {{
+            text-align: center;
+            padding: 16px 0;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 20px;
+        }}
+
+        /* --- 薄弱提醒 --- */
+        .weak-item {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.88rem;
+        }}
+        .weak-item:last-child {{ border-bottom: none; }}
+        .weak-name {{ font-weight: 600; }}
+        .weak-meta {{ font-size: 0.72rem; color: var(--text-muted); }}
+        .weak-count {{
+            font-size: 0.78rem;
+            color: var(--accent-red);
+            background: rgba(239,68,68,.12);
+            border-radius: 10px;
+            padding: 2px 10px;
+            white-space: nowrap;
+            margin-left: 10px;
+        }}
+        .weak-empty {{
+            color: var(--text-muted);
+            text-align: center;
+            padding: 30px 0;
+            font-size: 0.85rem;
+        }}
+        .weak-note {{
+            margin-top: 10px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }}
+        /* __FLASH_CSS__ */
+        /* __DECK_CSS__ */
+        /* __REVIVE_CSS__ */
+        /* __NOTEQ_CSS__ */
+        /* __NAV_CSS__ */
+        /* __FX_CSS__ */
+        /* __TASK_CSS__ */
+        /* __THEME_CSS__ */
+        /* __SETTINGS_CSS__ */
+        /* __POMO_CSS__ */
+        /* __SHELL_CSS__ */
+        /* __MR_CSS__ */
+        /* __RV_CSS__ */
+    </style>
+</head>
+<body>
+<!-- 自定义背景图的承载层。独立一层而不是设到 body 上：这样它能用 z-index:-1
+     落在内容之下、body 背景之上，同时 ::after 那层遮罩可以单独调透明度。 -->
+<div id="bg-layer"></div>
+<!-- 鼠标粒子光效的画布（2026-09-21）：整页铺满、不吃指针事件。
+     压在内容之上但用混合模式当「光」用，所以不会糊住文字；
+     关掉开关或系统开了「减弱动效」时整段不跑（见 SHELL_JS）。 -->
+<canvas id="mouse-fx" aria-hidden="true"></canvas>
+<!-- 整页全屏（右上角常驻，2026-09-21）：就是 F11 那种整页模式，在任何子页都能按。
+     与模块自己的全屏是两码事——番茄钟 / 闪卡练习各自的「⛶ 全屏」只让那一个模块
+     铺满屏幕（见 POMO_JS 与闪卡全屏段），这里铺的是整页。 -->
+<button class="shell-fs" id="shell-fs" title="整页全屏（Esc 退出）" aria-label="整页全屏">⛶ 全屏</button>
+<div class="dashboard">
+    <!-- 左侧导航：点一项切一页，不再是一条道滚到底 -->
+    <aside class="sidenav" id="sidenav">
+        <div class="sidenav-brand">
+            <span class="sidenav-brand-text">考研大盘</span>
+            <button class="sidenav-toggle" id="sidenav-toggle"
+                    title="收起侧边栏" aria-label="收起侧边栏" aria-expanded="true">◀</button>
+        </div>
+        <!-- data-short：收起后只显示首字，title 补回完整名称 -->
+        <button class="sidenav-item" data-page="overview" data-short="总" title="总览">总览</button>
+        <button class="sidenav-item" data-page="notes" data-short="笔" title="笔记">笔记</button>
+        <button class="sidenav-item" data-page="flash" data-short="闪" title="闪卡">闪卡</button>
+        <button class="sidenav-item" data-page="activity" data-short="活" title="活动">活动</button>
+        <button class="sidenav-item" data-page="mistakes" data-short="复" title="错题复盘">错题复盘</button>
+        <button class="sidenav-item" data-page="study" data-short="学" title="薄弱点学习">薄弱点学习</button>
+        <button class="sidenav-item" data-page="review" data-short="早" title="早间回顾">早间回顾</button>
+        <button class="sidenav-item" data-page="settings" data-short="设" title="设置">设置</button>
+    </aside>
+
+    <main class="dash-main">
+    <header>
+        <h1>考研学习仪表盘</h1>
+        <div class="subtitle" id="header-subtitle"></div>
+    </header>
+
+    <!-- ============ 总览 ============ -->
+    <div class="page" data-page="overview">
+        <!-- Section 1: Top Metrics -->
+        <div class="metrics" id="metrics-row"></div>
+
+        <!-- Section 1b: 番茄钟（结构与逻辑见 POMO_JS）。放在大盘首页最上方而不是
+             单独一页：开大盘的第一件事是「这轮学多久」，而不是去看昨天的数据。
+             这个容器只是占位——卡片实体由 JS 建出来，全屏时会被整体搬进
+             body 层的 #pm-overlay，离开总览页也照样能继续看表。 -->
+        <div id="pm-slot"></div>
+
+        <!-- Section 1c: 专注与打卡数据条（番茄钟成绩 + 早间回顾打卡，渲染见 SHELL_JS）。
+             与番茄钟卡片分开：那张卡是「现在这一轮」，这条是「这些天到底练了多少」。 -->
+        <div class="section" id="focus-strip">
+            <div class="strip-loading">正在读取专注与打卡数据…</div>
+        </div>
+
+        <!-- Section 3: 薄弱提醒（闪卡错误驱动，已验证掌握的不再提醒） -->
+        <div class="row">
+            <div class="section">
+                <h2>薄弱知识点（来自你的闪卡错误）</h2>
+                <div id="weak-list"></div>
+            </div>
+            <div class="section">
+                <h2>真缺口（无笔记且未验证掌握）</h2>
+                <ul class="gap-list" id="gap-list"></ul>
+            </div>
+        </div>
+
+        <!-- Section 3b: 错因画像（来自错题复盘；渲染逻辑在 RV_JS，注册到 overview） -->
+        <div class="section">
+            <h2>🔁 常犯错误画像 · 重蹈覆辙提醒</h2>
+            <div id="pattern-box"><div class="rv-loading">正在汇总错因…</div></div>
+        </div>
+
+        <!-- Coverage Heatmap -->
+        <div class="section">
+            <h2>科目掌握度热力图（笔记 + 闪卡正确率）</h2>
+            <div id="heatmap-container"></div>
+        </div>
+
+        <!-- Timeline + Level Distribution -->
+        <div class="row">
+            <div class="section">
+                <div class="chart-head">
+                    <h2>笔记增长趋势</h2>
+                    <div class="range-toggle" id="timeline-range">
+                        <button class="range-btn is-active" data-range="day">日</button>
+                        <button class="range-btn" data-range="week">周</button>
+                        <button class="range-btn" data-range="month">月</button>
+                    </div>
+                </div>
+                <div class="chart-container" id="timeline-chart"></div>
+            </div>
+            <div class="section">
+                <h2>级别分布</h2>
+                <div class="chart-container" id="level-chart"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 笔记盘活 ============ -->
+    <div class="page" data-page="notes" hidden>
+        <!-- Section 0: 搜索 + 筛选（2026-09-21）。放在盘活面板之上：
+             找笔记是打开这一页的第一个动作，盘活是「没目标时扫一遍」。
+             UI 与逻辑都在 NOTEQ_JS（含读笔记时的「就问这段」面板）。 -->
+        <div class="section" id="note-search">
+            <div class="ns-top">
+                <div class="ns-inputwrap">
+                    <span class="ns-icon">🔍</span>
+                    <input id="ns-input" class="ns-input" type="search" autocomplete="off" spellcheck="false"
+                           placeholder="搜笔记：标题、正文都行 · 多个词用空格分隔（全都要命中）">
+                    <button class="ns-clear" id="ns-clear" title="清空" hidden>✕</button>
+                </div>
+                <button class="ns-browse" id="ns-browse" title="不搜关键词，只看筛选出来的笔记">浏览</button>
+            </div>
+            <div class="ns-facets" id="ns-facets"></div>
+            <div class="ns-meta" id="ns-meta"></div>
+            <div class="ns-results" id="ns-results"><div class="ns-hint">正在读取笔记索引…</div></div>
+        </div>
+        <!-- Section 2: 笔记盘活面板（强化阶段核心：把沉睡笔记重新练起来） -->
+        <div class="section">
+            <h2>📖 笔记盘活面板 · 别让笔记睡过去</h2>
+            <div class="rev-head">
+                <div>
+                    <div class="rev-score" id="rev-score">--</div>
+                    <div class="rev-score-label">笔记活跃分（热100% · 温60% · 冷20% · 冰冻0%）</div>
+                </div>
+                <div class="rev-chips" id="rev-chips"></div>
+            </div>
+            <div id="rev-by-prefix"></div>
+            <h2 style="margin-top:18px;">🧊 盘活目标清单（冷/冰冻笔记，按紧迫度排序）</h2>
+            <div id="rev-targets"></div>
+            <div class="rev-tip" id="rev-tip"></div>
+        </div>
+    </div>
+
+    <!-- ============ 闪卡 ============ -->
+    <div class="page" data-page="flash" hidden>
+        <!-- Section 4a: 闪卡筛选（先选范围，再开始刷） -->
+        <div class="section" id="flash-filter"></div>
+
+        <!-- Section 4b: 闪卡练习区（看大盘时顺便刷题） -->
+        <div class="section" id="flash-practice">
+            <div class="chart-head">
+                <h2>闪卡练习区 · 优先薄弱与冷笔记盘活</h2>
+                <div class="fs-tools">
+                    <!-- 学习计时：点「开始学习」才走表，窗口失焦/切后台自动暂停 -->
+                    <span class="fs-timer off" id="fs-timer"
+                          title="学习计时：点「开始学习」后才计时，切到别的窗口或标签页会自动暂停">⏱ 未开始</span>
+                    <button class="fs-full-toggle" id="fs-stop" hidden
+                            title="结束本次学习并停止计时">⏹ 结束</button>
+                    <button class="fs-full-toggle" id="fs-sfx-toggle" title="答题音效">🔊 音效</button>
+                    <button class="fs-full-toggle" id="fs-full-toggle"
+                            title="全屏练习（Esc 退出）">⛶ 全屏</button>
+                </div>
+            </div>
+            <div class="fs-box" id="flash-studio"></div>
+        </div>
+
+        <!-- Flashcard Stats -->
+        <div class="section">
+            <h2>闪卡记忆状态</h2>
+            <div class="chart-container" id="flashcard-chart"></div>
+        </div>
+    </div>
+
+    <!-- ============ 练习活动 ============ -->
+    <div class="page" data-page="activity" hidden>
+        <!-- Section 5a: 今日任务（agent 定时生成 + 手动增删） -->
+        <div class="section">
+            <div class="chart-head">
+                <h2>✅ 今日任务 <span class="task-progress" id="task-progress"></span></h2>
+                <span class="task-day" id="task-day"></span>
+            </div>
+            <ul class="task-list" id="task-list"></ul>
+            <div class="task-add">
+                <input class="task-input" id="task-input" maxlength="200"
+                       placeholder="加一条今天的任务，回车即可添加…">
+                <select class="task-subject" id="task-subject">
+                    <option value="">综合</option>
+                    <option value="408">408</option>
+                    <option value="政治">政治</option>
+                    <option value="数学一">数学一</option>
+                    <option value="英语一">英语一</option>
+                </select>
+                <button class="fs-btn" id="task-add-btn">添加</button>
+            </div>
+            <div class="task-hint" id="task-hint"></div>
+        </div>
+
+        <!-- Section 5b: 练习活动（真实答题记录，非打卡监督） -->
+        <div class="section">
+            <h2>🔥 练习活动 · 近12周真实答题</h2>
+            <div class="act-wrap">
+                <div class="act-cal-block">
+                    <div class="act-cal" id="act-cal"></div>
+                    <div class="act-cal-labels" id="act-cal-labels"></div>
+                </div>
+                <div class="act-side">
+                    <div class="act-stat"><span>累计答题</span><b id="act-total">0</b></div>
+                    <div class="act-stat"><span>连续练习天数</span><b id="act-streak">0</b></div>
+                    <div id="act-acc" style="margin-top:10px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 错题复盘（上传卷子/照片 → AI 对话 → 沉淀错因 → 专项练习） ============ -->
+    <div class="page" data-page="mistakes" hidden>
+        <div class="section">
+            <h2>📕 错题复盘</h2>
+            <div id="rv-mistakes"><div class="rv-loading">正在载入复盘会话…</div></div>
+        </div>
+    </div>
+
+    <!-- ============ 薄弱点学习（说知识点 → 检索题库/笔记/错因 → 讲 + 练） ============ -->
+    <div class="page" data-page="study" hidden>
+        <div class="section">
+            <h2>🧪 薄弱点学习</h2>
+            <div id="rv-study"><div class="rv-loading">准备中…</div></div>
+        </div>
+    </div>
+
+    <!-- ============ 早间回顾（并入大盘；内容与进度都在本机服务端，多设备同步） ============ -->
+    <div class="page" data-page="review" hidden>
+        <div class="section">
+            <h2>🌅 早间回顾</h2>
+            <div id="mr-root"><div class="mr-loading">正在读取早间回顾…</div></div>
+        </div>
+    </div>
+
+    <!-- ============ 设置 ============ -->
+    <div class="page" data-page="settings" hidden>
+        <div class="section">
+            <h2>⚙ 设置</h2>
+            <div id="settings-root"></div>
+        </div>
+    </div>
+
+    <footer>
+        生成于 <span id="gen-time"></span> &middot; 数据来源: 笔记索引 / 知识图谱 / 闪卡数据库 &middot; 已验证掌握 <span id="verified-count"></span> 个无笔记考点
+    </footer>
+    </main>
+</div>
+
+<!-- 番茄钟全屏层：#pm-slot 只是占位，卡片实体在按「全屏」时被搬进这里（同一个
+     DOM 节点搬家，状态与计时都不重置）。它必须在 .dashboard 之外、body 之下，
+     否则会被「总览」页的 hidden 一起藏掉——切到别的子页番茄钟就凭空消失了。 -->
+<div class="pm-overlay" id="pm-overlay" hidden></div>
+
+<script>
+// ============================================================
+// Data (injected by Python)
+// ============================================================
+const D = {data_json};
+
+// ============================================================
+// Helpers
+// ============================================================
+// ============================================================
+// 新中式调色板（JS 侧）—— 与 CSS 的 :root 同源，换色时两处一起改
+// 为什么 JS 里还要一份：D3 的 .attr("fill", ...) 设的是 SVG 属性，
+// 不解析 CSS 的 var()；配色映射表也必须拿到具体色值。
+// ============================================================
+const PALETTE = {{
+    zhusha:   "#B84A42",  // 朱砂
+    zhuqing:  "#6F9A8D",  // 竹青
+    dianqing: "#5B7C99",  // 靛青
+    xiang:    "#C89B4A",  // 缃
+    zi:       "#8A6FA8",  // 紫
+    zhushaLt:   "#E08A80",
+    zhuqingLt:  "#9CC4B6",
+    dianqingLt: "#92B4D0",
+    xiangLt:    "#E0C07E",
+    xuan: "#E5E9E7",
+    tao:  "#97A5A3",
+    hui:  "#66726F",
+    bian: "#2C3636",
+    mo:   "#151A1A",
+    moLight: "#1F2626"
+}};
+
+const SUBJECT_COLORS = {{
+    "408":  PALETTE.zhuqing,
+    "数学": PALETTE.dianqing,
+    "政治": PALETTE.zhusha,
+    "英语": PALETTE.xiang
+}};
+
+function el(tag, attrs, parent) {{
+    const e = document.createElement(tag);
+    if (attrs) Object.assign(e, attrs);
+    if (parent) parent.appendChild(e);
+    return e;
+}}
+
+// ============================================================
+// 图表入场动效的**全局**开关（2026-09-21）
+//
+// ⚠️ 必须声明在顶层共享：d3 补间不认 CSS 的 prefers-reduced-motion，得在 JS 里判一次。
+// 一开始只把它写在柱状图那个渲染器里，折线图跟着引用 → ReferenceError → 折线在画完
+// 第一条线之后整段中断（点、悬停准线、其余三个科目全没了），而页面上只表现为「图少
+// 了一半」。同一段脚本里的各图共用这两个常量，别再各写一份。
+// ============================================================
+const CHART_MOTION = !(window.matchMedia
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+const CHART_DUR = CHART_MOTION ? 620 : 0;
+// 兜底把几何写死：d3 的补间靠 requestAnimationFrame 驱动，极端情况下（渲染时页面
+// 正好被切到后台、浏览器节流）首帧迟迟不来，柱子会一直贴在 0 高度、线会一直是
+// 「全偏移的虚线」——那等于图是空的。这些 setTimeout 到了就以终值为准：
+// **最差只是「没有动画」，绝不会出现「图没画出来」**。
+// （d3 补间下次 tick 写的是同一个终值，两者不打架。）
+function chartSettle(fn, delay) {{
+    try {{ setTimeout(fn, Math.max(0, delay) + CHART_DUR + 900); }} catch (e) {{}}
+}}
+
+// ============================================================
+// Header
+// ============================================================
+document.getElementById("header-subtitle").textContent =
+    "考试日期: " + D.countdown.exam_date + " | 上次同步: " + (D.sync.last_sync || "N/A");
+document.getElementById("gen-time").textContent = new Date().toLocaleString("zh-CN");
+document.getElementById("verified-count").textContent = D.verified_count || 0;
+
+// ============================================================
+// Section 1: Top Metrics
+// ============================================================
+(function() {{
+    const row = document.getElementById("metrics-row");
+
+    const cards = [
+        {{
+            label: "考试倒计时",
+            value: D.countdown.days + " 天",
+            detail: D.countdown.phase,
+            cls: D.countdown.days <= 30 ? "red" : D.countdown.days <= 90 ? "orange" : "green"
+        }},
+        {{
+            label: "笔记总数",
+            value: D.notes.total + " 条",
+            detail: D.notes.today_new > 0 ? "+" + D.notes.today_new + " 今日新增" : "今日无新增",
+            cls: ""
+        }},
+        {{
+            label: "笔记活跃分",
+            value: ((D.revival && D.revival.freshness.summary.alive_score) != null
+                ? D.revival.freshness.summary.alive_score : "--") + "%",
+            detail: "冷/冰冻笔记 " + ((D.revival && (D.revival.freshness.summary.cold + D.revival.freshness.summary.frozen)) || 0) + " 篇待盘活",
+            cls: (D.revival && D.revival.freshness.summary.alive_score >= 70) ? "green"
+                : (D.revival && D.revival.freshness.summary.alive_score >= 40) ? "orange" : "red"
+        }},
+        {{
+            label: "覆盖率",
+            value: D.coverage.overall + "%",
+            detail: "笔记覆盖 + 闪卡验证掌握",
+            cls: D.coverage.overall >= 50 ? "green" : "orange"
+        }},
+        {{
+            label: "闪卡待复习",
+            value: D.flashcard.due + " 张",
+            detail: "题库共 " + D.flashcard.total + " 张",
+            cls: D.flashcard.due > 0 ? "orange" : "green"
+        }},
+        {{
+            label: "真缺口",
+            value: D.gap_count + " 处",
+            detail: "无笔记且未验证掌握的考点",
+            cls: D.gap_count > 10 ? "red" : D.gap_count > 0 ? "orange" : "green"
+        }}
+    ];
+
+    cards.forEach((c, ci) => {{
+        const card = el("div", {{className: "metric-card"}}, row);
+        // 交错入场：0 / 45 / 90 … 毫秒，卡片依次浮起来而不是整排一起弹
+        card.style.animationDelay = (ci * 45) + "ms";
+        el("div", {{className: "label", textContent: c.label}}, card);
+        const v = el("div", {{className: "value " + c.cls, textContent: c.value}}, card);
+        el("div", {{className: "detail", textContent: c.detail}}, card);
+    }});
+}})();
+
+// ============================================================
+// Section 2: Coverage Heatmap
+// ============================================================
+(function() {{
+    const container = document.getElementById("heatmap-container");
+    const subjects = ["408", "数学", "政治", "英语"];
+    const data = D.heatmap;
+
+    subjects.forEach((subj, rowIdx) => {{
+        const row = el("div", {{className: "heatmap-row"}}, container);
+        const label = el("div", {{className: "heatmap-row-label", textContent: subj}}, row);
+        label.style.animationDelay = (rowIdx * 70) + "ms";
+        const grid = el("div", {{className: "heatmap-grid"}}, row);
+
+        const items = data.filter(d => d.subject === subj);
+        items.forEach((item, ci) => {{
+            const intensity = item.coverage / 100;
+            const practiced = item.practiced || 0;
+            const noteOnly = practiced === 0 && (item.note_only || 0) > 0;
+
+            // 靛青 91,124,153 —— 与 :root 的 --dianqing-rgb 同源。
+            const cell = el("div", {{className: "heatmap-cell"}}, grid);
+            // 逐格延迟：一行行铺开，像格子被一格一格点上去
+            // （CSS 里只放统一的 cellIn 关键帧，错开的时间写在内联样式上）
+            cell.style.animationDelay = (rowIdx * 70 + ci * 7) + "ms";
+            if (item.coverage === 0) {{
+                cell.style.background = "rgba(91, 124, 153, .06)";
+            }} else if (noteOnly) {{
+                // 有笔记但一次没练：低饱和 + 虚线框，和「练过的实心格」区分开
+                cell.classList.add("is-note-only");
+                cell.style.background = "rgba(91, 124, 153, .16)";
+            }} else {{
+                cell.style.background = `rgba(91, 124, 153, ${{0.18 + intensity * 0.72}})`;
+            }}
+            cell.textContent = item.coverage + "%";
+
+            const tooltip = el("div", {{className: "heatmap-tooltip"}}, cell);
+            const src = practiced > 0
+                ? `闪卡已练 ${{practiced}} 个考点`
+                : (noteOnly ? "仅整理笔记，尚无答题记录" : "无笔记，也未练过");
+            tooltip.textContent =
+                `${{item.sub}} 第${{item.chapter}}章: ${{item.covered}}/${{item.total}} (${{item.coverage}}%) · ${{src}}`;
+        }});
+    }});
+
+    // Legend
+    const legend = el("div", {{className: "heatmap-legend"}}, container);
+    el("span", {{textContent: "0%"}}, legend);
+    const bar = el("div", {{className: "heatmap-legend-bar"}}, legend);
+    el("span", {{textContent: "100%"}}, legend);
+    el("span", {{className: "heatmap-legend-note",
+        textContent: "虚线格 = 已整理笔记但没刷过闪卡"}}, legend);
+}})();
+
+// ============================================================
+// Section 3: Note Growth Timeline (D3 line chart)
+// ============================================================
+// 懒渲染：这个图读 container.clientWidth 定宽度，而容器隐藏时它恒为 0，
+// 画出来就是空白。注册到 __pageRenderers，等「总览」页真可见了再跑第一次。
+window.__pageRenderers = window.__pageRenderers || {{}};
+window.__pageRenderers.overview = [function () {{
+    const container = document.getElementById("timeline-chart");
+    const raw = D.timeline;
+    if (!raw || raw.length === 0) {{
+        container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px 0;">暂无时间线数据</p>';
+        return;
+    }}
+
+    const SUBJECTS = ["408", "数学", "政治", "英语"];
+    const parseDate = d3.timeParse("%Y-%m-%d");
+    const all = raw
+        .map(d => Object.assign({{}}, d, {{dateObj: parseDate(d.date)}}))
+        .filter(d => d.dateObj);
+
+    // 视图配置：保留几个桶 + 分桶对齐方式 + 步进 + 标签格式
+    // keep=null 表示「从有记录的第一个月一直铺到最近一个月」
+    const RANGES = {{
+        day:   {{keep: 14,   floor: d => d3.timeDay.floor(d),
+                 offset: (d, n) => d3.timeDay.offset(d, n),
+                 label: d => d3.timeFormat("%m/%d")(d)}},
+        week:  {{keep: 12,   floor: d => d3.timeMonday.floor(d),
+                 offset: (d, n) => d3.timeMonday.offset(d, n),
+                 label: d => d3.timeFormat("%m/%d")(d) + " 周"}},
+        // 月视图只看 2026-03 起：更早的记录是零散的旧材料，按需求丢弃
+        month: {{keep: null, start: new Date(2026, 2, 1),
+                 floor: d => d3.timeMonth.floor(d),
+                 offset: (d, n) => d3.timeMonth.offset(d, n),
+                 label: d => d3.timeFormat("%y/%m")(d)}}
+    }};
+
+    const zeroBucket = () => {{
+        const b = {{total: 0}};
+        SUBJECTS.forEach(s => {{ b[s] = 0; }});
+        return b;
+    }};
+
+    function bucketize(rangeKey) {{
+        const cfg = RANGES[rangeKey];
+
+        // 先按桶累加有数据的那些周期
+        const sums = new Map();
+        all.forEach(d => {{
+            const key = +cfg.floor(d.dateObj);
+            if (!sums.has(key)) sums.set(key, zeroBucket());
+            const b = sums.get(key);
+            SUBJECTS.forEach(s => {{ b[s] += (d[s] || 0); }});
+            b.total += (d.total || 0);
+        }});
+
+        // 再铺一条**连续**的桶序列，没数据的周期补 0。
+        // 只留有数据的桶会让时间轴说谎：目前记录只落在 6 个月份上
+        // （2025-06 之后直接跳到 2026-04），不补零的话 2025-06 会紧挨着
+        // 2026-04，中间 9 个月的空档被挤没，看起来像一直在连续记笔记。
+        const sorted = all.slice().sort((a, b) => a.dateObj - b.dateObj);
+        const lastKey = +cfg.floor(sorted[sorted.length - 1].dateObj);
+        const seq = [];
+        if (cfg.keep) {{
+            for (let i = cfg.keep - 1; i >= 0; i--) {{
+                seq.push(cfg.floor(cfg.offset(new Date(lastKey), -i)));
+            }}
+        }} else {{
+            // 起点取 max(有记录的首月, cfg.start)——cfg.start 用于砍掉更早的旧数据
+            let cur = cfg.floor(sorted[0].dateObj);
+            if (cfg.start && cur < cfg.start) cur = cfg.floor(cfg.start);
+            const end = new Date(lastKey);
+            let guard = 0;                      // 防 offset 异常时死循环
+            while (cur <= end && guard++ < 600) {{
+                seq.push(new Date(cur));
+                cur = cfg.offset(cur, 1);
+            }}
+        }}
+
+        return seq.map(dateObj =>
+            Object.assign(zeroBucket(), sums.get(+dateObj) || {{}}, {{dateObj}}));
+    }}
+
+    let range = "day";
+
+    function render() {{
+        container.innerHTML = "";
+        const cfg = RANGES[range];
+        const buckets = bucketize(range);
+        if (buckets.length === 0) {{
+            container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px 0;">该视图暂无数据</p>';
+            return;
+        }}
+
+        const margin = {{top: 20, right: 20, bottom: 34, left: 40}};
+        const width = Math.max(240, container.clientWidth - margin.left - margin.right);
+        const height = 200 - margin.top - margin.bottom;
+
+        const svg = d3.select(container).append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${{margin.left}},${{margin.top}})`);
+
+        // 离散刻度：每个桶一个确定位置，刻度和数据点必然对齐。
+        // 旧实现用 scaleTime + axisBottom().ticks()，由 D3 自选「漂亮」刻度，
+        // 位置和真实数据点错开，窄容器下标签还会互相压住。
+        const x = d3.scalePoint()
+            .domain(buckets.map((b, i) => i))
+            .range([0, width])
+            .padding(0.5);
+
+        const yMax = d3.max(buckets, b => d3.max(SUBJECTS, s => b[s] || 0)) || 1;
+        const y = d3.scaleLinear().domain([0, yMax]).nice().range([height, 0]);
+
+        // 标签抽稀：按可用宽度算每隔几个桶标一个。
+        // 从**最后一个桶往前**等间隔取，保证「最近」这个刻度一定在，
+        // 且相邻刻度恒定相隔 step 个桶。早先写成 i % step === 0 再补一个
+        // 末位，补出来的末位会和前一个刻度贴在一起（只差 1 个桶）。
+        const perLabel = range === "month" ? 46 : 40;
+        const maxLabels = Math.max(2, Math.floor(width / perLabel));
+        const step = Math.max(1, Math.ceil(buckets.length / maxLabels));
+        const tickIdx = [];
+        for (let i = buckets.length - 1; i >= 0; i -= step) tickIdx.unshift(i);
+
+        svg.append("g")
+            .attr("class", "axis")
+            .attr("transform", `translate(0,${{height}})`)
+            .call(d3.axisBottom(x)
+                .tickValues(tickIdx)
+                .tickFormat(i => cfg.label(buckets[i].dateObj)));
+
+        svg.append("g")
+            .attr("class", "axis")
+            .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format("d")));
+
+        SUBJECTS.forEach(subj => {{
+            if (!buckets.some(b => (b[subj] || 0) > 0)) return;
+
+            const line = d3.line()
+                .x((b, i) => x(i))
+                .y(b => y(b[subj] || 0))
+                .curve(d3.curveMonotoneX);
+
+            const path = svg.append("path")
+                .datum(buckets)
+                .attr("fill", "none")
+                .attr("stroke", SUBJECT_COLORS[subj])
+                .attr("stroke-width", 2)
+                .attr("d", line);
+
+            // 入场：把这条线「画出来」。用 getTotalLength 拉一根等长的 dasharray，
+            // 再把 dashoffset 从全长补到 0；跑完**必须清掉 dasharray**，
+            // 否则线一直是虚线状态（之后 hover 重画会露馅）。
+            if (CHART_MOTION && path.node && path.node().getTotalLength) {{
+                try {{
+                    const L = path.node().getTotalLength();
+                    if (L > 0) {{
+                        const clearDash = function () {{
+                            path.attr("stroke-dasharray", null).attr("stroke-dashoffset", null);
+                        }};
+                        path.attr("stroke-dasharray", L + " " + L)
+                            .attr("stroke-dashoffset", L)
+                            .transition().duration(820).ease(d3.easeCubicOut)
+                            .attr("stroke-dashoffset", 0)
+                            .on("end", clearDash);
+                        // 补间没跑到就兜底清掉：留着 dashoffset=全长 的话这条线是**看不见的**
+                        chartSettle(clearDash, 820);
+                    }}
+                }} catch (e) {{ /* SVG 量不到长度就退化成「直接出现」 */ }}
+            }}
+
+            const dots = svg.selectAll(`.dot-${{subj}}`)
+                .data(buckets.map((b, i) => ({{b, i}})).filter(o => (o.b[subj] || 0) > 0))
+                .enter().append("circle")
+                .attr("cx", o => x(o.i))
+                .attr("cy", o => y(o.b[subj]))
+                .attr("fill", SUBJECT_COLORS[subj])
+                .attr("r", CHART_MOTION ? 0 : 3);
+            if (CHART_MOTION) {{
+                dots.transition().duration(300).ease(d3.easeBackOut.overshoot(1.4))
+                    .delay(o => 260 + o.i * 14)
+                    .attr("r", 3);
+            }}
+        }});
+
+        // ---- 悬停读数：十字准线 + 整列各科篇数 ----
+        // 原来信息只藏在原生 <title> 里——要悬停半天才弹，而且一次只看得见一个点。
+        // 改成对准哪个周期就同时给出四科读数，并高亮该周期上所有有值的点。
+        const tip = el("div", {{className: "tl-tip"}}, container);
+        tip.style.display = "none";
+
+        const focus = svg.append("g").attr("pointer-events", "none").style("display", "none");
+        focus.append("line").attr("class", "tl-guide").attr("y1", 0).attr("y2", height);
+        const halos = focus.selectAll("circle")
+            .data(SUBJECTS).enter().append("circle")
+            .attr("class", "tl-halo").attr("cx", 0).attr("r", 4.5);
+
+        svg.append("rect")
+            .attr("width", width).attr("height", height)
+            .attr("fill", "none").attr("pointer-events", "all")
+            .on("mousemove", function (ev) {{
+                const mx = d3.pointer(ev)[0];
+                let best = 0, bestD = Infinity;
+                buckets.forEach((b, i) => {{
+                    const dist = Math.abs(x(i) - mx);
+                    if (dist < bestD) {{ bestD = dist; best = i; }}
+                }});
+                const b = buckets[best];
+                focus.style("display", null).attr("transform", `translate(${{x(best)}},0)`);
+                halos.attr("cy", s => y(b[s] || 0))
+                     .attr("fill", s => SUBJECT_COLORS[s])
+                     .style("display", s => (b[s] || 0) > 0 ? null : "none");
+
+                let rows = "";
+                SUBJECTS.forEach(s => {{
+                    rows += '<div class="tl-tip-row"><i style="background:' + SUBJECT_COLORS[s]
+                          + '"></i>' + s + '<b>' + (b[s] || 0) + '</b></div>';
+                }});
+                tip.innerHTML = '<div class="tl-tip-head">' + cfg.label(b.dateObj)
+                              + ' · 共 ' + b.total + ' 篇</div>' + rows;
+                tip.style.display = "block";
+                // 贴左右边时把浮层推回容器内，免得溢出被裁
+                const px = x(best) + margin.left;
+                const tw = tip.offsetWidth;
+                tip.style.left = Math.max(2, Math.min(width + margin.left - tw - 2, px - tw / 2)) + "px";
+                tip.style.top = (margin.top - 4) + "px";
+            }})
+            .on("mouseleave", function () {{
+                focus.style("display", "none");
+                tip.style.display = "none";
+            }});
+    }}
+
+    // 图例挂在 .section 上而不是容器里 —— render() 会清空容器，挂里面会被抹掉
+    const legendDiv = el("div", {{className: "chart-legend"}}, container.parentElement);
+    SUBJECTS.forEach(subj => {{
+        const item = el("div", {{className: "chart-legend-item"}}, legendDiv);
+        const dot = el("div", {{className: "chart-legend-dot"}}, item);
+        dot.style.background = SUBJECT_COLORS[subj];
+        el("span", {{textContent: subj}}, item);
+    }});
+
+    const toggle = document.getElementById("timeline-range");
+    if (toggle) {{
+        toggle.addEventListener("click", ev => {{
+            const btn = ev.target.closest(".range-btn");
+            if (!btn || btn.dataset.range === range) return;
+            range = btn.dataset.range;
+            toggle.querySelectorAll(".range-btn").forEach(b =>
+                b.classList.toggle("is-active", b === btn));
+            render();
+        }});
+    }}
+
+    render();
+}}];
+
+// ============================================================
+// Section 4: Level Distribution (D3 stacked bar)
+// ============================================================
+(window.__pageRenderers.overview = window.__pageRenderers.overview || []).push(function () {{
+    const container = document.getElementById("level-chart");
+    const data = D.level_dist;
+    if (!data || data.length === 0) {{
+        container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px 0;">暂无级别数据</p>';
+        return;
+    }}
+
+    const margin = {{top: 20, right: 20, bottom: 30, left: 40}};
+    const width = container.clientWidth - margin.left - margin.right;
+    const height = 200 - margin.top - margin.bottom;
+
+    const svg = d3.select(container).append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${{margin.left}},${{margin.top}})`);
+
+    const levels = ["L1", "L2", "L3"];
+    const colors = {{L1: PALETTE.dianqing, L2: PALETTE.xiang, L3: PALETTE.zhusha}};
+
+    const x = d3.scaleBand()
+        .domain(data.map(d => d.subject))
+        .range([0, width])
+        .padding(0.3);
+
+    const yMax = d3.max(data, d => d.L1 + d.L2 + d.L3);
+    const y = d3.scaleLinear()
+        .domain([0, yMax])
+        .range([height, 0]);
+
+    svg.append("g")
+        .attr("class", "axis")
+        .attr("transform", `translate(0,${{height}})`)
+        .call(d3.axisBottom(x));
+
+    svg.append("g")
+        .attr("class", "axis")
+        .call(d3.axisLeft(y).ticks(5));
+
+    // 坐标轴先淡入，柱子再长——顺序反了会像「柱子撞在还没画好的轴上」
+    svg.selectAll("g.axis")
+        .attr("opacity", 0)
+        .transition().duration(CHART_MOTION ? 380 : 0)
+        .attr("opacity", 1);
+
+    // Stacked bars：每段都从**基线**长出来（先贴底、高度 0，再补间到目标位置）。
+    // 同一科目里的 L1→L2→L3 依次起步、科目之间再错开，看着是「一层层堆上去」。
+    data.forEach((d, di) => {{
+        let cumY = 0;
+        levels.forEach((lv, li) => {{
+            const val = d[lv] || 0;
+            const yTop = y(cumY + val), yBot = y(cumY);
+            const rect = svg.append("rect")
+                .datum({{ subject: d.subject, level: lv, val: val }})
+                .attr("class", "lv-bar")
+                .attr("x", x(d.subject))
+                .attr("width", x.bandwidth())
+                .attr("fill", colors[lv])
+                .attr("rx", 2)
+                .attr("y", yBot)
+                .attr("height", 0);
+            if (val > 0) {{
+                const y2 = yTop, h2 = Math.max(0, yBot - yTop);
+                rect.transition()
+                    .duration(CHART_DUR)
+                    .delay(di * 85 + li * 35)
+                    .ease(d3.easeCubicOut)
+                    .attr("y", y2)
+                    .attr("height", h2);
+                chartSettle(function () {{ rect.attr("y", y2).attr("height", h2); }}, di * 85 + li * 35);
+            }}
+            cumY += val;
+        }});
+    }});
+
+    // ---- 悬停：整列（同一科目的三层）一起抬起来、其余列压暗，并弹出这一列的读数 ----
+    // 动效走 CSS 过渡（.lv-bar），比 d3 补间轻：mouseenter 一秒能来几十次，
+    // 补间会排队堆积，而 CSS 过渡只保留最后一帧。
+    const bars = svg.selectAll("rect.lv-bar");
+    const tip = el("div", {{ className: "tl-tip" }}, container);
+    tip.style.display = "none";
+    function showLvTip(subj) {{
+        const row = data.filter(r => r.subject === subj)[0] || {{}};
+        const sum = (row.L1 || 0) + (row.L2 || 0) + (row.L3 || 0);
+        tip.innerHTML = '<div class="tl-tip-head">' + subj + ' · 共 ' + sum + ' 条</div>'
+            + levels.map(lv => '<div class="tl-tip-row"><i style="background:' + colors[lv]
+                + '"></i>' + lv + '<b>' + (row[lv] || 0) + '</b></div>').join("");
+        tip.style.display = "block";
+        // 贴着那一列居中，贴边时把浮层推回容器内（和趋势图的做法一致）
+        const tw = tip.offsetWidth;
+        const cx = x(subj) + x.bandwidth() / 2 + margin.left;
+        tip.style.left = Math.max(2, Math.min(width + margin.left - tw - 2, cx - tw / 2)) + "px";
+        tip.style.top = (margin.top - 4) + "px";
+    }}
+    function hlBars(fn) {{
+        const any = bars.filter(fn);
+        container.classList.toggle("lv-dim", any.size() > 0);
+        bars.classed("hl", fn);
+    }}
+    bars.on("mouseenter", function (ev, b) {{ hlBars(x2 => x2.subject === b.subject); showLvTip(b.subject); }})
+        .on("mouseleave", function () {{ hlBars(() => false); tip.style.display = "none"; }});
+
+    // Legend：鼠标移到某一级上，就把四科里这一级都点亮（其余压暗）——一眼看出
+    // 「L3 主要集中在 408 和政治」这种结构。
+    const legendDiv = el("div", {{className: "chart-legend"}}, container);
+    levels.forEach(lv => {{
+        const item = el("div", {{className: "chart-legend-item"}}, legendDiv);
+        const dot = el("div", {{className: "chart-legend-dot"}}, item);
+        dot.style.background = colors[lv];
+        el("span", {{textContent: lv}}, item);
+        item.onmouseenter = function () {{ hlBars(b => b.level === lv); }};
+        item.onmouseleave = function () {{ hlBars(() => false); }};
+    }});
+}});
+
+// ============================================================
+// Section 5: Flashcard State Pie Chart
+// ============================================================
+// 同在「闪卡」页，同样读 clientWidth，同样要等页面可见才画
+window.__pageRenderers.flash = [function () {{
+    const container = document.getElementById("flashcard-chart");
+    const states = D.card_states;
+    const total = Object.values(states).reduce((a, b) => a + b, 0);
+
+    if (total === 0) {{
+        container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:40px 0;">暂无闪卡数据</p>';
+        return;
+    }}
+
+    const pieData = Object.entries(states)
+        .filter(([, v]) => v > 0)
+        .map(([k, v]) => ({{label: k, value: v}}));
+
+    const w = Math.min(container.clientWidth, 260);
+    const radius = w / 2 - 10;
+
+    const svg = d3.select(container).append("svg")
+        .attr("width", w)
+        .attr("height", w)
+        .append("g")
+        .attr("transform", `translate(${{w/2}},${{w/2}})`);
+
+    const color = d3.scaleOrdinal()
+        .domain(["New", "Learning", "Review", "Relearning"])
+        .range([PALETTE.hui, PALETTE.xiang, PALETTE.zhuqing, PALETTE.zhusha]);
+
+    const pie = d3.pie().value(d => d.value).sort(null);
+    const arc = d3.arc().innerRadius(radius * 0.5).outerRadius(radius);
+
+    let sweeping = CHART_MOTION;
+    const arcBig = d3.arc().innerRadius(radius * 0.5).outerRadius(radius + 6);
+    const arcs = svg.selectAll("path")
+        .data(pie(pieData))
+        .enter().append("path")
+        .attr("class", "pm-arc")
+        .attr("fill", d => color(d.data.label))
+        .attr("stroke", PALETTE.mo)
+        .attr("stroke-width", 2);
+    // 先写终值再补间：万一补间一次都没 tick，饼图至少是**完整可见**的
+    // （attrTween 自己从 startAngle 插值，不依赖当前属性值，所以照样有扫开效果）
+    arcs.attr("d", arc);
+    if (CHART_MOTION) {{
+        arcs.transition().duration(720).ease(d3.easeCubicOut)
+            .attrTween("d", function (d) {{
+                const from = {{ startAngle: d.startAngle, endAngle: d.startAngle }};
+                const i = d3.interpolate(from, d);
+                return function (t) {{ return arc(i(t)); }};
+            }})
+            // 扫开过程中别接悬停：那会把补间打断，扇形停在半个位置
+            .on("end", function () {{ sweeping = false; }});
+    }}
+
+    // Center text（悬停某块时会临时换成那一块的读数，走开再还原）
+    svg.append("text")
+        .attr("class", "pie-center-num")
+        .attr("text-anchor", "middle")
+        .attr("dy", "-0.2em")
+        .attr("fill", PALETTE.xuan)
+        .attr("font-size", "1.4rem")
+        .attr("font-weight", "700")
+        .text(total);
+
+    svg.append("text")
+        .attr("class", "pie-center-label")
+        .attr("text-anchor", "middle")
+        .attr("dy", "1.2em")
+        .attr("fill", PALETTE.tao)
+        .attr("font-size", "0.7rem")
+        .text("张闪卡");
+
+    // ---- 悬停：这一块向外弹 6px、其余压暗，中心数字换成这一块的值 ----
+    const numEl = svg.select(".pie-center-num"), labEl = svg.select(".pie-center-label");
+    function pieHot(d) {{
+        if (sweeping) return;                    // 扫开途中不接，免得把补间打断
+        arcs.classed("dimmed", x => x !== d);
+        d3.select(this).attr("d", arcBig);
+        numEl.text(d.data.value);
+        labEl.text(d.data.label);
+    }}
+    function pieCalm() {{
+        if (sweeping) return;
+        arcs.classed("dimmed", false);
+        arcs.attr("d", arc);
+        numEl.text(total);
+        labEl.text("张闪卡");
+    }}
+    arcs.on("mouseenter", pieHot).on("mouseleave", pieCalm);
+
+    // Legend：悬停某一项 = 把对应的那块扇形弹出并高亮（和直接悬停扇形一个效果）
+    const legendDiv = el("div", {{className: "chart-legend"}}, container);
+    pieData.forEach(d => {{
+        const item = el("div", {{className: "chart-legend-item"}}, legendDiv);
+        const dot = el("div", {{className: "chart-legend-dot"}}, item);
+        dot.style.background = color(d.label);
+        el("span", {{textContent: `${{d.label}} (${{d.value}})`}}, item);
+        const pick = () => arcs.filter(x => x.data.label === d.label);
+        item.onmouseenter = function () {{
+            if (sweeping) return;
+            item.classList.add("legend-item-hot");
+            arcs.classed("dimmed", x => x.data.label !== d.label);
+            pick().attr("d", arcBig);
+            numEl.text(d.value); labEl.text(d.label);
+        }};
+        item.onmouseleave = function () {{
+            item.classList.remove("legend-item-hot");
+            pieCalm();
+        }};
+    }});
+
+    // Accuracy trend (if available)
+    if (D.accuracy_trend && D.accuracy_trend.length > 0) {{
+        const accDiv = el("div", {{style: "margin-top:16px;"}}, container);
+        el("div", {{
+            style: "font-size:0.8rem;color:var(--text-secondary);margin-bottom:8px;",
+            textContent: "正确率趋势 (近14天)"
+        }}, accDiv);
+
+        const accH = 80;
+        const accSvg = d3.select(accDiv).append("svg")
+            .attr("width", container.clientWidth - 20)
+            .attr("height", accH);
+
+        const ax = d3.scaleBand()
+            .domain(D.accuracy_trend.map(d => d.date))
+            .range([30, container.clientWidth - 30]);
+
+        const ay = d3.scaleLinear()
+            .domain([0, 100])
+            .range([accH - 15, 5]);
+
+        const accLine = d3.line()
+            .x(d => ax(d.date) + ax.bandwidth() / 2)
+            .y(d => ay(d.accuracy))
+            .curve(d3.curveMonotoneX);
+
+        accSvg.append("path")
+            .datum(D.accuracy_trend)
+            .attr("fill", "none")
+            .attr("stroke", PALETTE.zhuqing)
+            .attr("stroke-width", 2)
+            .attr("d", accLine);
+
+        D.accuracy_trend.forEach(d => {{
+            accSvg.append("circle")
+                .attr("cx", ax(d.date) + ax.bandwidth() / 2)
+                .attr("cy", ay(d.accuracy))
+                .attr("r", 3)
+                .attr("fill", PALETTE.zhuqing);
+        }});
+    }}
+}}];
+
+// ============================================================
+// Section 2a: 薄弱知识点（来自闪卡错误，非任务完成率）
+// ============================================================
+(function() {{
+    const box = document.getElementById("weak-list");
+    const weak = (D.weak_topics && D.weak_topics.weak) || [];
+    const uncovered = (D.weak_topics && D.weak_topics.uncovered_weighty) || [];
+
+    if (weak.length === 0 && uncovered.length === 0) {{
+        box.innerHTML = '<div class="weak-empty">暂无薄弱信号 —— 去下方练习区刷几组闪卡，错在哪里就提醒哪里</div>';
+        return;
+    }}
+
+    weak.forEach(w => {{
+        const item = el("div", {{className: "weak-item"}}, box);
+        const left = el("div", {{}}, item);
+        el("div", {{className: "weak-name", textContent: w.name}}, left);
+        el("div", {{className: "weak-meta", textContent: w.subject + " · 遗忘" + w.lapses + "次 · 近期错" + w.recent_wrong + "次"}}, left);
+        el("div", {{className: "weak-count", textContent: "重点复习"}}, item);
+    }});
+
+    if (uncovered.length > 0) {{
+        const tip = el("div", {{className: "weak-note"}}, box);
+        tip.textContent = "高分考点尚未出卡（可针对性生成验证卡）："
+            + uncovered.map(u => u.name + "(" + u.weight + "分)").join("、");
+    }}
+
+    const note = el("div", {{className: "weak-note"}}, box);
+    note.textContent = "规则：薄弱由你的实际答题错误驱动；无笔记但答对过的考点不会出现在这里。";
+}})();
+
+// ============================================================
+// Section 2b: 真缺口 Top 5（无笔记且未通过闪卡验证）
+// ============================================================
+(function() {{
+    const list = document.getElementById("gap-list");
+    const gaps = D.top_gaps;
+
+    if (!gaps || gaps.length === 0) {{
+        list.innerHTML = '<li style="color:var(--text-muted);text-align:center;padding:40px 0;">所有考点已有笔记或已验证掌握</li>';
+        return;
+    }}
+
+    gaps.forEach(g => {{
+        const li = el("li", {{className: "gap-item"}}, list);
+        const rank = el("div", {{className: "gap-rank", textContent: g.rank}}, li);
+        rank.style.background = g.rank <= 2 ? PALETTE.zhusha : g.rank <= 4 ? PALETTE.xiang : PALETTE.dianqing;
+
+        const info = el("div", {{className: "gap-info"}}, li);
+        el("div", {{className: "gap-topic", textContent: g.topic}}, info);
+        el("div", {{className: "gap-meta", textContent: `${{g.subject}} · ${{g.sub}}`}}, info);
+
+        el("div", {{
+            className: "gap-weight",
+            textContent: g.weight + "分"
+        }}, li);
+    }});
+}})();
+
+// __FLASH_JS__
+// __REVIVE_JS__
+// __NOTEQ_JS__
+// __TASK_JS__
+// __SETTINGS_JS__
+// __POMO_JS__
+// __SHELL_JS__
+// __MR_JS__
+// __RV_JS__
+// __NAV_JS__
+</script>
+</body>
+</html>'''
+
+
+# ---------------------------------------------------------------------------
+# 笔记盘活区（样式与交互脚本为普通字符串，避免 f-string 大括号转义）
+# ---------------------------------------------------------------------------
+REVIVE_CSS = '''
+        .rev-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+        .rev-score { font-size: 2rem; font-weight: 700; }
+        .rev-score-label { font-size: 0.8rem; color: var(--text-secondary); }
+        .rev-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+        .rev-chip { font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; }
+        .chip-hot { background: rgba(var(--zhuqing-rgb),.15); color: var(--zhuqing-lt); }
+        .chip-warm { background: rgba(var(--xiang-rgb),.15); color: var(--xiang-lt); }
+        .chip-cold { background: rgba(var(--dianqing-rgb),.15); color: var(--dianqing-lt); }
+        .chip-frozen { background: rgba(var(--zhusha-rgb),.15); color: var(--zhusha-lt); }
+
+        .rev-prefix-row { display: flex; align-items: center; gap: 10px; margin: 7px 0; font-size: 0.8rem; }
+        .rev-prefix-name { width: 120px; flex-shrink: 0; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rev-bar { flex: 1; height: 10px; border-radius: 2px; background: var(--bg-secondary); overflow: hidden; display: flex; }
+        .rev-bar-seg { height: 100%; }
+        .rev-prefix-meta { width: 190px; flex-shrink: 0; text-align: right; color: var(--text-muted); font-size: 0.72rem; }
+
+        .rev-target { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border-color); font-size: 0.86rem; }
+        .rev-target:last-child { border-bottom: none; }
+        .rev-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+        .rev-target-info { flex: 1; min-width: 0; }
+        .rev-target-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rev-target-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+        .rev-warn { color: var(--zhusha-lt); }
+        .rev-urgency { font-size: 0.78rem; color: var(--accent-red); background: rgba(239,68,68,.12); border-radius: 10px; padding: 2px 9px; white-space: nowrap; }
+        .rev-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .rev-btn { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 5px 11px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+        .rev-btn:hover:not(:disabled) { border-color: var(--accent-blue); }
+        .rev-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .rev-btn.primary { background: rgba(var(--dianqing-rgb),.18); border-color: rgba(var(--dianqing-rgb),.4); color: var(--dianqing-lt); }
+        .rev-btn.ok { background: rgba(var(--zhuqing-rgb),.18); border-color: rgba(var(--zhuqing-rgb),.4); color: var(--zhuqing-lt); }
+        .rev-empty { color: var(--text-muted); text-align: center; padding: 30px 0; font-size: 0.85rem; }
+        .rev-error { color: var(--zhusha-lt); font-size: 0.75rem; margin-top: 8px; }
+        .rev-tip { margin-top: 10px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.6; }
+
+        /* 读笔记弹窗 */
+        /* ⚠️ 2026-09-13 修复：原为 var(--card-bg)，但主题里定义的变量叫 --bg-card，
+           该变量从未存在 → 弹窗背景解析失败变成全透明，底层清单直接透上来压住正文。
+           这不是"需要加模糊"的问题，是变量名写错了；两者都已修正。 */
+        .rev-modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(14px) saturate(0.85); backdrop-filter: blur(14px) saturate(0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .rev-modal-box { width: min(860px, 92vw); max-height: 86vh; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 18px 48px rgba(0,0,0,.5); }
+        .rev-modal-head { padding: 14px 18px; border-bottom: var(--rule); font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .rev-modal-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-serif); letter-spacing: .03em; }
+        .rev-modal-tool { cursor: pointer; color: var(--text-secondary); font-size: 0.76rem; background: var(--bg-secondary); border: var(--rule); border-radius: var(--border-radius); padding: 3px 10px; white-space: nowrap; }
+        .rev-modal-tool:hover { border-color: var(--dianqing); color: var(--text-primary); }
+        .rev-modal-close { cursor: pointer; color: var(--text-muted); font-size: 1.1rem; background: none; border: none; padding: 0 4px; }
+        .rev-modal-close:hover { color: var(--zhusha-lt); }
+        .rev-modal-main { display: flex; flex: 1; min-height: 0; }
+        .rev-modal-body { flex: 1; min-width: 0; padding: 18px; overflow-y: auto; font-size: 0.88rem; line-height: 1.75; scroll-behavior: smooth; }
+
+        /* ---- 全屏阅读：铺满视口 + 左侧大纲 ---- */
+        .rev-modal-box.full { width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; border: none; }
+        .rev-modal-box.full .rev-modal-body { padding: 24px max(28px, calc((100vw - 250px - 900px) / 2)); }
+        .rev-outline { display: none; }
+        .rev-modal-box.full .rev-outline { display: block; width: 250px; flex: none; overflow-y: auto; padding: 18px 6px 18px 16px; border-right: var(--rule); background: var(--bg-secondary); }
+        .rev-outline-item { font-size: 0.78rem; line-height: 1.5; color: var(--text-secondary); padding: 4px 8px; border-left: 2px solid transparent; cursor: pointer; border-radius: 0 var(--border-radius) var(--border-radius) 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rev-outline-item:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+        .rev-outline-item.lv1 { font-weight: 600; color: var(--text-primary); }
+        .rev-outline-item.lv2 { padding-left: 18px; }
+        .rev-outline-item.lv3 { padding-left: 30px; font-size: 0.74rem; color: var(--text-muted); }
+        .rev-outline-item.active { border-left-color: var(--zhusha); color: var(--text-primary); background: rgba(var(--zhusha-rgb),.1); }
+        .rev-outline-empty { font-size: 0.75rem; color: var(--text-muted); padding: 8px; }
+        .rev-modal-body h1, .rev-modal-body h2, .rev-modal-body h3 { font-family: var(--font-serif); letter-spacing: .03em; margin: 18px 0 8px; color: var(--text-primary); }
+        .rev-modal-body h1 { font-size: 1.25rem; } .rev-modal-body h2 { font-size: 1.1rem; } .rev-modal-body h3 { font-size: 0.98rem; }
+        .rev-modal-body code { background: var(--bg-secondary); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; font-family: "Cascadia Code", Consolas, monospace; }
+        .rev-modal-body pre { background: var(--bg-primary); border: var(--rule); padding: 10px 12px; border-radius: var(--border-radius); overflow-x: auto; }
+        /* 公式：行内不挤压行高，独立成块的上下留白；KaTeX 缺字体时不至于糊成一团 */
+        .rev-modal-body .katex { font-size: 1.02em; }
+        .rev-modal-body .katex-display { margin: 10px 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+        .rev-modal-body .tex-fallback { background: rgba(var(--xiang-rgb),.18); color: var(--xiang-lt); padding: 1px 5px; border-radius: 3px; font-size: 0.86em; }
+        /* 笔记插图：笔记里用 <img style="width:70%"> 控制大小，这里补上圆角与上限定宽 */
+        .rev-modal-body .rev-img { display: block; max-width: 100%; height: auto; margin: 14px auto; border: var(--rule); border-radius: var(--border-radius); background: var(--bg-primary); }
+        .rev-modal-body .rev-img-bad { display: inline-block; color: var(--xiang-lt); background: rgba(var(--xiang-rgb),.15); border: 1px solid rgba(var(--xiang-rgb),.4); border-radius: 3px; padding: 1px 6px; font-size: 0.82em; }
+        /* 引用块与提示块（> [!TIP] 等） */
+        .rev-modal-body .rev-quote { margin: 12px 0; padding: 9px 14px; background: var(--bg-primary); border-left: 3px solid var(--hui); border-radius: var(--border-radius); color: var(--text-secondary); font-size: 0.88rem; }
+        .rev-modal-body .rev-alert { margin: 12px 0; padding: 10px 14px; border-left: 3px solid var(--hui); border-radius: var(--border-radius); font-size: 0.88rem; color: var(--text-secondary); }
+        .rev-modal-body .rev-alert-head { font-size: 0.74rem; font-weight: 600; letter-spacing: .12em; margin-bottom: 5px; }
+        .rev-modal-body .rev-quote-table { border-collapse: collapse; margin: 6px 0; }
+        .rev-modal-body .rev-alert.note { border-left-color: var(--dianqing); background: rgba(var(--dianqing-rgb),.10); }
+        .rev-modal-body .rev-alert.note .rev-alert-head { color: var(--dianqing-lt); }
+        .rev-modal-body .rev-alert.tip { border-left-color: var(--zhuqing); background: rgba(var(--zhuqing-rgb),.10); }
+        .rev-modal-body .rev-alert.tip .rev-alert-head { color: var(--zhuqing-lt); }
+        .rev-modal-body .rev-alert.important { border-left-color: var(--zi); background: rgba(var(--zi-rgb),.12); }
+        .rev-modal-body .rev-alert.important .rev-alert-head { color: var(--zi-lt); }
+        .rev-modal-body .rev-alert.warning { border-left-color: var(--xiang); background: rgba(var(--xiang-rgb),.10); }
+        .rev-modal-body .rev-alert.warning .rev-alert-head { color: var(--xiang-lt); }
+        .rev-modal-body .rev-alert.caution { border-left-color: var(--zhusha); background: rgba(var(--zhusha-rgb),.10); }
+        .rev-modal-body .rev-alert.caution .rev-alert-head { color: var(--zhusha-lt); }
+        /* mermaid：先显示源码，绘制成功后整块换成 SVG */
+        .rev-modal-body .mermaid-box { margin: 14px 0; padding: 12px; background: var(--bg-primary); border: var(--rule); border-radius: var(--border-radius); overflow-x: auto; }
+        .rev-modal-body .mermaid-box.done { text-align: center; }
+        .rev-modal-body .mermaid-box svg { max-width: 100%; height: auto; }
+        .rev-modal-body table { border-collapse: collapse; margin: 8px 0; }
+        .rev-modal-body td, .rev-modal-body th { border: 1px solid var(--border-color); padding: 4px 9px; font-size: 0.82rem; }
+        .rev-modal-foot { padding: 12px 18px; border-top: var(--rule); display: flex; justify-content: flex-end; gap: 8px; }
+
+        /* 练习活动日历 */
+        .act-wrap { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+        .act-cal-block { flex-shrink: 0; }
+        .act-cal { display: grid; grid-template-rows: repeat(7, 12px); grid-auto-flow: column; grid-auto-columns: 12px; gap: 3px; }
+        .act-cell { width: 12px; height: 12px; border-radius: 2px; background: var(--bg-secondary); }
+        .act-cal-labels { font-size: 0.68rem; color: var(--text-muted); margin-top: 6px; }
+        .act-side { flex: 1; min-width: 220px; }
+        .act-stat { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; }
+        .act-stat:last-of-type { border-bottom: none; }
+        .act-acc-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 0.78rem; }
+        .act-acc-name { width: 40px; color: var(--text-secondary); flex-shrink: 0; }
+        .act-acc-bar { flex: 1; height: 10px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden; }
+        .act-acc-fill { height: 100%; border-radius: 5px; }
+        .act-acc-val { width: 82px; text-align: right; color: var(--text-muted); font-size: 0.72rem; flex-shrink: 0; }
+'''
+
+REVIVE_JS = '''
+// ============================================================
+// 笔记盘活区：冷笔记清单 + 阅读弹窗 + 一键盘活出题
+// ============================================================
+(function() {
+    // API 基址：用当前页面 origin，平板/手机经局域网访问时才能正常调接口；
+    // 本地以 file:// 直开时回落到 localhost:8080
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+    const REV = (D.revival || {});
+    const FRESH = REV.freshness || { summary: {}, by_prefix: {}, targets: [] };
+    const PREFIX_NAME = {
+        "408-DS": "408/数据结构", "408-CO": "408/计组", "408-OS": "408/操作系统", "408-CN": "408/计网",
+        "MATH-GS": "数学/高数", "MATH-XD": "数学/线代", "MATH-GL": "数学/概率论",
+        "POL-MY": "政治/马原", "POL-SG": "政治/史纲", "POL-MZ": "政治/毛中特",
+        "POL-SX": "政治/思修", "POL-XX": "政治/习思想",
+        "ENG-VOC": "英语/词汇", "ENG-GRAM": "英语/语法",
+        "ENG-READ": "英语/阅读", "ENG-WRITE": "英语/写作",
+        "ENG-TRN": "英语/翻译与完形"
+    };
+    const CAT_META = {
+        hot: { label: "热", color: PALETTE.zhuqing }, warm: { label: "温", color: PALETTE.xiang },
+        cold: { label: "冷", color: PALETTE.dianqing }, frozen: { label: "冰冻", color: PALETTE.zhusha }
+    };
+    function esc(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+    function scoreColor(v) { return v >= 70 ? PALETTE.zhuqingLt : v >= 40 ? PALETTE.xiangLt : PALETTE.zhushaLt; }
+
+    // ---- 总览：活跃分 + 四档分布 ----
+    const s = FRESH.summary || {};
+    const scoreEl = document.getElementById("rev-score");
+    scoreEl.textContent = (s.alive_score != null ? s.alive_score : "--") + "%";
+    scoreEl.style.color = scoreColor(s.alive_score || 0);
+    const chips = [
+        ["hot", s.hot || 0], ["warm", s.warm || 0], ["cold", s.cold || 0], ["frozen", s.frozen || 0]
+    ];
+    const chipBox = document.getElementById("rev-chips");
+    chips.forEach(([cat, n]) => {
+        const c = el("span", { className: "rev-chip chip-" + cat,
+            textContent: CAT_META[cat].label + " " + n + " 篇" }, chipBox);
+    });
+
+    // ---- 各科目堆叠条 ----
+    const byPrefixBox = document.getElementById("rev-by-prefix");
+    Object.keys(FRESH.by_prefix || {}).sort().forEach(pfx => {
+        const info = FRESH.by_prefix[pfx];
+        const row = el("div", { className: "rev-prefix-row" }, byPrefixBox);
+        el("div", { className: "rev-prefix-name", textContent: PREFIX_NAME[pfx] || pfx,
+            title: pfx }, row);
+        const bar = el("div", { className: "rev-bar" }, row);
+        ["hot", "warm", "cold", "frozen"].forEach(cat => {
+            const n = info[cat] || 0;
+            if (n > 0) {
+                const seg = el("div", { className: "rev-bar-seg" }, bar);
+                seg.style.width = (n / info.total * 100) + "%";
+                seg.style.background = CAT_META[cat].color;
+                seg.title = CAT_META[cat].label + " " + n + " 篇";
+            }
+        });
+        const linked = info.cards > 0 ? ("卡片" + info.cards + " · 近30天练" + (info.reviews_30d || 0)) : "尚无闪卡覆盖";
+        el("div", { className: "rev-prefix-meta", textContent: info.total + "篇 · 活跃" + info.alive_score + "% · " + linked }, row);
+    });
+
+    // ---- 盘活目标清单 ----
+    const listBox = document.getElementById("rev-targets");
+    const targets = FRESH.targets || [];
+    if (targets.length === 0) {
+        listBox.innerHTML = '<div class="rev-empty">所有笔记都在活跃状态，暂无需要盘活的冷笔记</div>';
+    }
+    targets.forEach(t => {
+        const item = el("div", { className: "rev-target" }, listBox);
+        const badge = el("span", { className: "rev-badge chip-" + t.cat,
+            textContent: CAT_META[t.cat].label + " · 闲置" + t.days_idle + "天" }, item);
+        const info = el("div", { className: "rev-target-info" }, item);
+        el("div", { className: "rev-target-name", textContent: t.name, title: t.file }, info);
+        const cardInfo = t.cards > 0
+            ? (t.practiced_30d ? "闪卡近30天练过" : '<span class="rev-warn">有闪卡但近30天未练</span>')
+            : '<span class="rev-warn">尚无闪卡覆盖</span>';
+        el("div", { className: "rev-target-meta", innerHTML: (PREFIX_NAME[t.prefix] || t.prefix) + " · " + cardInfo }, info);
+        el("span", { className: "rev-urgency", textContent: "紧迫" + t.urgency,
+            title: "章节考点权重×闲置程度" }, item);
+        const actions = el("div", { className: "rev-actions" }, item);
+        const readBtn = el("button", { className: "rev-btn", textContent: "读" }, actions);
+        readBtn.addEventListener("click", () => openNote(t, readBtn));
+        const genBtn = el("button", { className: "rev-btn primary", textContent: "盘活出题" }, actions);
+        genBtn.addEventListener("click", () => genCards(t.prefix, genBtn));
+    });
+
+    const tip = document.getElementById("rev-tip");
+    if (tip) tip.textContent = "规则：闲置天数 = 今天 − 最近一次（修改或在大盘读完标记）。点「读」并读完后标记，即可把它重新盘活；点「盘活出题」会基于这篇冷笔记即时生成针对性闪卡。";
+
+    // ---- KaTeX 懒加载 ----
+    // 实现已提到全局（见本文件前面「全局按需 KaTeX」块），这里直接用 window 上的那份，
+    // 避免两个 loader 各注入一次 <script>。笔记阅读本来就必须连本地服务，KaTeX 走
+    // 相对路径按需加载即可，不必内联那 3MB（含 60 个字体文件）。
+    // 带兜底：本块要能脱离 FLASH_JS 单独跑（tools/test_note_render.js 就是单独抽它），
+    // 拿不到全局实现时退回"不加载 + 源码展示"，而不是直接 ReferenceError。
+    const ensureKatex = window.ensureKatex || (() => Promise.resolve(false));
+
+    // ---- mermaid 懒加载 ----
+    // 3.5MB，只在笔记里真出现 ```mermaid 时才加载。和 KaTeX 一样走本地 vendored
+    // 文件（tools/mermaid/），断网也能画图。
+    let mermaidPromise = null;
+    let mmdSeq = 0;
+    function ensureMermaid() {
+        if (mermaidPromise) return mermaidPromise;
+        mermaidPromise = new Promise(resolve => {
+            if (window.mermaid) { resolve(true); return; }
+            const s = document.createElement("script");
+            s.src = "tools/mermaid/mermaid.min.js";
+            s.onload = () => {
+                try {
+                    window.mermaid.initialize({
+                        startOnLoad: false,
+                        securityLevel: "strict",
+                        suppressErrorRendering: true,   // 语法错时别往页面里塞红色报错图
+                        theme: "base",
+                        fontFamily: '"Songti SC", "Microsoft YaHei", sans-serif',
+                        themeVariables: {
+                            darkMode: true,
+                            background: "#151A1A",
+                            primaryColor: "#1F2626",
+                            primaryTextColor: "#E5E9E7",
+                            primaryBorderColor: "#5B7C99",
+                            secondaryColor: "#273030",
+                            tertiaryColor: "#1A2020",
+                            lineColor: "#97A5A3",
+                            textColor: "#E5E9E7",
+                            fontSize: "14px",
+                        },
+                    });
+                } catch (e) { /* 配置失败也让下面的 render 去试 */ }
+                resolve(true);
+            };
+            s.onerror = () => resolve(false);
+            document.head.appendChild(s);
+        });
+        return mermaidPromise;
+    }
+
+    // blocks 要由调用方传快照进来：mermaid 是异步画的，若中途又开了另一篇笔记，
+    // mdRender 会把 mermaidBlocks 清空，那时候再按索引去取就串篇了。
+    async function renderMermaidIn(root, blocks) {
+        const boxes = root.querySelectorAll(".mermaid-box");
+        if (!boxes.length) return;
+        if (!(await ensureMermaid())) {
+            boxes.forEach(b => b.insertAdjacentHTML("afterbegin",
+                '<div class="rev-error">图表组件（mermaid）未加载，暂以源码显示。'
+                + '请确认 src/tools/mermaid/ 存在，且是通过本地服务访问本页。</div>'));
+            return;
+        }
+        for (const b of Array.from(boxes)) {
+            const src = blocks[+b.dataset.mid];
+            if (!src) continue;
+            try {
+                const { svg } = await window.mermaid.render("mmd-" + (++mmdSeq), src);
+                b.innerHTML = svg;
+                b.classList.add("done");
+            } catch (e) {
+                b.insertAdjacentHTML("afterbegin",
+                    '<div class="rev-error">图表语法有误，已按源码显示：' + esc(e && e.message || e) + '</div>');
+            }
+        }
+    }
+
+    // 与全局同一实现（全局版用 escHtml 兜底，行为一致）
+    const katexHtml = window.katexHtml
+        || ((tex) => '<code class="tex-fallback">' + esc(tex) + '</code>');
+
+    // ---- 简易 Markdown 渲染（只覆盖笔记常用语法）----
+    // 数学公式：先把 $$...$$ 与 $...$ 摘成占位符。**必须在 HTML 转义之前摘**，
+    // 否则 \frac 的反斜杠、a<b 的尖括号会先被转义，KaTeX 收到的是坏源码。
+    // 围栏代码块也要先摘，免得代码里的 $ 被误当公式。
+    // 笔记插图：<img src="./assets/x.png" style="width:70%"> 与 markdown 的 ![alt](src)。
+    // ⚠️ 必须在 HTML 转义之前摘出来，否则整个标签会被转成 &lt;img …&gt; 当成字面文本显示。
+    // 摘出来后只按白名单重建标签（src/alt/title/尺寸），笔记里写没写 onerror 都不会带进来。
+    const SAFE_LEN = /^(?:\\d+(?:\\.\\d+)?(?:%|px|em|rem|vw|vh|pt))$/;
+    let noteDir = "";   // 当前笔记所在目录（知识库相对），相对插图路径按它解析
+    const imgSpecs = [];
+    const mermaidBlocks = [];   // 本次渲染收集到的 mermaid 源码，插入 DOM 后统一绘制
+
+    // GitHub 风格的提示块：> [!TIP] / [!NOTE] / [!IMPORTANT] / [!WARNING] / [!CAUTION]。
+    // 配色沿用墨色系，底色都是低透明度——整块高饱和的红在暗底上很刺眼。
+    const ALERT_META = {
+        NOTE:      { cls: "note",      label: "注意" },
+        TIP:       { cls: "tip",       label: "提示" },
+        IMPORTANT: { cls: "important", label: "重要" },
+        WARNING:   { cls: "warning",   label: "警告" },
+        CAUTION:   { cls: "caution",   label: "危险" },
+    };
+
+    function normalizeRel(p) {
+        const out = [];
+        for (const seg of String(p).split("/")) {
+            if (!seg || seg === ".") continue;
+            if (seg === "..") { if (!out.length) return null; out.pop(); continue; }
+            out.push(seg);
+        }
+        return out.join("/");
+    }
+
+    // 把笔记里的 src 换算成能取到图的 URL
+    function resolveImgSrc(src) {
+        const s = String(src || "").trim();
+        if (!s) return "";
+        if (/^(?:https?:|data:|blob:)/i.test(s)) return s;   // 外链/内联，原样
+        if (s.startsWith("//")) return s;
+        const base = s.startsWith("/") ? s.slice(1) : (noteDir ? noteDir + "/" + s : s);
+        const rel = normalizeRel(base);
+        if (!rel) return "";
+        return API + "/api/notes/asset?path=" + encodeURIComponent(rel);
+    }
+
+    // 只认这几个属性；其余（尤其是 on*）一律丢弃
+    function buildImg(attrs) {
+        const src = resolveImgSrc(attrs.src);
+        if (!src) {
+            return '<span class="rev-img-bad">[图片路径无法解析' +
+                (attrs.src ? "：" + esc(attrs.src) : "") + ']</span>';
+        }
+        let style = "";
+        const w = (attrs.style || "").match(/(?:^|;)\\s*width\\s*:\\s*([^;]+)/i);
+        const wv = ((w && w[1]) || attrs.width || "").trim();
+        if (SAFE_LEN.test(wv)) style = ' style="width:' + wv + '"';
+        return '<img class="rev-img" src="' + esc(src) + '"' + style
+            + ' alt="' + esc(attrs.alt || "") + '"'
+            + (attrs.title ? ' title="' + esc(attrs.title) + '"' : "")
+            + ' loading="lazy" decoding="async">';
+    }
+
+    function parseAttrs(raw) {
+        const o = {};
+        const re = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\\s*=\\s*("[^"]*"|'[^']*'|[^\\s"'>]+)/g;
+        let m;
+        while ((m = re.exec(raw))) {
+            let v = m[2];
+            if (v.length > 1 && (v[0] === '"' || v[0] === "'") && v.slice(-1) === v[0]) v = v.slice(1, -1);
+            o[m[1].toLowerCase()] = v;
+        }
+        return o;
+    }
+
+    function mdRender(src) {
+        const maths = [], codes = [];
+        let headingSeq = 0;
+        imgSpecs.length = 0;
+        mermaidBlocks.length = 0;
+        let t = String(src);
+        t = t.replace(/```[\\s\\S]*?```/g, m => {
+            codes.push(m); return "@@CODE" + (codes.length - 1) + "@@";
+        });
+        t = t.replace(/!\\[([^\\]]*)\\]\\(\\s*([^)\\s]+)(?:\\s+"[^"]*")?\\s*\\)/g, (m, alt, s) => {
+            imgSpecs.push({ src: s, alt: alt });
+            return "@@IMG" + (imgSpecs.length - 1) + "@@";
+        });
+        t = t.replace(/<img\\b[^>]*>/gi, m => {
+            imgSpecs.push(parseAttrs(m));
+            return "@@IMG" + (imgSpecs.length - 1) + "@@";
+        });
+        // 公式抽取统一走 maskMath（= splitMath，与闪卡卡片、AI 回复共用同一套）：
+        // 既认 $..$ / $$..$$，也认 \\[..\\] / \\(..\\)，还认**没有定界的裸 LaTeX**。
+        // ️ 它是前一个 IIFE 挂在 window 上的；万一桥没搭上（脚本被裁/顺序变了），
+        //    退回这里原来的两条正则 —— 笔记照常能看，只是少了裸 LaTeX 那点能力。
+        if (typeof maskMath === "function") {
+            t = maskMath(t, maths);
+        } else {
+            t = t.replace(/\\$\\$([\\s\\S]+?)\\$\\$/g, (m, tex) => {
+                maths.push({ tex: tex.trim(), display: true });
+                return "@@MATH" + (maths.length - 1) + "@@";
+            });
+            // 行内公式用 Pandoc 惯例：开 $ 之后、闭 $ 之前都不许是空白。
+            // 否则「花了 $100 … 又花了 $200」这种两个美元符号的句子会被误配对成公式。
+            t = t.replace(/(^|[^\\\\$])\\$(\\S(?:[^\\n$]*\\S)?)\\$/g, (m, pre, tex) => {
+                maths.push({ tex: tex.trim(), display: false });
+                return pre + "@@MATH" + (maths.length - 1) + "@@";
+            });
+        }
+        t = t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const out = [];
+        let inCode = false, inTable = false;
+        let inQuote = false, quoteAlert = "", quoteLines = [];
+        t.split(/\\r?\\n/).forEach(line => {
+            const cm = line.match(/^@@CODE(\\d+)@@$/);
+            if (cm) {
+                const whole = codes[+cm[1]];
+                // 信息串只取围栏后面紧挨着的那串词，不碰换行符。这个文件是 Python
+                // 普通字符串，正则里的换行转义极易踩坑（写少了会变成真换行把 JS 拆断），
+                // 能绕开就绕开。
+                const im = whole.match(/^`{3}([a-zA-Z0-9_-]*)/);
+                const info = im ? im[1].toLowerCase() : "";
+                const raw = whole.replace(/^```[^\\n]*\\n?/, "").replace(/```$/, "");
+                if (info === "mermaid") {
+                    // 先把源码摆出来，等 mermaid 就绪再换成 SVG。加载失败或语法有误
+                    // 就保持原样，至少不会变成一片空白。
+                    mermaidBlocks.push(raw);
+                    out.push('<div class="mermaid-box" data-mid="' + (mermaidBlocks.length - 1) + '">'
+                        + '<pre><code>' + esc(raw) + '</code></pre></div>');
+                } else {
+                    out.push("<pre><code>" + esc(raw) + "</code></pre>");
+                }
+                return;
+            }
+            if (/^```/.test(line)) {
+                if (inCode) { out.push("</code></pre>"); inCode = false; }
+                else { out.push('<pre><code>'); inCode = true; }
+                return;
+            }
+            if (inCode) { out.push(line); return; }
+            // ⚠️ 行首的 > 在这之前已经被转义成 &gt; 了（转义在行循环之前统一做），
+            // 所以这里必须匹配转义后的形式，否则引用块永远进不来。
+            const qm = line.match(/^&gt;\s?(.*)$/);
+            if (qm) {
+                if (!inQuote) { inQuote = true; quoteAlert = ""; quoteLines = []; }
+                const c = qm[1];
+                // 提示块的首行是 > [!TIP]（GitHub 还允许在后面补一句自定义标题）
+                const am = c.match(/^\[!([A-Za-z]+)\]\s*(.*)$/);
+                if (am && !quoteLines.length) {
+                    // 全库 56 个标记里有 22 个是连着写两遍的（> [!NOTE] 下一行又是
+                    // > [!NOTE]）。第二行当重复丢掉，否则会在提示框正文里显示成
+                    // 一行字面量 [!NOTE]。
+                    if (!quoteAlert) {
+                        quoteAlert = am[1].toUpperCase();
+                        if (am[2].trim()) quoteLines.push("**" + am[2].trim() + "**");
+                    }
+                } else {
+                    quoteLines.push(c);
+                }
+                return;
+            }
+            flushQuote();
+            if (/^\|.*\|\s*$/.test(line)) {
+                if (/^\|[-:\s|]+\|\s*$/.test(line)) return;
+                if (!inTable) { out.push("<table>"); inTable = true; }
+                const cells = line.trim().replace(/^\||\|$/g, "").split("|");
+                out.push("<tr>" + cells.map(c => "<td>" + inline(c.trim()) + "</td>").join("") + "</tr>");
+                return;
+            }
+            if (inTable) { out.push("</table>"); inTable = false; }
+            let m;
+            if ((m = line.match(/^(#{1,6})\s+(.*)/))) {
+                // 加 id 作为大纲锚点（全屏阅读的侧边 outline 要跳转到这里）。
+                // 注意是 {1,6}：笔记里用 ###### 标「图 7.1」这类图注，只认到 #### 的话
+                // 六级标题会掉进普通段落分支，整行带着井号原样显示出来。
+                const lv = Math.min(3, m[1].length);
+                out.push('<h' + lv + ' id="md-h' + (headingSeq++) + '">' + inline(m[2]) + '</h' + lv + '>');
+            } else if (/^---+\s*$/.test(line)) {
+                out.push("<hr>");
+            } else if (/^\s*[-*]\s+/.test(line)) {
+                out.push("<div>• " + inline(line.replace(/^\s*[-*]\s+/, "")) + "</div>");
+            } else if (line.trim() === "") {
+                out.push("<br>");
+            } else {
+                out.push("<div>" + inline(line) + "</div>");
+            }
+        });
+        if (inTable) out.push("</table>");
+        if (inCode) out.push("</code></pre>");
+        flushQuote();
+        return out.join("\\n");
+        // 引用块收尾：> [!TIP] 变成带标题的提示框，其余普通引用变成左侧竖线的引文块。
+        // 引用里的表格（笔记里 29 行）也一并还原，否则会显示成一堆竖线。
+        function flushQuote() {
+            if (!inQuote) return;
+            // 嵌套引用（> > 内容）再剥一层，否则内层的 > 会当成正文显示出来
+            const rows = quoteLines.map(x => x.replace(/^(?:&gt;\s?)+/, "").trim()).filter(x => x !== "");
+            const alert = quoteAlert;
+            inQuote = false; quoteAlert = ""; quoteLines = [];
+            if (!rows.length && !alert) return;
+            const parts = [];
+            let tbl = false;
+            rows.forEach(x => {
+                if (/^\|.*\|$/.test(x)) {
+                    if (/^\|[-:\s|]+$/.test(x)) return;          // 表头下那条分隔线
+                    if (!tbl) { parts.push('<table class="rev-quote-table">'); tbl = true; }
+                    const cells = x.replace(/^\||\|$/g, "").split("|");
+                    parts.push("<tr>" + cells.map(c => "<td>" + inline(c.trim()) + "</td>").join("") + "</tr>");
+                    return;
+                }
+                if (tbl) { parts.push("</table>"); tbl = false; }
+                parts.push("<div>" + inline(x) + "</div>");
+            });
+            if (tbl) parts.push("</table>");
+            const html = parts.join("");
+            const meta = ALERT_META[alert];
+            out.push(meta
+                ? '<div class="rev-alert ' + meta.cls + '"><div class="rev-alert-head">'
+                  + meta.label + "</div>" + html + "</div>"
+                : '<div class="rev-quote">' + html + "</div>");
+        }
+
+        function inline(x) {
+            return x
+                .replace(/@@IMG(\\d+)@@/g, (m, i) => buildImg(imgSpecs[+i] || {}))
+                .replace(/`([^`]+)`/g, "<code>$1</code>")
+                .replace(/\\*\\*([^*]+)\\*\\*/g, "<b>$1</b>")
+                .replace(/!\[([^\]]*)\]\([^)]+\)/g, "[图:$1]")
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+                .replace(/@@MATH(\d+)@@/g, (m, i) => katexHtml(maths[+i].tex, maths[+i].display));
+        }
+    }
+
+    // ---- 阅读弹窗 ----
+    let modal = null;
+    function openNote(t, btn) {
+        if (modal) modal.remove();
+        modal = el("div", { className: "rev-modal" });
+        const box = el("div", { className: "rev-modal-box" }, modal);
+        const head = el("div", { className: "rev-modal-head" }, box);
+        el("span", { className: "rev-modal-title", textContent: t.name }, head);
+        // 「就问这段」：把右侧提问面板展开（面板本身由 NOTEQ_JS 挂上来）
+        const qaBtn = el("button", { className: "rev-modal-tool", textContent: "💬 就问这段",
+                                     title: "就我正在读的这一段问 AI" }, head);
+        const fsBtn = el("button", { className: "rev-modal-tool", textContent: "⛶ 全屏", title: "全屏阅读（F）" }, head);
+        const closeBtn = el("button", { className: "rev-modal-close", textContent: "✕" }, head);
+
+        // 主区：左侧 outline（仅全屏时显示）+ 正文 + 右侧提问面板（可折叠）
+        const main = el("div", { className: "rev-modal-main" }, box);
+        const outline = el("aside", { className: "rev-outline" }, main);
+        const body = el("div", { className: "rev-modal-body", innerHTML: "加载中…" }, main);
+        const qaPane = el("aside", { className: "rev-qa", hidden: true }, main);
+
+        // ---- 阅读位置 → 提问时的上下文 ----
+        // 「我正在读的这一段」＝当前视口里那些块的文字（往上多留一点、往下只取到
+        // 视口内），外加最后一个已经滚过顶部的标题当小节名。这样 AI 拿到的是
+        // 「你此刻在看什么」，而不是整篇笔记（整篇太大，也会把重点冲淡）。
+        function currentContext() {
+            const top = body.getBoundingClientRect().top;
+            const vh = body.clientHeight || 420;
+            const picked = [];
+            const kids = body.children;
+            for (let i = 0; i < kids.length; i++) {
+                const n = kids[i];
+                if (!n.getBoundingClientRect) continue;
+                const r = n.getBoundingClientRect();
+                if (r.height === 0) continue;
+                const rel = r.top - top;
+                if (rel + r.height < -100) continue;      // 早滚过去了
+                if (rel > vh * 0.92) break;               // 还没读到
+                const s = (n.textContent || "").trim();
+                if (s) picked.push(s);
+            }
+            let section = "";
+            const hs = body.querySelectorAll("h1, h2, h3, h4");
+            for (let i = 0; i < hs.length; i++) {
+                if (hs[i].getBoundingClientRect().top - top <= 26) section = hs[i].textContent || "";
+            }
+            return { section: section, text: picked.join("\\n").slice(0, 2400) };
+        }
+        if (typeof globalThis.__noteQaMount === "function") {
+            try {
+                globalThis.__noteQaMount(qaPane, {
+                    path: t.file, title: t.name, scroller: body, getContext: currentContext,
+                });
+            } catch (e) { console.error("[笔记提问] 面板挂载失败:", e); }
+        }
+        let qaOpen = false;
+        qaBtn.addEventListener("click", () => {
+            qaOpen = !qaOpen;
+            qaPane.hidden = !qaOpen;
+            box.classList.toggle("qa-open", qaOpen);
+            qaBtn.textContent = qaOpen ? " 收起提问" : "💬 就问这段";
+        });
+
+        const foot = el("div", { className: "rev-modal-foot" }, box);
+        const doneBtn = el("button", { className: "rev-btn primary", textContent: "读完 · 标记已盘活" }, foot);
+        // 从搜索/提问入口打开时没有「盘活」按钮可标记，就不用显示这一行
+        if (!btn) foot.hidden = true;
+        document.body.appendChild(modal);
+
+        // ---- 全屏阅读 ----
+        // 用「铺满视口的沉浸式布局」而不是 Fullscreen API：后者会让 Esc 的语义
+        // 变复杂（浏览器先退全屏、我们的 Esc 又要关弹窗，两级状态容易打架）。
+        let isFull = false;
+        function setFull(on) {
+            isFull = on;
+            box.classList.toggle("full", on);
+            fsBtn.textContent = on ? "⤢ 退出全屏" : "⛶ 全屏";
+            if (on) buildOutline();
+        }
+        fsBtn.addEventListener("click", () => setFull(!isFull));
+
+        // ---- 侧边目录 ----
+        function outlineItems() {
+            return Array.from(outline.querySelectorAll(".rev-outline-item"));
+        }
+        function buildOutline() {
+            const hs = body.querySelectorAll("h1, h2, h3");
+            if (!hs.length) {
+                outline.innerHTML = '<div class="rev-outline-empty">本篇没有小标题</div>';
+                return;
+            }
+            outline.innerHTML = "";
+            hs.forEach(h => {
+                const a = document.createElement("div");
+                a.className = "rev-outline-item lv" + h.tagName[1];
+                a.textContent = h.textContent;
+                a.title = h.textContent;
+                a.dataset.hid = h.id;
+                a.addEventListener("click", () => {
+                    h.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+                outline.appendChild(a);
+            });
+            syncOutline();
+        }
+        // 滚动跟随：找出最后一个已经滚过正文顶部的标题
+        function syncOutline() {
+            if (!isFull) return;
+            const items = outlineItems();
+            if (!items.length) return;
+            const bodyTop = body.getBoundingClientRect().top;
+            const hs = body.querySelectorAll("h1, h2, h3");
+            let cur = 0;
+            hs.forEach((h, i) => {
+                if (h.getBoundingClientRect().top - bodyTop <= 16) cur = i;
+            });
+            items.forEach((it, i) => it.classList.toggle("active", i === cur));
+            const act = items[cur];
+            if (act && act.scrollIntoView) {
+                // 目录自身过长时，把当前项滚进可视区（block:nearest 不会乱跳）
+                act.scrollIntoView({ block: "nearest" });
+            }
+        }
+        body.addEventListener("scroll", () => { if (isFull) syncOutline(); });
+
+        // ---- 键盘：Esc 先退全屏，再关弹窗；F 切换全屏 ----
+        function onKey(e) {
+            if (e.key === "Escape") {
+                e.stopPropagation();
+                if (isFull) setFull(false); else close();
+            } else if ((e.key === "f" || e.key === "F") && !/INPUT|TEXTAREA/.test(e.target.tagName)) {
+                setFull(!isFull);
+            }
+        }
+        document.addEventListener("keydown", onKey, true);
+
+        const close = () => {
+            document.removeEventListener("keydown", onKey, true);
+            modal.remove();
+            modal = null;
+        };
+        closeBtn.addEventListener("click", close);
+        modal.addEventListener("click", e => { if (e.target === modal) close(); });
+
+        // 先确保 KaTeX 就绪再渲染，公式才不会先以源码闪一下
+        Promise.all([
+            ensureKatex(),
+            fetch(API + "/api/notes/preview?path=" + encodeURIComponent(t.file)).then(r => r.json()),
+        ]).then(([katexOk, d]) => {
+            if (!d.ok) throw new Error(d.error || "读取失败");
+            // 笔记里的插图是相对笔记自己写的（./assets/x.png），渲染前先把它所在目录
+            // 告诉 mdRender，否则浏览器会按页面位置去 src/ 底下找图。
+            const cut = String(t.file || "").lastIndexOf("/");
+            noteDir = cut >= 0 ? String(t.file).slice(0, cut) : "";
+            body.innerHTML = mdRender(d.content);
+            renderMermaidIn(body, mermaidBlocks.slice());
+            // 从搜索进来（带了关键词/小标题）就定位到命中处——件、公式都渲染完再做，
+            // 否则文本节点还会被 KaTeX 替换掉，定位就到不了。
+            if ((t.query || t.anchor) && typeof globalThis.__noteHitLocate === "function") {
+                try { globalThis.__noteHitLocate(body, { query: t.query || "", anchor: t.anchor || "" }); }
+                catch (e) { console.error("[笔记] 定位命中处失败:", e); }
+            }
+            if (!katexOk) body.insertAdjacentHTML("afterbegin",
+                '<div class="rev-error">公式渲染组件（KaTeX）未加载，公式暂以源码显示。'
+                + '请确认 src/tools/katex/dist/ 存在（它由本地服务提供，见 serve.js 的 /tools/katex/ 路由），'
+                + '且是通过本地服务（启动考研大盘.bat）访问本页。</div>');
+            if (isFull) buildOutline();
+        }).catch(e => {
+            body.innerHTML = '<div class="rev-error">读取失败：' + esc(e.message) +
+                '<br>请确认已通过「启动考研大盘.bat」启动本地服务。</div>';
+            doneBtn.disabled = true;
+        });
+
+        doneBtn.addEventListener("click", () => {
+            if (!btn) { close(); return; }
+            doneBtn.disabled = true;
+            fetch(API + "/api/notes/touch", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: t.file })
+            }).then(r => r.json()).then(d => {
+                if (!d.ok) throw new Error(d.error || "标记失败");
+                btn.textContent = "已盘活"; btn.disabled = true; btn.classList.add("ok");
+                close();
+            }).catch(e => { doneBtn.disabled = false; alert("标记失败：" + e.message); });
+        });
+    }
+
+    // ---- 一键盘活出题 ----
+    const jobTimers = {};
+    function genCards(prefix, btn) {
+        btn.disabled = true; btn.textContent = "提交中…";
+        fetch(API + "/api/targeted-cards/generate", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prefixes: [prefix], count: 8 })
+        }).then(r => r.json()).then(d => {
+            if (!d.ok) throw new Error(d.error || "提交失败");
+            btn.textContent = "生成中…";
+            pollJob(d.job_id, btn);
+        }).catch(e => {
+            btn.disabled = false; btn.textContent = "盘活出题";
+            showRevError(e.message + "（请确认本地服务已启动）");
+        });
+    }
+    function pollJob(jobId, btn) {
+        if (jobTimers[jobId]) return;
+        jobTimers[jobId] = setInterval(() => {
+            fetch(API + "/api/targeted-cards/status?id=" + encodeURIComponent(jobId)).then(r => r.json()).then(d => {
+                if (!d.ok) return;
+                if (d.status === "running") { btn.textContent = "生成中…"; return; }
+                clearInterval(jobTimers[jobId]); delete jobTimers[jobId];
+                if (d.status === "done") {
+                    btn.textContent = "+" + d.inserted + "张卡"; btn.classList.add("ok");
+                } else {
+                    btn.disabled = false; btn.textContent = "盘活出题";
+                    showRevError("生成失败：" + (d.error || "未知错误").slice(0, 200));
+                }
+            }).catch(() => {});
+        }, 4000);
+    }
+    function showRevError(msg) {
+        const tipEl = document.getElementById("rev-tip");
+        let errEl = document.getElementById("rev-error");
+        if (!errEl) { errEl = el("div", { className: "rev-error", id: "rev-error" }, tipEl ? tipEl.parentNode : document.body); }
+        errEl.textContent = "⚠ " + msg;
+    }
+
+    // 搜索页要「点一下就打开这篇笔记」——把阅读器开出去（第二个参数是盘活按钮，
+    // 从搜索进来时没有，阅读器内部会自己处理）。
+    globalThis.__revOpenNote = function (opts) {
+        const file = typeof opts === "string" ? opts : (opts && opts.file);
+        const name = (typeof opts === "object" && opts && opts.name) || String(file || "").split("/").pop();
+        if (!file) return false;
+        openNote({ file: file, name: name }, null);
+        return true;
+    };
+})();
+
+// ============================================================
+// 练习活动：近12周真实答题日历 + 各科正确率
+// ============================================================
+(function() {
+    const ACT = ((D.revival || {}).activity) || {};
+    document.getElementById("act-total").textContent = ACT.total_reviews || 0;
+    document.getElementById("act-streak").textContent = ACT.streak || 0;
+
+    // 日历：以周一为行首，补齐前后
+    const cal = document.getElementById("act-cal");
+    const days = ACT.calendar || [];
+    if (days.length > 0) {
+        const first = new Date(days[0].date + "T00:00:00");
+        const lead = (first.getDay() + 6) % 7;
+        for (let i = 0; i < lead; i++) { const c = el("div", { className: "act-cell" }, cal); c.style.visibility = "hidden"; }
+        const maxN = Math.max(1, ...days.map(d => d.n));
+        days.forEach((d, di) => {
+            const c = el("div", { className: "act-cell" }, cal);
+            c.style.animationDelay = (di * 3) + "ms";   // 一天一格，从左到右铺开
+            c.title = d.date + " · " + d.n + " 次答题";
+            if (d.n > 0) {
+                const a = 0.3 + 0.7 * Math.min(1, d.n / maxN);
+                c.style.background = "rgba(16,185,129," + a.toFixed(2) + ")";
+            }
+        });
+    }
+    const labels = document.getElementById("act-cal-labels");
+    if (days.length > 0) {
+        labels.textContent = days[0].date + " → " + days[days.length - 1].date;
+    } else {
+        labels.textContent = "暂无答题记录";
+    }
+
+    // 各科正确率
+    const accBox = document.getElementById("act-acc");
+    const subs = ACT.by_subject || [];
+    if (subs.length === 0) {
+        accBox.innerHTML = '<div class="rev-empty" style="padding:12px 0;">暂无答题数据 —— 去上方练习区刷几组闪卡</div>';
+    }
+    subs.forEach(x => {
+        const row = el("div", { className: "act-acc-row" }, accBox);
+        el("div", { className: "act-acc-name", textContent: x.subject }, row);
+        const bar = el("div", { className: "act-acc-bar" }, row);
+        const fill = el("div", { className: "act-acc-fill" }, bar);
+        // 一次没练过的科目照样占一行，显示「未练」——早先它干脆不出现，
+        // 用户看到的是「少了两科」而不是「这两科还没开始」，会以为数据坏了。
+        const none = !x.total;
+        fill.style.width = none ? "0%" : x.accuracy + "%";
+        fill.style.background = none ? "transparent"
+            : x.accuracy >= 80 ? PALETTE.zhuqing
+            : x.accuracy >= 60 ? PALETTE.xiang : PALETTE.zhusha;
+        const val = el("div", {
+            className: "act-acc-val",
+            textContent: none ? "未练" : (x.accuracy + "% · " + x.total + "题"),
+        }, row);
+        if (none) val.style.color = "var(--text-muted)";
+    });
+})();
+'''
+
+
+NAV_CSS = '''
+        /* ============================================================
+           分栏导航（2026-09-13）：左侧固定导航 + 右侧内容区，点一项切一页。
+           侧栏沿用笔记弹窗全屏 outline 那套（定宽 + sticky + 左描边高亮）。
+           ============================================================ */
+        .dashboard { max-width: none; display: flex; gap: 24px; align-items: flex-start; }
+        .sidenav { width: 190px; flex: none; position: sticky; top: 20px; display: flex; flex-direction: column;
+                   gap: 3px; background: var(--bg-card); border: 1px solid var(--border-color);
+                   border-radius: var(--border-radius); padding: 12px;
+                   transition: width .2s ease, padding .2s ease; }
+        .sidenav-brand { font-family: var(--font-serif); font-size: 0.92rem; letter-spacing: .16em; color: var(--xuan);
+                         padding: 4px 12px 12px; border-bottom: var(--rule); margin-bottom: 8px;
+                         display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+        .sidenav-toggle { font: inherit; font-size: 0.82rem; line-height: 1; flex: none; cursor: pointer;
+                          background: none; border: 1px solid transparent; border-radius: 4px;
+                          color: var(--text-muted); padding: 3px 6px; transition: all .15s; }
+        .sidenav-toggle:hover { color: var(--text-primary); border-color: var(--border-color);
+                                background: var(--bg-card-hover); }
+        .sidenav-item { font: inherit; font-size: 0.86rem; text-align: left; cursor: pointer; padding: 9px 12px;
+                        background: none; border: none; border-left: 3px solid transparent;
+                        border-radius: var(--border-radius); color: var(--text-secondary); transition: all .14s; }
+        .sidenav-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+        .sidenav-item.active { color: var(--xuan); border-left-color: var(--zhusha); background: rgba(var(--zhusha-rgb),.12); }
+        /* 收起态：整条变窄、文字换首字。宽度过渡挂在 .sidenav 上，不是这里的 font-size */
+        .sidenav.collapsed { width: 58px; padding: 12px 7px; }
+        .sidenav.collapsed .sidenav-brand { justify-content: center; padding: 4px 0 12px; }
+        .sidenav.collapsed .sidenav-brand-text { display: none; }
+        .sidenav.collapsed .sidenav-item { font-size: 0; text-align: center; padding: 9px 0; }
+        .sidenav.collapsed .sidenav-item::before { content: attr(data-short); font-size: 0.86rem; }
+        .dash-main { flex: 1; min-width: 0; max-width: 1200px; }
+        .page[hidden] { display: none; }
+        /* 窄屏：侧栏塌成顶部横向 tab，避免占掉半屏宽 */
+        @media (max-width: 768px) {
+            .dashboard { display: block; }
+            .sidenav { width: auto; position: sticky; top: 0; z-index: 20; flex-direction: row; gap: 6px;
+                       overflow-x: auto; padding: 8px; margin-bottom: 16px; }
+            .sidenav-brand { display: none; }
+            .sidenav-item { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; padding: 6px 12px; }
+            .sidenav-item.active { border-left: none; border-bottom-color: var(--zhusha); }
+            /* 横向 tab 下没有「收起」的概念，按钮隐藏，
+               同时忽略 collapsed——否则会留下 font-size:0 的空白 tab */
+            .sidenav-toggle { display: none; }
+            .sidenav.collapsed { width: auto; padding: 8px; }
+            .sidenav.collapsed .sidenav-item { font-size: 0.86rem; padding: 6px 12px; }
+            .sidenav.collapsed .sidenav-item::before { content: none; }
+            .dash-main { max-width: none; }
+        }
+'''
+
+FX_CSS = '''
+        /* ============================================================
+           统一微交互（2026-09-14）：可点/可悬停的表面共用同一套节奏。
+           此前反馈是散的——有的元素有过渡、有的一按下去毫无动静，
+           这里集中补齐，省得以后每个模块再各写各的。
+           ============================================================ */
+        .metric-card, .weak-item, .gap-list li, .act-cell, .deck-card,
+        .fs-opt, .fs-btn, .heatmap-cell, .range-btn, .sidenav-item {
+            transition: transform .16s ease, border-color .16s ease,
+                        background .16s ease, box-shadow .16s ease, color .16s ease;
+        }
+
+        .metric-card:hover { transform: translateY(-2px); border-color: var(--dianqing); }
+        .metric-card:active { transform: translateY(0) scale(.995); }
+
+        .weak-item:hover, .gap-list li:hover { transform: translateX(3px); }
+
+        /* 热力图格子放大时要盖住相邻格，所以必须带 z-index。
+           .heatmap-cell 本身已是 position:relative，不用重复声明。 */
+        .heatmap-cell:hover { transform: scale(1.1); z-index: 3; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
+
+        /* 练习日历格子只有 12px，不放大几乎看不出悬停反馈 */
+        .act-cell:hover { transform: scale(1.35); outline: 1px solid var(--accent-blue); }
+
+        .fs-opt:hover:not(:disabled) { transform: translateX(3px); }
+        .fs-btn:active, .range-btn:active { transform: scale(.95); }
+        .deck-card:active { transform: translateY(0) scale(.995); }
+
+        /* --- 时间线悬停：十字准线 + 整列读数浮层 --- */
+        .chart-container { position: relative; }
+        .tl-guide { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .75; }
+        .tl-halo { stroke: var(--bg-card); stroke-width: 2; }
+        .tl-tip {
+            position: absolute; pointer-events: none; z-index: 5;
+            background: rgba(var(--mo-rgb), .97); border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 7px 10px; font-size: 0.72rem;
+            color: var(--text-primary); white-space: nowrap;
+            box-shadow: 0 4px 14px rgba(0,0,0,.4);
+        }
+        .tl-tip-head { color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 4px; }
+        .tl-tip-row { display: flex; align-items: center; gap: 6px; line-height: 1.7; }
+        .tl-tip-row i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+        .tl-tip-row b { margin-left: auto; padding-left: 12px; }
+
+        /* 对动效敏感的人：位移/缩放全关，只保留颜色变化 */
+        @media (prefers-reduced-motion: reduce) {
+            .metric-card, .weak-item, .gap-list li, .act-cell, .deck-card, .fs-opt,
+            .fs-btn, .heatmap-cell, .range-btn, .sidenav-item, .sidenav,
+            .section.is-full, .fs-full-toggle {
+                transition: none !important;
+            }
+            .metric-card:hover, .weak-item:hover, .gap-list li:hover, .heatmap-cell:hover,
+            .act-cell:hover, .fs-opt:hover:not(:disabled), .fs-btn:active,
+            .range-btn:active, .metric-card:active, .deck-card:active {
+                transform: none !important;
+            }
+        }
+'''
+
+NAV_JS = '''
+// ============================================================
+// 分栏导航：hash 路由 + 首次进入某页才渲染该页图表（懒渲染）。
+//
+// 为什么必须懒渲染：D3 那几个图都读 container.clientWidth 定宽度，而
+// display:none 的容器 clientWidth 恒为 0，画出来就是一片空白。所以凡是碰
+// clientWidth 的渲染器都注册到 window.__pageRenderers，等那页真可见了再跑。
+// ============================================================
+(function () {
+    const PAGES = ["overview", "notes", "flash", "activity", "mistakes", "study", "review", "settings"];
+    const DEFAULT_PAGE = "overview";
+    let current = null;
+
+    function pageFromHash() {
+        const h = (location.hash || "").replace(/^#\\/?/, "");
+        return PAGES.indexOf(h) >= 0 ? h : DEFAULT_PAGE;
+    }
+
+    function runRenderers(name) {
+        const list = (window.__pageRenderers && window.__pageRenderers[name]) || [];
+        list.forEach(fn => {
+            if (fn.__done) return;
+            try { fn(); fn.__done = true; }
+            catch (e) { console.error("[nav] 渲染 " + name + " 失败:", e); }
+        });
+    }
+
+    function activate(name) {
+        if (current === name) return;
+        current = name;
+        document.querySelectorAll(".page").forEach(p => { p.hidden = (p.dataset.page !== name); });
+        document.querySelectorAll(".sidenav-item").forEach(b => {
+            b.classList.toggle("active", b.dataset.page === name);
+        });
+        runRenderers(name);
+    }
+
+    // —— 点侧栏切换 ——
+    // ⚠️ 2026-09-13 修复：按钮是 <button class="sidenav-item" data-page="...">，
+    //    既没有 href 也没有 onclick，而这里原来**只**监听 hashchange，
+    //    所以点「总览 / 笔记盘活 / 闪卡 / 练习活动」完全没反应。
+    //    现在显式绑定点按；走法仍是「改 hash → hashchange → activate」，
+    //    保留浏览器前进/后退；hash 没变时（重复点当前项）hashchange 不触发，直接 activate。
+    function go(name) {
+        if (PAGES.indexOf(name) < 0) return;
+        if (name === pageFromHash()) activate(name);
+        else location.hash = "#/" + name;
+    }
+    document.querySelectorAll(".sidenav-item").forEach(btn => {
+        btn.addEventListener("click", () => go(btn.dataset.page));
+    });
+
+    // —— 侧栏收展 ——
+    // 状态存 localStorage，刷新后保持。收起后文字换成首字（由 CSS 的
+    // data-short 生成），窄屏下按钮被 CSS 隐藏、collapsed 也不再生效。
+    const SIDENAV_KEY = "kaoyan.sidenav.collapsed";
+    const sidenav = document.getElementById("sidenav");
+    const navToggle = document.getElementById("sidenav-toggle");
+
+    function applyNavCollapsed(collapsed) {
+        if (!sidenav) return;
+        sidenav.classList.toggle("collapsed", collapsed);
+        if (navToggle) {
+            const label = collapsed ? "展开侧边栏" : "收起侧边栏";
+            navToggle.textContent = collapsed ? "▶" : "◀";
+            navToggle.title = label;
+            navToggle.setAttribute("aria-label", label);
+            navToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        }
+    }
+
+    let navCollapsed = false;
+    // 无痕/禁用存储时 localStorage 会直接抛异常，不能让它带崩整个导航
+    try { navCollapsed = localStorage.getItem(SIDENAV_KEY) === "1"; } catch (e) {}
+    applyNavCollapsed(navCollapsed);
+
+    if (navToggle) {
+        navToggle.addEventListener("click", () => {
+            navCollapsed = !navCollapsed;
+            applyNavCollapsed(navCollapsed);
+            try { localStorage.setItem(SIDENAV_KEY, navCollapsed ? "1" : "0"); } catch (e) {}
+        });
+    }
+
+    // 早间回顾（review 页）的渲染器由 MR_JS 自行注册到 window.__pageRenderers.review，
+    // 且 MR_JS 必须注入在本文件之前——本文件末尾会立刻 activate() 一次。
+
+    window.addEventListener("hashchange", () => activate(pageFromHash()));
+    activate(pageFromHash());
+})();
+'''
+
+TASK_CSS = '''
+        /* --- 今日任务（2026-09-14）--- */
+        .task-progress { font-size: 0.8rem; color: var(--text-muted); font-weight: 400; margin-left: 6px; }
+        .task-day { font-size: 0.75rem; color: var(--text-muted); flex: none; }
+        .task-list { list-style: none; margin: 0 0 12px; padding: 0; }
+        .task-item { display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px;
+            border-radius: 6px; transition: background .14s, transform .14s; }
+        .task-item:hover { background: var(--bg-card-hover); transform: translateX(2px); }
+        .task-item.done .task-text { color: var(--text-muted); text-decoration: line-through; }
+        .task-check { flex: none; width: 16px; height: 16px; margin-top: 2px; cursor: pointer;
+            accent-color: var(--dianqing); }
+        .task-text { flex: 1; min-width: 0; font-size: 0.86rem; line-height: 1.6;
+            color: var(--text-primary); word-break: break-word; }
+        .task-tag { flex: none; font-size: 0.68rem; padding: 1px 7px; border-radius: 9px;
+            border: 1px solid var(--border-color); color: var(--text-muted); }
+        .task-tag.ai { color: var(--zhuqing-lt); border-color: rgba(var(--zhuqing-rgb),.45);
+            background: rgba(var(--zhuqing-rgb),.12); }
+        .task-tag.me { color: var(--xiang-lt); border-color: rgba(var(--xiang-rgb),.45);
+            background: rgba(var(--xiang-rgb),.12); }
+        .task-del { flex: none; background: none; border: 0; cursor: pointer; font-size: 0.92rem;
+            color: var(--text-muted); padding: 0 4px; line-height: 1.4; opacity: .4;
+            transition: opacity .14s, color .14s; }
+        .task-item:hover .task-del { opacity: 1; }
+        .task-del:hover { color: var(--zhusha-lt); }
+        .task-add { display: flex; gap: 8px; flex-wrap: wrap; }
+        .task-input { flex: 1; min-width: 180px; box-sizing: border-box; font-family: inherit;
+            font-size: 0.85rem; padding: 8px 11px; background: var(--bg-primary);
+            color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; }
+        .task-input:focus { outline: none; border-color: var(--dianqing); }
+        .task-subject { font-family: inherit; font-size: 0.82rem; padding: 8px; flex: none;
+            background: var(--bg-primary); color: var(--text-secondary);
+            border: 1px solid var(--border-color); border-radius: 6px; }
+        .task-hint { margin-top: 10px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.6; }
+        .task-empty { color: var(--text-muted); font-size: 0.84rem; padding: 16px 0; text-align: center; }
+'''
+
+TASK_JS = '''
+// ============================================================
+// 今日任务（2026-09-14）
+//
+// 数据来自 serve.js 的 /api/tasks*，表 daily_tasks 由 migrate.js 幂等建出。
+// agent 每天 00:00 用 daily_tasks.py 直写库；这里的增删改打 HTTP 接口。
+// 用户自加与被删的任务都会留痕（软删除），agent 据此调整后续布置——
+// 所以「删掉」是软删除，不是真删。
+// ============================================================
+(function () {
+    // API 基址：用当前页面 origin，平板/手机经局域网访问时才能正常调接口；
+    // 本地以 file:// 直开时回落到 localhost:8080
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+    const box = document.getElementById("task-list");
+    if (!box) return;                     // 容器缺失（页面结构变了）就别往下走
+    const progressEl = document.getElementById("task-progress");
+    const hintEl = document.getElementById("task-hint");
+    const inputEl = document.getElementById("task-input");
+    const selEl = document.getElementById("task-subject");
+    const addBtn = document.getElementById("task-add-btn");
+    const dayEl = document.getElementById("task-day");
+    let busy = false;
+
+    // 本地日期。禁止 toISOString()——那是 UTC，UTC+8 凌晨会差一天。
+    function todayStr() {
+        const d = new Date();
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+             + "-" + String(d.getDate()).padStart(2, "0");
+    }
+
+    function toast(msg) {
+        const t = document.createElement("div");
+        t.className = "fs-toast";
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 1800);
+    }
+
+    async function api(path, method, payload) {
+        const opt = { method: method || "GET" };
+        if (payload) {
+            opt.headers = { "Content-Type": "application/json" };
+            opt.body = JSON.stringify(payload);
+        }
+        const r = await fetch(API + path, opt);
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || ("HTTP " + r.status));
+        return d;
+    }
+
+    function renderTask(t) {
+        const li = el("li", { className: "task-item" + (t.done ? " done" : "") }, box);
+        const cb = el("input", { className: "task-check", type: "checkbox" }, li);
+        cb.checked = !!t.done;
+        cb.onchange = async () => {
+            cb.disabled = true;
+            try {
+                await api("/api/tasks/done", "POST", { id: t.id, done: cb.checked });
+                t.done = cb.checked;
+                li.classList.toggle("done", !!t.done);
+                updateProgress();
+            } catch (e) {
+                cb.checked = !cb.checked;      // 回滚，别让界面撒谎
+                toast("保存失败：" + e.message);
+            } finally { cb.disabled = false; }
+        };
+        // 任务文本一律 textContent（agent/用户都可能写入任意字符）
+        el("div", { className: "task-text", textContent: t.text }, li);
+        if (t.subject) el("span", { className: "task-tag", textContent: t.subject }, li);
+        el("span", {
+            className: "task-tag " + (t.source === "user" ? "me" : "ai"),
+            textContent: t.source === "user" ? "我加的" : "AI 布置",
+        }, li);
+        const del = el("button", { className: "task-del", textContent: "×", title: "删除" }, li);
+        del.onclick = async () => {
+            if (!confirm("删除这条任务？\\n\\n" + t.text)) return;
+            try {
+                await api("/api/tasks/delete", "POST", { id: t.id });
+                li.remove();
+                updateProgress();
+            } catch (e) { toast("删除失败：" + e.message); }
+        };
+        return li;
+    }
+
+    let tasks = [];
+    function updateProgress() {
+        const live = tasks.filter(t => !t.deleted);
+        const done = live.filter(t => t.done).length;
+        progressEl.textContent = live.length ? (done + " / " + live.length) : "";
+    }
+
+    function render(d) {
+        tasks = d.tasks || [];
+        box.innerHTML = "";
+        const live = tasks.filter(t => !t.deleted);
+        if (!live.length) {
+            el("li", {
+                className: "task-empty",
+                textContent: "今天还没有任务。等一下 AI 布置，或在下面自己加一条。",
+            }, box);
+            updateProgress();
+            return;
+        }
+        // 未完成的排前面：打开页面先看到该做的事
+        live.sort((a, b) => (a.done - b.done) || (a.id - b.id));
+        live.forEach(renderTask);
+        updateProgress();
+    }
+
+    async function load() {
+        dayEl.textContent = todayStr();
+        try {
+            render(await api("/api/tasks?date=" + todayStr()));
+            hintEl.textContent = "";
+        } catch (e) {
+            box.innerHTML = "";
+            el("li", { className: "task-empty", textContent: "读取失败：" + e.message }, box);
+            hintEl.textContent = "任务接口需要本地服务在运行——用桌面「考研大盘」快捷方式启动即可。";
+        }
+    }
+
+    async function addTask() {
+        const text = inputEl.value.trim();
+        if (!text || busy) return;
+        busy = true;
+        addBtn.disabled = true;
+        try {
+            await api("/api/tasks/add", "POST", {
+                date: todayStr(), text: text, subject: selEl.value || null,
+            });
+            inputEl.value = "";
+            await load();
+        } catch (e) {
+            toast("添加失败：" + e.message);
+        } finally {
+            busy = false;
+            addBtn.disabled = false;
+            inputEl.focus();
+        }
+    }
+
+    addBtn.onclick = addTask;
+    inputEl.onkeydown = (e) => { if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); addTask(); } };
+
+    // 懒加载：切到「活动」页才拉取（runRenderers 的 __done 守卫保证只跑一次）。
+    // 用 push 而不是赋值，避免覆盖别人给 activity 注册的渲染器。
+    (window.__pageRenderers = window.__pageRenderers || {});
+    (window.__pageRenderers.activity = window.__pageRenderers.activity || []).push(load);
+})();
+'''
+
+THEME_CSS = '''
+        /* ============================================================
+           浅色主题 + 自定义背景（2026-09-14）
+
+           浅色只覆盖**基础色组**，语义别名（--bg-card / --text-primary / …）
+           自动跟着变，不必逐条重写。设计语汇保持一致：深色是「青墨底·月白字」，
+           浅色就是「纸白底·青墨字」——同一套新中式，不是另一套配色。
+           ============================================================ */
+        [data-theme="light"] {
+            --mo:        #F4F7F5;   /* 纸白    — 页面底 */
+            --mo-2:      #E9EFEC;   /* 次纸白  — 次级底 */
+            --mo-light:  #FFFFFF;   /* 卡片 */
+            --mo-hover:  #E3EAE6;
+            --xuan:      #1B2422;   /* 主文字：青墨 */
+            --tao:       #4B5754;
+            --hui:       #7C8885;
+            --zhusha:    #A83A32;
+            --zhuqing:   #3F7261;
+            --dianqing:  #35597D;
+            --xiang:     #96702A;
+            --zi:        #664D82;
+            --bian:      #D6DEDA;
+
+            /* 深色下 -lt 是「在暗底上提亮」，浅底上要反过来压暗才有对比度 */
+            --zhusha-lt:   #8E2F28;
+            --zhuqing-lt:  #2F5A4C;
+            --dianqing-lt: #274868;
+            --xiang-lt:    #7A5A1F;
+            --zi-lt:       #523D69;
+
+            --zhusha-rgb:   168,58,50;
+            --zhuqing-rgb:  63,114,97;
+            --dianqing-rgb: 53,89,125;
+            --xiang-rgb:    150,112,42;
+            --zi-rgb:       102,77,130;
+            --xuan-rgb:     27,36,34;
+            --mo-rgb:       244,247,245;
+        }
+        /* 几处硬编码的亮色在浅底上对比不足，单独压一下 */
+        [data-theme="light"] .fs-verdict.ok { color: #2E7D5B; }
+        [data-theme="light"] .fs-verdict.bad { color: #B3261E; }
+        [data-theme="light"] .heatmap-cell:hover { box-shadow: 0 3px 10px rgba(0,0,0,.18); }
+        [data-theme="light"] .tl-tip { box-shadow: 0 4px 14px rgba(0,0,0,.16); }
+        [data-theme="light"] .fs-toast { box-shadow: 0 4px 14px rgba(0,0,0,.16); }
+        [data-theme="light"] .heatmap-cell.is-note-only { box-shadow: inset 0 0 0 1px rgba(27,36,34,.35); }
+
+        /* ---- 自定义背景图 ----
+           独立一个固定层放图：z-index:-1 让它落在内容之下、body 背景之上。
+           上面再叠一层与主题同色的遮罩保证文字可读，透明度由设置页调节。 */
+        #bg-layer {
+            position: fixed; inset: 0; z-index: -1; display: none;
+            background-size: cover; background-position: center; background-attachment: fixed;
+        }
+        /* 遮罩透明度 = 1 - 用户设的「背景可见度」，由设置页写 --bg-opacity */
+        #bg-layer::after {
+            content: ""; position: absolute; inset: 0;
+            background: var(--mo);
+            opacity: calc(1 - var(--bg-opacity, 0.35));
+        }
+        body.has-bg #bg-layer { display: block; }
+        /* 有背景图时卡片走毛玻璃，否则一大块不透明会把图完全盖住 */
+        body.has-bg .section,
+        body.has-bg .sidenav,
+        body.has-bg .metric-card,
+        body.has-bg .act-cal-block {
+            backdrop-filter: blur(14px) saturate(1.15);
+            -webkit-backdrop-filter: blur(14px) saturate(1.15);
+            background: rgba(var(--mo-rgb), .72);
+        }
+'''
+
+SETTINGS_CSS = '''
+        /* --- 设置页（2026-09-14）--- */
+        .set-group { margin-bottom: 22px; }
+        .set-group:last-child { margin-bottom: 0; }
+        .set-title { font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;
+            display: flex; align-items: center; gap: 8px; }
+        .set-label { font-size: 0.76rem; color: var(--text-muted); display: block; margin: 10px 0 5px; }
+        .set-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .set-input { flex: 1; min-width: 190px; box-sizing: border-box; font-family: inherit;
+            font-size: 0.85rem; padding: 8px 11px; background: var(--bg-primary);
+            color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; }
+        .set-input:focus { outline: none; border-color: var(--dianqing); }
+        .set-input.mono { font-family: Consolas, "Courier New", monospace; }
+        /* 自己写提示词用的多行框（2026-09-21）：占满整行、可纵向拉伸 */
+        .set-ta { flex: none; width: 100%; min-height: 96px; margin: 2px 0 8px; resize: vertical;
+            line-height: 1.6; font-size: 0.84rem; }
+        .set-num { width: 92px; flex: none; text-align: center; }
+        .set-hint { margin-top: 9px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.75; }
+        .set-hint code { background: var(--bg-secondary); padding: 1px 5px; border-radius: 3px;
+            font-family: Consolas, "Courier New", monospace; }
+        /* 平板/手机连接卡片（2026-09-20）：局域网二维码 + 地址 */
+        .set-lan { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; margin-top: 6px; }
+        .set-qr { width: 150px; height: 150px; padding: 8px; background: #fff; border-radius: 8px; flex-shrink: 0; }
+        .set-qr img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+        .set-lan-info { flex: 1; min-width: 200px; }
+        .set-lan-url { font-family: Consolas, "Courier New", monospace; font-size: 0.82rem;
+            background: var(--bg-secondary); padding: 6px 10px; border-radius: 4px; margin-bottom: 6px;
+            word-break: break-all; color: var(--dianqing); cursor: pointer; user-select: all; }
+        .set-lan-url:hover { background: var(--border-color); }
+        .set-lan-tip { font-size: 0.72rem; color: var(--text-muted); line-height: 1.7; }
+        .set-status { font-size: 0.74rem; }
+        .set-status.ok { color: var(--zhuqing-lt); }
+        .set-status.warn { color: var(--xiang-lt); }
+        .set-seg { display: inline-flex; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; }
+        .set-seg button { font: inherit; font-size: 0.8rem; cursor: pointer; padding: 7px 20px;
+            background: transparent; border: 0; color: var(--text-secondary); transition: all .15s; }
+        .set-seg button:hover { color: var(--text-primary); background: var(--bg-secondary); }
+        .set-seg button.on { background: var(--dianqing); color: #fff; }
+        .set-range { flex: 1; min-width: 150px; accent-color: var(--dianqing); }
+        .set-bg-preview { margin-top: 10px; width: 240px; height: 135px; border-radius: 8px;
+            border: 1px solid var(--border-color); background-size: cover; background-position: center;
+            display: none; }
+        .set-bg-preview.on { display: block; }
+        /* --- 番茄钟轮播背景（2026-09-21）--- */
+        /* 缩略图用 grid 而不是 flex+wrap：换行时 flex 会按内容撑出不齐的行高，
+           一排里混着横图竖图就参差了。固定列宽 + aspect-ratio 才是整齐的九宫格。 */
+        .set-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+            gap: 8px; margin-top: 10px; }
+        .set-thumbs:empty { display: none; }
+        .set-thumb { position: relative; aspect-ratio: 4 / 3; border-radius: 6px; overflow: hidden;
+            border: 1px solid var(--border-color); background-size: cover; background-position: center;
+            background-color: var(--bg-secondary); }
+        .set-thumb-n { position: absolute; left: 4px; bottom: 2px; font-size: 0.62rem;
+            color: var(--text-muted); text-shadow: 0 1px 3px rgba(var(--mo-rgb), .9); }
+        .set-thumb-x { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px;
+            display: grid; place-items: center; cursor: pointer; border: 0; border-radius: 50%;
+            background: rgba(var(--mo-rgb), .72); color: var(--xuan); font: inherit; font-size: 0.72rem;
+            line-height: 1; padding: 0; opacity: 0; transition: opacity .12s; }
+        .set-thumb:hover .set-thumb-x { opacity: 1; }
+        .set-thumb-x:hover { background: var(--zhusha); }
+        .set-thumb-empty { grid-column: 1 / -1; font-size: 0.72rem; color: var(--text-muted);
+            border: 1px dashed var(--border-color); border-radius: 6px; padding: 14px 10px; text-align: center; }
+'''
+
+SETTINGS_JS = '''
+// ============================================================
+// 设置页（2026-09-14）
+//
+// 三类配置各归其位：
+//   · 模型 / API Key → src/.secrets.json（密钥**只写不读**，界面只显示尾 4 位）
+//   · 每日闪卡额度    → config 表
+//   · 主题 / 背景图    → config 表 + src/assets/
+//
+// 外观（主题 + 背景）在页面加载时就要生效，不能等切到设置页——所以这段
+// 在脚本加载时立刻跑一次「先应用本地缓存、再与服务端核对」。
+// ============================================================
+(function () {
+    // API 基址：用当前页面 origin，平板/手机经局域网访问时才能正常调接口；
+    // 本地以 file:// 直开时回落到 localhost:8080
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+    const LS_THEME = "kaoyan.ui.theme";
+    const LS_BG = "kaoyan.ui.bg";
+    const LS_BG_OP = "kaoyan.ui.bgOpacity";
+
+    // ---- 外观：立即应用（先用 localStorage 抢首屏，再和服务端核对）----
+    function applyTheme(t) {
+        document.documentElement.dataset.theme = (t === "light" ? "light" : "dark");
+    }
+    function applyBg(path) {
+        const layer = document.getElementById("bg-layer");
+        if (!layer) return;
+        if (path) {
+            layer.style.backgroundImage = 'url("' + API + "/api/notes/asset?path="
+                + encodeURIComponent(path) + '")';
+            document.body.classList.add("has-bg");
+        } else {
+            layer.style.backgroundImage = "";
+            document.body.classList.remove("has-bg");
+        }
+    }
+    // 遮罩是 ::after 伪元素，改不了它的内联样式，所以走 CSS 变量传值
+    function applyBgOpacity(opacity) {
+        const op = Number(opacity);
+        document.documentElement.style.setProperty("--bg-opacity",
+            String(Number.isFinite(op) ? op : 0.35));
+    }
+
+    let cachedTheme = "dark";
+    try {
+        cachedTheme = localStorage.getItem(LS_THEME) || "dark";
+        applyTheme(cachedTheme);
+        const cbg = localStorage.getItem(LS_BG) || "";
+        const cop = localStorage.getItem(LS_BG_OP) || "0.35";
+        applyBgOpacity(cop);
+        if (cbg) applyBg(cbg);
+    } catch (e) { /* 隐私模式下 localStorage 会抛错，不能带崩整页 */ }
+
+    // ---- 与服务端核对（server 是唯一真相源）----
+    function syncAppearance(s) {
+        const ui = (s && s.ui) || {};
+        const theme = ui.theme || "dark";
+        applyTheme(theme);
+        applyBgOpacity(ui.bg_opacity);
+        applyBg(ui.background || "");
+        try {
+            localStorage.setItem(LS_THEME, theme);
+            localStorage.setItem(LS_BG, ui.background || "");
+            localStorage.setItem(LS_BG_OP, ui.bg_opacity || "0.35");
+        } catch (e) {}
+    }
+    fetch(API + "/api/settings").then(r => r.json())
+        .then(d => { if (d && d.ok) syncAppearance(d); })
+        .catch(() => {});
+
+    // ---- 设置页 UI（懒加载：切到该页才渲染）----
+    function render(container) {
+        container.innerHTML =
+            '<div class="sec-body">'
+          + '  <div class="set-group"><div class="set-title">🤖 模型与 API Key</div>'
+          + '    <span class="set-label">API Key（只写不读，保存后只显示尾 4 位）</span>'
+          + '    <div class="set-row">'
+          + '      <input class="set-input mono" id="set-key" type="password" autocomplete="off"'
+          + '             placeholder="留空 = 不修改">'
+          + '      <button class="fs-btn" id="set-key-save">保存</button>'
+          + '      <button class="fs-btn" id="set-key-clear">清除</button>'
+          + '    </div>'
+          + '    <span class="set-label">模型</span>'
+          + '    <div class="set-row">'
+          + '      <input class="set-input mono" id="set-model" list="set-models" placeholder="deepseek-flash">'
+          + '      <datalist id="set-models">'
+          + '        <option value="deepseek-flash"></option>'
+          + '        <option value="deepseek-v4-pro"></option>'
+          + '      </datalist>'
+          + '      <button class="fs-btn" id="set-model-save">保存模型</button>'
+          + '    </div>'
+          + '    <div class="set-hint" id="set-llm-status"></div>'
+          + '    <div class="set-hint">批改简答题、生成错题解析都走这个模型。'
+          + '关键密钥只存在服务端 <code>src/.secrets.json</code>，不会下发到浏览器。</div>'
+          + '    <span class="set-label">答错解析 / 追问的思考强度（默认）</span>'
+          + '    <div class="set-seg" id="set-think">'
+          + '      <button data-think="quick">关掉思考 · 跟手</button>'
+          + '      <button data-think="deep">深度思考 · 更细</button>'
+          + '    </div>'
+          + '    <div class="set-hint" id="set-think-status"></div>'
+          + '    <div class="set-hint">关掉思考能省掉一段白等（实测 3.1s → 1.1s），正文质量基本不变；'
+          + '想每次都多想一会儿就选「深度思考」。<br>'
+          + '面板上还有一颗 <b>深想一遍</b> 按钮，可以单次要求深度思考，'
+          + '不受这里影响。读笔记时的提问<b>始终深度思考</b>——那儿问的通常正是不会的点。</div>'
+          + '  </div>'
+          + '  <div class="set-group"><div class="set-title">✍️ AI 提示词（你自己写）</div>'
+          + '    <span class="set-label">错题解析 / 追问用的提示词</span>'
+          + '    <textarea class="set-input set-ta" id="set-prompt-exp" rows="4" spellcheck="false"'
+          + '      placeholder="留空 = 用内置的极简默认（只有一句角色 + 公式格式）"></textarea>'
+          + '    <div class="set-row">'
+          + '      <button class="fs-btn" id="set-prompt-exp-save">保存</button>'
+          + '      <button class="fs-btn" id="set-prompt-exp-reset">恢复内置默认</button>'
+          + '      <span class="set-hint" id="set-prompt-exp-status" style="margin:0;"></span>'
+          + '    </div>'
+          + '    <div class="set-hint">「答错讲解」和「答对后的追问」共用这一份；'
+          + '两者的区别写在请求里（选的是哪一项 / 你自己提的问题），所以一份就够。'
+          + '内置默认<b>只保留角色与公式格式</b>——怎么讲完全由你定。</div>'
+          + '    <span class="set-label">读笔记提问用的提示词</span>'
+          + '    <textarea class="set-input set-ta" id="set-prompt-qa" rows="4" spellcheck="false"'
+          + '      placeholder="留空 = 用内置的极简默认"></textarea>'
+          + '    <div class="set-row">'
+          + '      <button class="fs-btn" id="set-prompt-qa-save">保存</button>'
+          + '      <button class="fs-btn" id="set-prompt-qa-reset">恢复内置默认</button>'
+          + '      <span class="set-hint" id="set-prompt-qa-status" style="margin:0;"></span>'
+          + '    </div>'
+          + '    <div class="set-hint">读笔记时问的多半是你不会的点，这里写你希望它怎么讲。'
+          + '读笔记提问<b>始终深度思考</b>（不受上面思考强度默认值影响）。</div>'
+          + '  </div>'
+          + '    <div class="set-row">'
+          + '      <span class="set-label" style="margin:0;">新卡</span>'
+          + '      <input class="set-input set-num" id="set-new" type="number" min="0" max="500">'
+          + '      <span class="set-label" style="margin:0;">复习卡</span>'
+          + '      <input class="set-input set-num" id="set-review" type="number" min="0" max="2000">'
+          + '      <button class="fs-btn" id="set-quota-save">保存</button>'
+          + '    </div>'
+          + '    <div class="set-hint" id="set-quota-status"></div>'
+          + '    <div class="set-hint">新卡上限直接影响四科能不能都开张——'
+          + '额度是先到先得的，太小的话卡多的科目会把额度吃光。改完下一轮组题即生效。</div>'
+          + '    <div class="set-row">'
+          + '      <span class="set-label" style="margin:0;">今日刷完后再来</span>'
+          + '      <input class="set-input set-num" id="set-extra" type="number" min="1" max="100">'
+          + '      <span class="set-label" style="margin:0;">张</span>'
+          + '      <button class="fs-btn" id="set-extra-save">保存</button>'
+          + '      <span class="set-hint" id="set-extra-status" style="margin:0;"></span>'
+          + '    </div>'
+          + '    <div class="set-hint">今日额度用完时，练习区会给一个「再来一组」按钮：'
+          + '张数就是这里设的（默认 10）。它<b>不受每日额度限制</b>，'
+          + '而且优先级排序不变——<b>有到期/学习中的卡就会先复习它们</b>，不会只塞新卡。</div>'
+          + '  </div>'
+          + '  <div class="set-group"><div class="set-title">📱 平板 / 手机连接</div>'
+          + '    <div class="set-lan">'
+          + '      <div class="set-qr" id="set-qr"><div style="color:#888;font-size:0.7rem;text-align:center;padding-top:60px;">加载中…</div></div>'
+          + '      <div class="set-lan-info">'
+          + '        <div class="set-lan-url" id="set-lan-url">—</div>'
+          + '        <div class="set-lan-tip">确保平板/手机和这台电脑连在同一个 WiFi，用系统相机扫二维码即可打开大盘。'
+          + '在平板上答简答题时会出现手写区，可以直接用笔写答案；早间回顾已并入大盘的「早」页。</div>'
+          + '        <div class="set-hint" id="set-lan-status"></div>'
+          + '      </div>'
+          + '    </div>'
+          + '  </div>'
+          + '  <div class="set-group"><div class="set-title">🎨 外观</div>'
+          + '    <span class="set-label">主题</span>'
+          + '    <div class="set-seg" id="set-theme">'
+          + '      <button data-theme="dark">深色</button><button data-theme="light">浅色</button>'
+          + '    </div>'
+          + '    <span class="set-label">背景图</span>'
+          + '    <div class="set-row">'
+          + '      <input type="file" id="set-bg-file" accept="image/*" style="display:none">'
+          + '      <button class="fs-btn" id="set-bg-pick">选择图片</button>'
+          + '      <button class="fs-btn" id="set-bg-clear">移除背景</button>'
+          + '    </div>'
+          + '    <div class="set-bg-preview" id="set-bg-preview"></div>'
+          + '    <span class="set-label">背景可见度</span>'
+          + '    <div class="set-row">'
+          + '      <input class="set-range" id="set-bg-op" type="range" min="0" max="0.9" step="0.05">'
+          + '      <span class="set-status" id="set-bg-op-val"></span>'
+          + '    </div>'
+          + '    <div class="set-hint" id="set-bg-status"></div>'
+          + '    <div class="set-hint">图片存在服务端 <code>src/assets/</code>，'
+          + '上传前会先在浏览器里压缩，手机原图也不会撑爆。</div>'
+          + '    <span class="set-label">鼠标光效（首页，粒子拖尾）</span>'
+          + '    <div class="set-seg" id="set-fx">'
+          + '      <button data-fx="on">开</button><button data-fx="off">关</button>'
+          + '    </div>'
+          + '    <div class="set-hint" id="set-fx-status"></div>'
+          + '    <div class="set-hint">跟着鼠标画一条会消散的光点轨迹（只在「总览」页、'
+          + '且只在鼠标/触控笔上生效）。系统开了「减弱动效」时会自动不出现。</div>'
+          + '  </div>'
+          + '  <div class="set-group"><div class="set-title">🍅 番茄钟</div>'
+          + '    <span class="set-label">轮播背景图（最多 12 张，按添加顺序轮换）</span>'
+          + '    <div class="set-row">'
+          + '      <input type="file" id="set-pomo-file" accept="image/*" multiple style="display:none">'
+          + '      <button class="fs-btn" id="set-pomo-pick">添加图片</button>'
+          + '      <button class="fs-btn" id="set-pomo-clear">全部清空</button>'
+          + '    </div>'
+          + '    <div class="set-thumbs" id="set-pomo-thumbs"></div>'
+          + '    <span class="set-label">每张停留</span>'
+          + '    <div class="set-row">'
+          + '      <input class="set-range" id="set-pomo-int" type="range" min="5" max="120" step="5">'
+          + '      <span class="set-status" id="set-pomo-int-val"></span>'
+          + '    </div>'
+          + '    <span class="set-label">遮罩浓度（压暗背景，保证倒计时看得清）</span>'
+          + '    <div class="set-row">'
+          + '      <input class="set-range" id="set-pomo-dim" type="range" min="0" max="0.9" step="0.05">'
+          + '      <span class="set-status" id="set-pomo-dim-val"></span>'
+          + '    </div>'
+          + '    <span class="set-label">轮播显示在</span>'
+          + '    <div class="set-seg" id="set-pomo-show">'
+          + '      <button data-show="both">卡片 + 全屏</button>'
+          + '      <button data-show="full">仅全屏</button>'
+          + '      <button data-show="off">不使用</button>'
+          + '    </div>'
+          + '    <div class="set-hint" id="set-pomo-status"></div>'
+          + '    <div class="set-hint">图存在服务端 <code>src/assets/pomo/</code>，和整页背景是两码事：'
+          + '整页背景是一张铺底，番茄钟要的是一叠轮换。番茄钟本体在大盘「总览」页顶部，'
+          + '预设 45+10×3 / 60+15×2 / 90 / 120 / 180，也支持全屏。</div>'
+          + '  </div>'
+          + '</div>';
+        bind(container);
+        bindPomo(container);
+        load(container);
+    }
+
+    let cur = null;
+
+    async function api(path, method, payload) {
+        const opt = { method: method || "GET" };
+        if (payload) {
+            opt.headers = { "Content-Type": "application/json" };
+            opt.body = JSON.stringify(payload);
+        }
+        const r = await fetch(API + path, opt);
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || ("HTTP " + r.status));
+        return d;
+    }
+
+    function status(el, msg, cls) {
+        el.className = "set-hint set-status " + (cls || "");
+        el.textContent = msg;
+    }
+    // 把任意文本变成能塞进 innerHTML **和属性值**的安全串。
+    // 多加一步 &quot; 是因为 textContent→innerHTML 只转义 & < >，不转义引号；
+    // 图片路径要写进 data-del="…"，漏了引号就能越出属性。
+    function esc(s) {
+        const d = document.createElement("div");
+        d.textContent = s == null ? "" : String(s);
+        return d.innerHTML.replace(/"/g, "&quot;");
+    }
+
+    async function load(container) {
+        try {
+            const d = await api("/api/settings");
+            cur = d;
+            container.querySelector("#set-new").value = d.review.new_per_day;
+            container.querySelector("#set-review").value = d.review.reviews_per_day;
+            // 「再来一组」的张数（默认 10）：服务端没给就落 10
+            const ex = container.querySelector("#set-extra");
+            if (ex) ex.value = (d.review && d.review.flash_extra_count) || 10;
+            container.querySelector("#set-model").value = d.llm.model || "";
+            const kEl = container.querySelector("#set-key");
+            kEl.placeholder = d.llm.has_key ? ("已设置 " + d.llm.key_hint + "，留空 = 不修改") : "尚未设置";
+            status(container.querySelector("#set-llm-status"),
+                d.llm.has_key ? ("✅ 当前模型 " + d.llm.model + "，密钥 " + d.llm.key_hint)
+                              : "⚠ 尚未配置密钥，AI 批改与错题解析不可用",
+                d.llm.has_key ? "ok" : "warn");
+            syncAppearance(d);
+            markTheme(container, d.ui.theme);
+            // 鼠标光效开关（服务端存 ui_mouse_fx，多设备一致）
+            const fxOn = (d.ui.mouse_fx || "on") !== "off";
+            container.querySelectorAll("#set-fx button").forEach(x =>
+                x.classList.toggle("on", (x.dataset.fx === "on") === fxOn));
+            status(container.querySelector("#set-fx-status"), "");
+            // 解析/追问的思考强度默认值（on = 关掉思考）
+            const quickOn = (d.ui.explain_quick || "on") !== "off";
+            container.querySelectorAll("#set-think button").forEach(x =>
+                x.classList.toggle("on", (x.dataset.think === "quick") === quickOn));
+            status(container.querySelector("#set-think-status"), "");
+            // AI 提示词：回填用户自己写的那份（空 = 用内置默认，占位符会说明）
+            const pe = container.querySelector("#set-prompt-exp");
+            if (pe) pe.value = d.ui.prompt_explain || "";
+            const pq = container.querySelector("#set-prompt-qa");
+            if (pq) pq.value = d.ui.prompt_note_qa || "";
+            status(container.querySelector("#set-prompt-exp-status"), "");
+            status(container.querySelector("#set-prompt-qa-status"), "");
+            const op = Number(d.ui.bg_opacity);
+            container.querySelector("#set-bg-op").value = Number.isFinite(op) ? op : 0.35;
+            container.querySelector("#set-bg-op-val").textContent =
+                Math.round((Number.isFinite(op) ? op : 0.35) * 100) + "%";
+            const pv = container.querySelector("#set-bg-preview");
+            if (d.ui.background) {
+                pv.classList.add("on");
+                pv.style.backgroundImage = 'url("' + API + "/api/notes/asset?path="
+                    + encodeURIComponent(d.ui.background) + '")';
+            } else { pv.classList.remove("on"); }
+
+            // 番茄钟一组（轮播图 + 偏好）。服务端是旧版没有 pomo 时整段跳过，
+            // 不能让一个 undefined 把上面已经填好的表单也带崩。
+            try { renderPomo(container, d.pomo); }
+            catch (e) { console.error("[settings] 番茄钟分组渲染失败:", e); }
+
+            // 局域网访问信息（二维码 + 地址）
+            loadLanInfo(container);
+        } catch (e) {
+            status(container.querySelector("#set-llm-status"),
+                "读取设置失败：" + e.message + "（本地服务未运行？）", "warn");
+        }
+    }
+
+    // 平板/手机连接：取服务端算好的局域网地址与二维码
+    async function loadLanInfo(container) {
+        const qrEl = container.querySelector("#set-qr");
+        const urlEl = container.querySelector("#set-lan-url");
+        const statusEl = container.querySelector("#set-lan-status");
+        if (!qrEl || !urlEl) return;
+        try {
+            const d = await api("/api/lan-info");
+            if (!d.ok || !d.primary) {
+                qrEl.innerHTML = '<div style="color:#888;font-size:0.7rem;text-align:center;padding-top:60px;">不可用</div>';
+                return;
+            }
+            urlEl.textContent = d.primary;
+            urlEl.title = "点击复制";
+            urlEl.onclick = () => {
+                try {
+                    navigator.clipboard.writeText(d.primary);
+                    if (statusEl) statusEl.textContent = "✅ 已复制链接";
+                } catch (e) { /* 部分浏览器不支持 clipboard API */ }
+            };
+            if (d.qr) {
+                qrEl.innerHTML = '<img src="' + d.qr + '" alt="扫码连接" title="用手机/平板相机扫描">';
+            } else {
+                qrEl.innerHTML = '<div style="color:#888;font-size:0.7rem;text-align:center;padding-top:55px;">二维码不可用<br>请直接输入网址</div>';
+            }
+            // 多个网卡时把其余地址列出来，主地址扫不通可手动换
+            if (d.urls && d.urls.length > 1) {
+                const extra = document.createElement("div");
+                extra.style.fontSize = "0.7rem";
+                extra.style.color = "var(--text-muted)";
+                extra.style.marginTop = "4px";
+                extra.innerHTML = "其他地址：" + d.urls.slice(1).map(u =>
+                    '<span style="margin-right:10px;color:var(--text-secondary);">' + u + '</span>').join("");
+                urlEl.parentNode.insertBefore(extra, urlEl.nextSibling);
+            }
+        } catch (e) {
+            qrEl.innerHTML = '<div style="color:#c88;font-size:0.7rem;text-align:center;padding-top:55px;">加载失败</div>';
+            if (statusEl) statusEl.textContent = "⚠ " + e.message;
+        }
+    }
+
+    function markTheme(container, t) {
+        container.querySelectorAll("#set-theme button").forEach(b =>
+            b.classList.toggle("on", b.dataset.theme === (t === "light" ? "light" : "dark")));
+    }
+
+    // ============================================================
+    // 番茄钟分组（2026-09-21）：轮播背景图 + 三个偏好
+    //
+    // 只负责「配」，不负责「播」——轮播逻辑在 POMO_JS 里，这边每改一项就叫一次
+    // globalThis.__pomoReload()，让总览页那张卡立刻按新配置换图，不用刷新整页。
+    // ============================================================
+    function pomoImgUrl(p) {
+        return API + "/api/notes/asset?path=" + encodeURIComponent(p);
+    }
+    function renderPomo(container, p) {
+        const box = container.querySelector("#set-pomo-thumbs");
+        if (!box) return;
+        const cfg = p || {};
+        const imgs = Array.isArray(cfg.images) ? cfg.images : [];
+        box.innerHTML = imgs.length
+            ? imgs.map((x, i) => '<div class="set-thumb" style="background-image:url(&quot;'
+                + pomoImgUrl(x) + '&quot;)"><span class="set-thumb-n">' + (i + 1) + "</span>"
+                + '<button class="set-thumb-x" data-del="' + esc(x) + '" title="移除这张">✕</button></div>').join("")
+            : '<div class="set-thumb-empty">还没有轮播背景。添加几张风景 / 书桌照，'
+              + '全屏跑番茄钟时就会慢慢轮换。</div>';
+        box.querySelectorAll("[data-del]").forEach(b => {
+            b.onclick = async () => {
+                try {
+                    const d = await api("/api/settings/pomo/background/remove", "POST", { path: b.dataset.del });
+                    renderPomo(container, Object.assign({}, cur && cur.pomo, { images: d.backgrounds }));
+                    reloadPomo();
+                    status(container.querySelector("#set-pomo-status"), "已移除一张", "ok");
+                } catch (e) {
+                    status(container.querySelector("#set-pomo-status"), "移除失败：" + e.message, "warn");
+                }
+            };
+        });
+        const iv = Number(cfg.interval) || 20, dm = Number(cfg.dim);
+        container.querySelector("#set-pomo-int").value = iv;
+        container.querySelector("#set-pomo-int-val").textContent = iv + " 秒";
+        container.querySelector("#set-pomo-dim").value = Number.isFinite(dm) ? dm : 0.35;
+        container.querySelector("#set-pomo-dim-val").textContent =
+            Math.round((Number.isFinite(dm) ? dm : 0.35) * 100) + "%";
+        container.querySelectorAll("#set-pomo-show button").forEach(b =>
+            b.classList.toggle("on", b.dataset.show === (cfg.show || "both")));
+    }
+    // 改完让总览页的番茄钟自己重新拉一次配置；它不在场（POMO_JS 没跑起来）就算了
+    function reloadPomo() {
+        try { if (globalThis.__pomoReload) globalThis.__pomoReload(); } catch (e) {}
+    }
+
+    function bindPomo(container) {
+        const $ = (s) => container.querySelector(s);
+        const say = (m, cls) => status($("#set-pomo-status"), m, cls);
+
+        $("#set-pomo-pick").onclick = () => $("#set-pomo-file").click();
+        $("#set-pomo-file").onchange = async (ev) => {
+            const files = Array.prototype.slice.call(ev.target.files || []);
+            ev.target.value = "";
+            if (!files.length) return;
+            say("正在压缩并上传（" + files.length + " 张）…");
+            let okCount = 0, last = null;
+            // 串行而不是 Promise.all：一次塞多张时并发上传会把 8MB 的上限按总体积算，
+            // 而且服务端写清单是读-改-写，并发会互相覆盖掉对方的条目。
+            for (const f of files) {
+                try {
+                    const d = await api("/api/settings/pomo/background", "POST", { image: await compress(f) });
+                    last = d.backgrounds; okCount++;
+                } catch (e) { say("上传失败：" + e.message, "warn"); }
+            }
+            if (last) {
+                cur = cur || {};
+                cur.pomo = Object.assign({}, cur.pomo, { images: last });
+                renderPomo(container, cur.pomo);
+                reloadPomo();
+                say(okCount ? ("✅ 已添加 " + okCount + " 张（共 " + last.length + " 张在轮播）") : "未添加任何图片",
+                    okCount ? "ok" : "warn");
+            }
+        };
+        $("#set-pomo-clear").onclick = async () => {
+            if (!confirm("清空番茄钟的全部轮播背景？")) return;
+            try {
+                const d = await api("/api/settings/pomo/background/clear", "POST", {});
+                cur = cur || {}; cur.pomo = Object.assign({}, cur.pomo, { images: [] });
+                renderPomo(container, cur.pomo);
+                reloadPomo();
+                say("已清空（删掉 " + d.backgrounds.length + " 张）", "ok");
+            } catch (e) { say("清空失败：" + e.message, "warn"); }
+        };
+        $("#set-pomo-int").oninput = (ev) => {
+            $("#set-pomo-int-val").textContent = ev.target.value + " 秒";
+        };
+        $("#set-pomo-int").onchange = async (ev) => {
+            try {
+                await api("/api/settings", "POST", { pomo_interval: ev.target.value });
+                reloadPomo(); say("✅ 每张停留 " + ev.target.value + " 秒", "ok");
+            } catch (e) { say("保存失败：" + e.message, "warn"); }
+        };
+        $("#set-pomo-dim").oninput = (ev) => {
+            $("#set-pomo-dim-val").textContent = Math.round(ev.target.value * 100) + "%";
+        };
+        $("#set-pomo-dim").onchange = async (ev) => {
+            try {
+                await api("/api/settings", "POST", { pomo_dim: ev.target.value });
+                reloadPomo(); say("✅ 遮罩 " + Math.round(ev.target.value * 100) + "%", "ok");
+            } catch (e) { say("保存失败：" + e.message, "warn"); }
+        };
+        $("#set-pomo-show").onclick = async (ev) => {
+            const b = ev.target.closest("button[data-show]");
+            if (!b) return;
+            container.querySelectorAll("#set-pomo-show button").forEach(x =>
+                x.classList.toggle("on", x === b));
+            try {
+                await api("/api/settings", "POST", { pomo_show: b.dataset.show });
+                reloadPomo();
+                say("✅ 轮播" + (b.dataset.show === "off" ? "已关闭"
+                    : (b.dataset.show === "full" ? "只在全屏显示" : "卡片与全屏都显示")), "ok");
+            } catch (e) { say("保存失败：" + e.message, "warn"); }
+        };
+    }
+
+    function toast(msg) {
+        const t = document.createElement("div");
+        t.className = "fs-toast";
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 1800);
+    }
+
+    // 浏览器端压缩：手机原图 3-5MB，直接传既慢又可能撞上限。
+    // 压到最长边 1920 / JPEG q0.85 后通常 < 500KB，做背景足够清晰。
+    function compress(file) {
+        return new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onerror = () => reject(new Error("读取文件失败"));
+            fr.onload = () => {
+                const img = new Image();
+                img.onerror = () => reject(new Error("这不是有效的图片"));
+                img.onload = () => {
+                    const MAX = 1920;
+                    let w = img.width, h = img.height;
+                    const scale = Math.min(1, MAX / Math.max(w, h));
+                    w = Math.round(w * scale); h = Math.round(h * scale);
+                    const cv = document.createElement("canvas");
+                    cv.width = w; cv.height = h;
+                    cv.getContext("2d").drawImage(img, 0, 0, w, h);
+                    // PNG 截图带透明通道，转 JPEG 会变黑底，所以 PNG 保留原格式
+                    const isPng = /image\\/png/.test(file.type);
+                    resolve(cv.toDataURL(isPng ? "image/png" : "image/jpeg", isPng ? undefined : 0.85));
+                };
+                img.src = fr.result;
+            };
+            fr.readAsDataURL(file);
+        });
+    }
+
+    function bind(container) {
+        const $ = (s) => container.querySelector(s);
+
+        $("#set-key-save").onclick = async () => {
+            const v = $("#set-key").value.trim();
+            if (!v) { toast("请先填入 API Key"); return; }
+            try {
+                const d = await api("/api/settings/apikey", "POST", { api_key: v });
+                $("#set-key").value = "";
+                $("#set-key").placeholder = "已设置 " + d.llm.key_hint + "，留空 = 不修改";
+                status($("#set-llm-status"), "✅ 密钥已保存（" + d.llm.key_hint + "）", "ok");
+                toast("API Key 已保存");
+            } catch (e) { status($("#set-llm-status"), "保存失败：" + e.message, "warn"); }
+        };
+        $("#set-key-clear").onclick = async () => {
+            if (!confirm("清除已保存的 API Key？清除后 AI 批改与错题解析会不可用。")) return;
+            try {
+                const d = await api("/api/settings/apikey", "POST", { clear_key: true });
+                $("#set-key").placeholder = "尚未设置";
+                status($("#set-llm-status"), "⚠ 密钥已清除", "warn");
+            } catch (e) { status($("#set-llm-status"), "清除失败：" + e.message, "warn"); }
+        };
+        $("#set-model-save").onclick = async () => {
+            const m = $("#set-model").value.trim();
+            if (!m) { toast("请填入模型名"); return; }
+            try {
+                const d = await api("/api/settings/apikey", "POST", { model: m });
+                status($("#set-llm-status"), "✅ 已切换到模型 " + d.llm.model, "ok");
+                toast("模型已切换");
+            } catch (e) { status($("#set-llm-status"), "保存失败：" + e.message, "warn"); }
+        };
+        $("#set-quota-save").onclick = async () => {
+            try {
+                await api("/api/settings", "POST", {
+                    new_per_day: $("#set-new").value, reviews_per_day: $("#set-review").value,
+                });
+                status($("#set-quota-status"), "✅ 已保存，下一轮组题生效", "ok");
+                toast("每日数量已保存");
+            } catch (e) { status($("#set-quota-status"), "保存失败：" + e.message, "warn"); }
+        };
+        $("#set-extra-save").onclick = async () => {
+            const v = parseInt($("#set-extra").value, 10);
+            if (!Number.isFinite(v) || v < 1 || v > 100) {
+                status($("#set-extra-status"), "请填 1~100 之间的整数", "warn");
+                return;
+            }
+            try {
+                await api("/api/settings", "POST", { flash_extra_count: v });
+                status($("#set-extra-status"), "✅ 已保存", "ok");
+            } catch (e) { status($("#set-extra-status"), "保存失败：" + e.message, "warn"); }
+        };
+        $("#set-theme").onclick = async (ev) => {
+            const b = ev.target.closest("button[data-theme]");
+            if (!b) return;
+            const t = b.dataset.theme;
+            applyTheme(t);
+            markTheme(container, t);
+            try {
+                localStorage.setItem(LS_THEME, t);
+                await api("/api/settings", "POST", { theme: t });
+            } catch (e) { toast("主题已切换（未能保存到服务端）"); }
+        };
+        $("#set-think").onclick = async (ev) => {
+            const b = ev.target.closest("button[data-think]");
+            if (!b) return;
+            const quick = b.dataset.think === "quick";
+            container.querySelectorAll("#set-think button").forEach(x =>
+                x.classList.toggle("on", x === b));
+            try {
+                await api("/api/settings", "POST", { explain_quick: quick ? "on" : "off" });
+                status($("#set-think-status"), quick
+                    ? "✅ 以后默认关掉思考（更快）" : "✅ 以后默认深度思考（更细，稍慢）", "ok");
+            } catch (e) { status($("#set-think-status"), "保存失败：" + e.message, "warn"); }
+        };
+        // ---- AI 提示词：由你自己写（2026-09-21 用户要求「别替我写提示词」）----
+        // 留空 = 服务端用内置的极简默认（只有一句角色 + 公式格式），我不再往你的
+        // 提示词后面追加任何要求；「恢复内置默认」就是把这一项清空。
+        function wirePrompt(prefix, key) {
+            const ta = $("#" + prefix);
+            const save = $("#" + prefix + "-save");
+            const reset = $("#" + prefix + "-reset");
+            const st = $("#" + prefix + "-status");
+            if (!ta) return;
+            if (save) save.onclick = async () => {
+                const body = {}; body[key] = ta.value;
+                try {
+                    await api("/api/settings", "POST", body);
+                    status(st, ta.value.trim() ? "✅ 已保存（完全按你写的来）" : "已清空 → 用内置极简默认", "ok");
+                } catch (e) { status(st, "保存失败：" + e.message, "warn"); }
+            };
+            if (reset) reset.onclick = async () => {
+                const body = {}; body[key] = "";
+                try {
+                    await api("/api/settings", "POST", body);
+                    ta.value = "";
+                    status(st, "已恢复内置默认（只保留角色与公式格式）", "ok");
+                } catch (e) { status(st, "恢复失败：" + e.message, "warn"); }
+            };
+        }
+        wirePrompt("set-prompt-exp", "prompt_explain");
+        wirePrompt("set-prompt-qa", "prompt_note_qa");
+        $("#set-fx").onclick = async (ev) => {
+            const b = ev.target.closest("button[data-fx]");
+            if (!b) return;
+            const v = b.dataset.fx;
+            container.querySelectorAll("#set-fx button").forEach(x =>
+                x.classList.toggle("on", x === b));
+            try {
+                await api("/api/settings", "POST", { mouse_fx: v });
+                // 立刻生效，不用刷新整页
+                if (globalThis.__mouseFxReload) globalThis.__mouseFxReload();
+                status($("#set-fx-status"), v === "on" ? "✅ 已开启" : "已关闭（随时可以再开）", "ok");
+            } catch (e) { status($("#set-fx-status"), "保存失败：" + e.message, "warn"); }
+        };
+        $("#set-bg-pick").onclick = () => $("#set-bg-file").click();
+        $("#set-bg-file").onchange = async (ev) => {
+            const f = ev.target.files && ev.target.files[0];
+            if (!f) return;
+            status($("#set-bg-status"), "正在压缩并上传…");
+            try {
+                const dataUrl = await compress(f);
+                const kb = Math.round(dataUrl.length * 0.75 / 1024);
+                const d = await api("/api/settings/background", "POST", { image: dataUrl });
+                applyBg(d.background);
+                const pv = $("#set-bg-preview");
+                pv.classList.add("on");
+                pv.style.backgroundImage = 'url("' + API + "/api/notes/asset?path="
+                    + encodeURIComponent(d.background) + '&t=' + Date.now() + '")';
+                try { localStorage.setItem(LS_BG, d.background); } catch (e) {}
+                status($("#set-bg-status"), "✅ 已应用（压缩后约 " + kb + "KB）", "ok");
+            } catch (e) {
+                status($("#set-bg-status"), "上传失败：" + e.message, "warn");
+            } finally { ev.target.value = ""; }
+        };
+        $("#set-bg-clear").onclick = async () => {
+            try {
+                await api("/api/settings/background/clear", "POST", {});
+                applyBg("");
+                $("#set-bg-preview").classList.remove("on");
+                try { localStorage.setItem(LS_BG, ""); } catch (e) {}
+                status($("#set-bg-status"), "已移除背景图", "ok");
+            } catch (e) { status($("#set-bg-status"), "移除失败：" + e.message, "warn"); }
+        };
+        $("#set-bg-op").oninput = (ev) => {
+            const v = ev.target.value;
+            $("#set-bg-op-val").textContent = Math.round(v * 100) + "%";
+            applyBgOpacity(v);
+            try { localStorage.setItem(LS_BG_OP, v); } catch (e) {}
+        };
+        $("#set-bg-op").onchange = async (ev) => {
+            try { await api("/api/settings", "POST", { bg_opacity: ev.target.value }); } catch (e) {}
+        };
+    }
+
+    (window.__pageRenderers = window.__pageRenderers || {});
+    (window.__pageRenderers.settings = window.__pageRenderers.settings || []).push(function () {
+        const box = document.getElementById("settings-root");
+        if (box) render(box);
+    });
+})();
+'''
+
+
+# ---------------------------------------------------------------------------
+# 番茄钟（大盘首页，2026-09-21）
+#
+# 与闪卡的学习计时是两套东西，故意不合并：
+#   · 闪卡计时答的是「这段时间我有没有在学」→ 失焦必须停，否则数字造假
+#   · 番茄钟答的是「离休息还有几分钟」    → 墙钟，切走了也得继续走、到点响铃
+# 合并成一个开关，迟早会把其中一边做错。
+# ---------------------------------------------------------------------------
+
+POMO_CSS = '''
+        /* ============================================================
+           番茄钟（2026-09-21）。所有规则都挂在 .pm-card 上而不是
+           「在总览页里」这个条件上——按全屏时同一个节点会被搬进 body 层的
+           #pm-overlay，选择器要是依赖页面归属，搬过去就全裸了。
+           ============================================================ */
+        .pm-card { position: relative; overflow: hidden; margin-bottom: 20px;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: var(--border-radius); padding: 18px 20px 20px; }
+        /* 轮播背景：两层叠着交叉淡入淡出，避免出现「换图时先黑一下」 */
+        .pm-bg { position: absolute; inset: 0; z-index: 0; background-size: cover;
+            background-position: center; background-repeat: no-repeat;
+            opacity: 0; transition: opacity 1.6s ease; }
+        .pm-bg.on { opacity: 1; }
+        .pm-card:not(.pm-hasbg) .pm-bg { display: none; }
+        /* 遮罩层：图再好看，也不能让 45:00 变成看不清的字。浓度由设置里的 --pm-dim 控 */
+        .pm-dim { position: absolute; inset: 0; z-index: 1;
+            background: linear-gradient(rgba(var(--mo-rgb), calc(var(--pm-dim, .35) + .1)),
+                                        rgba(var(--mo-rgb), var(--pm-dim, .35)));
+            pointer-events: none; }
+        .pm-card:not(.pm-hasbg) .pm-dim { display: none; }
+        .pm-inner { position: relative; z-index: 2; }
+        .pm-hasbg .pm-inner { text-shadow: 0 1px 12px rgba(var(--mo-rgb), .55); }
+
+        .pm-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .pm-h { font-size: 1.1rem; font-weight: 600; font-family: var(--font-serif);
+            letter-spacing: .04em; border-left: 3px solid var(--zhusha); padding-left: 10px;
+            color: var(--text-primary); margin: 0; }
+        .pm-day { font-size: 0.76rem; color: var(--text-secondary); }
+        .pm-day b { color: var(--xiang-lt); }
+        .pm-tools { margin-left: auto; display: flex; gap: 8px; flex: none; }
+
+        .pm-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .pm-chip { font: inherit; font-size: 0.8rem; cursor: pointer; padding: 6px 14px;
+            border-radius: 16px; border: 1px solid var(--border-color); background: var(--bg-primary);
+            color: var(--text-secondary); transition: all .15s; }
+        .pm-chip:hover { color: var(--text-primary); border-color: var(--zhusha); }
+        .pm-chip.on { border-color: var(--zhusha); color: var(--xuan);
+            background: rgba(var(--zhusha-rgb), .18); }
+        .pm-chip .pm-chip-n { font-size: 0.68rem; color: var(--text-muted); margin-left: 6px; }
+        .pm-chip.on .pm-chip-n { color: var(--tao); }
+
+        .pm-body { display: flex; gap: 26px; align-items: center; flex-wrap: wrap; }
+        .pm-dial { position: relative; width: 216px; height: 216px; flex: none; }
+        .pm-svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+        .pm-ring-bg { fill: none; stroke: var(--border-color); stroke-width: 9; }
+        .pm-ring-fg { fill: none; stroke: var(--zhusha); stroke-width: 9; stroke-linecap: round;
+            transition: stroke-dashoffset .35s linear, stroke .3s; }
+        .pm-card.pm-brk .pm-ring-fg { stroke: var(--zhuqing); }
+        .pm-card.pm-done .pm-ring-fg { stroke: var(--xiang); }
+        .pm-dial-mid { position: absolute; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 4px; text-align: center; }
+        .pm-remain { font-size: 2.5rem; font-weight: 700; line-height: 1.1;
+            font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+        .pm-phase { font-size: 0.76rem; color: var(--text-secondary); }
+        .pm-dots { display: flex; gap: 5px; margin-top: 4px; }
+        .pm-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-color); }
+        .pm-dot.ok { background: var(--zhuqing); }
+        .pm-dot.now { background: var(--zhusha); box-shadow: 0 0 0 3px rgba(var(--zhusha-rgb), .18); }
+        .pm-card.pm-pause .pm-dot.now { opacity: .5; }
+
+        .pm-side { flex: 1; min-width: 232px; }
+        .pm-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+        .pm-main-btn { border-color: var(--zhusha); color: var(--zhusha-lt);
+            font-size: 0.95rem; padding: 9px 26px; }
+        .pm-main-btn:hover { border-color: var(--zhusha-lt); background: rgba(var(--zhusha-rgb), .12); }
+        .pm-card.pm-brk .pm-main-btn { border-color: var(--zhuqing); color: var(--zhuqing-lt); }
+        .pm-plan { font-size: 0.82rem; color: var(--text-primary); margin-bottom: 4px; }
+        .pm-next { font-size: 0.74rem; color: var(--text-muted); min-height: 1.5em; margin-bottom: 12px; }
+        .pm-custom { display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+            font-size: 0.74rem; color: var(--text-muted); margin-bottom: 10px; }
+        .pm-clabel { font-size: 0.72rem; color: var(--text-muted); margin-right: 2px; }
+        .pm-cu { font-size: 0.7rem; color: var(--text-muted); }
+        .pm-cnum { width: 54px; font: inherit; font-size: 0.78rem; padding: 4px 6px; text-align: center;
+            background: var(--bg-primary); color: var(--text-primary);
+            border: 1px solid var(--border-color); border-radius: 4px; }
+        .pm-cnum:focus { outline: none; border-color: var(--dianqing); }
+        .pm-capply { font-size: 0.74rem; padding: 4px 12px; }
+        .pm-hint { font-size: 0.7rem; color: var(--text-muted); line-height: 1.75; }
+
+        /* ---- 全屏层 ---- */
+        body.pm-lock { overflow: hidden; }
+        .pm-overlay { position: static; }
+        .pm-overlay[hidden] { display: none; }
+        .pm-card.pm-fs { position: fixed; inset: 0; z-index: 1200; margin: 0;
+            border: none; border-radius: 0; background: var(--mo);
+            display: flex; align-items: center; justify-content: center;
+            padding: clamp(18px, 4vh, 56px); animation: pmIn .2s ease; }
+        @keyframes pmIn { from { opacity: 0; } to { opacity: 1; } }
+        .pm-fs .pm-inner { width: 100%; max-width: 900px; }
+        .pm-fs .pm-body { flex-direction: column; gap: 26px; }
+        .pm-fs .pm-dial { width: min(52vh, 520px); height: min(52vh, 520px); }
+        .pm-fs .pm-remain { font-size: min(11vh, 108px); }
+        .pm-fs .pm-phase { font-size: 1rem; }
+        .pm-fs .pm-side { text-align: center; min-width: 0; }
+        .pm-fs .pm-actions, .pm-fs .pm-presets { justify-content: center; }
+        .pm-fs .pm-hint { display: none; }
+        .pm-fs .pm-h { border-left: 0; padding-left: 0; font-size: 1.3rem; }
+        .pm-fs .pm-esc { display: inline; }
+        .pm-esc { display: none; font-size: 0.72rem; color: var(--text-muted); }
+        /* 浏览器真全屏时（拿到 fullscreenElement）：让节点自己铺满，
+           :fullscreen 的默认底色是黑，会盖掉我们的背景图，所以要显式 transparent */
+        /* ---- 番茄钟浮动小窗（2026-09-21 晚）----
+           全平台可用的那种小窗：拖动 + 调透明度，任意子页都在。
+           系统级置顶窗口（Document PiP）与锁屏显示（Media Session）见 POMO_JS。 */
+        .pm-mini { position: fixed; z-index: 1100; width: 152px; box-sizing: border-box;
+            padding: 8px 10px 10px; border-radius: 12px; color: var(--xuan);
+            background: rgba(var(--mo-rgb), .84); border: 1px solid var(--border-color);
+            -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+            box-shadow: 0 6px 22px rgba(0, 0, 0, .38);
+            /* 透明度走变量：交互时临时提到 1，松手回到用户设定的值 */
+            opacity: var(--pm-mini-op, .85); transition: opacity .18s, border-color .2s;
+            -webkit-user-select: none; user-select: none; }
+        .pm-mini[hidden] { display: none; }
+        .pm-mini:hover, .pm-mini:focus-within { opacity: 1; }
+        .pm-mini.pm-mini-brk { border-color: rgba(var(--zhuqing-rgb), .55); }
+        .pm-mini.pm-pause { border-color: rgba(var(--xiang-rgb), .5); }
+        /* touch-action 只关在拖拽把手上：整卡都关掉的话，里面的透明度滑杆
+           在平板上就拨不动了（手指一动被当成拖窗）。 */
+        .pm-mini-head { display: flex; align-items: center; gap: 5px; cursor: grab;
+            touch-action: none; }
+        .pm-mini-head:active { cursor: grabbing; }
+        .pm-mini-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--zhusha); flex: none; }
+        .pm-mini-brk .pm-mini-dot { background: var(--zhuqing); }
+        .pm-mini.pm-pause .pm-mini-dot { background: var(--xiang); }
+        .pm-mini-ph { flex: 1; font-size: 0.66rem; color: var(--tao); white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; }
+        .pm-mini-x { font: inherit; font-size: 0.72rem; line-height: 1; cursor: pointer;
+            padding: 1px 5px; background: none; border: 0; border-radius: 4px; color: var(--hui); }
+        .pm-mini-x:hover { color: var(--xuan); background: rgba(var(--xuan-rgb), .12); }
+        .pm-mini-time { font-size: 1.62rem; font-weight: 700; line-height: 1.15; margin: 3px 0 5px;
+            font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+        .pm-mini-bar { height: 3px; border-radius: 2px; overflow: hidden;
+            background: rgba(var(--xuan-rgb), .13); }
+        .pm-mini-bar i { display: block; height: 100%; width: 0; background: var(--zhusha); }
+        .pm-mini-brk .pm-mini-bar i { background: var(--zhuqing); }
+        .pm-mini-row { display: flex; gap: 4px; margin-top: 8px; }
+        .pm-mini-btn { flex: 1; font: inherit; font-size: 0.8rem; line-height: 1.5; cursor: pointer;
+            padding: 5px 0; background: rgba(var(--xuan-rgb), .07); color: var(--tao);
+            border: 1px solid var(--border-color); border-radius: 6px; }
+        .pm-mini-btn:hover { color: var(--xuan); border-color: var(--dianqing); }
+        .pm-mini-btn.go { flex: 1.5; color: var(--zhusha-lt); border-color: var(--zhusha); }
+        .pm-mini-op { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+        .pm-mini-op input { flex: 1; min-width: 0; height: 14px; accent-color: var(--dianqing); }
+        .pm-mini-op span { min-width: 28px; text-align: right; font-size: 0.6rem; color: var(--hui); }
+        /* PiP 窗口里那份：窗口本身自带背景，卡片不用再描边加阴影 */
+        .pm-mini-pip { position: static; width: auto; border: 0; border-radius: 0;
+            box-shadow: none; opacity: 1; background: var(--mo); }
+        .pm-mini-pip, .pm-mini-pip * { touch-action: auto; }
+        @media (max-width: 720px) {
+            .pm-mini { width: 158px; padding: 9px 11px 11px; }
+            .pm-mini-time { font-size: 1.7rem; }
+            .pm-mini-btn { padding: 7px 0; }   /* 手指点得着 */
+        }
+        .pm-card:fullscreen { background: var(--mo); }
+        .pm-card:-webkit-full-screen { background: var(--mo); }
+        /* 原生全屏时浏览器会把容器涂成黑底，背景图得跟着铺满才不露黑边 */
+        .pm-overlay:fullscreen { background: var(--mo); }
+        .pm-overlay:-webkit-full-screen { background: var(--mo); }
+'''
+
+
+POMO_JS = '''
+// ============================================================
+// 番茄钟（2026-09-21，大盘首页）
+//
+// 四条设计约束，改之前先读：
+//  1. **墙钟语义**：所有状态都换算成「这一段的结束时刻 endAt（epoch）」来存，
+//     暂停时才存剩余量。这样刷新 / 断网 / 电脑睡眠醒来，表都对得上真实时间，
+//     不会像「每 tick 减一秒」那样越走越慢。
+//  2. **和闪卡计时相反**：闪卡的计时是「我有没有在学」，失焦就该停；
+//     番茄钟答的是「离休息还有几分钟」，切走了也必须继续走、到点响铃。
+//     所以这里**不监听** blur，别照着闪卡那边抄。
+//  3. **全屏是搬家不是复制**：卡片节点在 #pm-slot 与 body 层的 #pm-overlay
+//     之间移动（同一个 DOM 节点），计时器与背景轮播都不因搬家重置；
+//     而 overlay 在 .page 之外，所以切到别的子页，番茄钟也还在跑、还看得见。
+//  4. **状态在服务端，不在本机**（2026-09-21 晚）：电脑上开一轮、人走到平板
+//     前接着看，两边必须是同一只表。写走 POST /api/pomodoro/state，每 12 秒
+//     拉一次对齐；endAt 进出都按**服务端时钟**换算（skew），否则两台机器时间
+//     差几分钟，另一台算出来的剩余时间就是错的。localStorage 只当首屏缓存。
+// ============================================================
+(function () {
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+    const slot = document.getElementById("pm-slot");
+    const overlay = document.getElementById("pm-overlay");
+    if (!slot || !overlay) return;   // 容器没挂上来（比如产物被裁过）就整段静默退出
+
+    const LS_PLAN = "kaoyan.pomo.plan.v1";    // 选中的方案 id / 自定义参数
+    const LS_RUN  = "kaoyan.pomo.run.v1";     // 运行快照（pos / endAt / running…）
+    const LS_DAY  = "kaoyan.pomo.day.v1";     // 今日完成数（按本地日期归零）
+    const RING = 2 * Math.PI * 88;            // 与 CSS 里 r=88 的圆环一致
+    const BASE_TITLE = document.title;
+
+    // 预设。45+10×3 / 60+15×2 是「几轮」，90/120/180 是单段一次到底（brk=0
+    // 就不生成休息段），别给 90 分钟硬塞一个收尾休息——那是在骗人多一段计划。
+    const PRESETS = [
+        { id: "45x3", label: "45 + 10 × 3", work: 45, brk: 10, rounds: 3, note: "三节 45 分钟，每节之间歇 10 分钟" },
+        { id: "60x2", label: "60 + 15 × 2", work: 60, brk: 15, rounds: 2, note: "两节一小时，适合数学 / 408 整块刷题" },
+        { id: "90",   label: "90 分钟",     work: 90, brk: 0,  rounds: 1, note: "一场模拟试卷的时长，中途不停" },
+        { id: "120",  label: "120 分钟",    work: 120, brk: 0, rounds: 1, note: "半日计划的一个整块" },
+        { id: "180",  label: "180 分钟",    work: 180, brk: 0, rounds: 1, note: "三小时连做：中途别指望表会停" }
+    ];
+
+    // ---- 小工具 ----------------------------------------------------------
+    function esc(s) {
+        const d = document.createElement("div");
+        d.textContent = s == null ? "" : String(s);
+        return d.innerHTML;
+    }
+    // 本模块自己的小提示：.fs-toast 的样式在 FLASH_CSS 里（那份一直都在），
+    // 但 toast 函数不能跨模块借——POMO_JS 是独立 IIFE，写裸名会当场 ReferenceError
+    // （2026-09-21 就是这里的 5 处调用被 test_pomodoro 抓出来的）。
+    function toast(msg) {
+        const t = document.createElement("div");
+        t.className = "fs-toast";
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(function () { if (t.remove) t.remove(); }, 2600);
+    }
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    function fmtMs(ms) {
+        const t = Math.max(0, Math.floor(ms / 1000));
+        const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+        return h > 0 ? (h + ":" + pad(m) + ":" + pad(s)) : (pad(m) + ":" + pad(s));
+    }
+    function fmtMin(min) {
+        const h = Math.floor(min / 60), m = min % 60;
+        return (h > 0 ? h + " 小时" : "") + (h > 0 && m > 0 ? " " : "") + (m > 0 || h === 0 ? m + " 分" : "");
+    }
+    function todayKey() {
+        const d = new Date();
+        return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    }
+    function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+    function readJson(k) { try { return JSON.parse(lsGet(k) || "null"); } catch (e) { return null; } }
+
+    // ---- 提示音（自带一套，不蹭闪卡的答题音效）--------------------------
+    // 不合并的理由：答题音效被静音很常见（怕吵），但番茄钟到点不响就等于没有
+    // 番茄钟。两套各留一个开关，互不牵连。
+    // 开关状态存服务端 config（pomo_sound），而不是 localStorage：平板上关掉提示音，
+    // 电脑这边也该知道——和「早间回顾」把打卡搬进 SQLite 是同一个理由。
+    let actx = null, muted = false;
+    function ac() {
+        if (!actx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return null;
+            actx = new AC();
+        }
+        if (actx.state === "suspended") { try { actx.resume(); } catch (e) {} }
+        return actx;
+    }
+    function tone(freq, delay, dur, gain, type) {
+        const c = ac(); if (!c) return;
+        try {
+            const t0 = c.currentTime + delay;
+            const osc = c.createOscillator(), g = c.createGain();
+            osc.type = type || "triangle"; osc.frequency.value = freq;
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.exponentialRampToValueAtTime(gain || 0.18, t0 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+            osc.connect(g); g.connect(c.destination);
+            osc.start(t0); osc.stop(t0 + dur + 0.05);
+        } catch (e) { /* 音频不可用不该影响计时 */ }
+    }
+    // 专注段结束：三声渐强，人在隔壁房也该听见；休息段结束：两声轻促，不催命。
+    function chime(kind) {
+        if (muted) return;
+        if (kind === "work") {
+            [880.00, 1108.73, 1318.51].forEach(function (f, i) { tone(f, i * 0.17, 0.45, 0.2); });
+        } else if (kind === "brk") {
+            tone(659.25, 0, 0.18, 0.16, "sine"); tone(987.77, 0.18, 0.3, 0.18);
+        } else {
+            [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) {
+                tone(f, i * 0.09, 0.32, 0.16, i < 2 ? "sine" : "triangle");
+            });
+        }
+    }
+
+    // ---- 计划与状态 ------------------------------------------------------
+    let plan = null;            // {id, label, work, brk, rounds, note, segs:[{kind,min,round}], totalMin}
+    let pos = 0;                // 当前段下标
+    let running = false;
+    let startedOnce = false;    // 这一轮有没有按过开始：决定按钮写「开始」还是「继续」
+    let endAt = 0;              // running 时：本段结束的 epoch 毫秒
+    let remain = 0;             // 暂停时：本段剩余毫秒
+    let full = false;           // 全屏（沉浸）中
+    let expiredNote = "";       // 页面关闭期间走完了整轮的提示
+    const CUSTOM = { id: "custom", label: "自定义", note: "自己定的节奏" };
+
+    function buildPlan(base) {
+        const work = Math.max(1, Math.round(Number(base.work) || 25));
+        const brk = Math.max(0, Math.round(Number(base.brk) || 0));
+        const rounds = Math.max(1, Math.min(24, Math.round(Number(base.rounds) || 1)));
+        const segs = [];
+        for (let r = 1; r <= rounds; r++) {
+            segs.push({ kind: "work", min: work, round: r });
+            if (brk > 0) segs.push({ kind: "brk", min: brk, round: r });
+        }
+        return {
+            id: base.id, label: base.label || "自定义", work: work, brk: brk, rounds: rounds,
+            note: base.note || "", segs: segs,
+            totalMin: segs.reduce(function (a, s) { return a + s.min; }, 0),
+            workMin: work * rounds
+        };
+    }
+    function presetById(id) {
+        for (const p of PRESETS) if (p.id === id) return p;
+        return null;
+    }
+    function segMs(s) { return s.min * 60000; }
+    function curSeg() { return pos < plan.segs.length ? plan.segs[pos] : null; }
+
+    // ---- 今日成绩与近况 --------------------------------------------------
+    // 服务端是唯一真相源（多设备同一份），localStorage 只当「首屏秒显」的缓存：
+    // 打开页面时先用缓存把数字画出来，GET 回来再对齐，避免先看到 0 再跳一下。
+    let day = { date: "", pomos: 0, min: 0 };
+    let days = [];                 // 近 14 天 [{date, pomos, min}]，给首页数据条用
+    function readDayCache() {
+        const o = readJson(LS_DAY);
+        if (o && o.date === todayKey()) return { date: o.date, pomos: o.pomos | 0, min: o.min | 0 };
+        return { date: todayKey(), pomos: 0, min: 0 };
+    }
+    function applyDay(stat, list) {
+        mergeToday(stat);
+        if (Array.isArray(list)) days = list;
+        lsSet(LS_DAY, JSON.stringify(day));
+        if (typeof globalThis.__focusStripReload === "function") {
+            try { globalThis.__focusStripReload(); } catch (e) {}
+        }
+    }
+    // 今日成绩**只增不减**：刚跑完一段，本地先记上、POST 还在路上，这时若来一发
+    // 读接口（每 12 秒一次的那个），服务端回的还是「没记上」的旧值——直接覆盖就
+    // 会把那一笔抹掉，用户看到数字闪一下又掉回去。同一天取两边最大值即可，
+    // 番茄数在一天里本来就不会减少。
+    function mergeToday(stat) {
+        if (!stat) return;
+        const d = stat.date || todayKey();
+        const p = stat.pomos | 0, m = stat.min | 0;
+        if (d === todayKey() && day.date === todayKey()) {
+            day = { date: todayKey(), pomos: Math.max(day.pomos, p), min: Math.max(day.min, m) };
+        } else {
+            day = { date: d, pomos: p, min: m };
+        }
+    }
+    function credit(min) {
+        // 本地先记上（表立刻对），服务端自增负责合并多设备——两端各记一次不会互相覆盖
+        day = { date: todayKey(), pomos: day.pomos + 1, min: day.min + min };
+        lsSet(LS_DAY, JSON.stringify(day));
+        pushCredit(min);
+    }
+    function pushCredit(min) {
+        fetch(API + "/api/pomodoro/credit", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ min: min, date: todayKey() })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d && d.ok) { applyServerNow(d.server_now); applyDay(d.today_stat, d.days); paint(); }
+        }).catch(function () { /* 离线也不影响本地这一轮，下次 GET 会对齐 */ });
+    }
+
+    // ---- 落盘 / 恢复 / 跨设备同步 ----------------------------------------
+    // 四件事分开：
+    //   snapshot()    —— 当前状态快照（不含时钟换算）
+    //   saveRun()     —— 本地快照 + 写服务端（刷新秒恢复、多设备共用一只表）
+    //   adoptRemote() —— 接受服务端版本（只在它比本地已知版本新时）
+    //
+    // ⚠️ 时间基准只有一条：**本机时钟**。内部所有比较（endAt / remain / catchUp）
+    //    都走 Date.now()，只有「进出服务端」那两处做 ±skew 换算（写进去用服务端
+    //    时钟，读出来换回本机时钟）。两边混用是踩过的坑：会差出一个 skew 的量，
+    //    表现成「平板上的表比电脑慢 7 秒」。
+    let skew = 0;                 // 服务端时钟 - 本机时钟
+    let appliedUpdated = 0;       // 已知的服务端版本号（server_updated）
+    let pushing = 0;              // 正在写服务端：期间不采纳远端，免得被自己的回声打回去
+    // ⚠️ 只有拿到**合法**的 server_now 才动 skew。老服务端 / 测试桩里没有这个字段时，
+    //    若直接算 `undefined - Date.now()`，skew 会变成一个巨大的负数，全盘时间就废了。
+    function applyServerNow(t) {
+        const v = Number(t);
+        if (Number.isFinite(v) && v > 0) skew = v - Date.now();
+    }
+    function snapshot() {
+        const seg = curSeg();
+        return {
+            plan: { id: plan.id, work: plan.work, brk: plan.brk, rounds: plan.rounds, label: plan.label, note: plan.note },
+            pos: pos, running: running, startedOnce: startedOnce,
+            endAt: running ? endAt : 0,
+            remain: running ? 0 : (seg ? Math.max(0, remain) : 0)
+        };
+    }
+    function saveRun() {
+        const s = snapshot();
+        lsSet(LS_RUN, JSON.stringify(s));
+        pushRun(s);
+    }
+    function pushRun(s) {
+        pushing += 1;
+        fetch(API + "/api/pomodoro/state", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ run: {
+                plan: s.plan, pos: s.pos, running: s.running, started_once: s.startedOnce,
+                end_at: s.running ? Math.round(s.endAt + skew) : 0,
+                remain_ms: s.running ? 0 : Math.round(s.remain),
+            } })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            pushing -= 1;
+            if (d && d.ok) {
+                applyServerNow(d.server_now);
+                if (d.run && d.run.server_updated) appliedUpdated = d.run.server_updated;
+            }
+        }).catch(function () { pushing -= 1; });
+    }
+    function restoreLocal(s) {
+        plan = buildPlan(s.plan);
+        pos = Math.max(0, Math.min(plan.segs.length, s.pos | 0));
+        running = !!s.running;
+        const seg = curSeg();
+        endAt = running ? (Number(s.endAt) || 0) : 0;
+        remain = seg ? (running ? Math.max(0, endAt - Date.now()) : (Number(s.remain) || segMs(seg))) : 0;
+        // 「开始过没有」要跟着恢复，否则刷新一次，暂停中的按钮就从「继续」退回「开始」
+        startedOnce = !!s.startedOnce || running || pos > 0;
+    }
+    // 服务端版本 → 本地。返回是否真的采纳了。
+    function adoptRemote(run, serverNow) {
+        if (!run) return false;
+        const up = Number(run.server_updated) || 0;
+        if (up && up <= appliedUpdated) return false;      // 手里这份已经是新的
+        appliedUpdated = up || appliedUpdated;
+        plan = buildPlan(run.plan);
+        pos = Math.max(0, Math.min(plan.segs.length, run.pos | 0));
+        running = !!run.running;
+        startedOnce = !!run.started_once || running || pos > 0;
+        const seg = curSeg();
+        if (running && seg) {
+            endAt = (Number(run.end_at) || 0) - skew;      // 服务端时钟 → 本机时钟
+            remain = Math.max(0, endAt - Date.now());
+        } else {
+            endAt = 0;
+            remain = seg ? Math.max(0, Number(run.remain_ms) || segMs(seg)) : 0;
+        }
+        // 采纳的是「别处正在跑」的表：把该走完的段就地结算（本机不响铃，避免和
+        // 那台设备一起叫两遍）
+        if (running) catchUp(false);
+        expiredNote = "";
+        return true;
+    }
+    function syncState() {
+        return fetch(API + "/api/pomodoro/state").then(function (r) { return r.json(); }).then(function (d) {
+            if (!d || !d.ok) return false;
+            applyServerNow(d.server_now);
+            if (d.today_stat) mergeToday(Object.assign({}, d.today_stat, { date: d.today || todayKey() }));
+            if (Array.isArray(d.days)) days = d.days;
+            lsSet(LS_DAY, JSON.stringify(day));
+            const took = (pushing === 0) ? adoptRemote(d.run, d.server_now) : false;
+            if (took) { renderPresets(); paint(); }
+            // 服务端还没有这只表（典型场景：本机刚升级，本地 localStorage 里那轮还在跑），
+            // 而本机手上有一轮在跑/暂停 → 交上去，别的设备才看得见。
+            // 只在服务端为空时做，所以不会覆盖另一台设备正在跑的表。
+            if (!d.run && !took && pushing === 0 && startedOnce) saveRun();
+            if (typeof globalThis.__focusStripReload === "function") {
+                try { globalThis.__focusStripReload(); } catch (e) {}
+            }
+            return took;
+        }).catch(function () { return false; });
+    }
+    globalThis.__pomoSync = syncState;     // 首页数据条 / 别的模块想立刻对齐时用
+
+    function loadRun() {
+        // 1) 本地缓存先顶上（刷新后立刻就是对的，不用等服务端）
+        const o = readJson(LS_RUN);
+        if (o && o.plan && o.plan.work > 0) {
+            restoreLocal(o);
+            if (running) { catchUp(true); }
+        } else {
+            const p = readJson(LS_PLAN);
+            const hit = p && presetById(p.id) ? presetById(p.id) : (p && p.work ? p : PRESETS[0]);
+            plan = buildPlan(hit);
+            pos = 0; running = false; remain = segMs(plan.segs[0]); endAt = 0;
+        }
+        day = readDayCache();
+        // 2) 再和服务端对齐（另一台设备开着的表就是靠这一步同步过来的）
+        syncState();
+    }
+
+    // 走完当前段并推进。byClock=按表走完（要记账、要响）；skip=手动跳过（不记）。
+    function finishSeg(byClock) {
+        const s = curSeg();
+        if (!s) return;
+        if (byClock && s.kind === "work") credit(s.min);
+        pos += 1;
+        const nx = curSeg();
+        if (!nx) { running = false; endAt = 0; remain = 0; if (byClock) chime("done"); return; }
+        remain = segMs(nx);
+        if (running) endAt = Date.now() + remain;
+        if (byClock) chime(s.kind === "work" ? "work" : "brk");
+    }
+    // 页面被关掉 / 电脑睡眠期间也可能整轮走完。刷新回来要一次补齐：
+    // 走完的专注段照常记成绩（人确实把那 45 分钟过完了），最后一声铃不追放。
+    function catchUp(fromLoad) {
+        let n = 0, ended = 0;
+        while (running && curSeg() && Date.now() >= endAt && n++ < 200) {
+            const s = curSeg();
+            if (s.kind === "work") ended += 1;
+            finishSeg(true);
+        }
+        if (fromLoad && ended > 0) expiredNote = "上次关掉页面期间走完了 " + ended + " 个专注段，已照记。";
+        if (!curSeg()) { running = false; }
+        saveRun();
+    }
+
+    // ---- 背景轮播 --------------------------------------------------------
+    let bg = { images: [], interval: 20, dim: 0.35, show: "both", sound: "on" };
+    let bgIdx = -1, bgTimer = null, bgLayer = 0;
+    function assetUrl(p) { return API + "/api/notes/asset?path=" + encodeURIComponent(p); }
+    function bgWanted() {
+        if (bg.show === "off" || !bg.images.length) return false;
+        return bg.show === "both" || full;       // full = 只在全屏时铺
+    }
+    function stepBg() {
+        const list = bg.images;
+        if (!list.length) return;
+        bgIdx = (bgIdx + 1) % list.length;
+        // 先把图解码好再切层：否则切过去的瞬间是空白，看上去像闪了一下
+        const im = new Image();
+        im.onload = function () {
+            const layers = host.querySelectorAll(".pm-bg");
+            const show = layers[bgLayer % layers.length];
+            const hide = layers[(bgLayer + 1) % layers.length];
+            if (!show) return;
+            show.style.backgroundImage = 'url("' + assetUrl(list[bgIdx]) + '")';
+            show.classList.add("on");
+            if (hide) hide.classList.remove("on");
+            bgLayer += 1;
+        };
+        im.onerror = function () { /* 这张坏了就跳过，下一张轮到时再说 */ };
+        im.src = assetUrl(list[bgIdx]);
+    }
+    function syncBg() {
+        const want = bgWanted();
+        host.classList.toggle("pm-hasbg", want);
+        host.style.setProperty("--pm-dim", String(bg.dim));
+        if (!want) {
+            if (bgTimer) { clearInterval(bgTimer); bgTimer = null; }
+            return;
+        }
+        if (bgIdx < 0 || bgIdx >= bg.images.length) bgIdx = -1;
+        stepBg();
+        if (bgTimer) clearInterval(bgTimer);
+        bgTimer = setInterval(stepBg, Math.max(5, bg.interval | 0) * 1000);
+    }
+    function loadCfg(after) {
+        fetch(API + "/api/settings").then(function (r) { return r.json(); }).then(function (d) {
+            if (d && d.ok && d.pomo) {
+                bg = d.pomo;
+                muted = bg.sound === "off";     // 服务端是唯一真相源，本地不另存一份
+            }
+            syncBg();
+            if (after) after(); else paint();
+        }).catch(function () { if (after) after(); });
+    }
+    // 设置页改完背景/间隔后叫一声，不用刷新整页
+    globalThis.__pomoReload = function () { loadCfg(null); };
+
+    // ---- 结构 ------------------------------------------------------------
+    const host = document.createElement("div");
+    host.className = "pm-card";
+    host.innerHTML =
+          '<div class="pm-bg pm-bg-a"></div><div class="pm-bg pm-bg-b"></div>'
+        + '<div class="pm-dim"></div>'
+        + '<div class="pm-inner">'
+        + '  <div class="pm-head">'
+        + '    <span class="pm-h">🍅 番茄钟</span>'
+        + '    <span class="pm-day" id="pm-day"></span>'
+        + '    <span class="pm-tools">'
+        + '      <button class="fs-full-toggle" id="pm-sound" title="阶段结束提示音"></button>'
+        + '      <button class="fs-full-toggle" id="pm-mini-btn" title="页内小窗：在本页浮动，可拖动、可调透明度（切子页也看得见）">小窗</button>'
+        + '      <button class="fs-full-toggle" id="pm-pip" title="独立小窗：跳出浏览器、始终置顶，最小化浏览器也不受影响（桌面版 Chrome / Edge）" hidden>独立小窗</button>'
+        + '      <button class="fs-full-toggle" id="pm-media" title="锁屏 / 通知栏显示倒计时（手机浏览器）" hidden>锁屏</button>'
+        + '      <button class="fs-full-toggle" id="pm-full" title="全屏沉浸（Esc 退出）">⛶ 全屏</button>'
+        + '    </span>'
+        + '  </div>'
+        + '  <div class="pm-presets" id="pm-presets"></div>'
+        + '  <div class="pm-body">'
+        + '    <div class="pm-dial">'
+        + '      <svg viewBox="0 0 200 200" class="pm-svg" aria-hidden="true">'
+        + '        <circle class="pm-ring-bg" cx="100" cy="100" r="88"></circle>'
+        + '        <circle class="pm-ring-fg" cx="100" cy="100" r="88" id="pm-ring"></circle>'
+        + '      </svg>'
+        + '      <div class="pm-dial-mid">'
+        + '        <div class="pm-remain" id="pm-time">--:--</div>'
+        + '        <div class="pm-phase" id="pm-phase">准备开始</div>'
+        + '        <div class="pm-dots" id="pm-dots"></div>'
+        + '      </div>'
+        + '    </div>'
+        + '    <div class="pm-side">'
+        + '      <div class="pm-actions">'
+        + '        <button class="fs-btn pm-main-btn" id="pm-toggle">▶ 开始</button>'
+        + '        <button class="fs-btn" id="pm-reset" title="回到第 1 段">↺ 重置</button>'
+        + '        <button class="fs-btn" id="pm-skip" title="跳过这一段（不计入今日成绩）">⏭ 跳过</button>'
+        + '        <button class="fs-btn" id="pm-stop" title="结束整个番茄钟">⏹ 结束</button>'
+        + '      </div>'
+        + '      <div class="pm-plan" id="pm-plan"></div>'
+        + '      <div class="pm-next" id="pm-next"></div>'
+        + '      <div class="pm-custom">'
+        + '        <span class="pm-clabel">自定义</span>'
+        + '        <input class="pm-cnum" id="pm-cwork" type="number" min="1" max="600" step="5" value="45" title="专注分钟数">'
+        + '        <span class="pm-cu">分 专注</span>'
+        + '        <input class="pm-cnum" id="pm-cbrk" type="number" min="0" max="60" step="5" value="10" title="休息分钟数，0 = 不歇">'
+        + '        <span class="pm-cu">分 歇</span>'
+        + '        <input class="pm-cnum" id="pm-crounds" type="number" min="1" max="24" value="2" title="轮数">'
+        + '        <span class="pm-cu">轮</span>'
+        + '        <button class="fs-btn pm-capply" id="pm-capply">用这套</button>'
+        + '      </div>'
+        + '      <div class="pm-hint">番茄钟是墙钟：切到别的窗口也照走（和闪卡那个「失焦即停」的学习计时是两回事）。'
+        + '轮播背景在「设置 → 🍅 番茄钟」里配。<span class="pm-esc">按 Esc 退出全屏。</span></div>'
+        + '    </div>'
+        + '  </div>'
+        + '</div>';
+    slot.appendChild(host);
+
+    const $ = function (id) { return host.querySelector("#" + id); };
+    const els = {
+        time: $("pm-time"), phase: $("pm-phase"), ring: $("pm-ring"), dots: $("pm-dots"),
+        presets: $("pm-presets"), plan: $("pm-plan"), next: $("pm-next"), day: $("pm-day"),
+        toggle: $("pm-toggle"), reset: $("pm-reset"), skip: $("pm-skip"), stop: $("pm-stop"),
+        full: $("pm-full"), sound: $("pm-sound"),
+        miniBtn: $("pm-mini-btn"), pip: $("pm-pip"), media: $("pm-media"),
+        cwork: $("pm-cwork"), cbrk: $("pm-cbrk"), crounds: $("pm-crounds"), capply: $("pm-capply")
+    };
+
+    function renderPresets() {
+        els.presets.innerHTML = PRESETS.map(function (p) {
+            return '<button class="pm-chip' + (plan.id === p.id ? " on" : "") + '" data-preset="'
+                + esc(p.id) + '" title="' + esc(p.note) + '">' + esc(p.label)
+                + '<span class="pm-chip-n">' + p.rounds + " 段</span></button>";
+        }).join("");
+        els.presets.querySelectorAll("[data-preset]").forEach(function (b) {
+            b.onclick = function () { pick(presetById(b.dataset.preset)); };
+        });
+    }
+
+    // ---- 绘制 ------------------------------------------------------------
+    function phaseName(s) { return s ? (s.kind === "work" ? "专注" : "休息") : "完成"; }
+    function paint() {
+        const seg = curSeg();
+        const left = seg ? (running ? Math.max(0, endAt - Date.now()) : Math.max(0, remain)) : 0;
+        els.time.textContent = seg ? fmtMs(left) : "00:00";
+        host.classList.toggle("pm-brk", !!seg && seg.kind === "brk");
+        host.classList.toggle("pm-done", !seg);
+        host.classList.toggle("pm-pause", !running);
+
+        let ph;
+        if (!seg) ph = "全部完成 🎉";
+        else if (running) ph = phaseName(seg) + " · 第 " + seg.round + "/" + plan.rounds + " 轮";
+        else ph = (startedOnce ? "已暂停 · " : "准备开始 · ") + phaseName(seg) + " 第 " + seg.round + "/" + plan.rounds + " 轮";
+        els.phase.textContent = expiredNote && !seg ? expiredNote : ph;
+
+        const p = seg ? (1 - left / segMs(seg)) : 1;
+        els.ring.style.strokeDasharray = String(RING);
+        els.ring.style.strokeDashoffset = String(RING * (1 - Math.max(0, Math.min(1, p))));
+
+        els.dots.innerHTML = plan.segs.filter(function (s) { return s.kind === "work"; }).map(function (s) {
+            const done = s.round < (curSeg() ? curSeg().round : plan.rounds + 1);
+            const now = !!curSeg() && curSeg().kind === "work" && curSeg().round === s.round;
+            return '<span class="pm-dot' + (done ? " ok" : "") + (now ? " now" : "") + '"></span>';
+        }).join("");
+
+        els.toggle.textContent = running ? "⏸ 暂停" : (seg ? (startedOnce ? "▶ 继续" : "▶ 开始") : "▶ 再来一轮");
+        // 「结束」只在真有一轮在跑/暂停中时出现：待开始和已完成都没有可结束的东西
+        els.stop.hidden = !(startedOnce && seg);
+        els.plan.innerHTML = esc(plan.label) + ' <span class="pm-cu">· 共 '
+            + fmtMin(plan.totalMin) + '（专注 ' + fmtMin(plan.workMin) + '）</span>';
+        const nx = pos + 1 < plan.segs.length ? plan.segs[pos + 1] : null;
+        els.next.textContent = !seg
+            ? (expiredNote || "这一轮已经跑完，换个预设或再来一次。")
+            : (running || pos > 0
+                ? "这一段：" + phaseName(seg) + " " + seg.min + " 分钟"
+                  + (nx ? " · 接下来：" + phaseName(nx) + " " + nx.min + " 分钟"
+                        : " · 之后就收工了")
+                : "共 " + plan.segs.length + " 段 · 第一段：" + phaseName(seg) + " " + seg.min + " 分钟");
+        const d = day;
+        els.day.innerHTML = "今日 <b>" + d.pomos + "</b> 个番茄 · 专注 <b>" + fmtMin(d.min) + "</b>" + (d.min ? "" : "（还没记上）");
+        els.sound.textContent = muted ? "🔕 提示音" : "🔔 提示音";
+        els.sound.classList.toggle("is-off", muted);
+        // 小窗 / 系统小窗 / 锁屏 三颗按钮：不支持的直接藏起来（别给个按了没用的键）
+        if (els.miniBtn) {
+            els.miniBtn.classList.toggle("is-off", !(mini.on && !miniEl.hidden));
+            els.miniBtn.title = (mini.on && !miniEl.hidden)
+                ? "页内小窗：开着（点一下收起）"
+                : "页内小窗：点一下打开（在本页浮动，可拖动、可调透明度）";
+        }
+        if (els.pip) {
+            const open = !!(pipWin && !pipWin.closed);
+            els.pip.hidden = !pipSupported();
+            // is-off = 「没开」（和音效/小窗/锁屏三颗按钮同一套读法：压暗＝关着）
+            els.pip.classList.toggle("is-off", !open);
+            els.pip.title = open ? "独立小窗：已打开（点一下关掉）"
+                : "独立小窗：跳出浏览器、始终置顶，最小化浏览器也不受影响（桌面版 Chrome / Edge）";
+        }
+        if (els.media) {
+            els.media.hidden = !mediaSupported();
+            els.media.classList.toggle("is-off", !mediaOn);
+            els.media.title = mediaOn ? "锁屏 / 通知栏显示：开（点一下关闭）"
+                                      : "锁屏 / 通知栏显示倒计时（点一下开启）";
+        }
+        els.full.textContent = full ? " 退出全屏" : "⛶ 全屏";
+        els.full.title = full ? "退出全屏（Esc）" : "全屏沉浸（Esc 退出）";
+
+        // 小窗 / 系统小窗 / 锁屏 三处同步（都由这一处 paint 驱动，别各自算时间）
+        paintMini();
+        paintPip();
+        syncMedia();
+
+        // 标题栏挂倒计时只在「有一轮在进行中」时才抢：刚打开大盘、一轮都没开始，
+        // 就把别人的标题改掉是越权。
+        document.title = seg && (running || startedOnce)
+            ? (running ? "▶ " : "⏸ ") + fmtMs(left) + " " + phaseName(seg) + " · " + BASE_TITLE
+            : (!seg && startedOnce ? "🍅 番茄钟完成 · " + BASE_TITLE : BASE_TITLE);
+    }
+
+    // ---- 控制 ------------------------------------------------------------
+    function pick(p) {
+        if (!p) return;
+        if (curSeg() && (running || startedOnce) && !confirm("番茄钟还在跑，切到「" + p.label + "」会放弃当前进度。继续？")) return;
+        plan = buildPlan(p);
+        pos = 0; running = false; endAt = 0; remain = segMs(plan.segs[0]);
+        startedOnce = false;
+        expiredNote = "";
+        lsSet(LS_PLAN, JSON.stringify({ id: p.id, work: plan.work, brk: plan.brk, rounds: plan.rounds, label: p.label }));
+        saveRun(); renderPresets(); paint();
+    }
+    function start() {
+        if (!curSeg()) { pos = 0; }                 // 跑完了再点 = 从头再来一轮
+        expiredNote = "";
+        const seg = curSeg();
+        if (remain <= 0 || remain > segMs(seg)) remain = segMs(seg);
+        endAt = Date.now() + remain;
+        running = true;
+        startedOnce = true;
+        ac();                                        // 借这次用户手势解锁音频，稍后才能响
+        saveRun(); paint();
+    }
+    function pause() {
+        if (!running) return;
+        remain = Math.max(0, endAt - Date.now());
+        running = false; endAt = 0;
+        saveRun(); paint();
+    }
+    function reset() {
+        pos = 0; running = false; endAt = 0; expiredNote = ""; startedOnce = false;
+        remain = plan.segs.length ? segMs(plan.segs[0]) : 0;
+        saveRun(); paint();
+    }
+    function stop() {
+        if (!confirm("结束这个番茄钟？当前这一段不计入今日成绩。")) return;
+        pos = plan.segs.length; running = false; endAt = 0; remain = 0; startedOnce = false;
+        lsDel(LS_RUN);
+        paint();
+    }
+    function skip() {
+        if (!curSeg()) return;
+        finishSeg(false);                            // 手动跳过不记成绩
+        saveRun(); paint();
+    }
+
+    // ---- 全屏 ------------------------------------------------------------
+    // 优先用浏览器真全屏（F11 那种整屏），拿不到就退回 CSS 铺满 —— 两条路都
+    // 走同一个 .pm-fs 类，所以下面不用关心到底哪条生效了。
+    function setFull(on) {
+        if (on === full) return;
+        full = on;
+        if (on) {
+            overlay.hidden = false;
+            overlay.appendChild(host);
+            host.classList.add("pm-fs");
+            document.body.classList.add("pm-lock");
+            try {
+                const pr = overlay.requestFullscreen
+                    ? overlay.requestFullscreen() : Promise.reject(new Error("no fs api"));
+                if (pr && pr.catch) pr.catch(function () { /* 被拦就用 CSS 铺满，够用 */ });
+            } catch (e) {}
+        } else {
+            host.classList.remove("pm-fs");
+            document.body.classList.remove("pm-lock");
+            slot.appendChild(host);
+            overlay.hidden = true;
+            if (document.fullscreenElement && document.exitFullscreen) {
+                try { const pr = document.exitFullscreen(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+            }
+        }
+        syncBg(); paint();
+    }
+    document.addEventListener("fullscreenchange", function () {
+        if (!document.fullscreenElement && full) setFull(false);
+    });
+    document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape" || !full) return;
+        if (document.fullscreenElement) return;   // 原生那层会自己退，跟着 fullscreenchange 走
+        // 只退最上面这一层：闪卡区可能也处在全屏，Esc 一次退两层很吓人
+        if (e.stopPropagation) e.stopPropagation();
+        setFull(false);
+    }, true);
+    // 闪卡区要靠这个判断「现在是不是被番茄钟盖着」——全屏番茄钟下面还接数字键
+    // 评分是最典型的「手比眼快」事故。
+    globalThis.__pomoFullscreen = function () { return full; };
+
+    // ---- 事件 ------------------------------------------------------------
+    els.toggle.onclick = function () { if (running) pause(); else start(); };
+    els.reset.onclick = reset;
+    els.skip.onclick = skip;
+    els.stop.onclick = stop;
+    els.full.onclick = function () { setFull(!full); };
+    if (els.miniBtn) els.miniBtn.onclick = function () { setMini(!mini.on); };
+    if (els.pip) els.pip.onclick = function () {
+        if (pipWin && !pipWin.closed) { try { pipWin.close(); } catch (e) {} pipWin = null; paint(); return; }
+        openPip();
+    };
+    if (els.media) els.media.onclick = function () { setMedia(!mediaOn); };
+    els.sound.onclick = function () {
+        muted = !muted;
+        paint();
+        if (!muted) { ac(); chime("brk"); }      // 现挂现响一声，让人知道开关是真的
+        fetch(API + "/api/settings", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pomo_sound: muted ? "off" : "on" })
+        }).catch(function () { /* 存不上也不影响这一轮，下次核对会补 */ });
+    };
+    els.capply.onclick = function () {
+        const p = {
+            id: "custom", label: "自定义",
+            work: Number(els.cwork.value) || 45,
+            brk: Math.max(0, Number(els.cbrk.value) || 0),
+            rounds: Number(els.crounds.value) || 1,
+            note: "自定义节奏"
+        };
+        pick(p);
+    };
+
+    // ============================================================
+    // 浮动小窗 / 系统小窗 / 锁屏显示（2026-09-21 晚）
+    //
+    // 三种「把番茄钟挪出页面」的能力，边界完全不同，先记清楚：
+    //   · **页面内小窗**（.pm-mini）：任何设备都能用——可拖动、可调透明度，
+    //     切到别的子页也浮在那儿。但它活在**这个页面**里，切到别的 App 就没了。
+    //   · **系统小窗**（Document Picture-in-Picture）：真·独立置顶窗口，能浮在
+    //     别的应用上面做别的事。⚠️ 只有桌面版 Chromium（Chrome / Edge）支持，
+    //     手机和平板上的浏览器一律没有——所以按钮默认藏起来，支持才显示。
+    //   · **锁屏 / 通知栏**（Media Session）：手机上唯一能摸到「状态栏」的路子。
+    //     靠一条静音音轨把媒体会话挂住，倒计时就出现在锁屏卡片 / 通知栏里，
+    //     还能用锁屏的播放/暂停键控制。浏览器不给就退化成只能用小窗。
+    //     它必须由一次用户点击启动（浏览器不给自动播音频）。
+    // ============================================================
+    const MINI_KEY = "kaoyan.pomo.mini.v1";
+    const mini = { on: true, x: null, y: null, op: 0.85 };
+    (function loadMini() {
+        const o = readJson(MINI_KEY);
+        if (!o || typeof o !== "object") return;
+        if (typeof o.on === "boolean") mini.on = o.on;
+        if (typeof o.x === "number") mini.x = o.x;
+        if (typeof o.y === "number") mini.y = o.y;
+        const op = Number(o.op);
+        if (op >= 0.25 && op <= 1) mini.op = op;
+    })();
+    function saveMini() { lsSet(MINI_KEY, JSON.stringify(mini)); }
+
+    // 小窗内容（页面内小窗与 PiP 窗口共用同一份结构）
+    // 图标一律写成 \\uXXXX 转义：这串会被同时塞进两个文档，写成字面量
+    // 在编辑/传输链路上容易被吃掉（踩过）。
+    function miniInner() {
+        return '<div class="pm-mini-head" data-drag="1">'
+            + '<span class="pm-mini-dot"></span>'
+            + '<span class="pm-mini-ph" data-f="phase">准备开始</span>'
+            + '<button class="pm-mini-x" data-act="close" title="收起小窗">\\u2715</button>'
+            + '</div>'
+            + '<div class="pm-mini-time" data-f="time">--:--</div>'
+            + '<div class="pm-mini-bar"><i data-f="bar"></i></div>'
+            + '<div class="pm-mini-row">'
+            + '<button class="pm-mini-btn go" data-act="toggle" title="开始 / 暂停">\\u25B6</button>'
+            + '<button class="pm-mini-btn" data-act="skip" title="跳过这一段（不计成绩）">\\u23ED</button>'
+            + '<button class="pm-mini-btn" data-act="full" title="回到全屏沉浸">\\u26F6</button>'
+            + '<button class="pm-mini-btn" data-act="pip" title="跳出浏览器：开一个独立置顶小窗（桌面版 Chrome / Edge）" hidden>\\u2197</button>'
+            + '</div>'
+            + '<div class="pm-mini-op" title="调整小窗透明度">'
+            + '<input type="range" data-act="op" min="25" max="100" step="5" aria-label="小窗透明度">'
+            + '<span data-f="opv">85%</span>'
+            + '</div>';
+    }
+    function setField(root, f, text) {
+        const el = root.querySelector('[data-f="' + f + '"]');
+        if (el) el.textContent = text;
+    }
+    // 把按钮接上同一套状态机（小窗与 PiP 共用；onClose 各自不同）
+    function bindMiniActions(root, onClose) {
+        root.querySelectorAll("[data-act]").forEach(function (b) {
+            const act = b.getAttribute("data-act");
+            if (act === "close") b.onclick = onClose;
+            else if (act === "toggle") b.onclick = function () { if (running) pause(); else start(); };
+            else if (act === "skip") b.onclick = function () { skip(); };
+            else if (act === "full") b.onclick = function () { setFull(true); };
+            else if (act === "pip") b.onclick = function () { openPip(); };
+            else if (act === "op") b.oninput = function () {
+                mini.op = Math.max(0.25, Math.min(1, Number(b.value) / 100));
+                applyMiniOpacity(); saveMini();
+                setField(miniEl, "opv", Math.round(mini.op * 100) + "%");
+            };
+        });
+    }
+    const miniEl = document.createElement("div");
+    miniEl.className = "pm-mini";
+    miniEl.hidden = true;
+    miniEl.innerHTML = miniInner();
+    if (document.body && document.body.appendChild) document.body.appendChild(miniEl);
+    bindMiniActions(miniEl, function () { setMini(false); });
+
+    function applyMiniOpacity() {
+        if (miniEl.style && miniEl.style.setProperty) {
+            miniEl.style.setProperty("--pm-mini-op", String(mini.op));
+        }
+    }
+    function placeMini() {
+        if (!miniEl.offsetWidth) return;      // 还没量到尺寸（隐藏中）就先不摆
+        const w = miniEl.offsetWidth, h = miniEl.offsetHeight;
+        const vw = window.innerWidth || 360, vh = window.innerHeight || 640;
+        let x = mini.x, y = mini.y;
+        if (x == null || y == null) { x = vw - w - 14; y = vh - h - 16; }   // 默认右下角
+        x = Math.max(6, Math.min(Math.max(6, vw - w - 6), x));
+        y = Math.max(6, Math.min(Math.max(6, vh - h - 6), y));
+        mini.x = Math.round(x); mini.y = Math.round(y);
+        miniEl.style.left = mini.x + "px";
+        miniEl.style.top = mini.y + "px";
+    }
+    function setMini(on) {
+        mini.on = !!on;
+        saveMini();
+        paint();
+    }
+    function paintMini() {
+        // 番茄钟本体全屏时小窗是多余的（同一个表看两遍），先收起来；
+        // 已经开了独立小窗（PiP）时也收起来——两份同样的表只会互相打架。
+        const pipOpen = !!(pipWin && !pipWin.closed);
+        const want = mini.on && (startedOnce || running) && !full && !pipOpen;
+        miniEl.hidden = !want;
+        // 页内小窗上那个「跳出浏览器」按钮：只有真支持 PiP 才给（手机/平板不给假希望）
+        const pop = miniEl.querySelector('[data-act="pip"]');
+        if (pop) pop.hidden = !pipSupported();
+        if (!want) return;
+        const seg = curSeg();
+        const left = seg ? (running ? Math.max(0, endAt - Date.now()) : Math.max(0, remain)) : 0;
+        const pct = seg ? Math.round(100 * (1 - left / segMs(seg))) : 100;
+        setField(miniEl, "time", seg ? fmtMs(left) : "00:00");
+        setField(miniEl, "phase", !seg ? "已完成"
+            : (running ? "" : "暂停 · ") + phaseName(seg) + " 第 " + seg.round + "/" + plan.rounds + " 轮");
+        miniEl.classList.toggle("pm-pause", !running);
+        miniEl.classList.toggle("pm-mini-brk", !!seg && seg.kind === "brk");
+        const bar = miniEl.querySelector('[data-f="bar"]');
+        if (bar && bar.style) bar.style.width = Math.max(0, Math.min(100, pct)) + "%";
+        const tg = miniEl.querySelector('[data-act="toggle"]');
+        if (tg) tg.textContent = running ? "\\u23F8" : "\\u25B6";
+        const opv = miniEl.querySelector('[data-act="op"]');
+        if (opv && document.activeElement !== opv) opv.value = String(Math.round(mini.op * 100));
+        setField(miniEl, "opv", Math.round(mini.op * 100) + "%");
+        applyMiniOpacity();
+        placeMini();
+    }
+    // 拖动：pointer 事件同时覆盖鼠标 / 触屏 / 触控笔
+    (function bindMiniDrag() {
+        const head = miniEl.querySelector("[data-drag]");
+        if (!head || !head.addEventListener) return;
+        let dragging = false, armed = false, dx = 0, dy = 0, sx = 0, sy = 0;
+        head.addEventListener("pointerdown", function (e) {
+            if (e.button != null && e.button !== 0) return;
+            // ⚠️ 按在按钮/滑杆上时**绝不能**进入拖拽：一旦 setPointerCapture，
+            //    pointerup 与随之而来的 click 会被改派到把手本身，里面的 ✕ 就永远
+            //    收不到点击（用户实测「小窗上的叉不起作用」就是这个）。
+            //    slide/close 这些都是把手的子元素，必须原样放行。
+            if (e.target && e.target.closest && e.target.closest("button, input, a, select")) return;
+            const r = miniEl.getBoundingClientRect ? miniEl.getBoundingClientRect()
+                                                   : { left: mini.x || 0, top: mini.y || 0 };
+            dx = e.clientX - r.left; dy = e.clientY - r.top;
+            sx = e.clientX; sy = e.clientY;
+            armed = true;            // 先只记起点：真的动了才算拖拽
+        });
+        head.addEventListener("pointermove", function (e) {
+            if (!armed) return;
+            if (!dragging) {
+                // 5px 阈值：手抖一下不算拖，语义上也就不需要抢指针
+                if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) < 5) return;
+                dragging = true;
+                if (head.setPointerCapture) { try { head.setPointerCapture(e.pointerId); } catch (err) {} }
+            }
+            mini.x = e.clientX - dx; mini.y = e.clientY - dy;
+            placeMini();
+        });
+        const end = function (e) {
+            armed = false;
+            if (!dragging) return;
+            dragging = false;
+            // 主动交还指针：不还的话，下一次按下又会被当成还在拖
+            if (e && e.pointerId != null && head.releasePointerCapture) {
+                try { head.releasePointerCapture(e.pointerId); } catch (err) {}
+            }
+            saveMini();
+        };
+        head.addEventListener("pointerup", end);
+        head.addEventListener("pointercancel", end);
+        // 双击回到默认位置：拖到屏幕角落/刘海后面也能找回来
+        head.addEventListener("dblclick", function (e) {
+            if (e && e.target && e.target.closest && e.target.closest("button, input")) return;
+            mini.x = null; mini.y = null; placeMini(); saveMini();
+        });
+    })();
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+        window.addEventListener("resize", placeMini);
+    }
+
+    // ---- 系统小窗（Document PiP，桌面版 Chromium 独有）----
+    let pipWin = null;
+    const PIP_CSS = 'html,body{margin:0;height:100%;background:#151A1A;color:#E5E9E7;'
+        + 'font-family:system-ui,"Microsoft YaHei",sans-serif}'
+        + '.pm-mini{position:static;width:auto;height:100%;box-sizing:border-box;'
+        + 'display:flex;flex-direction:column;justify-content:center;'
+        + 'padding:10px 12px;border:0;border-radius:0;box-shadow:none;opacity:1;background:#151A1A}'
+        + '.pm-mini-head{display:flex;align-items:center;gap:6px}'
+        + '.pm-mini-dot{width:7px;height:7px;border-radius:50%;background:#B84A42}'
+        + '.pm-mini-ph{flex:1;font-size:11px;color:#97A5A3;overflow:hidden;white-space:nowrap}'
+        + '.pm-mini-x{background:none;border:0;color:#66726F;font-size:11px;cursor:pointer}'
+        + '.pm-mini-time{font-size:30px;font-weight:700;margin:2px 0 6px;font-variant-numeric:tabular-nums}'
+        + '.pm-mini-bar{height:3px;border-radius:2px;background:#2C3636;overflow:hidden}'
+        + '.pm-mini-bar i{display:block;height:100%;width:0;background:#B84A42}'
+        + '.pm-mini-row{display:flex;gap:5px;margin-top:8px}'
+        + '.pm-mini-btn{flex:1;padding:4px 0;font:inherit;font-size:12px;cursor:pointer;'
+        + 'background:#1F2626;color:#97A5A3;border:1px solid #2C3636;border-radius:5px}'
+        + '.pm-mini-btn.go{flex:1.5;color:#E08A80;border-color:#B84A42}'
+        + '.pm-mini-op{display:none}';
+    function pipSupported() {
+        return typeof window !== "undefined" && !!window.documentPictureInPicture
+            && typeof window.documentPictureInPicture.requestWindow === "function";
+    }
+    function paintPip() {
+        if (!pipWin || pipWin.closed) return;
+        const doc = pipWin.document;
+        const seg = curSeg();
+        const left = seg ? (running ? Math.max(0, endAt - Date.now()) : Math.max(0, remain)) : 0;
+        if (!doc || !doc.querySelector) return;
+        setField(doc, "time", seg ? fmtMs(left) : "00:00");
+        setField(doc, "phase", !seg ? "已完成"
+            : (running ? "" : "暂停 · ") + phaseName(seg) + " 第 " + seg.round + "/" + plan.rounds + " 轮");
+        const bar = doc.querySelector('[data-f="bar"]');
+        if (bar && bar.style) bar.style.width = (seg ? Math.round(100 * (1 - left / segMs(seg))) : 100) + "%";
+        const tg = doc.querySelector('[data-act="toggle"]');
+        if (tg) tg.textContent = running ? "\\u23F8" : "\\u25B6";
+    }
+    function openPip() {
+        if (!pipSupported()) {
+            // 这里必须说清楚「为什么不行」，不然用户只会觉得按钮坏了：
+            // 手机/平板的浏览器根本没有「独立窗口」这个能力。
+            toast("这个浏览器开不了独立小窗（手机 / 平板浏览器没有这个能力）——"
+                + "先用页内小窗，锁屏显示可以让你在锁屏上看到倒计时");
+            return;
+        }
+        if (pipWin && !pipWin.closed) return;      // 已经开着一个了
+        try {
+            const pr = window.documentPictureInPicture.requestWindow({ width: 208, height: 158 });
+            if (!pr || !pr.then) return;
+            pr.then(function (w) {
+                pipWin = w;
+                try {
+                    const doc = w.document;
+                    doc.body.innerHTML = '<style>' + PIP_CSS + '</style>'
+                        + '<div class="pm-mini pm-mini-pip">' + miniInner() + '</div>';
+                    bindMiniActions(doc, function () { try { w.close(); } catch (e) {} });
+                    if (w.addEventListener) {
+                        w.addEventListener("pagehide", function () {
+                            pipWin = null;
+                            try { paint(); } catch (e) {}
+                        });
+                    }
+                } catch (e) {
+                    // 窗口已经开出来了，注入/绑定失败也得让主表自己接着画，
+                    // 不然页内小窗会一直以为自己「被 PiP 顶掉了」而收着（踩过）。
+                    toast("独立小窗内容注入失败：" + (e && e.message ? e.message : e));
+                }
+                paint();
+            }).catch(function (e) { toast("独立小窗打开失败：" + (e && e.message ? e.message : e)); });
+        } catch (e) { toast("系统小窗打开失败：" + e.message); }
+    }
+
+    // ---- 锁屏 / 通知栏（Media Session）----
+    // 静音音轨是这里的关键：浏览器只为「正在播放的媒体」显示锁屏卡片，
+    // 所以挂一条听不见的 WAV 循环，把会话一直撑着。运行时现场生成，不塞大段 base64。
+    let mediaOn = false, mediaAudio = null, mediaAt = 0, mediaSig = "";
+    if (lsGet("kaoyan.pomo.media") === "1") mediaOn = true;
+    function mediaSupported() {
+        return typeof navigator !== "undefined" && !!navigator.mediaSession;
+    }
+    function silentWavUrl() {
+        const len = 4000;                              // 0.5 秒 @ 8kHz 8bit
+        const buf = new ArrayBuffer(44 + len);
+        const v = new DataView(buf);
+        const ws = function (o, s) { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+        ws(0, "RIFF"); v.setUint32(4, 36 + len, true); ws(8, "WAVEfmt ");
+        v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+        v.setUint32(24, 8000, true); v.setUint32(28, 8000, true);
+        v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+        ws(36, "data"); v.setUint32(40, len, true);
+        for (let i = 0; i < len; i++) v.setUint8(44 + i, 128);   // 8bit 静音＝中点
+        try { return URL.createObjectURL(new Blob([buf], { type: "audio/wav" })); } catch (e) { return ""; }
+    }
+    function bindMediaActions() {
+        if (!mediaSupported()) return;
+        const MS = navigator.mediaSession;
+        const set = function (a, f) { try { MS.setActionHandler(a, f); } catch (e) {} };
+        set("play", function () { if (!running) start(); });
+        set("pause", function () { if (running) pause(); });
+        set("stop", function () { setMedia(false); });
+        set("nexttrack", function () { skip(); });
+    }
+    function setMedia(on) {
+        if (on && !mediaSupported()) { toast("这个浏览器不支持锁屏显示"); return; }
+        if (on && !mediaAudio) {
+            mediaAudio = document.createElement("audio");
+            mediaAudio.loop = true;
+            mediaAudio.setAttribute("playsinline", "");
+            if (mediaAudio.setAttribute) mediaAudio.setAttribute("aria-hidden", "true");
+            mediaAudio.src = silentWavUrl();
+            if (document.body && document.body.appendChild) document.body.appendChild(mediaAudio);
+        }
+        mediaOn = !!on;
+        lsSet("kaoyan.pomo.media", mediaOn ? "1" : "0");
+        try {
+            if (mediaOn) {
+                const pr = mediaAudio.play();
+                if (pr && pr.catch) pr.catch(function () { toast("锁屏显示已开，但这个浏览器没让音频起播——锁屏可能看不到"); });
+            } else {
+                mediaAudio.pause();
+                if (mediaSupported()) navigator.mediaSession.metadata = null;
+            }
+        } catch (e) {}
+        if (mediaOn) bindMediaActions();
+        mediaAt = 0;
+        paint();
+    }
+    function syncMedia(force) {
+        if (!mediaOn || !mediaSupported()) return;
+        const seg = curSeg();
+        // 除了「每 900ms 刷一次倒计时」，running / 段 一变也要立刻上报——
+        // 否则在锁屏上按了暂停，卡片还挂着「计时中」，用户以为没生效。
+        const sig = (running ? "1" : "0") + (seg ? seg.kind + seg.round : "x") + pos;
+        const now = Date.now();
+        if (!force && sig === mediaSig && now - mediaAt < 900) return;
+        mediaAt = now; mediaSig = sig;
+        const left = seg ? (running ? Math.max(0, endAt - Date.now()) : Math.max(0, remain)) : 0;
+        const dur = seg ? segMs(seg) / 1000 : 0;
+        try {
+            const MS = navigator.mediaSession;
+            MS.playbackState = running ? "playing" : (startedOnce && seg ? "paused" : "none");
+            if (typeof window.MediaMetadata === "function") {
+                MS.metadata = new window.MediaMetadata({
+                    title: seg ? (phaseName(seg) + " " + fmtMs(left)) : "番茄钟已完成",
+                    artist: "第 " + (seg ? seg.round : plan.rounds) + "/" + plan.rounds + " 轮 · "
+                        + (running ? "计时中" : (seg ? "已暂停" : "结束")),
+                    album: "考研大盘 · 番茄钟",
+                });
+            }
+            if (seg && MS.setPositionState && dur > 0) {
+                MS.setPositionState({ duration: dur, position: Math.max(0, Math.min(dur, dur - left / 1000)), playbackRate: 1 });
+            }
+        } catch (e) { /* 浏览器不支持某个字段就跳过，别影响计时 */ }
+    }
+
+    // ---- 起表 ------------------------------------------------------------
+    // 250ms 一次：显示秒级刷新够了，而段的推进靠的是和 endAt 比大小，
+    // 就算这一拍被浏览器节流延后，也不会把计时本身带偏。
+    loadRun();
+    renderPresets();
+    syncBg();
+    paint();
+    setInterval(function () {
+        if (running) {
+            if (Date.now() >= endAt) catchUp(false);
+            paint();
+        }
+    }, 250);
+    loadCfg(paint);   // 拉一次番茄钟设置（轮播图 / 间隔 / 遮罩），失败也要正常跑
+
+    // 跨设备对齐：每 12 秒问一次服务端（只读，很轻）。在电脑上开了一轮，走到
+    // 平板前打开页面，最迟 12 秒内表就同步过去；从后台切回前台也立刻对一次。
+    setInterval(function () {
+        if (document.hidden) return;
+        syncState();
+    }, 12000);
+    document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) syncState();
+    });
+    // window 也要守卫：DOM 桩里未必有 addEventListener（闪卡那边同理）
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+        window.addEventListener("focus", function () { syncState(); });
+        // 上次开着「锁屏显示」的话，这次打开页面浏览器不肯自动播音频（要用户手势）。
+        // 所以等第一次点按/按键时把它重新挂上，锁屏卡片就回来了。
+        const rearm = function () {
+            if (mediaOn && mediaAudio && mediaAudio.paused) {
+                try { const pr = mediaAudio.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+                bindMediaActions();
+            }
+            window.removeEventListener("pointerdown", rearm);
+            window.removeEventListener("keydown", rearm);
+        };
+        window.addEventListener("pointerdown", rearm);
+        window.addEventListener("keydown", rearm);
+    }
+
+    // 首页那条「专注」数据直接读这里，省得两边各拉一次接口
+    globalThis.__pomoStats = function () { return { day: day, days: days }; };
+})();
+'''
+
+
+# ---------------------------------------------------------------------------
+# 页面外壳（2026-09-21）：右上角「整页全屏」+ 首页「专注与打卡」数据条
+#
+# 和 POMO_JS 分开是刻意的：
+#   · 番茄钟 / 闪卡的全屏 = 那**一个模块**铺满屏幕（模块自己的按钮）
+#   · 这里的全屏        = **整页**铺满（F11 那种），常驻右上角，任何子页都能按
+# 两件事共用一个「全屏」单词，但意图完全不同，混在一起写迟早会互相打架。
+# ---------------------------------------------------------------------------
+
+SHELL_CSS = '''
+        /* --- 鼠标粒子光效（2026-09-21）---
+           画布整页 fixed、pointer-events:none（绝不挡点击）。
+           压在内容之上但用混合模式当「光」使：深色主题 screen（发光），
+           浅色主题 multiply（不然 screen 到白底上等于看不见）。 */
+        #mouse-fx { position: fixed; inset: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 40; opacity: .85;
+            mix-blend-mode: screen; }
+        [data-theme="light"] #mouse-fx { mix-blend-mode: multiply; opacity: .5; }
+        #mouse-fx[hidden] { display: none; }
+
+        /* --- 图表悬停（2026-09-21）---
+           柱子/扇形的悬停都用 CSS transition 做，而不是 d3 补间：
+           mouseenter 一秒钟能来几十次，补间会排队堆积；CSS 过渡天生只保留最后一帧。 */
+        .lv-bar { transition: transform .16s ease, fill-opacity .16s ease; }
+        .chart-container.lv-dim .lv-bar { fill-opacity: .34; }
+        .chart-container.lv-dim .lv-bar.hl { fill-opacity: 1; transform: translateY(-2px); }
+        .pm-arc { transition: fill-opacity .16s ease; cursor: pointer; }
+        .pm-arc.dimmed { fill-opacity: .35; }
+        .legend-item-hot { color: var(--text-primary); }
+        .legend-item-hot .chart-legend-dot { box-shadow: 0 0 0 2px rgba(var(--xuan-rgb), .25); }
+        @media (prefers-reduced-motion: reduce) {
+            .lv-bar, .pm-arc { transition: none !important; }
+        }
+
+        /* --- 右上角整页全屏（2026-09-21）--- */
+        /* z-index 880：高于正文，低于闪卡全屏(900)与番茄钟全屏(1200)——那两个
+           模块铺满时，这颗按钮就该被盖住，免得点出「页中页」。 */
+        .shell-fs { position: fixed; top: 14px; right: 16px; z-index: 880;
+            font: inherit; font-size: 0.76rem; line-height: 1; cursor: pointer;
+            padding: 7px 12px; border-radius: 14px; color: var(--text-secondary);
+            background: rgba(var(--mo-rgb), .55); border: 1px solid var(--border-color);
+            -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+            transition: color .15s, border-color .15s, background .15s; }
+        .shell-fs:hover { color: var(--text-primary); border-color: var(--dianqing);
+            background: rgba(var(--mo-rgb), .82); }
+        .shell-fs.on { color: var(--dianqing-lt); border-color: var(--dianqing); }
+        /* 整页全屏时浏览器会把根元素刷成黑底，浅色主题下就是一圈黑边 */
+        html:fullscreen { background: var(--bg-primary); }
+        html:-webkit-full-screen { background: var(--bg-primary); }
+        @media (max-width: 720px) {
+            /* 手机竖屏：页头是居中的长标题，右上角留给按钮会压到副标题上，
+               所以窄屏改成右下角悬浮——手掌自然落点，也避开页头。 */
+            .shell-fs { top: auto; bottom: 14px; right: 12px; padding: 8px 12px; font-size: 0.74rem; }
+        }
+
+        /* --- 首页「专注与打卡」数据条 --- */
+        .strip-loading { font-size: 0.8rem; color: var(--text-muted); padding: 6px 0; }
+        .strip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+        @media (max-width: 820px) { .strip-grid { grid-template-columns: 1fr; } }
+        .strip-col { min-width: 0; }
+        .strip-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        .strip-title { font-size: 0.92rem; font-weight: 600; font-family: var(--font-serif);
+            color: var(--text-primary); }
+        .strip-sub { font-size: 0.72rem; color: var(--text-muted); }
+        .strip-kpis { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 12px; }
+        .strip-kpi { font-size: 0.72rem; color: var(--text-secondary); }
+        .strip-kpi b { display: block; font-size: 1.18rem; font-variant-numeric: tabular-nums;
+            color: var(--text-primary); line-height: 1.35; }
+        .strip-kpi.zhu b { color: var(--zhusha-lt); }
+        .strip-kpi.qing b { color: var(--zhuqing-lt); }
+        .strip-kpi.xiang b { color: var(--xiang-lt); }
+        .strip-bars { display: flex; align-items: flex-end; gap: 4px; height: 56px;
+            border-bottom: 1px solid var(--border-color); }
+        .strip-bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
+            align-items: center; height: 100%; }
+        .strip-bar i { display: block; width: 100%; min-height: 2px; border-radius: 2px 2px 0 0;
+            background: var(--zhusha); opacity: .42; }
+        .strip-bar.has i { opacity: .72; }
+        .strip-bar.today i { opacity: 1; }
+        .strip-bar-n { font-size: 0.58rem; color: var(--text-muted); margin-top: 2px; }
+        .strip-labels { display: flex; gap: 4px; margin-top: 5px; }
+        .strip-labels span { flex: 1; text-align: center; font-size: 0.6rem; color: var(--text-muted); }
+        .strip-dots { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 12px; }
+        .strip-dot { width: 14px; height: 14px; border-radius: 3px; background: var(--bg-secondary);
+            border: 1px solid var(--border-color); }
+        .strip-dot.studied { background: rgba(var(--dianqing-rgb), .32); }
+        .strip-dot.checked { background: rgba(var(--zhuqing-rgb), .55); border-color: var(--zhuqing); }
+        .strip-dot.today { box-shadow: 0 0 0 2px rgba(var(--xiang-rgb), .5); }
+        .strip-hint { font-size: 0.7rem; color: var(--text-muted); margin-top: 10px; line-height: 1.75; }
+        .strip-empty { font-size: 0.76rem; color: var(--text-muted); padding: 4px 0 2px; }
+        .strip-link { font: inherit; font-size: 0.72rem; cursor: pointer; padding: 3px 11px;
+            border-radius: 10px; background: none; border: 1px solid var(--border-color);
+            color: var(--text-secondary); }
+        .strip-link:hover { color: var(--text-primary); border-color: var(--dianqing); }
+'''
+
+SHELL_JS = '''
+// ============================================================
+// 页面外壳（2026-09-21）
+//  ① 右上角「整页全屏」：F11 那种，任何子页都能按。
+//     与番茄钟 / 闪卡各自的「模块全屏」是两件事，别混。
+//  ② 首页「专注与打卡」数据条：番茄钟成绩（读 POMO_JS 的 __pomoStats）
+//     + 早间回顾打卡（/api/morning-review/overview）。
+// ============================================================
+(function () {
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+
+    function esc(s) {
+        const d = document.createElement("div");
+        d.textContent = s == null ? "" : String(s);
+        return d.innerHTML;
+    }
+    function toast(msg) {
+        const t = document.createElement("div");
+        t.className = "fs-toast";
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(function () { if (t.remove) t.remove(); }, 2200);
+    }
+
+    // ---------- ① 整页全屏 ----------
+    const fsBtn = document.getElementById("shell-fs");
+    if (fsBtn) {
+        const pageIsFull = () => !!document.fullscreenElement
+            && document.fullscreenElement === document.documentElement;
+        function syncFs() {
+            const on = pageIsFull();
+            fsBtn.className = "shell-fs" + (on ? " on" : "");
+            fsBtn.textContent = on ? "✕ 退出全屏" : "\\u26F6 全屏";
+            fsBtn.title = on ? "退出整页全屏（Esc）" : "整页全屏（Esc 退出）";
+            fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
+        }
+        fsBtn.onclick = function () {
+            // 已经全屏（不管是整页还是某个模块）就先退出来，否则用户按「全屏」
+            // 反而会卡在模块全屏里出不去
+            try {
+                if (document.fullscreenElement) {
+                    const pr = document.exitFullscreen ? document.exitFullscreen() : null;
+                    if (pr && pr.catch) pr.catch(function () {});
+                } else {
+                    // 用 <html> 而不是 <body>：body 全屏后，fixed 定位的元素在部分
+                    // 浏览器里会失去视口参照，右上角按钮和自定义背景层会一起跑偏
+                    const el = document.documentElement;
+                    if (!el.requestFullscreen) throw new Error("no api");
+                    const pr = el.requestFullscreen();
+                    if (pr && pr.catch) pr.catch(function () { toast("这个浏览器拒绝了全屏请求，可以按 F11"); });
+                }
+            } catch (e) { toast("这个浏览器不支持整页全屏，可以按 F11"); }
+        };
+        document.addEventListener("fullscreenchange", syncFs);
+        syncFs();
+    }
+
+    // ---------- ③ 鼠标粒子光效（首页，2026-09-21）----------
+    // 跟着鼠标画一条会消散的光点轨迹。几条自我约束：
+    //   · 只在「总览」页生效（切到别的子页立刻停笔 + 清干净，别到处刷存在感）
+    //   · 只有鼠标 / 触控笔触发（手指拖动不出，免得平板上满屏光点还费电）
+    //   · 粒子放完就**停掉 rAF**（省电；下一次 pointermove 再启）
+    //   · 设置里关掉、或系统开了「减弱动效」→ 整段不跑
+    (function mouseFx() {
+        const cv = document.getElementById("mouse-fx");
+        if (!cv || !cv.getContext) return;
+        const REDUCED = !!(window.matchMedia
+            && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+        const ctx = cv.getContext("2d");
+        const MAXP = 150;                 // 粒子上限：再多也看不出差别，只是白烧 CPU
+        let W = 0, H = 0, dpr = 1, on = true, raf = 0, parts = [], lastX = null, lastY = null;
+
+        function resize() {
+            dpr = Math.min(2, window.devicePixelRatio || 1);
+            W = window.innerWidth || 1024; H = window.innerHeight || 768;
+            cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        // 颜色跟主题走：深色主题用提亮版（在暗底上当光），浅色主题用原色
+        function palette() {
+            const cs = getComputedStyle(document.documentElement);
+            const g = (k, dflt) => (cs.getPropertyValue(k) || "").trim() || dflt;
+            return (document.documentElement.dataset.theme === "light")
+                ? [g("--zhuqing", "#6F9A8D"), g("--dianqing", "#5B7C99"), g("--xiang", "#C89B4A")]
+                : [g("--zhuqing-lt", "#9CC4B6"), g("--dianqing-lt", "#92B4D0"), g("--xiang-lt", "#E0C07E")];
+        }
+        function onOverview() {
+            const p = document.querySelector('.page[data-page="overview"]');
+            return !p || !p.hidden;       // 拿不到就当作在总览页（别把功能整没了）
+        }
+        function push(x, y, head) {
+            const pal = palette();
+            parts.push({
+                x: x + (Math.random() - 0.5) * 6,
+                y: y + (Math.random() - 0.5) * 6,
+                vx: (Math.random() - 0.5) * 0.22,
+                vy: -0.08 - Math.random() * 0.32,     // 微微上飘，像余烬
+                r: (head ? 2.3 : 1.2) + Math.random() * (head ? 1.3 : 1.0),
+                life: 1,
+                decay: 0.012 + Math.random() * 0.02,
+                c: pal[(Math.random() * pal.length) | 0],
+            });
+            if (parts.length > MAXP) parts.splice(0, parts.length - MAXP);
+        }
+        function frame() {
+            raf = 0;
+            ctx.clearRect(0, 0, W, H);
+            // 加色混合 + 两层圆（芯 + 大而淡的晕）＝ 便宜的光晕；
+            // 不用 shadowBlur —— 那玩意儿每帧几十次会明显掉帧。
+            ctx.globalCompositeOperation = "lighter";
+            for (let i = parts.length - 1; i >= 0; i--) {
+                const p = parts[i];
+                p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+                if (p.life <= 0) { parts.splice(i, 1); continue; }
+                const a = p.life * p.life;            // 尾段收得更快，像余光散掉
+                ctx.fillStyle = p.c;
+                ctx.globalAlpha = a * 0.85;
+                ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.2, p.r * p.life), 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = a * 0.2;
+                ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.4, p.r * p.life * 3.2), 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = "source-over";
+            if (parts.length) raf = requestAnimationFrame(frame);
+        }
+        function tick() { if (!raf && parts.length) raf = requestAnimationFrame(frame); }
+        function clearAll() {
+            parts.length = 0;
+            if (raf) { cancelAnimationFrame(raf); raf = 0; }
+            ctx.clearRect(0, 0, W, H);
+        }
+        function apply() {
+            const show = on && !REDUCED;
+            if (!show || !onOverview()) { clearAll(); cv.hidden = true; return; }
+            cv.hidden = false;
+        }
+        function move(e) {
+            if (!on || REDUCED) return;
+            if (e.pointerType && e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+            if (!onOverview()) return;
+            const x = e.clientX, y = e.clientY;
+            if (lastX == null) {
+                // 第一下移动只用来定起点，但也要给个「头」——不然鼠标慢慢进场时
+                // 要等到第二次移动才看得见任何东西，像坏了一样
+                lastX = x; lastY = y;
+                push(x, y, true); tick();
+                return;
+            }
+            // 沿轨迹补点：鼠标快的时候两点能差几十像素，只画端点会断成一串虚线
+            const dx = x - lastX, dy = y - lastY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const steps = Math.min(6, Math.round(dist / 7));
+            for (let i = 1; i <= steps; i++) {
+                const t = i / steps;
+                push(lastX + dx * t, lastY + dy * t, i === steps);
+            }
+            if (!steps && dist > 1.5) push(x, y, true);   // 慢慢挪也要有个「头」
+            lastX = x; lastY = y;
+            tick();
+        }
+        function loadPref() {
+            // 与服务端核对（和主题一样：服务端是唯一真相源，多设备一致）
+            fetch(API + "/api/settings").then(r => r.json()).then(d => {
+                if (d && d.ok && d.ui) { on = (d.ui.mouse_fx || "on") !== "off"; apply(); }
+            }).catch(function () {});
+        }
+        globalThis.__mouseFxReload = loadPref;
+        resize();
+        apply();
+        if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+            window.addEventListener("resize", function () { resize(); apply(); });
+            window.addEventListener("pointermove", move, { passive: true });
+            // 切子页后延后一拍再判断：NAV_JS 的 hashchange 监听比这里晚注册，
+            // 立刻读 page.hidden 拿到的还是旧状态
+            window.addEventListener("hashchange", function () {
+                lastX = lastY = null;
+                setTimeout(apply, 0);
+            });
+        }
+        document.addEventListener("visibilitychange", function () {
+            if (document.hidden) clearAll(); else apply();
+        });
+        if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+            window.addEventListener("blur", function () { lastX = lastY = null; clearAll(); });
+        }
+        loadPref();
+        setTimeout(apply, 0);   // 首屏若停在别的子页，等 NAV_JS 摆好页面再收起来
+    })();
+
+    // ---------- ④ 首页「专注与打卡」数据条 ----------
+    const strip = document.getElementById("focus-strip");
+    if (!strip) return;
+
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    function dstr(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+    function lastDays(n) {
+        const out = [];
+        const t = new Date();
+        for (let i = n - 1; i >= 0; i--) {
+            const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() - i);
+            out.push(dstr(d));
+        }
+        return out;
+    }
+    function fmtMin(min) {
+        const h = Math.floor(min / 60), m = min % 60;
+        return (h > 0 ? h + " 小时" : "") + (h > 0 && m > 0 ? " " : "") + (m > 0 || h === 0 ? m + " 分" : "");
+    }
+    function wd(dateStr) {
+        const p = String(dateStr).split("-");
+        const d = new Date(+p[0], +p[1] - 1, +p[2]);
+        return "日一二三四五六".charAt(d.getDay());
+    }
+    let mrCache = null, mrAt = 0;
+    function drawStats(pomo, mr) {
+        // --- 番茄钟 ---
+        const d = (pomo && pomo.day) || { pomos: 0, min: 0 };
+        const byDay = {};
+        ((pomo && pomo.days) || []).forEach(x => { byDay[x.date] = x; });
+        const win7 = lastDays(7);
+        const maxP = Math.max(1, ...win7.map(x => (byDay[x] || {}).pomos || 0));
+        const sum7 = win7.reduce((a, x) => a + ((byDay[x] || {}).pomos || 0), 0);
+        const min7 = win7.reduce((a, x) => a + ((byDay[x] || {}).min || 0), 0);
+        const today = win7[win7.length - 1];
+        const bars = win7.map(x => {
+            const v = (byDay[x] || {}).pomos || 0;
+            return '<div class="strip-bar' + (v ? " has" : "") + (x === today ? " today" : "")
+                + '" title="' + esc(x) + '：' + v + ' 个番茄">'
+                + '<span class="strip-bar-n">' + (v || "") + "</span>"
+                + '<i style="height:' + Math.round(100 * v / maxP) + '%"></i></div>';
+        }).join("");
+        const labels = win7.map(x => "<span>" + wd(x) + "</span>").join("");
+        const pomoHtml =
+              '<div class="strip-head"><span class="strip-title">🍅 番茄钟</span>'
+            + '<span class="strip-sub">近 7 天</span>'
+            + '<button class="strip-link" id="strip-go-pomo">去跑一轮</button></div>'
+            + '<div class="strip-kpis">'
+            +   '<div class="strip-kpi zhu">今日番茄<b>' + d.pomos + " 个</b></div>"
+            +   '<div class="strip-kpi zhu">今日专注<b>' + fmtMin(d.min) + "</b></div>"
+            +   '<div class="strip-kpi">近 7 天<b>' + sum7 + " 个 · " + fmtMin(min7) + "</b></div>"
+            + '</div>'
+            + '<div class="strip-bars">' + bars + "</div>"
+            + '<div class="strip-labels">' + labels + "</div>"
+            + (sum7 === 0
+                ? '<div class="strip-hint">还没有番茄记录。在总览页顶部的番茄钟里点「▶ 开始」，'
+                  + "每跑完一段专注就会自动记上一笔（多设备共用同一份）。</div>"
+                : '<div class="strip-hint">跑完一段专注自动计一个；跳过或中途结束不计。</div>');
+
+        // --- 早间回顾打卡 ---
+        let mrHtml;
+        if (!mr) {
+            mrHtml = '<div class="strip-head"><span class="strip-title">\\uD83C\\uDF05 早间回顾打卡</span></div>'
+                + '<div class="strip-empty">暂时读不到早间回顾数据（本地服务没起或 morning_review.json 缺失）。</div>';
+        } else {
+            const checked = new Set(mr.checkins || []);
+            const studied = new Set((mr.days || []).filter(x => x.studied).map(x => x.date));
+            const win14 = lastDays(14);
+            const td = win14[win14.length - 1];
+            const dots = win14.map(x => '<span class="strip-dot'
+                + (checked.has(x) ? " checked" : (studied.has(x) ? " studied" : ""))
+                + (x === td ? " today" : "")
+                + '" title="' + esc(x) + (checked.has(x) ? " · 已打卡" : (studied.has(x) ? " · 有复习" : " · 空"))
+                + '"></span>').join("");
+            const lastChecked = (mr.checkins || []).slice(-1)[0] || "";
+            mrHtml =
+                  '<div class="strip-head"><span class="strip-title">🌅 早间回顾打卡</span>'
+                + '<span class="strip-sub">最近 14 天</span>'
+                + '<button class="strip-link" id="strip-go-mr">'
+                + (checked.has(td) ? "今日已打卡 ✓" : "去打卡") + "</button></div>"
+                + '<div class="strip-kpis">'
+                +   '<div class="strip-kpi qing">连续打卡<b>' + (mr.streak || 0) + " 天</b></div>"
+                +   '<div class="strip-kpi qing">累计<b>' + (mr.total_days || 0) + " 天</b></div>"
+                +   '<div class="strip-kpi xiang">今天<b>' + (checked.has(td) ? "已打卡" : "未打卡") + "</b></div>"
+                + '</div>'
+                + '<div class="strip-dots">' + dots + "</div>"
+                + '<div class="strip-hint">绿格=已打卡 · 蓝格=当天有复习内容但没打卡 · 今天那格带橙圈。'
+                + (lastChecked ? "最近一次打卡：" + esc(lastChecked) + "。" : "")
+                + "连续天数按「打卡或当天有复习」连着算。</div>";
+        }
+
+        strip.innerHTML = '<div class="strip-grid">'
+            + '<div class="strip-col">' + pomoHtml + "</div>"
+            + '<div class="strip-col">' + mrHtml + "</div>"
+            + "</div>";
+        const b1 = document.getElementById("strip-go-pomo");
+        if (b1) b1.onclick = () => { const t = document.getElementById("pm-slot");
+            if (t && t.scrollIntoView) t.scrollIntoView({ behavior: "smooth", block: "start" }); };
+        const b2 = document.getElementById("strip-go-mr");
+        if (b2) b2.onclick = () => { location.hash = "#/review"; };
+    }
+
+    function loadMr(force) {
+        const now = Date.now();
+        if (!force && mrCache && now - mrAt < 120000) return Promise.resolve(mrCache);
+        return fetch(API + "/api/morning-review/overview").then(r => r.json()).then(d => {
+            mrCache = (d && d.ok) ? d : null;
+            mrAt = now;
+            return mrCache;
+        }).catch(() => null);
+    }
+    function pomoStats() {
+        // POMO_JS 在场就直接拿它手里那份（含近 14 天），省一次来回
+        if (typeof globalThis.__pomoStats === "function") {
+            try { return Promise.resolve(globalThis.__pomoStats()); } catch (e) {}
+        }
+        return fetch(API + "/api/pomodoro/state").then(r => r.json())
+            .then(d => (d && d.ok) ? { day: d.today_stat, days: d.days } : { day: null, days: [] })
+            .catch(() => ({ day: null, days: [] }));
+    }
+    function reload() {
+        Promise.all([pomoStats(), loadMr(false)]).then(([p, mr]) => drawStats(p, mr));
+    }
+    // 番茄钟那边记完一笔会叫一声（见 POMO_JS 的 __focusStripReload）
+    globalThis.__focusStripReload = function () { reload(); };
+    reload();
+    // 每 60 秒顺手对一次打卡状态（早间回顾那页打卡后，这条不用刷新整页也会变）
+    setInterval(function () { if (!document.hidden) loadMr(true).then(mr => drawStats(
+        (typeof globalThis.__pomoStats === "function" ? globalThis.__pomoStats() : null), mr)); }, 60000);
+})();
+'''
+
+
+# ---------------------------------------------------------------------------
+# 笔记搜索 + 读笔记时的提问（2026-09-21）
+#
+# ① 搜索：标题与正文一起搜（空格分词 = 全部要命中；整句搜不到会自动拆词再搜一轮）
+# ② 筛选：科目 / 子科 / 章节 / 级别 / 标签，筛完直接点开笔记
+# ③ 「就问这段」：读笔记时把**当前正在读的那一段**当上下文问 AI，多轮追问，
+#    问答落 SQLite（note_qa 表），下次读同一篇还能翻出上次问过什么
+#
+# 后端在 serve.js（/api/notes/search · /api/notes/ask · /api/notes/qa），
+# 阅读器弹层归 REVIVE_JS——它通过 globalThis.__noteQaMount 把面板挂上来，
+# 并传一个 getContext() 告诉我们「现在读到哪一段」。两边都不硬依赖对方。
+# ---------------------------------------------------------------------------
+
+NOTEQ_CSS = '''
+        /* --- 笔记搜索（2026-09-21）--- */
+        .ns-top { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+        .ns-inputwrap { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
+        .ns-icon { position: absolute; left: 12px; font-size: 0.9rem; opacity: .6; pointer-events: none; }
+        .ns-input { width: 100%; box-sizing: border-box; font: inherit; font-size: 0.92rem;
+            padding: 11px 38px 11px 36px; border-radius: 10px; color: var(--text-primary);
+            background: var(--bg-primary); border: 1px solid var(--border-color); }
+        .ns-input:focus { outline: none; border-color: var(--dianqing);
+            box-shadow: 0 0 0 3px rgba(var(--dianqing-rgb), .16); }
+        .ns-input::placeholder { color: var(--text-muted); }
+        .ns-input::-webkit-search-cancel-button { display: none; }
+        .ns-clear { position: absolute; right: 8px; font: inherit; font-size: 0.8rem; line-height: 1;
+            cursor: pointer; padding: 5px 8px; background: none; border: 0; border-radius: 6px;
+            color: var(--text-muted); }
+        .ns-clear:hover { color: var(--text-primary); background: var(--bg-secondary); }
+        .ns-browse { font: inherit; font-size: 0.8rem; cursor: pointer; padding: 10px 16px;
+            border-radius: 10px; background: var(--bg-primary); color: var(--text-secondary);
+            border: 1px solid var(--border-color); white-space: nowrap; }
+        .ns-browse:hover { color: var(--text-primary); border-color: var(--dianqing); }
+        .ns-facets { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+        .ns-frow { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+        .ns-flabel { font-size: 0.7rem; color: var(--text-muted); flex: none; width: 34px; text-align: right; }
+        .ns-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+        .ns-chip { font: inherit; font-size: 0.74rem; cursor: pointer; padding: 3px 10px;
+            border-radius: 11px; background: var(--bg-primary); color: var(--text-secondary);
+            border: 1px solid var(--border-color); transition: all .15s; }
+        .ns-chip:hover { color: var(--text-primary); border-color: var(--dianqing); }
+        .ns-chip.on { background: rgba(var(--dianqing-rgb), .18); border-color: var(--dianqing);
+            color: var(--dianqing-lt); }
+        .ns-chip i { font-style: normal; opacity: .55; margin-left: 4px; font-size: 0.68rem; }
+        .ns-meta { font-size: 0.74rem; color: var(--text-muted); margin-bottom: 10px; line-height: 1.8; }
+        .ns-meta b { color: var(--text-secondary); }
+        .ns-results { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
+        .ns-hint { font-size: 0.78rem; color: var(--text-muted); padding: 6px 0; line-height: 1.9; }
+        .ns-item { border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px;
+            background: var(--bg-primary); cursor: pointer; transition: border-color .15s, background .15s; }
+        .ns-item:hover { border-color: var(--dianqing); background: var(--bg-secondary); }
+        .ns-item-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+        .ns-item-title { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
+        .ns-item-title mark, .ns-item-snip mark { background: rgba(var(--xiang-rgb), .3);
+            color: var(--xiang-lt); border-radius: 2px; padding: 0 2px; }
+        .ns-badge { font-size: 0.66rem; padding: 1px 7px; border-radius: 9px;
+            background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-color); }
+        .ns-badge.hot { background: rgba(var(--zhuqing-rgb), .16); color: var(--zhuqing-lt);
+            border-color: rgba(var(--zhuqing-rgb), .4); }
+        .ns-badge.lv { background: rgba(var(--dianqing-rgb), .14); color: var(--dianqing-lt);
+            border-color: rgba(var(--dianqing-rgb), .35); }
+        .ns-item-open { margin-left: auto; font-size: 0.72rem; color: var(--text-muted); flex: none; }
+        .ns-item:hover .ns-item-open { color: var(--dianqing-lt); }
+        .ns-item-path { font-size: 0.68rem; color: var(--text-muted); margin-top: 3px;
+            font-family: Consolas, "Courier New", monospace; }
+        .ns-item-snip { font-size: 0.76rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.75;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .ns-more { font-size: 0.74rem; color: var(--text-muted); padding: 2px 0 0; }
+
+        /* --- 从搜索进来时的「定位到命中处」（2026-09-21）--- */
+        .rev-hit { background: rgba(var(--xiang-rgb), .28); color: var(--xiang-lt);
+            border-radius: 3px; padding: 0 1px; transition: background .2s; }
+        .rev-hit.cur { background: rgba(var(--xiang-rgb), .55); color: var(--xuan);
+            box-shadow: 0 0 0 2px rgba(var(--xiang-rgb), .28); }
+        .rev-hit-head { animation: revHitFlash 2.4s ease-out 1; }
+        @keyframes revHitFlash {
+            0% { background: rgba(var(--xiang-rgb), .35); }
+            100% { background: transparent; }
+        }
+        /* 命中导航条：粘在正文顶部，滚多远都够得着 */
+        .rev-find { position: sticky; top: 0; z-index: 6; display: flex; align-items: center;
+            gap: 8px; margin: -6px 0 14px; padding: 7px 12px; border-radius: 6px;
+            background: rgba(var(--mo-rgb), .94); border: 1px solid var(--border-color);
+            font-size: 0.74rem; color: var(--text-secondary);
+            -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+        .rev-find-t { flex: 1; min-width: 0; }
+        .rev-find b { color: var(--xiang-lt); }
+        .rev-find button { font: inherit; font-size: 0.76rem; line-height: 1; cursor: pointer;
+            padding: 4px 9px; border-radius: 5px; background: var(--bg-primary);
+            color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .rev-find button:hover { color: var(--text-primary); border-color: var(--dianqing); }
+        @media (prefers-reduced-motion: reduce) {
+            .rev-hit-head { animation: none; }
+            .rev-hit { transition: none; }
+        }
+
+        /* --- 读笔记时的「就问这段」面板 --- */
+        .rev-modal-box.qa-open { width: min(1180px, 96vw); }
+        .rev-qa { display: none; width: 340px; flex: none; border-left: var(--rule);
+            background: var(--bg-secondary); flex-direction: column; min-height: 0; }
+        .rev-qa:not([hidden]) { display: flex; }
+        .rev-modal-box.full .rev-qa { width: 380px; }
+        .qa-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px 10px;
+            border-bottom: var(--rule); }
+        .qa-head b { font-size: 0.82rem; color: var(--text-primary); }
+        .qa-sec { flex: 1; min-width: 0; font-size: 0.68rem; color: var(--text-muted);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .qa-new { font: inherit; font-size: 0.7rem; cursor: pointer; padding: 3px 9px; border-radius: 8px;
+            background: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .qa-new:hover { color: var(--text-primary); border-color: var(--dianqing); }
+        .qa-ctx { margin: 10px 14px 0; padding: 8px 10px; border-radius: 6px; font-size: 0.7rem;
+            color: var(--text-muted); background: var(--bg-primary); border: 1px dashed var(--border-color);
+            max-height: 74px; overflow: hidden; cursor: pointer; line-height: 1.7; }
+        .qa-ctx.open { max-height: 220px; overflow-y: auto; }
+        .qa-log { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 14px; }
+        .qa-turn { margin-bottom: 12px; }
+        .qa-q { font-size: 0.78rem; color: var(--text-primary); margin-bottom: 6px; }
+        .qa-q::before { content: "我："; color: var(--text-muted); }
+        .qa-a { font-size: 0.8rem; line-height: 1.75; color: var(--text-secondary); }
+        .qa-a .md-p { margin: 0 0 7px; }
+        .qa-a .md-h { margin: 9px 0 5px; font-size: 0.85rem; color: var(--text-primary); }
+        .qa-a .md-ul { margin: 4px 0 8px 16px; }
+        .qa-a .md-pre { margin: 7px 0; padding: 8px 10px; background: var(--bg-primary);
+            border-radius: 4px; overflow-x: auto; font-size: 0.74rem; }
+        .qa-a .md-code { padding: 1px 4px; background: var(--bg-primary); border-radius: 3px;
+            font-family: Consolas, "Courier New", monospace; font-size: 0.9em; }
+        .qa-a .md-table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 0.74rem;
+            display: block; overflow-x: auto; }
+        .qa-a .md-table th, .qa-a .md-table td { border: 1px solid var(--border-color); padding: 4px 8px; }
+        .qa-loading { font-size: 0.75rem; color: var(--text-muted); }
+        .qa-err { font-size: 0.75rem; color: var(--xiang-lt); line-height: 1.7; }
+        .qa-hist { border-top: var(--rule); padding: 9px 14px; max-height: 150px; overflow-y: auto; }
+        .qa-hist-t { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px; }
+        .qa-hist-i { font-size: 0.72rem; color: var(--text-secondary); cursor: pointer;
+            padding: 3px 0; border-bottom: 1px dashed var(--border-color); }
+        .qa-hist-i:hover { color: var(--dianqing-lt); }
+        .qa-ask { border-top: var(--rule); padding: 10px 14px 12px; display: flex; gap: 8px; }
+        .qa-in { flex: 1; min-width: 0; box-sizing: border-box; font: inherit; font-size: 0.8rem;
+            padding: 8px 10px; border-radius: 8px; resize: vertical; min-height: 40px; max-height: 120px;
+            background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); }
+        .qa-in:focus { outline: none; border-color: var(--dianqing); }
+        .qa-send { flex: none; font: inherit; font-size: 0.78rem; cursor: pointer; padding: 8px 16px;
+            border-radius: 8px; background: var(--bg-primary); color: var(--zhuqing-lt);
+            border: 1px solid var(--zhuqing); }
+        .qa-send:hover { background: rgba(var(--zhuqing-rgb), .14); }
+        .qa-send:disabled { opacity: .5; cursor: default; }
+        /* 窄屏：提问面板改成底部抽屉，别跟正文抢宽度 */
+        @media (max-width: 900px) {
+            .rev-modal-main { flex-direction: column; }
+            .rev-qa { width: auto; border-left: 0; border-top: var(--rule); max-height: 52vh; }
+            .rev-modal-box.qa-open { width: min(900px, 96vw); }
+        }
+        /* --- 触屏设备（平板/手机）上的提问与追问框（2026-09-21）---
+           ⚠️ iOS Safari 聚焦 font-size < 16px 的输入框会**自动放大整页**，
+              页面一缩放，发送键就跳到别处去了——看着就像「点了没反应」。
+              触屏一律给 16px，同时把点按目标做大一点。 */
+        @media (pointer: coarse) {
+            .fs-exp-input, .qa-in, .ns-input { font-size: 16px; }
+            .fs-exp-send, .qa-send, .ns-browse { min-height: 42px; padding: 10px 18px; font-size: 0.86rem; }
+            .fs-exp-ask, .qa-ask { padding: 12px 14px; }
+            .qa-hist-i { padding: 7px 0; }
+            .fs-exp-retry { padding: 5px 12px; }
+        }
+'''
+
+
+NOTEQ_JS = '''
+// ============================================================
+// 笔记搜索 + 读笔记时的提问（2026-09-21）
+//   ① 搜索框：标题与正文一起搜（空格分词 = 全部命中；整句搜不到自动拆词再搜）
+//   ② 筛选：科目 / 子科 / 章节 / 级别 / 标签 → 筛出来直接点开读
+//   ③ 「就问这段」面板：由阅读器（REVIVE_JS）通过 globalThis.__noteQaMount 挂载，
+//      上下文＝当前视口里那几段文字（getContext 由阅读器提供）＋小节名；
+//      多轮追问，问答落服务端 note_qa 表，下次读同一篇能看到历史。
+// ============================================================
+(function () {
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+
+    function esc(s) {
+        const d = document.createElement("div");
+        d.textContent = s == null ? "" : String(s);
+        return d.innerHTML;
+    }
+    function toast(msg) {
+        const t = document.createElement("div");
+        t.className = "fs-toast";
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(function () { if (t.remove) t.remove(); }, 2200);
+    }
+    function md(raw) {
+        // 复用闪卡那边调好的 Markdown+LaTeX 渲染器（表格/公式都认）
+        if (typeof globalThis.__mdTex === "function") {
+            try { return globalThis.__mdTex(raw); } catch (e) { /* 退回纯文本 */ }
+        }
+        return "<p>" + esc(raw).replace(/\\n/g, "<br>") + "</p>";
+    }
+    // 把命中的关键词标出来（先转义再包 mark，顺序不能反）
+    function highlight(text, tokens) {
+        let html = esc(text);
+        (tokens || []).forEach(function (t) {
+            if (!t || t.length < 1) return;
+            const re = new RegExp("(" + t.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&") + ")", "gi");
+            html = html.replace(re, "<mark>$1</mark>");
+        });
+        return html;
+    }
+
+    // ---------------- ① 搜索 + ② 筛选 ----------------
+    // ⚠️ 搜索这一段单独包一层：容器不在（产物被裁过 / 别的页面引用了这段脚本）
+    //    只跳过搜索，**不能 return 掉整个模块**——下面的「定位命中处」和
+    //    「就问这段」跟搜索容器没关系，被一起带走就白丢了功能（探针页里炸过）。
+    (function initSearch() {
+    const input = document.getElementById("ns-input");
+    const clearBtn = document.getElementById("ns-clear");
+    const browseBtn = document.getElementById("ns-browse");
+    const facetBox = document.getElementById("ns-facets");
+    const metaBox = document.getElementById("ns-meta");
+    const listBox = document.getElementById("ns-results");
+    if (!input || !listBox) return;      // 不在「笔」页：只跳过搜索
+
+    const F = { subject: "", sub: "", level: "", chapter: "", tag: "" };
+    let facets = null, timer = 0, lastTook = 0, results = [], how = "", soft = [], tokens = [];
+    // 高亮用「整句关键词 + 拆出来的词」的并集：拆词模式下命中词在 soft 里，
+    // 整句模式下在 tokens 里，只取其中一个都会漏标。
+    function hlWords() {
+        const seen = {};
+        return tokens.concat(soft).filter(function (x) {
+            const k = String(x || "").toLowerCase();
+            if (!k || seen[k]) return false;
+            seen[k] = 1; return true;
+        });
+    }
+
+    function hasFilter() { return !!(F.subject || F.sub || F.level || F.chapter || F.tag); }
+    function qs() {
+        const p = [];
+        if (input.value.trim()) p.push("q=" + encodeURIComponent(input.value.trim()));
+        ["subject", "sub", "level", "chapter", "tag"].forEach(function (k) {
+            if (F[k]) p.push(k + "=" + encodeURIComponent(F[k]));
+        });
+        p.push("limit=60");
+        return p.join("&");
+    }
+
+    function renderFacets() {
+        if (!facetBox) return;
+        if (!facets) { facetBox.innerHTML = ""; return; }
+        const row = function (label, list, key, fmt) {
+            if (!list || !list.length) return "";
+            const chip = function (item) {
+                const val = item.value;
+                const on = F[key] === val;
+                return '<button class="ns-chip' + (on ? " on" : "") + '" data-f="' + key
+                    + '" data-v="' + esc(val) + '">' + esc(fmt ? fmt(item) : val)
+                    + '<i>' + item.n + "</i></button>";
+            };
+            return '<div class="ns-frow"><span class="ns-flabel">' + label + "</span>"
+                + '<div class="ns-chips">' + list.map(chip).join("") + "</div></div>";
+        };
+        facetBox.innerHTML =
+              row("科目", facets.subjects, "subject", function (x) { return x.label || x.value; })
+            + row("子科", facets.subs, "sub", function (x) { return x.label || x.value; })
+            + row("章节", facets.chapters, "chapter", function (x) { return x.value; })
+            + row("级别", facets.levels, "level", function (x) { return x.value; })
+            + row("标签", facets.tags, "tag", function (x) { return x.value; });
+        facetBox.querySelectorAll("[data-f]").forEach(function (b) {
+            b.onclick = function () {
+                const k = b.dataset.f, v = b.dataset.v;
+                F[k] = (F[k] === v) ? "" : v;
+                // 选了子科就顺带把科目也定上（两个筛选是「与」的关系，不定上会互相打脸）
+                if (k === "sub" && F.sub) {
+                    const hit = (facets.subs || []).filter(x => x.value === v)[0];
+                    if (hit && hit.subject) F.subject = hit.subject;
+                }
+                if (k === "subject" && F.subject && F.sub) {
+                    const ok = (facets.subs || []).some(x => x.value === F.sub && x.subject === F.subject);
+                    if (!ok) F.sub = "";
+                }
+                renderFacets();
+                run(true);
+            };
+        });
+    }
+
+    function renderResults() {
+        if (!results.length) {
+            listBox.innerHTML = input.value.trim()
+                ? '<div class="ns-hint">没找到包含「' + esc(input.value.trim()) + '」的笔记。'
+                  + '<br>试试少写几个字、换同义词，或点上面的科目/子科直接浏览。</div>'
+                : '<div class="ns-hint">输入关键词搜标题与正文；或点上方的科目 / 子科 / 章节 / 级别 / 标签筛选，'
+                  + '筛出来的笔记点一下就能打开读。</div>';
+            return;
+        }
+        listBox.innerHTML = results.map(function (r, i) {
+            const chips = [];
+            chips.push('<span class="ns-badge">' + esc(r.subjectLabel || r.subject) + "</span>");
+            if (r.subName) chips.push('<span class="ns-badge">' + esc(r.subName) + "</span>");
+            if (r.chapter) chips.push('<span class="ns-badge">' + esc(r.chapter) + "</span>");
+            if (r.level) chips.push('<span class="ns-badge lv">' + esc(r.level) + "</span>");
+            if (r.hits > 0) chips.push('<span class="ns-badge hot">命中 ' + r.hits + "</span>");
+            if (r.orphan) chips.push('<span class="ns-badge">仅索引条目</span>');
+            return '<div class="ns-item" data-i="' + i + '">'
+                + '<div class="ns-item-head">'
+                +   '<span class="ns-item-title">' + highlight(r.title || r.name, hlWords()) + "</span>"
+                +   chips.join("")
+                +   '<span class="ns-item-open">' + (r.path ? (r.hits > 0 ? "打开并定位 →" : "打开 →") : "无对应文件") + "</span>"
+                + "</div>"
+                + '<div class="ns-item-path">' + esc(r.path || "（这条只在笔记索引里，没有链接到 .md 文件）") + "</div>"
+                + (r.snippet ? '<div class="ns-item-snip">' + highlight(r.snippet, hlWords()) + "</div>" : "")
+                + "</div>";
+        }).join("");
+        listBox.querySelectorAll(".ns-item").forEach(function (el) {
+            el.onclick = function () {
+                const r = results[+el.dataset.i];
+                if (!r) return;
+                if (!r.path) { toast("这条只在索引里，没有对应的笔记文件"); return; }
+                if (typeof globalThis.__revOpenNote === "function") {
+                    // ⚠️ 定位用的关键词要用**服务端实际匹配到的词**：整句没命中时它会自动拆词
+                    //    （「旋转和平衡」→ 旋转 + 平衡）。拿原句去正文里找必然找不到，于是
+                    //    只剩「滚到小标题那一节」这个兜底 —— 用户反馈「定位不太成功」就是这个。
+                    const words = hlWords();
+                    globalThis.__revOpenNote({
+                        file: r.path, name: r.title || r.name,
+                        // 只按标题命中时不必定位（正文里没有它）
+                        query: r.hits > 0 ? (words.join(" ") || input.value.trim()) : "",
+                        anchor: r.anchor || "",
+                    });
+                } else { toast("阅读器还没加载好，稍后再点一次"); }
+            };
+        });
+    }
+
+    function renderMeta() {
+        if (!metaBox) return;
+        const bits = [];
+        if (input.value.trim()) bits.push("关键词 <b>" + esc(input.value.trim()) + "</b>");
+        const fs = [];
+        ["subject", "sub", "level", "chapter", "tag"].forEach(function (k) { if (F[k]) fs.push(F[k]); });
+        if (fs.length) bits.push("筛选 <b>" + esc(fs.join(" · ")) + "</b>");
+        if (how === "split" && soft.length) {
+            bits.push('整句没搜到，已按拆开的关键词 <b>' + esc(soft.join(" + ")) + "</b> 匹配");
+        } else if (how === "any" && soft.length) {
+            bits.push('按 <b>' + esc(soft.join(" / ")) + "</b> 中任一词匹配（可能不全）");
+        }
+        bits.push("共 <b>" + results.length + "</b> 篇" + (lastTook ? "（" + lastTook + "ms）" : ""));
+        metaBox.innerHTML = bits.join(" · ");
+    }
+
+    async function run(force) {
+        if (!facets || force === "facets") {
+            // 首次（或显式刷新）顺带把筛选选项拉回来
+        }
+        try {
+            const url = API + "/api/notes/search?" + qs() + (facets ? "&facets=0" : "&facets=1");
+            const d = await (await fetch(url)).json();
+            if (!d.ok) throw new Error(d.error || "搜索失败");
+            if (d.facets) facets = d.facets;
+            results = d.results || [];
+            how = d.how || ""; soft = d.soft || []; tokens = d.tokens || [];
+            lastTook = d.took_ms || 0;
+            renderFacets(); renderMeta(); renderResults();
+        } catch (e) {
+            listBox.innerHTML = '<div class="ns-hint">搜索失败：' + esc(e.message)
+                + "<br>（本地服务没起来？用桌面「启动考研大盘.bat」打开本页）</div>";
+        }
+    }
+    function debounced() { clearTimeout(timer); timer = setTimeout(run, 260); }
+
+    input.addEventListener("input", function () {
+        if (clearBtn) clearBtn.hidden = !input.value;
+        debounced();
+    });
+    input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); clearTimeout(timer); run(true); }
+        else if (e.key === "Escape") { input.value = ""; if (clearBtn) clearBtn.hidden = true; run(true); }
+    });
+    if (clearBtn) clearBtn.onclick = function () {
+        input.value = ""; clearBtn.hidden = true; input.focus(); run(true);
+    };
+    if (browseBtn) browseBtn.onclick = function () {
+        input.value = ""; if (clearBtn) clearBtn.hidden = true;
+        F.subject = ""; F.sub = ""; F.level = ""; F.chapter = ""; F.tag = "";
+        renderFacets(); run(true);
+        listBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
+    // 懒渲染：真进到「笔」页才拉索引（首屏不必读 700 个文件）
+    (window.__pageRenderers = window.__pageRenderers || {});
+    (window.__pageRenderers.notes = window.__pageRenderers.notes || []).push(function () { run(true); });
+    })();   // initSearch 结束
+
+    // ---------------- ④ 「打开并定位到命中处」 ----------------
+    // 搜索命中的是**正文**时，打开笔记要直接跳到那一处，而不是让人自己翻。
+    // 做法：遍历渲染后正文的文本节点找关键词 → 包成 <mark class="rev-hit"> →
+    // 滚到第一处 + 顶部给一条「命中 N 处 / 上一处 / 下一处」的小条。
+    // 兜底：markdown 可能把词拆进不同标签（`进**程**`），这时按服务端算出的
+    // 最近小标题文本滚到那一节（mode=anchor）。
+    function textNodesOf(root) {
+        const out = [];
+        if (!root || typeof document.createTreeWalker !== "function") return out;
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode: function (n) {
+                if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+                const p = n.parentNode;
+                if (!p) return NodeFilter.FILTER_REJECT;
+                const tag = String(p.nodeName || "").toUpperCase();
+                if (tag === "SCRIPT" || tag === "STYLE" || tag === "MARK" || tag === "TEXTAREA") {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            },
+        });
+        let n;
+        while ((n = w.nextNode())) out.push(n);
+        return out;
+    }
+    function clearMarks(root) {
+        if (!root || !root.querySelectorAll) return;
+        Array.prototype.slice.call(root.querySelectorAll("mark.rev-hit")).forEach(function (m) {
+            const p = m.parentNode;
+            if (!p) return;
+            p.replaceChild(document.createTextNode(m.textContent || ""), m);
+            p.normalize && p.normalize();
+        });
+        const bar = root.querySelector(".rev-find");
+        if (bar && bar.remove) bar.remove();
+    }
+    function markText(root, tokens) {
+        const marks = [];
+        const lows = tokens.map(function (t) { return String(t).toLowerCase(); }).filter(Boolean);
+        textNodesOf(root).forEach(function (node) {
+            const text = node.nodeValue || "";
+            const low = text.toLowerCase();
+            const spans = [];
+            lows.forEach(function (t) {
+                let from = 0, guard = 0;
+                while (guard++ < 200) {
+                    const at = low.indexOf(t, from);
+                    if (at < 0) break;
+                    spans.push([at, at + t.length]);
+                    from = at + t.length;
+                }
+            });
+            if (!spans.length) return;
+            spans.sort(function (a, b) { return a[0] - b[0]; });
+            const merged = [];
+            spans.forEach(function (s) {
+                const last = merged[merged.length - 1];
+                if (last && s[0] <= last[1]) { last[1] = Math.max(last[1], s[1]); }
+                else merged.push([s[0], s[1]]);
+            });
+            // 每个文本节点内部从后往前切、把 mark 记进 local（unshift 保证节点内顺序），
+// 最后按**节点顺序** push 进总表 —— 直接在总表上 unshift 会让后一个段落的
+// 命中排到前面去，于是「下一处」反而往回跳（探针页实测踩过）。
+            const local = [];
+            for (let i = merged.length - 1; i >= 0; i--) {
+                const a = merged[i][0], b = merged[i][1];
+                const after = node.splitText(b);
+                const mid = node.splitText(a);
+                const m = document.createElement("mark");
+                m.className = "rev-hit";
+                mid.parentNode.insertBefore(m, mid);
+                m.appendChild(mid);
+                local.unshift(m);
+                void after;              // 右半边保持原样，不再参与切割
+            }
+            for (let k = 0; k < local.length; k++) marks.push(local[k]);
+        });
+        return marks;
+    }
+    function goToMark(marks, i) {
+        marks.forEach(function (m, k) { m.classList.toggle("cur", k === i); });
+        const m = marks[i];
+        if (m && m.scrollIntoView) {
+            try { m.scrollIntoView({ behavior: "smooth", block: "center" }); }
+            catch (e) { try { m.scrollIntoView(); } catch (e2) {} }
+        }
+    }
+    function findHeading(root, anchor) {
+        if (!root || !root.querySelectorAll || !anchor) return null;
+        const want = String(anchor).replace(/\s+/g, "");
+        const hs = root.querySelectorAll("h1, h2, h3, h4");
+        for (let i = 0; i < hs.length; i++) {
+            const t = String(hs[i].textContent || "").replace(/\s+/g, "");
+            if (t && (t.indexOf(want) >= 0 || want.indexOf(t) >= 0)) return hs[i];
+        }
+        return null;
+    }
+    globalThis.__noteHitLocate = function (root, opts) {
+        if (!root || !opts) return { count: 0, mode: "none" };
+        const query = String(opts.query || "").trim();
+        const tokens = query.split(/\s+/).map(function (s) { return s.trim(); }).filter(Boolean);
+        clearMarks(root);
+        const marks = tokens.length ? markText(root, tokens) : [];
+        if (marks.length) {
+            // 顶部小条：命中几处 + 上一处/下一处 + 清除
+            const bar = document.createElement("div");
+            bar.className = "rev-find";
+            bar.innerHTML = '<span class="rev-find-t">正文里命中 <b>' + marks.length + '</b> 处「'
+                + esc(query) + '」</span>'
+                + '<button data-a="prev" title="上一处">↑</button>'
+                + '<button data-a="next" title="下一处">↓</button>'
+                + '<button data-a="close" title="清除高亮"></button>';
+            root.insertBefore(bar, root.firstChild);
+            let cur = 0;
+            const jump = function (i) { cur = (i + marks.length) % marks.length; goToMark(marks, cur); };
+            Array.prototype.slice.call(bar.querySelectorAll("button")).forEach(function (b) {
+                b.onclick = function () {
+                    const a = b.getAttribute("data-a");
+                    if (a === "prev") jump(cur - 1);
+                    else if (a === "next") jump(cur + 1);
+                    else { clearMarks(root); }
+                };
+            });
+            goToMark(marks, 0);
+            return { count: marks.length, mode: "text" };
+        }
+        const head = findHeading(root, opts.anchor);
+        if (head) {
+            try { head.scrollIntoView({ behavior: "smooth", block: "start" }); }
+            catch (e) { try { head.scrollIntoView(); } catch (e2) {} }
+            if (head.classList) head.classList.add("rev-hit-head");
+            setTimeout(function () { if (head.classList) head.classList.remove("rev-hit-head"); }, 2600);
+            return { count: 0, mode: "anchor" };
+        }
+        return { count: 0, mode: "none" };
+    };
+
+    // ---------------- ③ 「就问这段」面板 ----------------
+    // 阅读器把面板容器与「当前读到哪一段」的取法一起交过来（see REVIVE_JS.openNote）
+    globalThis.__noteQaMount = function (pane, opts) {
+        if (!pane || !opts || !opts.path) return;
+        let threadId = "";
+        const state = { busy: false };
+        pane.innerHTML =
+              '<div class="qa-head"><b>💬 就问这段</b><span class="qa-sec" data-f="sec">正在读：—</span>'
+            + '  <button class="qa-new" data-act="new">新对话</button></div>'
+            + '<div class="qa-ctx" data-f="ctx" title="点一下展开/收起：这就是要发给 AI 的上下文">（正在读取上下文…）</div>'
+            + '<div class="qa-log" data-f="log"><div class="qa-hint" style="font-size:0.74rem;color:var(--text-muted);line-height:1.8;">'
+            + '读到不懂的地方，直接问。发出去的是<b>你此刻在看的这一段</b>＋你的问题，不是整篇笔记。</div></div>'
+            + '<div class="qa-hist" data-f="hist" hidden></div>'
+            + '<div class="qa-ask">'
+            + '  <textarea class="qa-in" data-f="in" rows="2" enterkeyhint="send" autocapitalize="off"'
+            + '    placeholder="就这段问点什么…（Enter 发送，Shift+Enter 换行）"></textarea>'
+            + '  <button class="qa-send" data-act="send">发送</button>'
+            + '</div>';
+        const $ = function (n) { return pane.querySelector('[data-f="' + n + '"]'); };
+        const logBox = $("log"), ctxBox = $("ctx"), secBox = $("sec"), inBox = $("in"), histBox = $("hist");
+
+        function refreshCtx() {
+            let c = { section: "", text: "" };
+            try { c = opts.getContext() || c; } catch (e) {}
+            const head = (c.section ? c.section + " · " : "") + (c.text ? c.text.length + " 字" : "没读到正文");
+            ctxBox.textContent = head + (c.text ? "　—　" + c.text.slice(0, 90).replace(/\\s+/g, " ") + "…" : "");
+            secBox.textContent = "正在读：" + (c.section || "（还没到小标题）");
+            return c;
+        }
+        refreshCtx();
+        if (opts.scroller && opts.scroller.addEventListener) {
+            let last = 0;
+            opts.scroller.addEventListener("scroll", function () {
+                const now = Date.now();
+                if (now - last < 400) return;      // 滚动里别疯狂重算
+                last = now; refreshCtx();
+            });
+        }
+        ctxBox.onclick = function () { ctxBox.classList.toggle("open"); };
+
+        function addTurn(q, a) {
+            const t = document.createElement("div");
+            t.className = "qa-turn";
+            t.innerHTML = '<div class="qa-q">' + esc(q) + "</div>"
+                + '<div class="qa-a">' + (a == null ? '<span class="qa-loading">思考中…</span>' : md(a)) + "</div>";
+            logBox.appendChild(t);
+            logBox.scrollTop = logBox.scrollHeight;
+            return t;
+        }
+        function showErr(msg) {
+            const d = document.createElement("div");
+            d.className = "qa-err";
+            d.textContent = "⚠ " + msg;
+            logBox.appendChild(d);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+        function renderThread(messages, withHist) {
+            logBox.innerHTML = "";
+            for (let i = 0; i < messages.length; i += 2) {
+                addTurn(messages[i] ? messages[i].content : "", messages[i + 1] ? messages[i + 1].content : "");
+            }
+            if (withHist) {
+                const d = document.createElement("div");
+                d.className = "qa-hint";
+                d.style.cssText = "font-size:0.72rem;color:var(--text-muted);margin-top:6px;";
+                d.textContent = "（这是以前问过的记录）";
+                logBox.appendChild(d);
+            }
+        }
+        async function send() {
+            const q = (inBox.value || "").trim();
+            if (!q) return;
+            if (state.busy) { toast("还在回答上一个问题…"); return; }
+            const c = refreshCtx();
+            state.busy = true;
+            const sendBtn = pane.querySelector('[data-act="send"]');
+            if (sendBtn) sendBtn.disabled = true;
+            inBox.value = "";
+            const turn = addTurn(q, null);
+            try {
+                const r = await fetch(API + "/api/notes/ask", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        path: opts.path, section: c.section, context: c.text,
+                        question: q, thread_id: threadId || undefined,
+                    }),
+                });
+                const d = await r.json();
+                if (!d.ok) throw new Error(d.error || "回答失败");
+                threadId = d.thread_id || threadId;
+                turn.querySelector(".qa-a").innerHTML = md(d.text);
+                logBox.scrollTop = logBox.scrollHeight;
+                loadHistory(true);
+            } catch (e) {
+                turn.querySelector(".qa-a").innerHTML = '<span class="qa-err">⚠ ' + esc(e.message) + "</span>";
+            } finally {
+                state.busy = false;
+                if (sendBtn) sendBtn.disabled = false;
+            }
+        }
+        async function loadHistory(quiet) {
+            try {
+                const d = await (await fetch(API + "/api/notes/qa?path=" + encodeURIComponent(opts.path)
+                    + "&limit=8")).json();
+                if (!d.ok) return;
+                const threads = d.threads || [];
+                if (!threads.length) { histBox.hidden = true; return; }
+                histBox.hidden = false;
+                histBox.innerHTML = '<div class="qa-hist-t">这篇笔记以前问过 ' + threads.length + ' 次'
+                    + '（点一条回看）</div>'
+                    + threads.map(function (t, i) {
+                        return '<div class="qa-hist-i" data-i="' + i + '">'
+                            + esc((t.first_question || t.messages[0] && t.messages[0].content || "").slice(0, 46))
+                            + '<span style="color:var(--text-muted);"> · ' + esc((t.at || "").replace("T", " ").slice(5, 16))
+                            + "</span></div>";
+                    }).join("");
+                histBox.querySelectorAll(".qa-hist-i").forEach(function (el) {
+                    el.onclick = function () {
+                        const t = threads[+el.dataset.i];
+                        if (!t) return;
+                        renderThread(t.messages, true);
+                        threadId = t.thread_id;      // 接着这条继续问
+                    };
+                });
+                if (!quiet && threads[0] && !logBox.querySelector(".qa-turn")) {
+                    renderThread(threads[0].messages, true);
+                    threadId = threads[0].thread_id;
+                }
+            } catch (e) { /* 读不到历史不影响提问 */ }
+        }
+        pane.querySelector('[data-act="new"]').onclick = function () {
+            threadId = "";
+            logBox.innerHTML = '<div class="qa-hint" style="font-size:0.74rem;color:var(--text-muted);">'
+                + "新对话。发出去的是你此刻在看的这一段＋你的问题。</div>";
+            inBox.focus();
+        };
+        pane.querySelector('[data-act="send"]').onclick = send;
+        inBox.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && !e.shiftKey && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); send(); }
+        });
+        // 软键盘会盖住底部：聚焦时把输入框滚进可视区
+        inBox.addEventListener("focus", function () {
+            setTimeout(function () {
+                try { inBox.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e2) {}
+            }, 320);
+        });
+        loadHistory(false);
+    };
+})();
+'''
+
+
+# ---------------------------------------------------------------------------
+# 早间回顾（并入大盘，2026-09-20）
+# ---------------------------------------------------------------------------
+
+MR_CSS = '''
+        /* ============================================================
+           早间回顾 —— 并入大盘后的样式。
+           原来它是独立浅色页（#fafafa + 蓝色），和大盘并排非常割裂，
+           所以这里一律改用大盘的色板变量：深浅主题都能自动跟随。
+           ============================================================ */
+        .mr-loading, .mr-empty { padding: 26px 4px; font-size: .84rem; color: var(--text-muted); line-height: 1.8; }
+        .mr-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+        .mr-dates { display: flex; gap: 6px; overflow-x: auto; flex: 1; min-width: 180px;
+            padding: 2px 2px 6px; scrollbar-width: thin; }
+        .mr-chip { flex: none; font: inherit; font-size: .76rem; line-height: 1.4; padding: 5px 9px;
+            border: 1px solid var(--border-color); border-radius: var(--border-radius);
+            background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer;
+            display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+        .mr-chip:hover { color: var(--text-primary); border-color: var(--dianqing); }
+        .mr-chip.on { color: var(--dianqing-lt); border-color: var(--dianqing);
+            background: rgba(var(--dianqing-rgb), .14); }
+        .mr-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); opacity: .5; }
+        .mr-chip.checked .mr-dot { background: var(--zhusha); opacity: 1; }
+        .mr-stat { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+        .mr-stat b { color: var(--text-primary); }
+        .mr-btn { font: inherit; font-size: .78rem; padding: 5px 13px; cursor: pointer;
+            border: 1px solid var(--border-color); border-radius: var(--border-radius);
+            background: var(--bg-secondary); color: var(--text-secondary); }
+        .mr-btn:hover { color: var(--text-primary); border-color: var(--zhuqing); }
+        .mr-btn.checked { color: var(--zhuqing-lt); border-color: var(--zhuqing);
+            background: rgba(var(--zhuqing-rgb), .14); }
+        .mr-btn[disabled] { opacity: .5; cursor: default; }
+
+        .mr-card { background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: var(--border-radius); padding: 14px 16px; margin-bottom: 13px; }
+        .mr-card-h { display: flex; align-items: center; gap: 8px; font-size: .92rem; font-weight: 600;
+            color: var(--text-primary); padding-bottom: 9px; margin-bottom: 4px;
+            border-bottom: 1px solid var(--border-color); }
+        .mr-tag { margin-left: auto; font-size: .7rem; font-weight: 400; color: var(--text-muted); }
+        .mr-sub { font-size: .74rem; color: var(--text-muted); margin: -2px 0 8px; }
+
+        .mr-item { padding: 11px 0; border-bottom: 1px dashed var(--border-color); }
+        .mr-item:last-child { border-bottom: none; padding-bottom: 2px; }
+        .mr-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px; }
+        .mr-badge { font-size: .67rem; padding: 1px 7px; border-radius: 9px;
+            color: var(--dianqing-lt); background: rgba(var(--dianqing-rgb), .13);
+            border: 1px solid rgba(var(--dianqing-rgb), .28); }
+        .mr-item h4 { font-size: .89rem; color: var(--text-primary); margin-bottom: 5px; }
+        .mr-item p { font-size: .84rem; line-height: 1.8; color: var(--text-secondary); }
+        .mr-list { margin: 6px 0 0 18px; padding: 0; font-size: .83rem; line-height: 1.85;
+            color: var(--text-secondary); }
+        .mr-concl { margin-top: 7px; padding: 7px 11px; border-left: 2px solid var(--zhuqing);
+            background: rgba(var(--zhuqing-rgb), .09); font-size: .82rem; line-height: 1.75;
+            color: var(--text-secondary); }
+        .mr-link { margin-top: 6px; font-size: .73rem; color: var(--text-muted); }
+        .mr-link a { color: var(--dianqing-lt); text-decoration: none; }
+        .mr-link a:hover { text-decoration: underline; }
+
+        /* 闪卡练习 */
+        .mr-tabs { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 11px; }
+        .mr-tab { font: inherit; font-size: .77rem; padding: 4px 11px; cursor: pointer;
+            border: 1px solid var(--border-color); border-radius: var(--border-radius);
+            background: var(--bg-secondary); color: var(--text-secondary); }
+        .mr-tab.on { color: var(--zhuqing-lt); border-color: var(--zhuqing);
+            background: rgba(var(--zhuqing-rgb), .13); }
+        .mr-cnt { opacity: .75; font-size: .7rem; margin-left: 3px; }
+        .mr-fc { padding: 13px 15px; border: 1px solid var(--border-color);
+            border-radius: var(--border-radius); background: var(--bg-secondary); cursor: pointer; }
+        .mr-fc:hover { border-color: var(--dianqing); }
+        .mr-fc-meta { display: flex; gap: 8px; align-items: center; font-size: .7rem;
+            color: var(--text-muted); margin-bottom: 7px; }
+        .mr-kind { padding: 0 6px; border-radius: 8px; font-size: .67rem; }
+        .mr-kind.new { color: var(--xiang-lt); background: rgba(var(--xiang-rgb), .16); }
+        .mr-kind.rev { color: var(--zhuqing-lt); background: rgba(var(--zhuqing-rgb), .16); }
+        .mr-q { font-size: .9rem; line-height: 1.8; color: var(--text-primary); }
+        .mr-a { margin-top: 11px; padding-top: 11px; border-top: 1px dashed var(--border-color);
+            font-size: .84rem; line-height: 1.85; color: var(--text-secondary); }
+        .mr-acts { display: flex; gap: 8px; align-items: center; margin-top: 11px; flex-wrap: wrap; }
+        .mr-hint { font-size: .72rem; color: var(--text-muted); margin-left: auto; }
+        .mr-ok { border-color: var(--zhuqing); color: var(--zhuqing-lt); }
+        .mr-ok:hover { background: rgba(var(--zhuqing-rgb), .13); }
+        .mr-no { border-color: var(--xiang); color: var(--xiang-lt); }
+        .mr-no:hover { background: rgba(var(--xiang-rgb), .13); }
+        .mr-next { border-color: var(--dianqing); color: var(--dianqing-lt); }
+        .mr-next:hover { background: rgba(var(--dianqing-rgb), .13); }
+
+        /* 英语长难句 */
+        .mr-sent { padding: 12px 14px; background: var(--bg-secondary);
+            border-left: 3px solid var(--dianqing); border-radius: var(--border-radius);
+            font-size: .93rem; line-height: 2.05; color: var(--text-primary); }
+        .hl-blue { color: var(--dianqing-lt); }
+        .hl-red { color: var(--zhusha-lt); }
+        .hl-amber { color: var(--xiang-lt); }
+        .mr-trans { display: none; margin-top: 9px; padding: 10px 13px; font-size: .84rem;
+            line-height: 1.85; color: var(--text-secondary);
+            background: rgba(var(--zhuqing-rgb), .07); border-radius: var(--border-radius); }
+        .mr-trans.on { display: block; }
+        .mr-struct { margin-top: 9px; padding: 11px 13px; background: var(--bg-secondary);
+            border-radius: var(--border-radius); font-family: Consolas, "Courier New", monospace;
+            font-size: .76rem; line-height: 1.95; color: var(--text-secondary);
+            white-space: pre-wrap; overflow-x: auto; }
+        .mr-h4 { font-size: .84rem; color: var(--text-primary); margin: 13px 0 6px; }
+        .mr-table { width: 100%; border-collapse: collapse; font-size: .81rem; }
+        .mr-table th, .mr-table td { border: 1px solid var(--border-color); padding: 5px 9px;
+            text-align: left; vertical-align: top; line-height: 1.7; }
+        .mr-table th { background: var(--bg-secondary); color: var(--text-primary); font-weight: 600; }
+        .mr-table td { color: var(--text-secondary); }
+        .mr-gram { padding: 9px 0; border-bottom: 1px dashed var(--border-color); }
+        .mr-gram:last-child { border-bottom: none; }
+        .mr-gram b { font-size: .84rem; color: var(--text-primary); }
+        .mr-gram p { margin-top: 4px; font-size: .82rem; line-height: 1.8; color: var(--text-secondary); }
+        .mr-num { display: inline-flex; align-items: center; justify-content: center;
+            width: 17px; height: 17px; margin-right: 6px; border-radius: 3px; font-size: .68rem;
+            color: var(--zhuqing-lt); background: rgba(var(--zhuqing-rgb), .16); }
+        .mr-code, .mr-item code, .mr-a code, .mr-gram code { padding: 1px 5px;
+            background: var(--bg-secondary); border-radius: 3px;
+            font-family: Consolas, "Courier New", monospace; font-size: .95em; }
+'''
+
+MR_JS = '''
+// ============================================================
+// 早间回顾（并入大盘，2026-09-20）
+//
+// 内容读服务端 morning_review.json，打卡与间隔重复状态存 SQLite。
+// 平板/手机只是发请求并渲染，所有进度都留在这台电脑上——原先它们存在
+// 各设备自己的 localStorage 里，换设备就各算各的，现在两端看到同一份。
+//
+// 正文（title/body/conclusion/句子/语法点）来自本地工作流生成的可信数据，
+// 内含 <strong>/<code>/<span class="hl-*"> 等标记，因此按原样插入；
+// 而 subject、日期、错误信息等运行期文本一律 esc。
+// ============================================================
+(function () {
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+    const root = document.getElementById("mr-root");
+    if (!root) return;
+
+    const esc = (s) => String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // 答案里的换行要变 <br> 才看得出层次（不转义，保留数据里的 HTML 标记）
+    const br = (s) => String(s == null ? "" : s).replace(/\\n/g, "<br>");
+
+    const S = { ov: null, date: null, day: null, q: null, tab: null, idx: 0, flipped: false, busy: false };
+
+    function toast(msg) {
+        const t = document.createElement("div");
+        t.className = "fs-toast";
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 1900);
+    }
+    async function get(path) {
+        const r = await fetch(API + path);
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || ("HTTP " + r.status));
+        return d;
+    }
+    function post(path, payload) {
+        return fetch(API + path, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        }).then(r => r.json());
+    }
+
+    // ---- 顶部工具条：日期 / 打卡 / 统计 ----
+    function barHtml() {
+        const ov = S.ov;
+        const cur = ov.days.find(d => d.date === S.date) || {};
+        const chips = ov.days.map(d =>
+            '<button class="mr-chip' + (d.date === S.date ? ' on' : '') + (d.checked ? ' checked' : '')
+            + '" data-date="' + d.date + '" title="' + esc(d.subject || '') + '">'
+            + esc(d.date.slice(5).replace('-', '/')) + ' ' + esc(d.weekday || '')
+            + '<span class="mr-dot"></span></button>').join('');
+        return '<div class="mr-bar"><div class="mr-dates">' + chips + '</div>'
+            + '<button class="mr-btn' + (cur.checked ? ' checked' : '') + '" id="mr-check">'
+            + (cur.checked ? '✅ 已打卡' : '🔖 打卡这天') + '</button>'
+            + '<span class="mr-stat">连续 <b>' + (ov.streak || 0) + '</b> 天 · 累计 <b>'
+            + (ov.total_days || 0) + '</b> 天</span></div>';
+    }
+
+    function linkHtml(l) {
+        if (!l || !l.name) return '';
+        return '<div class="mr-link">📎 <a href="' + esc(l.path || '') + '" target="_blank"'
+            + ' title="电脑本地笔记：' + esc(l.path || '') + '">' + esc(l.name) + '</a></div>';
+    }
+
+    // ---- 知识点回顾 ----
+    function reviewCard(day) {
+        const items = day.review || [];
+        if (!items.length) return '';
+        const html = items.map(it => {
+            const badges = (it.badges || []).map(b => '<span class="mr-badge">' + esc(b) + '</span>').join('');
+            const list = (it.list && it.list.length)
+                ? '<ul class="mr-list">' + it.list.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '';
+            const concl = it.conclusion ? '<div class="mr-concl">' + it.conclusion + '</div>' : '';
+            return '<div class="mr-item">'
+                + (badges ? '<div class="mr-badges">' + badges + '</div>' : '')
+                + '<h4>' + (it.title || '') + '</h4>'
+                + '<p>' + (it.body || '') + '</p>' + list + concl + linkHtml(it.noteLink) + '</div>';
+        }).join('');
+        return '<div class="mr-card"><div class="mr-card-h">📚 知识点回顾'
+            + '<span class="mr-tag">' + items.length + ' 条</span></div>'
+            + '<div class="mr-sub">' + esc(day.subject || '') + '</div>' + html + '</div>';
+    }
+
+    // ---- 闪卡练习（队列由服务端算，两端一致）----
+    function fcCard() {
+        const q = S.q;
+        if (!q || !q.tabs || !q.tabs.length) return '';
+        const tabs = q.tabs.map(t =>
+            '<button class="mr-tab' + (t.key === S.tab ? ' on' : '') + '" data-tab="' + t.key + '">'
+            + esc(t.label) + '<span class="mr-cnt">' + t.due + '复+' + t.new + '新</span></button>').join('');
+        const grp = S.tab && q.queues[S.tab];
+        let inner;
+        if (!grp || !grp.all.length) {
+            inner = '<div class="mr-empty">该科目今日没有待练卡片（都已掌握，或还没到复习点）。</div>';
+        } else {
+            const i = Math.min(S.idx, grp.all.length - 1);
+            const c = grp.all[i];
+            const sr = (q.sr && q.sr[c.id]) || null;
+            const isRev = !!(sr && sr.step >= 0);
+            const kind = isRev
+                ? '<span class="mr-kind rev">复习 · 第 ' + (sr.step + 1) + ' 档</span>'
+                : '<span class="mr-kind new">新卡</span>';
+            inner = '<div class="mr-fc" id="mr-flip">'
+                + '<div class="mr-fc-meta">' + kind + '<span>' + esc(c.topic || '') + '</span>'
+                + '<span style="margin-left:auto;">' + (i + 1) + ' / ' + grp.all.length + '</span></div>'
+                + '<div class="mr-q">' + (c.q || '') + '</div>'
+                + (S.flipped
+                    ? '<div class="mr-a">' + br(c.a) + '</div>'
+                    : '<div class="mr-hint" style="margin-top:10px;">点击卡片看参考答案</div>')
+                + '</div>';
+            if (S.flipped) {
+                inner += '<div class="mr-acts">'
+                    + '<button class="mr-btn mr-ok" data-mark="ok">✓ 已掌握</button>'
+                    + '<button class="mr-btn mr-no" data-mark="no">↻ 待巩固</button>'
+                    + '<button class="mr-btn mr-next" id="mr-skip">跳过 →</button>'
+                    + '<span class="mr-hint">进度保存在电脑，换设备一致</span></div>';
+            }
+        }
+        return '<div class="mr-card"><div class="mr-card-h">🎯 闪卡练习'
+            + '<span class="mr-tag">' + esc(q.date || '') + '</span></div>'
+            + '<div class="mr-tabs">' + tabs + '</div>' + inner + '</div>';
+    }
+
+    // ---- 英语长难句 ----
+    function engCard(day) {
+        const e = day.english;
+        if (!e) return '';
+        const words = (e.words || []).map(w =>
+            '<tr><td><strong>' + (w.word || '') + '</strong></td><td>' + (w.meaning || '')
+            + '</td><td>' + (w.familiar || '') + '</td></tr>').join('');
+        const gram = (e.grammar || []).map((g, i) =>
+            '<div class="mr-gram"><b><span class="mr-num">' + (i + 1) + '</span>'
+            + (g.title || '') + '</b><p>' + (g.body || '') + '</p></div>').join('');
+        const dec = (e.decompose || []).length
+            ? '<div class="mr-h4">成分分析</div><table class="mr-table"><thead><tr><th style="width:90px;">成分</th>'
+              + '<th style="width:45%;">内容</th><th>说明</th></tr></thead><tbody>'
+              + e.decompose.map(d => '<tr><td><span class="mr-badge">' + esc(d.badge || '')
+                + '</span></td><td>' + (d.content || '') + '</td><td>' + (d.note || '') + '</td></tr>').join('')
+              + '</tbody></table>' : '';
+        return '<div class="mr-card"><div class="mr-card-h">📝 英语一长难句精析'
+            + (e.source ? '<span class="mr-tag">' + esc(e.source) + '</span>' : '') + '</div>'
+            + '<div class="mr-sent">' + (e.sentence || '') + '</div>'
+            + '<div class="mr-acts"><button class="mr-btn" id="mr-trans-btn">🔍 查看参考译文</button></div>'
+            + '<div class="mr-trans" id="mr-trans"><strong>参考译文：</strong>' + (e.translation || '') + '</div>'
+            + (e.structure ? '<div class="mr-h4">🔍 结构拆解</div><div class="mr-struct">'
+                + esc(e.structure) + '</div>' : '')
+            + dec
+            + (words ? '<div class="mr-h4">📖 熟词生义</div><table class="mr-table"><thead><tr>'
+                + '<th>词汇</th><th>句中含义</th><th>常见熟义</th></tr></thead><tbody>'
+                + words + '</tbody></table>' : '')
+            + (gram ? '<div class="mr-h4">📐 核心语法点</div>' + gram : '')
+            + linkHtml(e.noteLink) + '</div>';
+    }
+
+    function renderAll() {
+        if (!S.ov) return;
+        const body = !S.day
+            ? '<div class="mr-empty">该日期暂无复习内容。</div>'
+            : reviewCard(S.day) + fcCard() + engCard(S.day);
+        root.innerHTML = barHtml() + body;
+    }
+
+    async function refreshOverview() {
+        const ov = await get('/api/morning-review/overview');
+        S.ov = ov;
+        const cur = ov.days.find(d => d.date === S.date);
+        if (S.day) S.day.checked = !!(cur && cur.checked);
+    }
+
+    async function selectDate(d) {
+        if (S.busy || !d) return;
+        S.busy = true; S.date = d; S.flipped = false; S.idx = 0;
+        renderAll();
+        try {
+            const enc = encodeURIComponent(d);
+            const [dd, qq] = await Promise.all([
+                get('/api/morning-review/day?date=' + enc),
+                get('/api/morning-review/queue?date=' + enc),
+            ]);
+            S.day = dd.day; S.day.checked = !!dd.checked;
+            S.q = qq;
+            const curTab = S.tab && qq.queues[S.tab];
+            if (!curTab || !curTab.all.length) {
+                const first = (qq.tabs || []).find(t => t.total > 0) || (qq.tabs || [])[0];
+                S.tab = first ? first.key : null;
+            }
+            renderAll();
+        } catch (e) {
+            S.day = null; S.q = null;
+            root.innerHTML = barHtml()
+                + '<div class="mr-empty">⚠ 读取失败：' + esc(e.message) + '</div>';
+        } finally {
+            S.busy = false;
+        }
+    }
+
+    async function reloadQueue() {
+        const enc = encodeURIComponent(S.date);
+        const qq = await get('/api/morning-review/queue?date=' + enc);
+        S.q = qq; S.flipped = false; S.idx = 0;
+        const curTab = S.tab && qq.queues[S.tab];
+        if (!curTab || !curTab.all.length) {
+            const t = (qq.tabs || []).find(x => x.total > 0);
+            if (t) S.tab = t.key;
+        }
+        renderAll();
+    }
+
+    async function mark(kind) {
+        const grp = S.tab && S.q && S.q.queues[S.tab];
+        if (!grp || !grp.all.length) return;
+        const c = grp.all[Math.min(S.idx, grp.all.length - 1)];
+        try {
+            const r = await post('/api/morning-review/sr', { card_id: c.id, mark: kind, date: S.date });
+            if (!r.ok) { toast('保存失败：' + (r.error || '')); return; }
+            toast(kind === 'ok' ? '✓ 已标记掌握（已存到电脑）' : '↻ 下次复习 ' + r.next_due);
+            await reloadQueue();
+        } catch (e) { toast('保存失败：无法连接本地服务'); }
+    }
+
+    async function toggleCheckin() {
+        if (!S.date || S.busy) return;
+        const cur = S.ov.days.find(d => d.date === S.date);
+        const on = !(cur && cur.checked);
+        try {
+            const r = await post('/api/morning-review/checkin', { date: S.date, on });
+            if (!r.ok) { toast('打卡失败：' + (r.error || '')); return; }
+            await refreshOverview();
+            renderAll();
+            toast(on ? '✅ 已打卡（同步到电脑）' : '已取消打卡');
+        } catch (e) { toast('打卡失败：无法连接本地服务'); }
+    }
+
+    // 统一事件委托：渲染只换 innerHTML，不重复绑监听
+    root.addEventListener('click', (ev) => {
+        const chip = ev.target.closest('[data-date]');
+        if (chip) { selectDate(chip.dataset.date); return; }
+        const tab = ev.target.closest('[data-tab]');
+        if (tab) { S.tab = tab.dataset.tab; S.idx = 0; S.flipped = false; renderAll(); return; }
+        if (ev.target.closest('#mr-check')) { toggleCheckin(); return; }
+        if (ev.target.closest('#mr-flip') && !S.flipped) { S.flipped = true; renderAll(); return; }
+        const mk = ev.target.closest('[data-mark]');
+        if (mk) { mark(mk.dataset.mark); return; }
+        if (ev.target.closest('#mr-skip')) {
+            const grp = S.tab && S.q && S.q.queues[S.tab];
+            if (grp && grp.all.length) {
+                S.idx = (S.idx + 1) % grp.all.length;
+                S.flipped = false;
+                renderAll();
+            }
+            return;
+        }
+        if (ev.target.closest('#mr-trans-btn')) {
+            const box = document.getElementById('mr-trans');
+            const btn = document.getElementById('mr-trans-btn');
+            if (!box) return;
+            const on = box.classList.toggle('on');
+            if (btn) btn.textContent = on ? '🙈 收起参考译文' : '🔍 查看参考译文';
+        }
+    });
+
+    async function init() {
+        try {
+            S.ov = await get('/api/morning-review/overview');
+            const dates = S.ov.days.map(d => d.date);
+            if (!dates.length) {
+                root.innerHTML = '<div class="mr-empty">还没有早间回顾内容。'
+                    + '让 agent 跑一次 morning-review 工作流即可生成。</div>';
+                return;
+            }
+            S.date = dates.indexOf(S.ov.today) >= 0 ? S.ov.today : dates[dates.length - 1];
+            await selectDate(S.date);
+        } catch (e) {
+            root.innerHTML = '<div class="mr-empty">⚠ 无法读取早间回顾：' + esc(e.message)
+                + '<br>请确认本地服务已启动（桌面「考研大盘」快捷方式会自动启动）。</div>';
+        }
+    }
+
+    (window.__pageRenderers = window.__pageRenderers || {});
+    (window.__pageRenderers.review = window.__pageRenderers.review || []).push(init);
+})();
+'''
+
+
+# ---------------------------------------------------------------------------
+# 错题复盘 + 薄弱点学习（2026-09-20）
+# ---------------------------------------------------------------------------
+
+RV_CSS = '''
+        /* ============================================================
+           错题复盘 / 薄弱点学习：同样只用大盘色板，保证三页风格一致。
+           ============================================================ */
+        .rv-wrap { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 14px; align-items: start; }
+        @media (max-width: 860px) { .rv-wrap { grid-template-columns: 1fr; } }
+        .rv-side { display: flex; flex-direction: column; gap: 8px; }
+        .rv-hint { font-size: .72rem; color: var(--text-muted); line-height: 1.75; }
+        .rv-sessions { max-height: 62vh; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+        .rv-sess { font: inherit; font-size: .77rem; text-align: left; cursor: pointer;
+            padding: 7px 9px; border: 1px solid var(--border-color); border-radius: var(--border-radius);
+            background: var(--bg-secondary); color: var(--text-secondary); }
+        .rv-sess:hover { color: var(--text-primary); border-color: var(--dianqing); }
+        .rv-sess.on { color: var(--dianqing-lt); border-color: var(--dianqing);
+            background: rgba(var(--dianqing-rgb), .13); }
+        .rv-sess .rv-d { display: block; font-size: .68rem; color: var(--text-muted); margin-top: 2px; }
+        .rv-sess .rv-e { display: inline-block; margin-top: 3px; font-size: .66rem;
+            color: var(--zhusha-lt); background: rgba(var(--zhusha-rgb), .14);
+            padding: 0 6px; border-radius: 8px; }
+
+        .rv-card { background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: var(--border-radius); padding: 13px 15px; margin-bottom: 12px; }
+        .rv-card-h { display: flex; align-items: center; gap: 8px; font-size: .9rem; font-weight: 600;
+            color: var(--text-primary); padding-bottom: 8px; margin-bottom: 8px;
+            border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
+        .rv-tag { margin-left: auto; font-size: .69rem; font-weight: 400; color: var(--text-muted); }
+        .rv-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .rv-input, .rv-select { font: inherit; font-size: .82rem; padding: 6px 10px;
+            background: var(--bg-secondary); color: var(--text-primary);
+            border: 1px solid var(--border-color); border-radius: var(--border-radius); }
+        .rv-input:focus, .rv-select:focus { outline: none; border-color: var(--dianqing); }
+        .rv-text { flex: 1; min-width: 180px; }
+        .rv-btn { font: inherit; font-size: .78rem; padding: 5px 13px; cursor: pointer;
+            border: 1px solid var(--border-color); border-radius: var(--border-radius);
+            background: var(--bg-secondary); color: var(--text-secondary); }
+        .rv-btn:hover { color: var(--text-primary); border-color: var(--zhuqing); }
+        .rv-btn.primary { color: var(--zhuqing-lt); border-color: var(--zhuqing);
+            background: rgba(var(--zhuqing-rgb), .14); }
+        .rv-btn.warn { color: var(--xiang-lt); border-color: var(--xiang); }
+        .rv-btn[disabled] { opacity: .45; cursor: default; }
+        .rv-btn.on { color: var(--dianqing-lt); border-color: var(--dianqing);
+            background: rgba(var(--dianqing-rgb), .14); }
+
+        /* 对话流 */
+        .rv-chat { max-height: 56vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+            padding-right: 4px; }
+        .rv-msg { font-size: .84rem; line-height: 1.85; color: var(--text-secondary);
+            padding: 9px 12px; border-radius: var(--border-radius); border: 1px solid var(--border-color); }
+        .rv-msg.me { align-self: flex-end; max-width: 82%;
+            background: rgba(var(--dianqing-rgb), .1); border-color: rgba(var(--dianqing-rgb), .3); }
+        .rv-msg.ai { align-self: flex-start; max-width: 96%; background: var(--bg-secondary); }
+        .rv-msg .rv-who { display: block; font-size: .67rem; color: var(--text-muted); margin-bottom: 4px; }
+        .rv-msg strong { color: var(--text-primary); }
+        .rv-msg code { padding: 1px 5px; background: var(--bg-primary); border-radius: 3px;
+            font-family: Consolas, "Courier New", monospace; font-size: .93em; }
+        .rv-msg ul, .rv-msg ol { margin: 4px 0 4px 18px; }
+        .rv-msg pre { margin: 6px 0; padding: 8px 10px; background: var(--bg-primary);
+            border-radius: 4px; overflow-x: auto; font-size: .78rem; }
+        .rv-thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .rv-thumb { position: relative; }
+        .rv-thumb img { width: 74px; height: 74px; object-fit: cover; display: block;
+            border: 1px solid var(--border-color); border-radius: 4px; cursor: zoom-in; }
+        .rv-drop { margin-top: 9px; padding: 14px; text-align: center; font-size: .78rem;
+            color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 6px; }
+        .rv-drop.on { border-color: var(--dianqing); color: var(--dianqing-lt); }
+
+        /* 错题清单 */
+        .rv-err { display: flex; gap: 9px; align-items: flex-start; padding: 9px 0;
+            border-bottom: 1px dashed var(--border-color); font-size: .82rem; }
+        .rv-err:last-child { border-bottom: none; }
+        .rv-err.done { opacity: .55; }
+        .rv-err .rv-body { flex: 1; min-width: 0; }
+        .rv-err .rv-t { color: var(--text-primary); font-weight: 600; }
+        .rv-err .rv-c { font-size: .76rem; color: var(--text-secondary); margin-top: 3px; line-height: 1.7; }
+        .rv-pill { display: inline-block; font-size: .66rem; padding: 0 7px; border-radius: 8px;
+            margin-left: 5px; color: var(--xiang-lt); background: rgba(var(--xiang-rgb), .16); }
+        .rv-pill.ok { color: var(--zhuqing-lt); background: rgba(var(--zhuqing-rgb), .16); }
+        .rv-check { cursor: pointer; margin-top: 3px; accent-color: var(--zhuqing); }
+
+        /* 检索命中（学习区） */
+        .rv-hits { display: flex; flex-direction: column; gap: 6px; }
+        .rv-hit { display: flex; gap: 8px; align-items: center; padding: 7px 10px; font-size: .79rem;
+            border: 1px solid var(--border-color); border-radius: var(--border-radius);
+            background: var(--bg-secondary); color: var(--text-secondary); }
+        .rv-hit .rv-name { flex: 1; min-width: 0; color: var(--text-primary); }
+        .rv-hit .rv-m { font-size: .69rem; color: var(--text-muted); white-space: nowrap; }
+        .rv-empty { padding: 18px 4px; text-align: center; font-size: .8rem; color: var(--text-muted); }
+        .rv-loading { padding: 18px 4px; text-align: center; font-size: .8rem; color: var(--text-muted); }
+
+        /* 首页错因可视化 */
+        .rv-pat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: .76rem; }
+        .rv-pat-name { width: 132px; flex: none; color: var(--text-secondary);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rv-pat-bar { flex: 1; height: 9px; background: var(--bg-secondary); border-radius: 5px; overflow: hidden; }
+        .rv-pat-fill { height: 100%; background: linear-gradient(90deg, var(--xiang), var(--zhusha)); }
+        .rv-pat-n { width: 30px; flex: none; text-align: right; color: var(--text-muted); font-size: .7rem; }
+'''
+
+RV_JS = '''
+// ============================================================
+// 错题复盘 + 薄弱点学习（2026-09-20）
+//
+// 两页共用一套底层：文件存储的复盘会话 + 错因画像 + 闪卡系统。
+// 差别只在入口——复盘从「上传的卷子」进，学习区从「口头说的薄弱点」进。
+//
+// 专项练习刻意不重造：把考点前缀交给闪卡页的筛选（mode=browse + topic=），
+// 于是手写板、简答题 AI 批改、FSRS 评分回写全部自动继承。
+// ============================================================
+(function () {
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+    const SUBJECTS = ["408", "数学一", "政治", "英语一"];
+
+    const esc = (s) => String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // AI 回复是 Markdown+LaTeX，复用闪卡区已调好的 mdTex（含表格与 KaTeX）
+    const md = (s) => (window.__mdTex ? window.__mdTex(s) : esc(s));
+
+    function toast(msg) {
+        const t = document.createElement("div");
+        t.className = "fs-toast"; t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2200);
+    }
+    async function get(path) {
+        const r = await fetch(API + path);
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || ("HTTP " + r.status));
+        return d;
+    }
+    async function post(path, payload) {
+        const r = await fetch(API + path, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || ("HTTP " + r.status));
+        return d;
+    }
+
+    // 上传前压一遍：手机拍的一整页原图好几 MB，模型不需要那么高像素，
+    // 而且 dataURL 要进 JSON body，太大 serve.js 会直接拒。
+    const MAX_SIDE = 1400, JPEG_Q = 0.82;
+    function compressImage(file) {
+        return new Promise((resolve, reject) => {
+            if (!file || !/^image\\//.test(file.type)) return reject(new Error("只支持图片"));
+            const fr = new FileReader();
+            fr.onerror = () => reject(new Error("读取图片失败"));
+            fr.onload = () => {
+                const img = new Image();
+                img.onerror = () => reject(new Error("图片解码失败"));
+                img.onload = () => {
+                    const scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+                    const cv = document.createElement("canvas");
+                    cv.width = Math.max(1, Math.round(img.width * scale));
+                    cv.height = Math.max(1, Math.round(img.height * scale));
+                    const cx = cv.getContext("2d");
+                    cx.fillStyle = "#fff"; cx.fillRect(0, 0, cv.width, cv.height);  // JPEG 无透明
+                    cx.drawImage(img, 0, 0, cv.width, cv.height);
+                    resolve({ dataUrl: cv.toDataURL("image/jpeg", JPEG_Q), w: cv.width, h: cv.height });
+                };
+                img.src = fr.result;
+            };
+            fr.readAsDataURL(file);
+        });
+    }
+
+    // 把考点 ID 收成前缀（408-OS-03-01 → 408-OS），与闪卡选题口径一致
+    const prefixOf = (tid) => String(tid || "").split("-").slice(0, 2).join("-");
+    // 专项练习 = 切到闪卡页并**直接开练**。这里必须走 __flashStart 而不是
+    // __flashApplyFilter：2026-09-21 起闪卡区停在「开始」闸门上等点击，
+    // 只 applyFilter 的话用户从复盘页点「去专项练习」会被扔在闸门前，
+    // 等于跳了个寂寞。startWithFilter 顺带起表，符合「开练」二字的预期。
+    function goPractice(subject, topicPrefix) {
+        const filter = { subject: subject || "", bucket: "", topic: topicPrefix || "" };
+        const entry = window.__flashStart || window.__flashApplyFilter;
+        if (entry) {
+            try { entry(filter); } catch (e) { /* 闪卡区未就绪就只跳转 */ }
+        }
+        location.hash = "#/flash";
+        toast(window.__flashStart ? "已按该考点组题开练，计时开始" : "已按该考点筛题，去闪卡页开练");
+    }
+
+    // ========================= 错题复盘 =========================
+    const M = { subject: SUBJECTS[0], list: [], sid: null, detail: null,
+                pending: [], pendingPdf: [], busy: false, draft: null };
+
+    function mRoot() { return document.getElementById("rv-mistakes"); }
+
+    async function mLoadList() {
+        const d = await get("/api/review/overview");
+        M.list = (d.sessions && d.sessions[M.subject]) || [];
+        if (!M.sid && M.list.length) await mOpen(M.list[0].id);
+        else mRender();
+    }
+
+    async function mOpen(sid) {
+        M.sid = sid; M.draft = null;
+        M.pending = []; M.pendingPdf = [];   // 切会话别把上一次的待发图带过去
+        try {
+            M.detail = await get("/api/review/session?subject=" + encodeURIComponent(M.subject) + "&sid=" + encodeURIComponent(sid));
+        } catch (e) { toast("打开会话失败：" + e.message); M.detail = null; }
+        mRender();
+    }
+
+    function mChatHtml() {
+        const turns = (M.detail && M.detail.turns) || [];
+        if (!turns.length) {
+            return '<div class="rv-empty">还没有对话。上传一张错题照片（或整页卷子），'
+                + '跟我说说你当时怎么想的，我们一题一题过。</div>';
+        }
+        return turns.map(t => '<div class="rv-msg ' + (t.role === "user" ? "me" : "ai") + '">'
+            + '<span class="rv-who">' + (t.role === "user" ? "我" : "AI 教练") + '</span>'
+            + md(t.content) + '</div>').join("");
+    }
+
+    function mErrorsHtml() {
+        const errs = (M.detail && M.detail.errors) || [];
+        if (M.draft) {
+            return '<div class="rv-hint">下面是 AI 从对话里提炼的错题，勾掉不对的、改完再保存：</div>'
+                + M.draft.map((e, i) => '<div class="rv-err">'
+                    + '<input type="checkbox" class="rv-check" data-dk="' + i + '" checked>'
+                    + '<div class="rv-body"><div class="rv-t">' + esc(e.title || e.topic_hint || "未命名") + '</div>'
+                    + '<div class="rv-c">错因：<input class="rv-input" style="width:150px;font-size:.75rem;padding:2px 6px" '
+                    + 'data-df="cause" data-dk="' + i + '" value="' + esc(e.cause || "") + '">'
+                    + '｜严重度 <input class="rv-input" style="width:42px;font-size:.75rem;padding:2px 6px" type="number" min="1" max="5" '
+                    + 'data-df="severity" data-dk="' + i + '" value="' + (Number(e.severity) || 3) + '">'
+                    + '<div>' + esc(e.what_wrong || "") + '</div></div></div>').join("")
+                + '<div class="rv-row" style="margin-top:10px">'
+                + '<button class="rv-btn primary" id="rv-err-save">保存到错题本</button>'
+                + '<button class="rv-btn" id="rv-err-cancel">取消</button></div>';
+        }
+        if (!errs.length) return '<div class="rv-empty">还没有登记错题。复盘到一段落后点「提炼错题」。</div>';
+        return errs.map((e, i) => '<div class="rv-err' + (e.resolved ? " done" : "") + '">'
+            + '<input type="checkbox" class="rv-check" data-rk="' + i + '"' + (e.resolved ? " checked" : "") + ' title="勾上=已闭环">'
+            + '<div class="rv-body"><div class="rv-t">' + esc(e.title || e.topic_hint || "未命名")
+            + '<span class="rv-pill' + (e.resolved ? " ok" : "") + '">'
+            + (e.resolved ? "已闭环" : esc(e.cause || "未归类")) + '</span></div>'
+            + '<div class="rv-c">' + esc(e.what_wrong || "")
+            + (e.topic_hint ? '<br>考点：' + esc(e.topic_hint) : '') + '</div></div>'
+            + (e.topic_id ? '<button class="rv-btn" data-drill="' + esc(prefixOf(e.topic_id) || "") + '">刷这个</button>' : '')
+            + '</div>').join("");
+    }
+
+    function mRender() {
+        const box = mRoot();
+        if (!box) return;
+        const list = M.list.map(s => '<button class="rv-sess' + (s.id === M.sid ? " on" : "") + '" data-sid="' + s.id + '">'
+            + esc(s.title || s.id)
+            + '<span class="rv-d">' + esc((s.date || "").slice(5)) + '</span>'
+            + (s.error_count ? '<span class="rv-e">' + s.error_count + ' 错</span>' : '')
+            + '</button>').join("") || '<div class="rv-hint">还没有会话</div>';
+        const det = M.detail;
+        const files = (det && det.meta && det.meta.files) || [];
+        box.innerHTML =
+            '<div class="rv-row" style="margin-bottom:12px">'
+            + '<select class="rv-select" id="rv-subj">' + SUBJECTS.map(s =>
+                '<option' + (s === M.subject ? ' selected' : '') + '>' + s + '</option>').join('') + '</select>'
+            + '<button class="rv-btn primary" id="rv-new">＋ 新建复盘</button>'
+            + '<span class="rv-hint" style="margin-left:auto">数据存在电脑 Review/ 下，平板只是发请求</span>'
+            + '</div>'
+            + '<div class="rv-wrap"><div class="rv-side"><div class="rv-sessions">' + list + '</div></div>'
+            + '<div>'
+            + (det
+                ? '<div class="rv-card"><div class="rv-card-h">' + esc(det.meta.title)
+                    + '<span class="rv-tag">' + esc(det.meta.date) + ' · ' + esc(det.meta.subject) + '</span></div>'
+                    + (files.length ? '<div class="rv-thumbs">' + files.map(f =>
+                        '<span class="rv-thumb"><img src="' + API + '/api/notes/asset?path='
+                        + encodeURIComponent(f.path) + '" alt="上传图" data-zoom="' + esc(f.path)
+                        + '" title="' + (f.kind === 'pdf-page' ? 'PDF 页（点击放大）' : '上传图（点击放大）') + '"></span>').join('')
+                        + '</div>' : '')
+                    // 已转换的 PDF 页可以反复引用：只传路径，服务端读盘，不必重传几 MB
+                    + (files.filter(f => f.kind === 'pdf-page').length
+                        ? '<div class="rv-row" style="margin-top:7px">'
+                          + '<button class="rv-btn" id="rv-usepdf">📄 引用已转换的 '
+                          + files.filter(f => f.kind === 'pdf-page').length + ' 页</button>'
+                          + '<span class="rv-hint">再次提问时可复用，无需重传 PDF</span></div>' : '')
+                    + '<div class="rv-chat" id="rv-chat">' + mChatHtml() + '</div>'
+                    + '<div class="rv-drop" id="rv-drop">把错题图片/扫描的 PDF 卷子拖进来，或点「传图 / PDF」；也可直接 Ctrl+V 粘贴截图'
+                    + '<br><span style="font-size:.7rem">PDF 会在本机自动转成逐页图片（PyMuPDF），原 PDF 一并留存</span>'
+                    + '<input type="file" id="rv-file" accept="image/*,.pdf,application/pdf" multiple style="display:none">'
+                    + '<div class="rv-row" style="margin-top:8px"><button class="rv-btn" id="rv-pick">📷 传图 / PDF</button>'
+                    + '<span class="rv-hint" id="rv-pend"></span></div></div>'
+                    + '<div class="rv-row" style="margin-top:9px">'
+                    + '<input class="rv-input rv-text" id="rv-msg" placeholder="说说你当时怎么想的、卡在哪一步…">'
+                    + '<button class="rv-btn primary" id="rv-send">发送</button></div>'
+                    + '<div class="rv-row" style="margin-top:8px">'
+                    + '<button class="rv-btn" id="rv-extract">🔍 提炼错题</button>'
+                    + '<button class="rv-btn" id="rv-drill">🎯 按错因去专项练习</button></div>'
+                    + '</div>'
+                    + '<div class="rv-card"><div class="rv-card-h">📋 错题本'
+                    + '<span class="rv-tag">勾选=已闭环（会停止提醒并降权）</span></div>'
+                    + mErrorsHtml() + '</div>'
+                : '<div class="rv-card"><div class="rv-empty">选一个会话，或点「＋ 新建复盘」开始。</div></div>')
+            + '</div></div>';
+        mBind();
+        const c = document.getElementById("rv-chat");
+        if (c) c.scrollTop = c.scrollHeight;
+    }
+
+    function mBind() {
+        const subj = document.getElementById("rv-subj");
+        if (subj) subj.onchange = () => { M.subject = subj.value; M.sid = null; M.detail = null; mLoadList(); };
+        const nb = document.getElementById("rv-new");
+        if (nb) nb.onclick = async () => {
+            const title = (prompt("这次复盘的名称（如：9月模拟卷3 数学）") || "").trim();
+            try {
+                const d = await post("/api/review/session", { subject: M.subject, title });
+                await mLoadList(); await mOpen(d.meta.id);
+            } catch (e) { toast("新建失败：" + e.message); }
+        };
+        document.querySelectorAll("#rv-mistakes [data-sid]").forEach(b =>
+            b.onclick = () => mOpen(b.dataset.sid));
+        const pick = document.getElementById("rv-pick"), file = document.getElementById("rv-file");
+        if (pick && file) { pick.onclick = () => file.click(); file.onchange = async (ev) => { await addFiles(ev.target.files); ev.target.value = ""; }; }
+        const drop = document.getElementById("rv-drop");
+        if (drop) {
+            drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("on"); });
+            drop.addEventListener("dragleave", () => drop.classList.remove("on"));
+            drop.addEventListener("drop", async (e) => {
+                e.preventDefault(); drop.classList.remove("on");
+                await addFiles(e.dataTransfer && e.dataTransfer.files);
+            });
+        }
+        const msg = document.getElementById("rv-msg");
+        if (msg) msg.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); mSend(); } });
+        const sb = document.getElementById("rv-send"); if (sb) sb.onclick = mSend;
+        const eb = document.getElementById("rv-extract");
+        if (eb) eb.onclick = async () => {
+            if (M.busy) return;
+            eb.disabled = true; eb.textContent = "提炼中…";
+            try {
+                const d = await post("/api/review/extract", { subject: M.subject, sid: M.sid });
+                M.draft = d.errors || [];
+                if (!M.draft.length) toast("这轮对话里没提炼出错题");
+                mRender();
+            } catch (e) { toast("提炼失败：" + e.message); eb.disabled = false; eb.textContent = "🔍 提炼错题"; }
+        };
+        const db = document.getElementById("rv-drill");
+        if (db) db.onclick = () => {
+            const errs = (M.detail && M.detail.errors) || [];
+            const t = errs.find(x => x.topic_id);
+            const open = errs.filter(x => !x.resolved);
+            if (!open.length) { toast("错题本还是空的，先提炼错题"); return; }
+            goPractice(M.subject, t ? prefixOf(t.topic_id) : "");
+        };
+        const cancel = document.getElementById("rv-err-cancel");
+        if (cancel) cancel.onclick = () => { M.draft = null; mRender(); };
+        const save = document.getElementById("rv-err-save");
+        if (save) save.onclick = async () => {
+            const kept = [];
+            document.querySelectorAll("#rv-mistakes [data-dk]").forEach(cb => {
+                if (!cb.checked) return;
+                const i = Number(cb.dataset.dk);
+                const base = M.draft[i] || {};
+                const causeEl = document.querySelector('#rv-mistakes [data-df="cause"][data-dk="' + i + '"]');
+                const sevEl = document.querySelector('#rv-mistakes [data-df="severity"][data-dk="' + i + '"]');
+                kept.push({
+                    topic_hint: base.topic_hint || "", title: base.title || "",
+                    what_wrong: base.what_wrong || "", evidence: base.evidence || "",
+                    cause: causeEl ? causeEl.value : (base.cause || ""),
+                    cause_kind: base.cause_kind || "concept",
+                    severity: sevEl ? sevEl.value : (base.severity || 3),
+                    resolved: false,
+                });
+            });
+            try {
+                const merged = ((M.detail && M.detail.errors) || []).concat(kept);
+                await post("/api/review/errors", { subject: M.subject, sid: M.sid, errors: merged });
+                M.draft = null;
+                await mRefresh();
+                toast("已存进错题本");
+            } catch (e) { toast("保存失败：" + e.message); }
+        };
+        document.querySelectorAll("#rv-mistakes [data-rk]").forEach(cb => cb.onchange = async () => {
+            const i = Number(cb.dataset.rk);
+            const errs = ((M.detail && M.detail.errors) || []).map((e, j) =>
+                j === i ? Object.assign({}, e, { resolved: cb.checked }) : e);
+            try {
+                await post("/api/review/errors", { subject: M.subject, sid: M.sid, errors: errs });
+                await mRefresh();
+            } catch (e) { toast("更新失败：" + e.message); }
+        });
+        document.querySelectorAll("#rv-mistakes [data-drill]").forEach(b =>
+            b.onclick = () => goPractice(M.subject, b.dataset.drill));
+        const usePdf = document.getElementById("rv-usepdf");
+        if (usePdf) usePdf.onclick = () => {
+            const pages = (((M.detail || {}).meta || {}).files || [])
+                .filter(f => f.kind === "pdf-page").map(f => f.path);
+            M.pendingPdf = pages;
+            pendSummary();
+            toast("已引用 " + pages.length + " 页，发送时一并交给 AI");
+        };
+        document.querySelectorAll("#rv-mistakes [data-zoom]").forEach(img =>
+            img.onclick = () => window.open(API + "/api/notes/asset?path=" + encodeURIComponent(img.dataset.zoom), "_blank"));
+    }
+
+    function readAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onerror = () => reject(new Error("读取文件失败"));
+            fr.onload = () => resolve(fr.result);
+            fr.readAsDataURL(file);
+        });
+    }
+
+    function pendSummary() {
+        const p = document.getElementById("rv-pend");
+        if (!p) return;
+        const bits = [];
+        if (M.pending.length) bits.push(M.pending.length + " 张图");
+        if (M.pendingPdf.length) bits.push(M.pendingPdf.length + " 页 PDF");
+        p.textContent = bits.length ? "待发：" + bits.join(" + ") : "";
+    }
+
+    async function addFiles(list) {
+        const arr = Array.from(list || []);
+        const imgs = arr.filter(f => /^image\\//.test(f.type));
+        const pdfs = arr.filter(f => f.type === "application/pdf" || /\\.pdf$/i.test(f.name || ""));
+        for (const f of imgs) {
+            try {
+                const { dataUrl } = await compressImage(f);
+                M.pending.push(dataUrl);
+            } catch (e) { toast("图片处理失败：" + e.message); }
+        }
+        for (const f of pdfs) await addPdf(f);
+        pendSummary();
+    }
+
+    // PDF 交给服务端转页图（本机 PyMuPDF）：浏览器端做这件事要么装大依赖、
+    // 要么渲染质量不可控，而模型最终吃的是图，转换放服务端还方便复用与排错。
+    async function addPdf(file) {
+        const btn = document.getElementById("rv-pick");
+        if (btn) { btn.disabled = true; btn.textContent = "PDF 转换中…"; }
+        try {
+            const dataUrl = await readAsDataUrl(file);
+            const d = await post("/api/review/upload-pdf", {
+                subject: M.subject, sid: M.sid, pdf: dataUrl, filename: file.name || "scan.pdf",
+            });
+            M.pendingPdf = M.pendingPdf.concat((d.pages || []).map(x => x.path));
+            toast(d.converted + " 页已转换"
+                + (d.skipped ? "（PDF 共 " + d.total_pages + " 页，本次取前 " + d.converted + " 页）" : ""));
+            await mRefresh();   // 页图已登记进会话，刷新即可看到缩略图
+        } catch (e) {
+            toast("PDF 失败：" + e.message);
+        } finally {
+            const b2 = document.getElementById("rv-pick");
+            if (b2) { b2.disabled = false; b2.textContent = "📷 传图 / PDF"; }
+        }
+    }
+
+    async function mRefresh() {
+        try {
+            M.detail = await get("/api/review/session?subject=" + encodeURIComponent(M.subject) + "&sid=" + encodeURIComponent(M.sid));
+        } catch (e) { /* 保留旧内容 */ }
+        const d = await get("/api/review/overview");
+        M.list = (d.sessions && d.sessions[M.subject]) || [];
+        mRender();
+    }
+
+    async function mSend() {
+        const box = document.getElementById("rv-msg");
+        if (!box || M.busy) return;
+        const text = box.value.trim();
+        if (!text && !M.pending.length && !M.pendingPdf.length) return;
+        M.busy = true;
+        const btn = document.getElementById("rv-send");
+        if (btn) { btn.disabled = true; btn.textContent = "思考中…"; }
+        const imgs = M.pending.slice();
+        const pdfPages = M.pendingPdf.slice();
+        box.value = "";
+        // 先把图落到会话目录：这样复盘记录里留着原件，之后回看或重跑提炼都还能取到
+        for (const u of imgs) {
+            try { await post("/api/review/upload", { subject: M.subject, sid: M.sid, image: u }); }
+            catch (e) { toast("上传失败：" + e.message); }
+        }
+        M.pending = [];
+        M.pendingPdf = [];
+        pendSummary();
+        try {
+            // PDF 页图已在服务端落盘，这里只传路径引用，避免重复上传几 MB
+            await post("/api/review/chat", {
+                subject: M.subject, sid: M.sid,
+                message: (text || "（看图）") + (pdfPages.length ? "（引用 " + pdfPages.length + " 页）" : ""),
+                images: [], page_paths: pdfPages,
+            });
+            await mRefresh();
+        } catch (e) {
+            toast("发送失败：" + e.message);
+            mRender();
+        } finally {
+            M.busy = false;
+            const b2 = document.getElementById("rv-send");
+            if (b2) { b2.disabled = false; b2.textContent = "发送"; }
+        }
+    }
+
+    // 粘贴截图直接进待发区（只在复盘页可见时接管，避免抢走闪卡页的粘贴）
+    document.addEventListener("paste", (ev) => {
+        const page = document.querySelector('.page[data-page="mistakes"]');
+        if (!page || page.hidden || !M.sid) return;
+        const items = (ev.clipboardData && ev.clipboardData.items) || [];
+        const imgs = items.filter(it => it.kind === "file" && /^image\\//.test(it.type)).map(it => it.getAsFile());
+        if (imgs.length) { ev.preventDefault(); addFiles(imgs); }
+    });
+
+    // ========================= 薄弱点学习 =========================
+    const ST = { subject: "all", hits: null, history: [], busy: false };
+
+    function sRoot() { return document.getElementById("rv-study"); }
+
+    function sRender() {
+        const box = sRoot();
+        if (!box) return;
+        const h = ST.hits;
+        box.innerHTML =
+            '<div class="rv-card"><div class="rv-card-h">🎯 说出你觉得薄弱的知识点'
+            + '<span class="rv-tag">我会翻题库、笔记和你的历史错因</span></div>'
+            + '<div class="rv-row">'
+            + '<select class="rv-select" id="st-subj">'
+            + '<option value="all">全部科目</option>'
+            + SUBJECTS.map(s => '<option' + (s === ST.subject ? ' selected' : '') + '>' + s + '</option>').join('')
+            + '</select>'
+            + '<input class="rv-input rv-text" id="st-q" placeholder="例如：Cache 写回与写allocate、Karnaugh 卡圈组、中值定理…" value="' + esc(ST.q || '') + '">'
+            + '<button class="rv-btn primary" id="st-go">开始</button></div>'
+            + '<div class="rv-hint" style="margin-top:8px">不传卷子也能练：说个知识点，我结合现有数据给你讲清 + 当场出小题。</div>'
+            + '</div>'
+            + (h ? '<div class="rv-card"><div class="rv-card-h">🔎 检索命中'
+                + '<span class="rv-tag">只给索引，正文点开才读，不塞满上下文</span></div>'
+                + '<div class="rv-hits">'
+                + ((h.topics || []).length ? (h.topics || []).map(t =>
+                    '<div class="rv-hit"><span class="rv-name">' + esc(t.name) + '</span>'
+                    + '<span class="rv-m">' + esc(t.id) + '｜权重' + (t.exam_weight == null ? '?' : t.exam_weight)
+                    + '｜卡' + t.cards + (t.acc != null ? '｜正确率' + t.acc + '%(' + t.answered + '次)' : '｜没练过') + '</span>'
+                    + '<button class="rv-btn" data-st-drill="' + esc(t.prefix || '') + '">刷这考点</button></div>').join('')
+                    : '<div class="rv-hint">题库里没有直接命中的考点——可以先按下面笔记的标题说细一点。</div>')
+                + ((h.causes || []).length ? '<div class="rv-hint" style="margin-top:8px">你的历史错因命中：'
+                    + esc((h.causes || []).join('；')) + '</div>' : '')
+                + '</div></div>' : '')
+            + '<div class="rv-card"><div class="rv-card-h">💬 对话</div>'
+            + '<div class="rv-chat" id="st-chat">'
+            + (ST.history.length ? ST.history.map(t => '<div class="rv-msg ' + (t.role === "user" ? "me" : "ai") + '">'
+                + '<span class="rv-who">' + (t.role === "user" ? "我" : "AI") + '</span>' + md(t.content) + '</div>').join("")
+                : '<div class="rv-empty">说个知识点开始。</div>')
+            + '</div>'
+            + ((ST.hits && (ST.hits.notes || []).length)
+                ? '<div class="rv-hint" style="margin:8px 0 0">相关笔记：'
+                  + ST.hits.notes.map(n => n.path
+                      ? '<a href="' + API + '/api/notes/preview?path=' + encodeURIComponent(n.path)
+                        + '" target="_blank" style="color:var(--dianqing-lt);margin-right:10px;">'
+                        + esc((n.subject ? n.subject + '·' : '') + n.title) + '</a>'
+                      // 不少条目是「已整理到第X章」的问答，没存直链：只给标题，别渲染成点不开的空链接
+                      : '<span style="color:var(--text-muted);margin-right:10px;">'
+                        + esc((n.subject ? n.subject + '·' : '') + n.title) + '（见对应章节）</span>'
+                    ).join('') + '</div>' : '')
+            + '<div class="rv-row" style="margin-top:10px">'
+            + '<input class="rv-input rv-text" id="st-msg" placeholder="追问、要小题、让它先讲概念…（Enter 发送）">'
+            + '<button class="rv-btn primary" id="st-send">发送</button></div>'
+            + '</div>';
+        sBind();
+        const c = document.getElementById("st-chat");
+        if (c) c.scrollTop = c.scrollHeight;
+    }
+
+    function sBind() {
+        const sj = document.getElementById("st-subj");
+        if (sj) sj.onchange = () => { ST.subject = sj.value; sSearch(); };
+        const q = document.getElementById("st-q");
+        const go = document.getElementById("st-go");
+        if (go) go.onclick = () => { ST.q = (q && q.value || "").trim(); sSearch(); };
+        if (q) q.addEventListener("keydown", (e) => { if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) { ST.q = q.value.trim(); sSearch(); } });
+        const m = document.getElementById("st-msg");
+        if (m) m.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !(e.isComposing || e.keyCode === 229)) { e.preventDefault(); sSend(); } });
+        const sb = document.getElementById("st-send"); if (sb) sb.onclick = sSend;
+        document.querySelectorAll("#rv-study [data-st-drill]").forEach(b =>
+            b.onclick = () => goPractice(ST.subject === "all" ? "" : ST.subject, b.dataset.stDrill));
+    }
+
+    async function sSearch() {
+        if (!ST.q) { ST.hits = null; sRender(); return; }
+        try {
+            ST.hits = await get("/api/study/context?q=" + encodeURIComponent(ST.q) + "&subject=" + encodeURIComponent(ST.subject));
+            ST.history = [];
+            sRender();
+            const box = document.getElementById("st-q");
+            if (box) box.value = ST.q;
+        } catch (e) { toast("检索失败：" + e.message); }
+    }
+
+    async function sSend() {
+        const box = document.getElementById("st-msg");
+        if (!box || ST.busy) return;
+        const text = box.value.trim();
+        if (!text) return;
+        ST.busy = true;
+        const btn = document.getElementById("st-send");
+        if (btn) { btn.disabled = true; btn.textContent = "思考中…"; }
+        ST.history.push({ role: "user", content: text });
+        box.value = "";
+        sRender();
+        try {
+            const d = await post("/api/study/chat", { message: text, subject: ST.subject, history: ST.history.slice(0, -1) });
+            ST.history.push({ role: "assistant", content: d.text });
+            if (d.topics && d.topics.length) {
+                ST.hits = Object.assign({}, ST.hits || {}, { topics: d.topics, notes: d.notes || (ST.hits && ST.hits.notes) || [] });
+            }
+        } catch (e) {
+            ST.history.push({ role: "assistant", content: "⚠ " + e.message });
+        } finally {
+            ST.busy = false;
+            sRender();
+        }
+    }
+
+    // ========================= 首页：错因可视化 =========================
+    // 只读 _patterns（L1），不碰单会话文件；容器在总览页，图靠这里画。
+    async function drawPatterns() {
+        const box = document.getElementById("pattern-box");
+        if (!box) return;
+        try {
+            const d = await get("/api/review/overview");
+            const p = d.patterns;
+            if (!p || !p.subjects) {
+                box.innerHTML = '<div class="rv-empty">还没有错因数据。去「复盘」页传一张错题照片开始。</div>';
+                return;
+            }
+            const rows = [];
+            for (const s of SUBJECTS) {
+                const blk = p.subjects[s] || {};
+                for (const c of (blk.top_causes || []).slice(0, 3)) rows.push({ subject: s, ...c });
+            }
+            rows.sort((a, b) => b.score - a.score);
+            const top = rows.slice(0, 8);
+            if (!top.length) {
+                box.innerHTML = '<div class="rv-empty">错题本还是空的——复盘过的题会在这里变成提醒。</div>';
+                return;
+            }
+            const max = Math.max.apply(null, top.map(r => r.score || 0)) || 1;
+            box.innerHTML = top.map(r =>
+                '<div class="rv-pat-row" title="' + esc(r.cause) + '｜' + r.count + ' 次'
+                + (r.has_cards ? '｜已出卡' : '｜尚无卡') + '">'
+                + '<span class="rv-pat-name">' + esc(r.subject) + '·' + esc(r.cause) + '</span>'
+                + '<span class="rv-pat-bar"><span class="rv-pat-fill" style="width:'
+                + Math.max(6, Math.round(r.score / max * 100)) + '%"></span></span>'
+                + '<span class="rv-pat-n">' + r.count + '</span></div>').join("")
+                + '<div class="rv-hint" style="margin-top:6px">条长=加权分（次数×时间衰减×是否闭环），'
+                + '已闭环的会自己降权沉底。'
+                + ((d.patterns && d.patterns.card_suggestions || []).length
+                    ? ' 另有 ' + d.patterns.card_suggestions.length + ' 条待出卡。' : '')
+                + '</div>';
+        } catch (e) {
+            box.innerHTML = '<div class="rv-empty">读不到错因画像：' + esc(e.message) + '</div>';
+        }
+    }
+
+    // ========================= 注册懒渲染 =========================
+    (window.__pageRenderers = window.__pageRenderers || {});
+    function reg(name, fn) {
+        (window.__pageRenderers[name] = window.__pageRenderers[name] || []).push(fn);
+    }
+    reg("mistakes", function () { mRender(); mLoadList(); });
+    reg("study", function () { sRender(); });
+    reg("overview", function () { drawPatterns(); });
+})();
+'''
+
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main():
+    print("Loading data sources...")
+    # 1. Load all data
+    index = load_index()
+    print(f"  Notes index: {len(index.get('entries', []))} entries")
+
+    graphs = load_graphs()
+    print(f"  Knowledge graphs: {len(graphs)} subjects")
+
+    db_stats = load_db_stats()
+    print(f"  Flashcard DB: {db_stats['total_cards']} cards")
+
+    # 2. Compute statistics
+    print("\nComputing statistics...")
+    data = compute_stats(index, graphs, db_stats)
+
+    print(f"  Countdown: {data['countdown']['days']} days ({data['countdown']['phase']})")
+    print(f"  Total notes: {data['notes']['total']}")
+    print(f"  Coverage: {data['coverage']['overall']}%")
+    print(f"  Heatmap cells: {len(data['heatmap'])}")
+    print(f"  Timeline points: {len(data['timeline'])}")
+    print(f"  Top gaps: {len(data['top_gaps'])}")
+    rs = data['revival']['freshness']['summary']
+    print(f"  Note revival: alive={rs['alive_score']}% "
+          f"(hot {rs['hot']} / warm {rs['warm']} / cold {rs['cold']} / frozen {rs['frozen']})")
+
+    # 3. Generate HTML
+    print("\nGenerating dashboard HTML...")
+    html = generate_html(data)
+
+    # 3.1 注入闪卡练习区与盘活区（普通字符串，避免 f-string 大括号转义）
+    html = html.replace("/* __FLASH_CSS__ */", FLASH_CSS)
+    html = html.replace("// __FLASH_JS__", FLASH_JS)
+    html = html.replace("/* __DECK_CSS__ */", DECK_CSS)
+    # DECK_JS 不再注入：闪卡画廊已并入主库（题目走 import_deck_cards.py 进了
+    # question_bank.db），#deck-library 容器也一并摘掉了。⚠️ 三个 JS 占位符同处
+    # 一个 <script> 块，DECK_JS 对容器没有空值守卫，留着会抛错并**连带阻断
+    # REVIVE_JS**（笔记弹窗、活动日历全废），所以是"必须不注入"而不是"可以留着"。
+    html = html.replace("/* __REVIVE_CSS__ */", REVIVE_CSS)
+    # NOTEQ 紧跟 REVIVE：它给阅读器提供「就问这段」面板（靠 __noteQaMount 挂钩），
+    # 同时管「笔」页顶部的搜索/筛选。两者都在 NAV_JS 之前，赶得上末尾那次 activate()。
+    html = html.replace("/* __NOTEQ_CSS__ */", NOTEQ_CSS)
+    html = html.replace("// __NOTEQ_JS__", NOTEQ_JS)
+    html = html.replace("// __REVIVE_JS__", REVIVE_JS)
+    html = html.replace("/* __NAV_CSS__ */", NAV_CSS)
+    html = html.replace("// __NAV_JS__", NAV_JS)
+    html = html.replace("/* __FX_CSS__ */", FX_CSS)
+    html = html.replace("/* __TASK_CSS__ */", TASK_CSS)
+    html = html.replace("/* __THEME_CSS__ */", THEME_CSS)
+    html = html.replace("/* __SETTINGS_CSS__ */", SETTINGS_CSS)
+    # POMO_CSS 排在 SETTINGS_CSS 之后：番茄钟卡片要借用 .fs-full-toggle / .fs-btn
+    # 这些闪卡区定义的控件皮肤，同优先级下后写的规则才有机会微调它们。
+    html = html.replace("/* __POMO_CSS__ */", POMO_CSS)
+    # SHELL_CSS 紧跟 POMO_CSS：它要借用闪卡区的 .fs-toast、番茄钟的配色变量
+    html = html.replace("/* __SHELL_CSS__ */", SHELL_CSS)
+    html = html.replace("/* __MR_CSS__ */", MR_CSS)
+    # MR_JS 必须在 NAV_JS 之前：它要先把 review 页渲染器注册好，
+    # 才赶得上 NAV_JS 末尾那次 activate()（hash 停在 #/review 时首屏才不空白）。
+    html = html.replace("// __MR_JS__", MR_JS)
+    html = html.replace("/* __RV_CSS__ */", RV_CSS)
+    # RV_JS 同样必须在 NAV_JS 之前：它要先把 mistakes/study/overview 的渲染器注册好，
+    # 才赶得上 NAV_JS 末尾那次 activate()。
+    html = html.replace("// __RV_JS__", RV_JS)
+    # SETTINGS_JS 也要在 NAV_JS 之前：它在加载时立刻应用主题/背景（不能等切到设置页），
+    # 同时把设置页渲染器注册好，赶得上 NAV_JS 末尾那次 activate()。
+    html = html.replace("// __SETTINGS_JS__", SETTINGS_JS)
+    # TASK_JS 必须注入在 NAV_JS **之前**：NAV_JS 末尾会立刻 activate() 一次并调用
+    # 该页的渲染器，晚注册就赶不上首屏（hash 直接停在 #/activity 时会空白）。
+    html = html.replace("// __TASK_JS__", TASK_JS)
+    # POMO_JS 建的是总览页顶部的番茄钟，不注册 __pageRenderers（它不读 clientWidth，
+    # 圆环是固定 viewBox 的 SVG），但同样要排在 NAV_JS 之前——它靠末尾的
+    # activate() 之前的这段时间把节点搬进 #pm-overlay 的钩子准备好。
+    html = html.replace("// __POMO_JS__", POMO_JS)
+    # SHELL_JS 在 POMO_JS 之后：首页数据条直接读 POMO_JS 挂在 globalThis 上的
+    # __pomoStats()（近 14 天成绩），省一次接口来回。也要在 NAV_JS 之前。
+    html = html.replace("// __SHELL_JS__", SHELL_JS)
+
+    # 3.2 输出服务端选题辅助数据（serve.js 的 /api/flashcards/session 读取）
+    fresh = data["revival"]["freshness"]
+    # 冷笔记前缀：存在冷/冰冻笔记的前缀，练习区选题向其新卡倾斜
+    cold_prefixes = sorted({t["prefix"] for t in fresh["targets"]})
+    dash_data = {
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "recent_prefixes": data["recent_prefixes"],
+        "cold_prefixes": cold_prefixes,
+        "weak_topic_ids": [w["id"] for w in data["weak_topics"]["weak"]],
+    }
+    with open(DASH_DATA_OUT, "w", encoding="utf-8") as f:
+        json.dump(dash_data, f, ensure_ascii=False, indent=2)
+    print(f"  Dashboard data: {DASH_DATA_OUT.name} "
+          f"(recent_prefixes={len(dash_data['recent_prefixes'])}, weak_topics={len(dash_data['weak_topic_ids'])})")
+
+    # 3.5 D3 本地内联：本地大盘要求完全离线可用，
+    # 优先内联 src/tools/d3.min.js，缺失时才回退 CDN 引用
+    d3_cdn_tag = '<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>'
+    d3_local = BASE_DIR / "src" / "tools" / "d3.min.js"
+    if d3_cdn_tag in html:
+        if d3_local.exists():
+            d3_code = d3_local.read_text(encoding="utf-8")
+            html = html.replace(d3_cdn_tag, f"<script>{d3_code}</script>", 1)
+            print("  D3 inlined from local file (offline-ready)")
+        else:
+            print("  [WARN] src/tools/d3.min.js 缺失，图表依赖 CDN（离线时不可用）")
+
+    # 4. Write output
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        f.write(html)
+
+    size_kb = os.path.getsize(OUTPUT_PATH) / 1024
+    print(f"\nDashboard written to: {OUTPUT_PATH}")
+    print(f"File size: {size_kb:.1f} KB")
+    print(f"HTML lines: {html.count(chr(10)) + 1}")
+    print("\nDone!")
+
+
+if __name__ == "__main__":
+    main()

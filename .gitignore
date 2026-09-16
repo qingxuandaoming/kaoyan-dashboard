@@ -1,0 +1,63 @@
+# =============================================================================
+# 考研学习仪表盘 · 版本控制规则
+# 仓库根 = 考研/src
+#
+# 原则：
+#   1) 密钥绝不入库；
+#   2) 能由流水线一键重建的产物不入库（避免每天几百行无意义 diff）；
+#   3) 活的 SQLite 数据 / 本机状态不入库（备份放 backups/，该目录被忽略）。
+# =============================================================================
+
+# ---------- 密钥：绝对不入库 ----------
+.secrets.json
+*.pem
+*.key
+*.p12
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+
+# ---------- Node ----------
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- 生成产物（不要手改，下次流水线会覆盖）----------
+#   dashboard.html       <- generate_dashboard.py
+#   dashboard_data.json  <- generate_dashboard.py
+#   笔记索引.yaml         <- build_index.py
+#   flashcard_ready.html <- start_flashcard.bat（由 flashcard_app.html 注入题库生成）
+dashboard.html
+dashboard_data.json
+笔记索引.yaml
+flashcard_ready.html
+.serve_port
+
+# ---------- 活的数据库与本机状态 ----------
+# question_bank.db 每次刷闪卡都会写，体积与改动频率都不适合进 git。
+# 需要备份时手动拷贝到 backups/（该目录整体被忽略）。
+question_bank.db*
+backups/
+sync_state.json
+note_reviews.json
+
+# ---------- Obsidian Bases（属于笔记库，不属于本工程）----------
+*.base
+
+# ---------- 系统 / 编辑器垃圾 ----------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+.qoder/
+.vscode/
+.idea/
+*.tmp
+*.log
+~$*

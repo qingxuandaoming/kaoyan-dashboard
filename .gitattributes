@@ -1,0 +1,56 @@
+# =============================================================================
+# 行尾与二进制处理
+#
+# ⚠️ .bat 必须是 CRLF：LF 行尾会让 cmd 解析错行
+#    （现象：报 'rrorlevel' is not recognized，连 rem 注释都被当命令执行）。
+# 其它文本统一归一化为 LF 存储。
+# =============================================================================
+
+* text=auto
+
+# ---- Windows 批处理 / PowerShell 必须保留 CRLF ----
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# ---- 明确为文本（参与归一化）----
+*.py   text
+*.js   text
+*.mjs  text
+*.ts   text
+*.json text
+*.md   text
+*.html text
+*.css  text
+*.sql  text
+*.yaml text
+*.yml  text
+*.txt  text
+
+# ---- 二进制：不做行尾转换、不做 diff ----
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.db    binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.zip   binary
+
+# =============================================================================
+# GitHub 语言统计排除（不影响 clone 与运行）
+# =============================================================================
+# 生成产物：每次流水线重建，统计进去会淹没真实代码改动
+dashboard.html      linguist-generated
+dashboard_data.json linguist-generated
+
+# 第三方离线依赖：为「无网也能跑」而随仓库携带，不算本项目代码
+tools/katex/**    linguist-vendored
+tools/mermaid/**  linguist-vendored
+tools/d3.min.js   linguist-vendored
+tools/ts-fsrs.cjs linguist-vendored

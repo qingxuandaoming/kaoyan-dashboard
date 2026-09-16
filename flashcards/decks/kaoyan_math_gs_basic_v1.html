@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数学 · 高数基础速检</title>
+<style>
+/* 莫兰迪浅色主题（独立打开时默认） */
+:root{
+  --bg:#E8E4DD;--panel:#F2EFE9;--panel-alt:#EAE6DE;
+  --border:#CDC7BB;--border-light:#B8B1A3;
+  --text:#4A463E;--text-dim:#8B8478;--text-dimmer:#A9A296;
+  --accent:#7D8CA3;--green:#7D9377;--red:#B98279;
+  --orange:#C29A6B;--purple:#948A9E;
+  --hl:#2F2C26;
+  --card-front-a:#F5F2EC;--card-front-b:#EAE5DB;
+  --card-back-a:#E9EDE4;--card-back-b:#DDE3D6;--card-back-border:#A9B79F;
+  --opt-bg:#F7F5F0;--opt-sel:#DDE4EC;
+  --ok-bg:rgba(125,147,119,.16);--bad-bg:rgba(185,130,121,.16);
+  --exp-bg:#EFECE3;--ans-text:#4F6148;
+  --radius:12px;--radius-sm:8px;
+}
+/* 莫兰迪深色主题（嵌入大盘或 ?theme=dark 时） */
+html.theme-dark{
+  --bg:#2A2C29;--panel:#343732;--panel-alt:#3C403A;
+  --border:#50544C;--border-light:#62665C;
+  --text:#DAD7CE;--text-dim:#9A968B;--text-dimmer:#706C62;
+  --accent:#A3B4C9;--green:#9DB597;--red:#C7948D;
+  --orange:#C7A67C;--purple:#ADA3B7;
+  --hl:#EFEBE2;
+  --card-front-a:#3E423C;--card-front-b:#33362F;
+  --card-back-a:#39423A;--card-back-b:#30382F;--card-back-border:#5E6E58;
+  --opt-bg:#383B35;--opt-sel:#3E4A56;
+  --ok-bg:rgba(157,181,151,.14);--bad-bg:rgba(199,148,141,.14);
+  --exp-bg:#31382F;--ans-text:#B7CBB1;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.app{max-width:920px;margin:0 auto;padding:20px 20px 30px}
+body.embedded .app{padding:14px 18px 22px}
+body.embedded h1{font-size:1.3em;margin-bottom:4px}
+h1{text-align:center;color:var(--accent);font-size:1.7em;margin-bottom:6px;font-weight:700;letter-spacing:1px}
+.subtitle{text-align:center;color:var(--text-dim);margin-bottom:20px;font-size:0.85em}
+.stats-bar{display:flex;justify-content:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.stat{background:var(--panel);padding:6px 14px;border-radius:var(--radius-sm);font-size:0.82em;border:1px solid var(--border)}
+.stat .num{color:var(--accent);font-weight:bold}
+.stat.wrong .num{color:var(--red)}
+.stat.done .num{color:var(--green)}
+.controls{display:flex;justify-content:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;background:var(--panel);padding:12px;border-radius:var(--radius);border:1px solid var(--border)}
+.btn{padding:7px 14px;border:1px solid var(--border);background:var(--panel-alt);color:var(--text);border-radius:var(--radius-sm);cursor:pointer;font-size:0.82em;transition:all 0.15s;white-space:nowrap}
+.btn:hover{background:var(--border);border-color:var(--accent)}
+.btn.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:bold}
+.card-container{perspective:1000px;margin:16px auto;max-width:820px}
+.card{position:relative;width:100%;min-height:200px;transition:transform 0.6s;transform-style:preserve-3d;cursor:pointer;display:grid}
+.card.flipped{transform:rotateY(180deg)}
+.card-face{grid-area:1/1;width:100%;max-height:65vh;overflow-y:auto;backface-visibility:hidden;border-radius:var(--radius);padding:28px 30px;display:flex;flex-direction:column}
+.card-front{background:linear-gradient(135deg,var(--card-front-a),var(--card-front-b));border:2px solid var(--border);z-index:2}
+.card-back{background:linear-gradient(135deg,var(--card-back-a),var(--card-back-b));border:2px solid var(--card-back-border);transform:rotateY(180deg)}
+.card-label{font-size:0.7em;color:var(--accent);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;font-weight:bold}
+.card-back .card-label{color:var(--green)}
+.card-question{font-size:1.08em;line-height:1.7;color:var(--hl)}
+.card-hint{font-size:0.78em;color:var(--text-dim);margin-top:auto;padding-top:12px}
+.options{margin-top:12px}
+.option{padding:10px 14px;margin:5px 0;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--opt-bg);cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:10px;font-size:0.92em}
+.option:hover{border-color:var(--accent);background:var(--panel-alt)}
+.option.selected{border-color:var(--accent);background:var(--opt-sel)}
+.option.correct{border-color:var(--green);background:var(--ok-bg);color:var(--green)}
+.option.wrong{border-color:var(--red);background:var(--bad-bg);color:var(--red)}
+.option-key{width:26px;height:26px;border-radius:50%;background:var(--border);color:var(--text);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.78em;flex-shrink:0}
+.option.selected .option-key{background:var(--accent);color:var(--bg)}
+.option.correct .option-key{background:var(--green);color:var(--bg)}
+.option.wrong .option-key{background:var(--red);color:#fff}
+.card-answer{font-size:0.95em;line-height:1.8;color:var(--ans-text)}
+.card-answer strong{color:var(--green)}
+.nav-bar{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:16px}
+.nav-btn{padding:8px 20px;border:1px solid var(--border);background:var(--panel-alt);color:var(--text);border-radius:var(--radius-sm);cursor:pointer;font-size:0.85em;transition:all 0.15s}
+.nav-btn:hover{background:var(--border);border-color:var(--accent)}
+.progress{text-align:center;color:var(--text-dimmer);font-size:0.82em;margin-top:10px}
+.progress-bar{width:100%;height:4px;background:var(--panel);border-radius:2px;margin-top:6px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:2px;transition:width 0.3s}
+.tf-options{display:flex;gap:12px;margin-top:12px;justify-content:center}
+.tf-btn{padding:12px 36px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--opt-bg);color:var(--text);cursor:pointer;font-size:1.05em;font-weight:bold;transition:all 0.15s;min-width:110px}
+.tf-btn:hover{border-color:var(--accent)}
+.tf-btn.correct{border-color:var(--green);background:var(--ok-bg);color:var(--green)}
+.tf-btn.wrong{border-color:var(--red);background:var(--bad-bg);color:var(--red)}
+.mark-row{display:flex;gap:12px;justify-content:center;margin-top:14px;margin-bottom:10px}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:10px 22px;border-radius:var(--radius-sm);font-weight:bold;z-index:999;animation:fadeInOut 2s forwards}
+.toast.correct{background:var(--ok-bg);border:2px solid var(--green);color:var(--green)}
+.toast.wrong{background:var(--bad-bg);border:2px solid var(--red);color:var(--red)}
+@keyframes fadeInOut{0%{opacity:0;transform:translateX(-50%) translateY(-20px)}10%{opacity:1;transform:translateX(-50%) translateY(0)}80%{opacity:1}100%{opacity:0}}
+.shortcut-hint{position:fixed;bottom:6px;right:6px;font-size:0.62em;color:var(--text-dimmer);text-align:right;line-height:1.4;background:var(--panel);padding:5px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);z-index:10;pointer-events:none;opacity:0.6}
+.empty-state{text-align:center;padding:50px 20px;color:var(--text-dimmer)}
+.empty-state h2{color:var(--accent);margin-bottom:12px}
+.fx{font-family:"Cambria Math","STIX Two Math",Georgia,"Times New Roman",serif;font-size:1.06em;letter-spacing:0.2px}
+.eq{display:block;text-align:center;font-size:1.25em;margin:14px 0;color:var(--hl)}
+.exp-box{margin-top:15px;padding:12px;background:var(--exp-bg);border-radius:8px;border-left:3px solid var(--green);font-size:0.9em;line-height:1.7;color:var(--ans-text)}
+.exp-box strong{color:var(--green)}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>数学 · 高数基础速检</h1>
+  <div class="subtitle">极限 / 导数 / 积分核心结论 · 空格翻面 · j/k 翻页</div>
+  <div class="stats-bar" id="statsBar"></div>
+  <div class="controls" id="controlsBar"></div>
+  <div class="card-container" id="cardContainer"></div>
+  <div class="nav-bar">
+    <button class="nav-btn" onclick="prevCard();this.blur()">← 上一题 (k)</button>
+    <span class="progress" id="progress"></span>
+    <button class="nav-btn" onclick="nextCard();this.blur()">下一题 (j) →</button>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+<div class="shortcut-hint">
+  快捷键：空格=翻转/下一题 | j/k 或 ←→=翻页 | 选择题: A/B/C/D 或 1/2/3/4 | 判断题: 1=正确 2=错误 | 翻转后: 1=掌握 2=巩固
+</div>
+<script>
+const CARDS = [
+ {
+  "type": "choice",
+  "ch": "极限与连续",
+  "q": "当 x→0 时，sin x − x 等价于下列哪一个无穷小？",
+  "opts": [
+   "x³/6",
+   "−x³/6",
+   "x²/2",
+   "−x²/2"
+  ],
+  "ans": 1,
+  "exp": "泰勒展开 sin x = x − x³/6 + o(x³)，故 sin x − x ~ −x³/6。这是“sin x − x”型极限的标准替换。"
+ },
+ {
+  "type": "tf",
+  "ch": "极限与连续",
+  "q": "若 lim f(x) = A 存在，lim g(x) 不存在，则 lim [f(x) + g(x)] 必不存在。",
+  "ans": true,
+  "exp": "反证：若和的极限存在，则 g = (f+g) − f 的极限也存在（极限运算法则），矛盾。同理，收敛×发散的乘积未必发散（收敛因子为 0 时）。"
+ },
+ {
+  "type": "fill",
+  "ch": "极限与连续",
+  "q": "重要极限：lim(x→0) (sin x)/x = ____",
+  "ans": [
+   "1"
+  ],
+  "exp": "夹逼准则可证。推广：□→0 时 sin□/□ → 1，□ 可以是任意趋于 0 的表达式。"
+ },
+ {
+  "type": "choice",
+  "ch": "极限与连续",
+  "q": "f(x) = (sin x)/x 在 x = 0 处的间断点类型是？",
+  "opts": [
+   "可去间断点",
+   "跳跃间断点",
+   "无穷间断点",
+   "振荡间断点"
+  ],
+  "ans": 0,
+  "exp": "x→0 时极限存在（=1）但 f(0) 无定义，补充定义 f(0)=1 即连续，故为可去间断点。"
+ },
+ {
+  "type": "fill",
+  "ch": "导数与微分",
+  "q": "基本求导：(ln x)′ = ____",
+  "ans": [
+   "1/x"
+  ],
+  "exp": "(log<sub>a</sub> x)′ = 1/(x ln a)，取 a=e 即得。注意定义域 x&gt;0。"
+ },
+ {
+  "type": "choice",
+  "ch": "导数与微分",
+  "q": "设 f(x) 在 x₀ 处可导，则 f′(x₀) = 0 是 x₀ 为 f(x) 极值点的（　）",
+  "opts": [
+   "充分非必要条件",
+   "必要非充分条件",
+   "充要条件",
+   "既非充分也非必要条件"
+  ],
+  "ans": 1,
+  "exp": "费马定理：可导 + 极值 ⇒ f′(x₀)=0（必要性）；反之 y = x³ 在 x=0 处 f′=0 但非极值（非充分）。"
+ },
+ {
+  "type": "tf",
+  "ch": "导数与微分",
+  "q": "若 f(x) 在 x₀ 处连续，则 f(x) 在 x₀ 处必可导。",
+  "ans": false,
+  "exp": "连续是可导的必要非充分条件。反例：y = |x| 在 x=0 连续但左右导数不等（−1 与 1），不可导。"
+ },
+ {
+  "type": "short",
+  "ch": "导数与微分",
+  "q": "简述导数与微分的定义，并说明二者的关系。",
+  "ans": "导数：增量比的极限 f′(x₀) = lim[Δx→0] [f(x₀+Δx) − f(x₀)]/Δx，刻画瞬时变化率。\n微分：Δy = A·Δx + o(Δx) 中关于 Δx 的线性主部 dy = f′(x₀)Δx。\n关系：一元函数中可导 ⇔ 可微，且 A = f′(x₀)；导数是微分的系数。",
+  "exp": "一元可导⇔可微是数一常考结论；多元函数中偏导存在≠可微，注意区分。"
+ },
+ {
+  "type": "fill",
+  "ch": "积分",
+  "q": "基本积分：∫cos x dx = ____",
+  "ans": [
+   "sin x + C",
+   "sinx+C"
+  ],
+  "exp": "别漏常数 C。对照：∫sin x dx = −cos x + C，负号是高频丢分点。"
+ },
+ {
+  "type": "choice",
+  "ch": "积分",
+  "q": "∫₀¹ x dx = ？",
+  "opts": [
+   "1/2",
+   "1",
+   "2",
+   "0"
+  ],
+  "ans": 0,
+  "exp": "原函数 x²/2 代入上下限：1/2 − 0 = 1/2。几何上即直线 y=x 下三角形面积。"
+ },
+ {
+  "type": "tf",
+  "ch": "积分",
+  "q": "若 f(x) 在 [a, b] 上连续，则 f(x) 在 [a, b] 上必可积（定积分存在）。",
+  "ans": true,
+  "exp": "连续必可积；更弱地，有限个间断点的有界函数也可积。可积 ⇒ 有界（反之不然，如 Dirichlet 函数）。"
+ },
+ {
+  "type": "choice",
+  "ch": "积分",
+  "q": "d/dx ∫₀ˣ e<sup>t²</sup> dt = ？",
+  "opts": [
+   "e<sup>x²</sup>",
+   "2x·e<sup>x²</sup>",
+   "e<sup>t²</sup>",
+   "x·e<sup>x²</sup>"
+  ],
+  "ans": 0,
+  "exp": "变上限积分求导（微积分基本定理）：把上限 x 直接代入被积函数。若上限是 x² 才需要再乘 (x²)′ = 2x。"
+ }
+];
+const STORAGE_KEY = 'kaoyan_math_gs_basic_v1';
+const KEYS = ['A','B','C','D','E','F'];
+const TYPE_NAME = {choice:'选择题', tf:'判断题', fill:'填空题', short:'简答题'};
+
+// ---- 主题与嵌入模式 ----
+// 主题优先级：?theme=light|dark > embed=1 默认 dark > 默认 light（莫兰迪浅色）
+const QP = new URLSearchParams(location.search);
+const EMBEDDED = QP.get('embed') === '1' || window.parent !== window;
+(function initTheme() {
+  const want = QP.get('theme') || (EMBEDDED ? 'dark' : 'light');
+  if (want === 'dark') document.documentElement.classList.add('theme-dark');
+  if (EMBEDDED) document.body.classList.add('embedded');
+})();
+
+let currentCards = [...CARDS];
+let currentIndex = 0;
+let currentFlipped = false;
+let currentMode = 'all';
+let wrongSet = new Set();
+let masteredSet = new Set();
+let answeredCards = new Set();
+let practicedSet = new Set();
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function expBox(card) {
+  return card.exp ? '<div class="exp-box"><strong>解析：</strong>' + card.exp + '</div>' : '';
+}
+
+function renderChoice(card, idx) {
+  const isFlipped = currentFlipped;
+  const optsFront = card.opts.map((o, i) =>
+    '<div class="option" style="cursor:pointer" onclick="answerChoice(' + idx + ',' + i + ',event)"><span class="option-key">' + KEYS[i] + '</span><span>' + o + '</span></div>'
+  ).join('');
+  const optsBack = card.opts.map((o, i) => {
+    let cls = 'option';
+    if (i === card.ans) cls += ' correct';
+    return '<div class="' + cls + '" style="cursor:default"><span class="option-key">' + KEYS[i] + '</span><span>' + o + '</span></div>';
+  }).join('');
+  return '<div class="card-container"><div class="card' + (isFlipped ? ' flipped' : '') + '" onclick="flipCard()">'
+    + '<div class="card-face card-front">'
+    + '<div class="card-label">' + card.ch + ' · ' + TYPE_NAME.choice + '</div>'
+    + '<div class="card-question">' + card.q + '</div>'
+    + '<div class="options">' + optsFront + '</div>'
+    + '<div class="card-hint">先想一想，点击选项或按 A/B/C/D 作答</div>'
+    + '</div>'
+    + '<div class="card-face card-back">'
+    + '<div class="card-label">正确答案：' + KEYS[card.ans] + '</div>'
+    + '<div class="options">' + optsBack + '</div>'
+    + expBox(card)
+    + '<div class="card-hint">1=已掌握 2=待巩固 空格=下一题</div>'
+    + '</div></div>'
+    + (isFlipped ? renderMarkButtons(idx) : '') + '</div>';
+}
+
+function renderTF(card, idx) {
+  const isFlipped = currentFlipped;
+  const tfBack = '<div style="text-align:center;font-size:1.8em;font-weight:bold;color:var(--green);padding:20px 0">' + (card.ans ? '✅ 正确' : '❌ 错误') + '</div>';
+  return '<div class="card-container"><div class="card' + (isFlipped ? ' flipped' : '') + '" onclick="flipCard()">'
+    + '<div class="card-face card-front">'
+    + '<div class="card-label">' + card.ch + ' · ' + TYPE_NAME.tf + '</div>'
+    + '<div class="card-question" style="font-size:1.15em">' + card.q + '</div>'
+    + '<div class="tf-options">'
+    + '<button class="tf-btn" onclick="answerTF(' + idx + ',true,event)">✅ 正确 (1)</button>'
+    + '<button class="tf-btn" onclick="answerTF(' + idx + ',false,event)">❌ 错误 (2)</button>'
+    + '</div>'
+    + '<div class="card-hint" style="text-align:center">判断对错后按键或点击按钮</div>'
+    + '</div>'
+    + '<div class="card-face card-back">'
+    + '<div class="card-label">正确答案</div>'
+    + tfBack
+    + expBox(card)
+    + '<div class="card-hint" style="text-align:center">1=已掌握 2=待巩固 空格=下一题</div>'
+    + '</div></div>'
+    + (isFlipped ? renderMarkButtons(idx) : '') + '</div>';
+}
+
+function renderFill(card, idx) {
+  const isFlipped = currentFlipped;
+  return '<div class="card-container"><div class="card' + (isFlipped ? ' flipped' : '') + '" onclick="flipCard()">'
+    + '<div class="card-face card-front">'
+    + '<div class="card-label">' + card.ch + ' · ' + TYPE_NAME.fill + '</div>'
+    + '<div class="card-question" style="font-size:1.15em">' + card.q + '</div>'
+    + '<div class="card-hint">想一想答案，然后按空格翻转查看</div>'
+    + '</div>'
+    + '<div class="card-face card-back">'
+    + '<div class="card-label">正确答案</div>'
+    + '<div style="text-align:center;font-size:1.5em;font-weight:bold;color:var(--green);padding:20px 0">' + card.ans[0] + '</div>'
+    + (card.ans.length > 1 ? '<div style="text-align:center;color:var(--text-dim);font-size:0.85em">（也可接受：' + card.ans.slice(1).join('、') + '）</div>' : '')
+    + expBox(card)
+    + '<div class="card-hint" style="text-align:center">1=已掌握 2=待巩固 空格=下一题</div>'
+    + '</div></div>'
+    + (isFlipped ? renderMarkButtons(idx) : '') + '</div>';
+}
+
+function renderShort(card, idx) {
+  const isFlipped = currentFlipped;
+  return '<div class="card-container"><div class="card' + (isFlipped ? ' flipped' : '') + '" onclick="flipCard()">'
+    + '<div class="card-face card-front">'
+    + '<div class="card-label">' + card.ch + ' · ' + TYPE_NAME.short + '</div>'
+    + '<div class="card-question">' + card.q + '</div>'
+    + '<div class="card-hint">先自己作答，再按空格看参考答案</div>'
+    + '</div>'
+    + '<div class="card-face card-back">'
+    + '<div class="card-label">参考答案</div>'
+    + '<div class="card-answer">' + card.ans.replace(/\n/g, '<br>') + '</div>'
+    + (card.exp ? expBox(card) : '')
+    + '<div class="card-hint" style="margin-top:10px">1=已掌握 2=待巩固 空格=下一题</div>'
+    + '</div></div>'
+    + (isFlipped ? renderMarkButtons(idx) : '') + '</div>';
+}
+
+function renderMarkButtons(idx) {
+  if (masteredSet.has(idx)) {
+    return '<div class="mark-row"><span style="color:var(--green);font-weight:bold;font-size:1.1em">✅ 已掌握</span>'
+      + '<button class="btn" style="border-color:var(--red);color:var(--red)" onclick="markAsWrong(' + idx + ', event)">移入错题本</button></div>';
+  }
+  if (wrongSet.has(idx)) {
+    return '<div class="mark-row">'
+      + '<button class="btn" style="border-color:var(--green);color:var(--green)" onclick="markAsMastered(' + idx + ', event)">✅ 已掌握</button>'
+      + '<span style="color:var(--red);font-weight:bold">❌ 待巩固</span></div>';
+  }
+  return '<div class="mark-row">'
+    + '<button class="btn" style="border-color:var(--green);color:var(--green)" onclick="markAsMastered(' + idx + ', event)">✅ 已掌握</button>'
+    + '<button class="btn" style="border-color:var(--red);color:var(--red)" onclick="markAsWrong(' + idx + ', event)">❌ 待巩固</button></div>';
+}
+
+function renderCard() {
+  const area = document.getElementById('cardContainer');
+  if (currentCards.length === 0) {
+    area.innerHTML = '<div class="empty-state"><h2>暂无题目</h2><p>这一组暂时没有题目，去其他模式看看吧</p></div>';
+    updateStats();
+    return;
+  }
+  const card = currentCards[currentIndex];
+  const realIdx = CARDS.indexOf(card);
+  let html;
+  if (card.type === 'choice') html = renderChoice(card, realIdx);
+  else if (card.type === 'tf') html = renderTF(card, realIdx);
+  else if (card.type === 'fill') html = renderFill(card, realIdx);
+  else html = renderShort(card, realIdx);
+  area.innerHTML = html;
+  updateStats();
+}
+
+function updateStats() {
+  const total = CARDS.length;
+  const mastered = masteredSet.size;
+  const wrong = wrongSet.size;
+  const practiced = practicedSet.size;
+  document.getElementById('statsBar').innerHTML =
+    '<div class="stat">总题数 <span class="num">' + total + '</span></div>'
+    + '<div class="stat done">已掌握 <span class="num">' + mastered + '</span></div>'
+    + '<div class="stat wrong">待巩固 <span class="num">' + wrong + '</span></div>'
+    + '<div class="stat">已练习 <span class="num">' + practiced + '</span></div>'
+    + '<div class="stat">未做 <span class="num">' + (total - practiced) + '</span></div>';
+  document.getElementById('progress').textContent = (currentCards.length ? (currentIndex + 1) : 0) + ' / ' + currentCards.length;
+  const pct = total > 0 ? (mastered / total * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function flipCard() {
+  if (currentCards.length === 0) return;
+  currentFlipped = !currentFlipped;
+  if (currentFlipped) {
+    answeredCards.add(currentIndex);
+    const realIdx = CARDS.indexOf(currentCards[currentIndex]);
+    if (realIdx >= 0) practicedSet.add(realIdx);
+  }
+  renderCard();
+}
+
+function nextCard() {
+  if (currentIndex < currentCards.length - 1) {
+    currentIndex++;
+    currentFlipped = false;
+    saveProgress();
+    renderCard();
+  }
+}
+
+function prevCard() {
+  if (currentIndex > 0) {
+    currentIndex--;
+    currentFlipped = false;
+    saveProgress();
+    renderCard();
+  }
+}
+
+function answerChoice(realIdx, optionIdx, e) {
+  e.stopPropagation();
+  if (currentFlipped) return;
+  const card = currentCards[currentIndex];
+  currentFlipped = true;
+  answeredCards.add(currentIndex);
+  practicedSet.add(realIdx);
+  if (optionIdx === card.ans) {
+    masteredSet.add(realIdx);
+    wrongSet.delete(realIdx);
+    showToast('✅ 选择正确！', 'correct');
+  } else {
+    wrongSet.add(realIdx);
+    masteredSet.delete(realIdx);
+    showToast('❌ 选择错误，正确答案是 ' + KEYS[card.ans], 'wrong');
+  }
+  saveProgress();
+  renderCard();
+}
+
+function answerTF(realIdx, choice, e) {
+  e.stopPropagation();
+  if (currentFlipped) return;
+  const card = currentCards[currentIndex];
+  currentFlipped = true;
+  answeredCards.add(currentIndex);
+  practicedSet.add(realIdx);
+  if (choice === card.ans) {
+    masteredSet.add(realIdx);
+    wrongSet.delete(realIdx);
+    showToast('✅ 判断正确！', 'correct');
+  } else {
+    wrongSet.add(realIdx);
+    masteredSet.delete(realIdx);
+    showToast('❌ 判断错误，正确答案是' + (card.ans ? '正确' : '错误'), 'wrong');
+  }
+  saveProgress();
+  renderCard();
+}
+
+function markAsMastered(idx, e) {
+  e.stopPropagation();
+  masteredSet.add(idx);
+  wrongSet.delete(idx);
+  showToast('✅ 已标记为掌握', 'correct');
+  saveProgress();
+  renderCard();
+}
+
+function markAsWrong(idx, e) {
+  e.stopPropagation();
+  wrongSet.add(idx);
+  masteredSet.delete(idx);
+  showToast('已加入错题本', 'wrong');
+  saveProgress();
+  renderCard();
+}
+
+function showToast(msg, cls) {
+  const old = document.querySelector('.toast');
+  if (old) old.remove();
+  const t = document.createElement('div');
+  t.className = 'toast ' + cls;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+function handleKey(e) {
+  if (e.target.tagName === 'INPUT') return;
+  // 嵌入模式：Esc 通知父窗口（大盘）关闭覆盖层
+  if (e.key === 'Escape' && EMBEDDED && window.parent !== window) {
+    window.parent.postMessage({ type: 'flashcard-close' }, '*');
+    return;
+  }
+  if (currentCards.length === 0) return;
+  const card = currentCards[currentIndex];
+  const realIdx = CARDS.indexOf(card);
+
+  if (e.key === ' ') {
+    e.preventDefault();
+    if (currentFlipped && answeredCards.has(currentIndex)) nextCard();
+    else flipCard();
+  } else if (e.key === 'ArrowRight' || e.key === 'j' || e.key === 'J') {
+    nextCard();
+  } else if (e.key === 'ArrowLeft' || e.key === 'k' || e.key === 'K') {
+    prevCard();
+  } else if (!currentFlipped && card.type === 'choice') {
+    const map = {'a':0,'b':1,'c':2,'d':3,'e':4,'f':5,'1':0,'2':1,'3':2,'4':3,'5':4,'6':5};
+    const k = e.key.toLowerCase();
+    if (map[k] !== undefined && map[k] < card.opts.length) {
+      answerChoice(realIdx, map[k], { stopPropagation: () => {}, preventDefault: () => {} });
+    }
+  } else if (!currentFlipped && card.type === 'tf') {
+    if (e.key === '1') answerTF(realIdx, true, { stopPropagation: () => {}, preventDefault: () => {} });
+    else if (e.key === '2') answerTF(realIdx, false, { stopPropagation: () => {}, preventDefault: () => {} });
+  } else if (currentFlipped) {
+    if (e.key === '1') {
+      markAsMastered(realIdx, { stopPropagation: () => {} });
+    } else if (e.key === '2') {
+      markAsWrong(realIdx, { stopPropagation: () => {} });
+    }
+  }
+}
+
+function buildButtons() {
+  const chs = [...new Set(CARDS.map(c => c.ch))];
+  const types = [...new Set(CARDS.map(c => c.type))];
+  const defs = [{mode:'all', label:'全部 ' + CARDS.length + ' 题'}];
+  if (chs.length > 1 && chs.length <= 8) {
+    chs.forEach(ch => defs.push({mode:'ch:' + ch, label: ch.length > 12 ? ch.slice(0, 12) : ch}));
+  } else if (chs.length === 1 && types.length > 1) {
+    types.forEach(t => defs.push({mode:'type:' + t, label: TYPE_NAME[t] || t}));
+  }
+  defs.push({mode:'wrong', label:'❌ 错题重练'});
+  defs.push({mode:'unpracticed', label:'📋 未做题'});
+  document.getElementById('controlsBar').innerHTML = defs.map(d =>
+    '<button class="btn" data-mode="' + esc(d.mode) + '" onclick="setMode(this.dataset.mode);this.blur()">' + esc(d.label) + '</button>'
+  ).join('');
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('#controlsBar .btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  saveProgress();
+  filterCards();
+}
+
+function filterCards(keepIndex) {
+  currentFlipped = false;
+  answeredCards = new Set();
+  let cards;
+  if (currentMode.indexOf('ch:') === 0) cards = CARDS.filter(c => c.ch === currentMode.slice(3));
+  else if (currentMode.indexOf('type:') === 0) cards = CARDS.filter(c => c.type === currentMode.slice(5));
+  else if (currentMode === 'wrong') cards = CARDS.filter((c, i) => wrongSet.has(i));
+  else if (currentMode === 'unpracticed') cards = CARDS.filter((c, i) => !practicedSet.has(i));
+  else cards = [...CARDS];
+  currentCards = cards;
+  if (!keepIndex) currentIndex = 0;
+  if (currentIndex >= currentCards.length) currentIndex = Math.max(0, currentCards.length - 1);
+  renderCard();
+}
+
+function saveProgress() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    wrong: [...wrongSet],
+    mastered: [...masteredSet],
+    currentIndex: currentIndex,
+    currentMode: currentMode,
+    practiced: [...practicedSet]
+  }));
+}
+
+function loadProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    wrongSet = new Set(saved.wrong || []);
+    masteredSet = new Set(saved.mastered || []);
+    currentIndex = saved.currentIndex || 0;
+    currentMode = saved.currentMode || 'all';
+    practicedSet = new Set(saved.practiced || []);
+  } catch(e) {
+    console.warn('Failed to load progress:', e);
+  }
+}
+
+function init() {
+  buildButtons();
+  loadProgress();
+  const btns = [...document.querySelectorAll('#controlsBar .btn')];
+  if (!btns.some(b => b.dataset.mode === currentMode)) currentMode = 'all';
+  btns.forEach(b => b.classList.toggle('active', b.dataset.mode === currentMode));
+  filterCards(true);
+  document.addEventListener('keydown', handleKey);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+@echo off
+echo [INFO] Starting via PowerShell (Bypass ExecutionPolicy)...
+powershell -ExecutionPolicy Bypass -File "%~dp0start-morning-review.ps1"

@@ -1,0 +1,22 @@
+{
+  "name": "kaoyan-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "考研学习仪表盘：本地大盘生成 + 闪卡(FSRS) + 错题复盘 + 早间回顾 + AI 讲解",
+  "main": "serve.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "serve": "node serve.js",
+    "pipeline": "python run_pipeline.py --no-plan",
+    "test": "node tools/run_all_tests.js"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "uuid": "^9.0.1",
+    "ws": "^8.18.3"
+  }
+}

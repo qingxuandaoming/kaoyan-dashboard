@@ -1,0 +1,196 @@
+{
+  "updated": "2026-08-14",
+  "method": {
+    "408": "王道四本书一轮复习",
+    "数学": "张宇30讲一轮复习",
+    "英语": "不背单词APP + 红宝书正序版",
+    "政治": "徐涛强化课 + 优题库基础篇"
+  },
+  "subjects": {
+    "408": {
+      "phase": "一轮复习",
+      "resource": "王道四本",
+      "overall_progress": 0.85,
+      "subs": {
+        "DS": {
+          "progress": 1.0,
+          "status": "一轮完成·强化中",
+          "chapters_completed": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "phase": "强化"
+        },
+        "CO": {
+          "progress": 1.0,
+          "status": "一轮完成",
+          "chapters_completed": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ]
+        },
+        "OS": {
+          "progress": 1.0,
+          "status": "一轮完成",
+          "chapters_completed": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        "CN": {
+          "progress": 0.42,
+          "status": "数据链路层进行中",
+          "chapters_completed": [
+            1,
+            2
+          ],
+          "chapters_in_progress": [
+            3
+          ],
+          "chapters_remaining": [
+            4,
+            5,
+            6
+          ]
+        }
+      },
+      "resource_path": [
+        {
+          "phase": "基础",
+          "resource": "王道四本",
+          "status": "进行中"
+        },
+        {
+          "phase": "真题",
+          "resource": "408历年真题(2009-2026)",
+          "status": "未开始"
+        },
+        {
+          "phase": "模拟",
+          "resource": "王道模拟卷",
+          "status": "未开始"
+        }
+      ],
+      "code_practice_daily": "30分钟DS算法手写代码"
+    },
+    "数学": {
+      "phase": "一轮复习",
+      "resource": "张宇30讲",
+      "overall_progress": 0.71,
+      "subs": {
+        "高等数学": {
+          "progress": 1.0,
+          "status": "一轮完成(第18讲)",
+          "lectures_completed": 18,
+          "total_lectures_est": 18
+        },
+        "线性代数": {
+          "progress": 1.0,
+          "status": "一轮完成(第7讲)",
+          "lectures_completed": 7,
+          "total_lectures_est": 7
+        },
+        "概率论与数理统计": {
+          "progress": 0.14,
+          "status": "第1讲开始",
+          "lectures_completed": 1,
+          "total_lectures_est": 7
+        }
+      },
+      "resource_path": [
+        {
+          "phase": "基础",
+          "resource": "张宇30讲",
+          "status": "进行中"
+        },
+        {
+          "phase": "强化",
+          "resource": "武忠祥17堂课/张宇18讲 + 李永乐线代辅导讲义",
+          "status": "未开始"
+        },
+        {
+          "phase": "强化习题",
+          "resource": "李林880题",
+          "status": "未开始"
+        },
+        {
+          "phase": "真题",
+          "resource": "近15年真题(2010-2024)",
+          "status": "未开始"
+        },
+        {
+          "phase": "模拟",
+          "resource": "李林6+4套卷 + 张宇8+4套卷",
+          "status": "未开始"
+        }
+      ]
+    },
+    "英语": {
+      "phase": "单词一轮完成·真题刷题",
+      "resource": "不背单词APP + 红宝书",
+      "vocabulary_size": 5500,
+      "phrases_learned": 800,
+      "phrases_phase": "一轮完成",
+      "word_progress": "基础词一轮完成",
+      "overall_progress": 0.55,
+      "vocab_target": 5500,
+      "vocab_gap": 0,
+      "vocab_sprint_deadline": "2026-08-31",
+      "vocab_daily_plan": {
+        "new_per_day": 0,
+        "review_per_day": 100
+      },
+      "flashcard_start": "2026-07-13"
+    },
+    "政治": {
+      "phase": "一轮完成（强化课+优题库基础篇）",
+      "resource": "徐涛强化课 + 优题库基础篇",
+      "overall_progress": 1.0,
+      "course": {
+        "马原": 1.0,
+        "毛中特": 1.0,
+        "史纲": 1.0,
+        "思修": 1.0,
+        "习思想": 1.0
+      },
+      "exercises": {
+        "马原": 1.0,
+        "思修": 1.0,
+        "史纲": 1.0,
+        "毛中特": 1.0,
+        "习思想": 1.0
+      },
+      "xiaoxiurong_plan": {
+        "1000题": {
+          "status": "未开始",
+          "target_start": "2026-09-01"
+        },
+        "肖八": {
+          "status": "未开始",
+          "target_start": "2026-11-01"
+        },
+        "肖四": {
+          "status": "未开始",
+          "target_start": "2026-12-04"
+        },
+        "腿姐技巧班": {
+          "status": "未开始",
+          "target_start": "2026-09-15"
+        }
+      }
+    }
+  }
+}

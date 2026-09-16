@@ -1,0 +1,196 @@
+/* ============================================================
+   考研笔记 PDF 主题 —— 平板阅读优化版
+   A4 · 大字号 · 宽行距 · 护眼配色 · 公式/表格防断页
+   ============================================================ */
+
+@page {
+  size: A4;
+  /* 页边距必须用 @page 声明才能每一页都生效（body 的 padding 只作用于
+     首页/末页，中间页内容会顶到纸边，曾导致页脚页码与正文相撞）；
+     底部 11mm 为页码预留区，页码落在其中、与正文保持安全间距 */
+  margin: 16mm 15mm 11mm;
+}
+
+:root {
+  --ink:        #2b2b2b;   /* 正文墨色 */
+  --ink-soft:   #5a5a5a;   /* 次要文字 */
+  --accent:     #1f4e79;   /* 标题深蓝 */
+  --accent-2:   #2e75b6;   /* 次级蓝 */
+  --rule:       #d8d8d8;   /* 分隔线 */
+  --quote-bg:   #fdf6e3;   /* 核心结论底色（护眼米黄） */
+  --quote-bar:  #e6a23c;   /* 结论左侧条 */
+  --mark-bg:    #fff1a8;   /* 荧光笔 */
+  --link:       #6b5ce7;   /* 双链紫 */
+  --code-bg:    #f4f4f4;
+  --table-head: #1f4e79;
+  --table-stripe: #f7f9fc;
+}
+
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  font-size: 12.5pt;
+  line-height: 1.8;
+  color: var(--ink);
+  padding: 0;   /* 页边距统一由 @page 控制 */
+  margin: 0;
+  overflow-wrap: break-word;   /* 兜底：不可断行的长串也换行，杜绝撑出横向滚动 */
+}
+
+/* ---------- 标题体系 ---------- */
+
+h1 {
+  font-size: 21pt;
+  color: var(--accent);
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 8px;
+  margin: 0 0 18px;
+  line-height: 1.4;
+}
+
+h2 {
+  font-size: 15.5pt;
+  color: var(--accent);
+  border-left: 6px solid var(--accent-2);
+  padding-left: 10px;
+  margin: 26px 0 12px;
+  break-after: avoid;
+}
+
+h3 {
+  font-size: 13pt;
+  color: var(--accent-2);
+  margin: 20px 0 8px;
+  break-after: avoid;
+}
+
+h4, h5, h6 {
+  font-size: 12.5pt;
+  color: var(--ink-soft);
+  margin: 16px 0 6px;
+  break-after: avoid;
+}
+
+/* ---------- 正文元素 ---------- */
+
+p { margin: 8px 0; }
+
+strong { color: #b03a2e; font-weight: 700; }   /* 加粗=重点，暖红突出 */
+
+hr {
+  border: none;
+  border-top: 1px dashed var(--rule);
+  margin: 22px 0;
+}
+
+ul, ol { padding-left: 1.6em; margin: 8px 0; }
+li { margin: 4px 0; }
+li > ul, li > ol { margin: 2px 0; }
+
+a { color: var(--accent-2); text-decoration: none; }
+
+/* ---------- 核心结论引用块 ---------- */
+
+blockquote {
+  background: var(--quote-bg);
+  border-left: 5px solid var(--quote-bar);
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+  break-inside: avoid;
+}
+blockquote p { margin: 4px 0; }
+blockquote strong { color: #c0392b; }
+
+/* ---------- 荧光笔高亮 ==text== ---------- */
+
+mark {
+  background: var(--mark-bg);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* ---------- Obsidian 双链 [[...]] ---------- */
+
+.wikilink {
+  color: var(--link);
+  border-bottom: 1px dotted var(--link);
+  font-weight: 500;
+}
+.wikilink::before { content: "🔗"; font-size: 0.75em; margin-right: 1px; }
+
+/* ---------- 表格 ---------- */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 14px 0;
+  font-size: 11pt;
+}
+thead { display: table-header-group; }   /* 跨页表格自动重复表头 */
+tr { break-inside: avoid; }              /* 行内不断裂，表格本身允许跨页 */
+th {
+  background: var(--table-head);
+  color: #fff;
+  padding: 7px 10px;
+  text-align: left;
+  font-weight: 600;
+}
+td {
+  border: 1px solid var(--rule);
+  padding: 6px 10px;
+  overflow-wrap: break-word;
+}
+tr:nth-child(even) td { background: var(--table-stripe); }
+
+/* ---------- 代码 ---------- */
+
+code {
+  font-family: "Cascadia Code", Consolas, "JetBrains Mono", monospace;
+  background: var(--code-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.88em;
+}
+pre {
+  background: var(--code-bg);
+  padding: 12px 14px;
+  border-radius: 6px;
+  white-space: pre-wrap;       /* PDF 无法横向滚动：长行自动换行，杜绝内容被裁剪 */
+  overflow-wrap: break-word;
+  break-inside: avoid;
+}
+pre code { background: none; padding: 0; }
+
+/* ---------- 图片 ---------- */
+
+img {
+  max-width: 100%;
+  display: block;
+  margin: 12px auto;
+  border-radius: 6px;
+}
+
+/* ---------- 数学公式 ---------- */
+
+.katex { font-size: 1.08em; }          /* 公式略放大，平板可读性 */
+.katex-display {
+  margin: 12px 0;
+  padding: 6px 0;
+  break-inside: avoid;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ---------- 页内元信息（脚本注入） ---------- */
+
+.pdf-meta {
+  color: var(--ink-soft);
+  font-size: 9.5pt;
+  text-align: right;
+  margin-top: 30px;
+  border-top: 1px solid var(--rule);
+  padding-top: 6px;
+}

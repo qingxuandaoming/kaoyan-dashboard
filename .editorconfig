@@ -1,0 +1,13 @@
+# EditorConfig — 统一换行符与编码
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+# Windows 批处理保留 CRLF
+[*.bat]
+end_of_line = crlf
+[*.cmd]
+end_of_line = crlf
