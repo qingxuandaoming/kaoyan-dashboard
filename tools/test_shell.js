@@ -12,16 +12,12 @@ const { execFileSync } = require("child_process");
 
 const SRC = path.join(__dirname, "..", "generate_dashboard.py");
 const OUT = path.join(os.tmpdir(), "kaoyan_shell_extracted.js");
-execFileSync("python", ["-c", `
-import ast, io
-src = io.open(r"${SRC}", encoding="utf-8").read()
-tree = ast.parse(src)
-for node in tree.body:
-    if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "SHELL_JS":
-        io.open(r"${OUT}", "w", encoding="utf-8").write(ast.literal_eval(node.value))
-        break
-`], { maxBuffer: 1 << 24 });
+// 走公共脚本：它会把 DAY_START_JS（studyDay / DAY_START_HOUR）一起带上，
+// 只抠 SHELL_JS 的话跑起来是 ReferenceError。
+execFileSync("python", [path.join(__dirname, "extract_js.py"), "SHELL_JS", OUT],
+  { maxBuffer: 1 << 24 });
 const js = fs.readFileSync(OUT, "utf-8");
+const _day = require("./_day");
 
 let REG = {}, docListeners = {}, fsCalls = [], timers = [];
 let winListeners = {}, rafQueue = [], canvasCalls = { arc: 0, fill: 0, clearRect: 0, setTransform: 0 };
@@ -59,7 +55,25 @@ function mkEl(tag) {
     addEventListener(ev, fn) { (this._listeners[ev] = this._listeners[ev] || []).push(fn); },
     setAttribute() {}, getAttribute() { return null; },
     requestFullscreen() { fsCalls.push("request:" + this.tagName.toLowerCase()); return Promise.resolve(); },
-    querySelector() { return null; }, querySelectorAll() { return []; },
+    querySelector() { return null; },
+    // 只有「周曲线 / 月热力图」那对切换按钮需要真返回节点：从 innerHTML 里把
+    // data-view 抠出来造成可点的桩，其它选择器一律空数组。
+    // 同一份 innerHTML 缓存同一批对象——render() 里刚挂上的 onclick 得留到用例点击时。
+    querySelectorAll(sel) {
+      if (String(sel).indexOf("range-btn") < 0) return [];
+      if (!this._qc || this._qc.html !== this._html) this._qc = { html: this._html, nodes: null };
+      if (!this._qc.nodes) {
+        const out = [], re = /<button class="([^"]*)" data-view="(\w+)"/g;
+        let m;
+        while ((m = re.exec(this._html))) {
+          const b = mkEl("button");
+          b.className = m[1]; b.dataset.view = m[2];
+          out.push(b);
+        }
+        this._qc.nodes = out;
+      }
+      return this._qc.nodes;
+    },
     click() { if (this.onclick) this.onclick({ target: this }); },
   };
   Object.defineProperty(el, "classList", { value: {
@@ -90,11 +104,9 @@ function mkEl(tag) {
 
 const pad = n => (n < 10 ? "0" : "") + n;
 const dstr = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-function lastDays(n) {
-  const out = [], t = new Date();
-  for (let i = n - 1; i >= 0; i--) out.push(dstr(new Date(t.getFullYear(), t.getMonth(), t.getDate() - i)));
-  return out;
-}
+// 以学习日为最后一天（跟 SHELL_JS 的 lastDays 同一套）。用日历日的话，
+// 0:00~4:00 之间会跟页面差一天，数据条的断言全错。见 tools/_day.js。
+const lastDays = n => _day.lastDays(js, n);
 
 function boot(payload, opt) {
   REG = {}; docListeners = {}; fsCalls = []; timers = []; winListeners = {}; rafQueue = [];
@@ -116,19 +128,26 @@ function boot(payload, opt) {
     exitFullscreen() { fsCalls.push("exit"); this.fullscreenElement = null; return Promise.resolve(); },
   };
   const fetched = [];
+  // 桩要像真的 Response 一样带 ok/status：代码里有 r.ok 的分支，
+  // 少了这两个字段会一律走「请求失败」那条路，把正常路径全测成兜底路径。
+  const res = (body, ok, status) => Promise.resolve({
+    ok: ok === undefined ? true : ok,
+    status: status || (ok === false ? 404 : 200),
+    json: () => Promise.resolve(body),
+  });
   const fetchStub = (url) => {
     fetched.push(url);
-    if (url.indexOf("/api/morning-review/overview") >= 0) {
-      return Promise.resolve({ json: () => Promise.resolve(payload.mr) });
+    // 旧版服务端：认识 /api/pomodoro/state，但不认 ?days=
+    if (opt && opt.oldPomoServer && /\/api\/pomodoro\/state\?/.test(url)) {
+      return res({ error: "not found" }, false, 404);
     }
-    if (url.indexOf("/api/pomodoro/state") >= 0) {
-      return Promise.resolve({ json: () => Promise.resolve(payload.pomo) });
-    }
+    if (url.indexOf("/api/morning-review/overview") >= 0) return res(payload.mr);
+    if (url.indexOf("/api/pomodoro/state") >= 0) return res(payload.pomo);
     if (url.indexOf("/api/settings") >= 0) {
-      return Promise.resolve({ json: () => Promise.resolve({ ok: true,
-        ui: { theme: "dark", bg_opacity: "0.35", mouse_fx: mouseFxOff ? "off" : ((opt && opt.mouseFx) || "on") } }) });
+      return res({ ok: true,
+        ui: { theme: "dark", bg_opacity: "0.35", mouse_fx: mouseFxOff ? "off" : ((opt && opt.mouseFx) || "on") } });
     }
-    return Promise.resolve({ json: () => Promise.resolve({ ok: true }) });
+    return res({ ok: true });
   };
   const realSetInterval = global.setInterval;
   global.setInterval = (fn, every) => { timers.push({ fn, every }); return timers.length; };
@@ -210,21 +229,73 @@ function check(name, cond, extra) {
       env.fetched.some(u => u.indexOf("/api/pomodoro/state") >= 0)
       && env.fetched.some(u => u.indexOf("/api/morning-review/overview") >= 0),
       env.fetched.join(" "));
+    check("番茄钟要了 42 天（月热力图铺 5 周，14 天不够）",
+      env.fetched.some(u => /\/api\/pomodoro\/state\?days=42/.test(u)), env.fetched.join(" "));
     check("今日番茄 3 个", h.indexOf("今日番茄<b>3 个</b>") >= 0);
     check("今日专注 2 小时 10 分", h.indexOf("2 小时 10 分") >= 0, h.slice(h.indexOf("今日专注"), h.indexOf("今日专注") + 60));
     check("近 7 天合计 6 个", h.indexOf("近 7 天<b>6 个") >= 0, h.slice(h.indexOf("近 7 天"), h.indexOf("近 7 天") + 60));
-    check("柱子正好 7 根", (h.match(/class="strip-bar[" ]/g) || []).length === 7,
-      String((h.match(/class="strip-bar[" ]/g) || []).length));
-    check("今天那根标了 today", /strip-bar today"/.test(h) || /strip-bar has today"/.test(h));
-    check("有数据的日子有 has 类", /strip-bar has/.test(h));
     check("连续打卡 4 天", h.indexOf("连续打卡<b>4 天</b>") >= 0);
-    check("累计 9 天", h.indexOf("累计<b>9 天</b>") >= 0);
+    check("累计打卡 9 天", h.indexOf("累计打卡<b>9 天</b>") >= 0);
     check("今天已打卡（今天在 checkins 里）", h.indexOf("今日已打卡") >= 0, h.slice(h.indexOf("strip-go-mr") - 40, h.indexOf("strip-go-mr") + 20));
-    check("打卡格子 14 格", (h.match(/class="strip-dot[" ]/g) || []).length === 14,
-      String((h.match(/class="strip-dot[" ]/g) || []).length));
-    check("已打卡的格子有 checked 类", /strip-dot checked/.test(h));
-    check("今天那格带 today 圈", /strip-dot[^"]*today/.test(h));
+
+    check("两个视角按钮都在，默认停在周曲线",
+      h.indexOf(">周曲线</button>") >= 0 && h.indexOf(">月热力图</button>") >= 0
+      && h.indexOf('class="range-btn is-active" data-view="week"') >= 0,
+      h.slice(h.indexOf("strip-view"), h.indexOf("strip-view") + 220));
+    check("周曲线正好 7 个点", (h.match(/class="curve-pt[" ]/g) || []).length === 7,
+      String((h.match(/class="curve-pt[" ]/g) || []).length));
+    check("轴上 7 个星期标签", (h.match(/class="curve-axis-x"/g) || []).length === 7);
+    check("画的是曲线（面积 + 线），不是柱子",
+      h.indexOf("curve-area") >= 0 && h.indexOf("curve-line") >= 0 && h.indexOf("strip-bar") < 0);
+    // 值的映射：max=130 顶到 26%，0 压在基线 86%（都是 viewBox 的百分数）。
+    // 基线不能再往下挪了——离轴太近，零值那几天的平线会从星期上压过去。
+    check("峰值那天顶到最高（bottom:74%）", h.indexOf("bottom:74.00%") >= 0,
+      h.slice(h.indexOf("curve-layer"), h.indexOf("curve-layer") + 260));
+    check("没记录的那几天压在基线上", (h.match(/bottom:14\.00%/g) || []).length === 4,
+      String((h.match(/bottom:14\.00%/g) || []).length));
+    // win7 = 最近 7 天。checkins 落在 win7 里的是 win7[2] 和今天；win7[5] 只 studied。
+    check("轴上标出 2 天已打卡", (h.match(/em class="checked"/g) || []).length === 2,
+      String((h.match(/em class="checked"/g) || []).length));
+    check("轴上标出 1 天「有复习没打卡」", (h.match(/em class="studied"/g) || []).length === 1,
+      String((h.match(/em class="studied"/g) || []).length));
+    check("曲线下面给了状态的说明", h.indexOf("圆点下面那格是当天的打卡状态") >= 0);
     check("暴露了 __focusStripReload 给番茄钟叫醒", typeof globalThis.__focusStripReload === "function");
+
+    // ---- 切到月热力图 ----
+    const pick = v => env.strip.querySelectorAll("#strip-view .range-btn")
+      .filter(b => b.dataset.view === v)[0];
+    pick("month").click();
+    await tick();
+    const h2 = env.strip._html;
+    check("切过去后按钮态跟着换",
+      h2.indexOf('class="range-btn is-active" data-view="month"') >= 0,
+      h2.slice(h2.indexOf("strip-view"), h2.indexOf("strip-view") + 220));
+    check("周曲线撤掉了，换成热力图", h2.indexOf("curve-line") < 0 && h2.indexOf("hm-grid") >= 0);
+    // 标签配平：hm-stats 必须是 .hm-wrap 的直接子元素，嵌进 .hm-side 里就靠不了右
+    check("div 标签配平（没有嵌套写错）",
+      (h2.match(/<div[\s>]/g) || []).length === (h2.match(/<\/div>/g) || []).length,
+      (h2.match(/<div[\s>]/g) || []).length + " vs " + (h2.match(/<\/div>/g) || []).length);
+    check("汇总数没被嵌进 .hm-side",
+      h2.indexOf("</div><div class=\"hm-stats\">") >= 0,
+      h2.slice(h2.indexOf("hm-stats") - 80, h2.indexOf("hm-stats") + 20));
+    check("热力图 35 格（5 周 × 7 天）", (h2.match(/class="hm-cell hm-d /g) || []).length === 35,
+      String((h2.match(/class="hm-cell hm-d /g) || []).length));
+    check("格子有底色分档", /hm-d l[1-5]/.test(h2));
+    check("打过卡的格子带 checked 圈", /l\d checked"/.test(h2));
+    check("今天那格带 today 框", /hm-d [^"]*today/.test(h2));
+    check("侧边有图例", h2.indexOf("专注时长") >= 0 && h2.indexOf("已打卡") >= 0);
+    // 三天都在最近 5 周里：90 + 45 + 130 = 265 分钟
+    check("右侧三个汇总数（合计 / 天数 / 最久）",
+      h2.indexOf("近 5 周专注<b>4 小时 25 分</b>") >= 0
+      && h2.indexOf("有专注的天数<b>3 天</b>") >= 0
+      && h2.indexOf("最久的一天<b>2 小时 10 分</b>") >= 0,
+      h2.slice(h2.indexOf("hm-stats"), h2.indexOf("hm-stats") + 220));
+    check("切回周曲线也认",
+      h2.indexOf("月热力图") >= 0 && pick("week").onclick !== null);
+    pick("week").click();
+    await tick();
+    check("切回来还是周曲线", env.strip._html.indexOf("curve-line") >= 0
+      && (env.strip._html.match(/class="curve-pt[" ]/g) || []).length === 7);
   }
 
   console.log("\n[3] 今天还没打卡 / 没有番茄记录 / 读不到数据");
@@ -235,14 +306,39 @@ function check(name, cond, extra) {
     const h = env.strip._html;
     check("今天没打卡时按钮写「去打卡」", h.indexOf("去打卡") >= 0 && h.indexOf("今日已打卡") < 0);
     check("今天那格写「未打卡」", h.indexOf("未打卡") >= 0);
-    check("一个番茄都没有时给引导文案", h.indexOf("还没有番茄记录") >= 0, h.slice(h.indexOf("还没有番茄"), h.indexOf("还没有番茄") + 60));
-    check("零数据也不炸：柱子和格子照常画", (h.match(/class="strip-bar[" ]/g) || []).length === 7
-      && (h.match(/class="strip-dot[" ]/g) || []).length === 14);
+    check("一个番茄都没有时给引导文案（周视角）", h.indexOf("还没有专注记录") >= 0,
+      h.slice(h.indexOf("还没有专注"), h.indexOf("还没有专注") + 60));
+    check("零数据也不炸：切换按钮照常在", h.indexOf("data-view=\"month\"") >= 0);
+
+    // 空数据切到月视角：不该摆一排空格子，换文案
+    const pick2 = v => env.strip.querySelectorAll("#strip-view .range-btn")
+      .filter(b => b.dataset.view === v)[0];
+    pick2("month").click();
+    await tick();
+    check("零数据也月视角给引导文案", env.strip._html.indexOf("近 5 周还没有专注记录") >= 0,
+      env.strip._html.slice(env.strip._html.indexOf("strip-view"), env.strip._html.indexOf("strip-view") + 220));
+    check("零数据不画空网格", env.strip._html.indexOf("hm-grid") < 0);
 
     const env2 = boot({ pomo: { ok: false }, mr: { ok: false, error: "missing" } });
     await tick(); await tick(); await tick();
-    check("早间回顾读不到时给兜底文案", env2.strip._html.indexOf("暂时读不到早间回顾数据") >= 0,
-      env2.strip._html.slice(0, 160));
+    // MR 是 null 时打卡那几个数写 "--"，写 0 天会被当成「断签了」
+    check("早间回顾读不到时打卡数写「--」",
+      /连续打卡<b>-- 天<\/b>/.test(env2.strip._html) && /累计打卡<b>-- 天<\/b>/.test(env2.strip._html),
+      env2.strip._html.slice(env2.strip._html.indexOf("连续打卡"), env2.strip._html.indexOf("连续打卡") + 80));
+    check("两个接口都读不到时不炸：引导文案 + 打卡数 --",
+      env2.strip._html.indexOf("还没有专注记录") >= 0
+      && env2.strip._html.indexOf("data-view=\"week\"") >= 0);
+
+    // 服务端是旧版（不认识 ?days=42）时只能退回 14 天：月视角必须说一声，
+    // 不然 3 周前的空格子会被当成「那天没学」
+    const env3 = boot({ pomo: { ok: false }, mr }, { oldPomoServer: true });
+    await tick(); await tick(); await tick();
+    check("退回 14 天时周视角不聒噪", env3.strip._html.indexOf("只读到近 14 天") < 0);
+    env3.strip.querySelectorAll("#strip-view .range-btn").filter(b => b.dataset.view === "month")[0].click();
+    await tick();
+    check("退回 14 天时月视角挂出提示",
+      env3.strip._html.indexOf("只读到近 14 天") >= 0,
+      env3.strip._html.slice(env3.strip._html.indexOf("strip-hint")));
   }
 
   console.log("\n[4] 鼠标粒子光效（首页）");

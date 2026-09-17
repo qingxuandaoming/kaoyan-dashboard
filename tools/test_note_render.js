@@ -28,6 +28,47 @@ for node in ast.parse(src).body:
         break
 `], { maxBuffer: 1 << 24 });
 
+// ---- 1b. 先跑 FLASH_JS 的第一个 IIFE，拿到**真实的** asciiMath ----
+// mdRender 靠 window.asciiMath 调它（跨 IIFE 只能走 window）。这里必须装真的：
+// 用桩函数糊过去的话，「桥没搭上」这种坑测试照样绿 —— 而那是这个仓库踩过的坑
+// （见 generate_dashboard.py 里 mdInline/splitMath 的桥接注释）。
+const FOUT = path.join(os.tmpdir(), "kaoyan_flash_for_note.js");
+execFileSync("python", ["-c", `
+import ast, io
+src = io.open(r"${GEN}", encoding="utf-8").read()
+for node in ast.parse(src).body:
+    if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "FLASH_JS":
+        io.open(r"${FOUT}", "w", encoding="utf-8").write(ast.literal_eval(node.value))
+        break
+`], { maxBuffer: 1 << 24 });
+let fjs = fs.readFileSync(FOUT, "utf-8");
+const fAnchor = fjs.indexOf("window.asciiMath = asciiMath;");
+const fClose = fAnchor < 0 ? -1 : fjs.indexOf("})();", fAnchor);
+if (fClose < 0) throw new Error("FLASH_JS 结构变了：找不到全局 KaTeX IIFE 的导出/结尾");
+fjs = fjs.slice(0, fClose + 5);
+const _win = globalThis.window, _doc = globalThis.document;
+globalThis.window = globalThis;
+globalThis.document = {
+  createElement() {
+    let t = "";
+    return {
+      set textContent(v) { t = v == null ? "" : String(v); },
+      get textContent() { return t; },
+      get innerHTML() {
+        return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      },
+    };
+  },
+  head: { appendChild() {} },
+  querySelectorAll() { return []; },
+};
+new Function(fjs)();
+const realAsciiMath = globalThis.asciiMath;
+globalThis.window = _win;
+globalThis.document = _doc;
+if (typeof realAsciiMath !== "function") throw new Error("FLASH_JS 没有导出 asciiMath");
+
 let js = fs.readFileSync(OUT, "utf-8");
 // REVIVE_JS 里有**两个** IIFE（笔记盘活区、活跃度图表），mdRender 在第一个里。
 // 所以要从 mdRender 的声明往下找第一个 `})();`，不能简单取最后一个。
@@ -106,7 +147,7 @@ function boot() {
   };
   // PALETTE 的键很多且只用于上色，用 Proxy 一律返回一个色值即可
   const PALETTE = new Proxy({}, { get: () => "#888888" });
-  const win = {};
+  const win = { asciiMath: realAsciiMath };   // 跨 IIFE 的桥，装真实现
   const fetchStub = () => Promise.resolve({ json: () => Promise.resolve({ ok: true, content: "" }) });
   // ⚠️ 必须传 location：REVIVE_JS 开头就用 location.protocol 决定 API 基址，
   //    少了这个参数整段 IIFE 直接 ReferenceError，导出也就拿不到（2026-09-21 修）
@@ -322,6 +363,23 @@ console.log("\n[7] 全库扫图：每条引用都要能取到文件");
   check("扫了 " + withImg + " 篇带图笔记，共 " + total + " 张图", total > 0);
   check("全部图片文件存在", broken.length === 0, broken.slice(0, 6).join(" | "));
   check("没有无法解析的路径", bad.length === 0, bad.slice(0, 6).join(" | "));
+}
+
+console.log("\n[8] 笔记里的 ASCII 上下标（与闪卡、AI 回复共用同一套规则）");
+{
+  const html = R.mdRender("式：O(n^2) 与 ∬_D 和 a_i 都该有上下标；`x_i` 是代码不动。");
+  check("文本里的 _ 下标 → <sub>", html.includes("∬<sub>D</sub>") && html.includes("a<sub>i</sub>"), html);
+  check("文本里的 ^ 上标 → <sup>", html.includes("O(n<sup>2</sup>)"), html);
+  check("行内代码里的 _ 原样保留", html.includes("<code>x_i</code>"), html);
+  check("桥真的搭上了（不是原样漏出）", !html.includes("O(n^2)") && !html.includes("∬_D"), html);
+  check("文件名/标识符不误伤", (() => {
+    const h = R.mdRender("见 第5章_IO管理.md，字段 book_id，区间 60~70分钟。");
+    return h.includes("第5章_IO管理.md") && h.includes("book_id") && h.includes("60~70分钟");
+  })());
+  // 公式仍然归 KaTeX（asciiMath 只碰文本段）
+  const m = R.mdRender("公式 $x_{i}$ 与文本 x_i 混排");
+  check("$...$ 仍走 KaTeX、文本段走上下标",
+    /katex|tex-fallback/.test(m) && m.includes("x<sub>i</sub>") && !m.includes("@@MATH"), m);
 }
 
 console.log("\n" + (fail === 0 ? "全部通过" : "有失败") + "：pass=" + pass + " fail=" + fail);

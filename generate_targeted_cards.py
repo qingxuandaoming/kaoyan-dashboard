@@ -161,24 +161,32 @@ def collect_cold_notes(prefixes: list) -> list:
 
 
 def collect_weak_topics(conn) -> list:
-    """闪卡错误点：lapses>0 或近30天 rating<=2 的 topic。"""
+    """闪卡薄弱考点：按正确率（答对/练习）从低到高，只取真正练过的。
+
+    不用「错误次数」排序——练得多的考点天然错得多，比错误次数等于比谁刷得多。
+    也不再 JOIN cards：cards 与 review_log 同时展开是笛卡尔积，会把 lapses 按
+    答题记录条数翻倍（全库真实 lapses 合计只有 1）。
+    """
     rows = conn.execute("""
         SELECT t.id, t.name, t.subject,
-               COALESCE(SUM(cd.lapses), 0) AS lapse_cnt,
-               COALESCE(SUM(CASE WHEN rl.rating <= 2
-                      AND rl.review_date >= datetime('now', 'localtime', '-30 days')
-                      THEN 1 ELSE 0 END), 0) AS recent_wrong
+               COUNT(rl.id) AS total,
+               SUM(CASE WHEN rl.rating >= 3 THEN 1 ELSE 0 END) AS correct
         FROM topics t
-        LEFT JOIN questions q   ON q.topic_id = t.id
-        LEFT JOIN cards cd      ON cd.question_id = q.id
-        LEFT JOIN review_log rl ON rl.question_id = q.id
+        JOIN questions  q  ON q.topic_id = t.id
+        JOIN review_log rl ON rl.question_id = q.id
         GROUP BY t.id
-        HAVING lapse_cnt > 0 OR recent_wrong > 0
-        ORDER BY (recent_wrong * 2 + lapse_cnt) DESC
-        LIMIT 6
     """).fetchall()
-    return [{"id": r[0], "name": r[1], "subject": r[2],
-             "lapses": r[3], "recent_wrong": r[4]} for r in rows]
+    weak = []
+    for tid, name, subject, total, correct in rows:
+        total = int(total or 0)
+        correct = int(correct or 0)
+        if total <= 0 or correct >= total:
+            continue          # 没练过、或一次没错的考点不算薄弱
+        weak.append({"id": tid, "name": name, "subject": subject,
+                     "total": total, "correct": correct,
+                     "accuracy": round(correct / total * 100)})
+    weak.sort(key=lambda w: (w["accuracy"], -w["total"]))
+    return weak[:6]
 
 
 def collect_uncovered_weighty(conn) -> list:
@@ -224,7 +232,8 @@ def build_prompt(notes, weak, uncovered, count) -> str:
     if weak:
         parts.append("【薄弱知识点】（重点出题）：")
         for w in weak:
-            parts.append(f"- {w['subject']} / {w['name']}（遗忘{w['lapses']}次，近期答错{w['recent_wrong']}次）")
+            parts.append(f"- {w['subject']} / {w['name']}"
+                         f"（正确率{w['accuracy']}%，{w['correct']}/{w['total']}题）")
         parts.append("")
     if uncovered:
         parts.append("【待验证高分考点】（每个考点出1道代表性验证题）：")
@@ -431,7 +440,8 @@ def main():
     for n in notes:
         print(f"  📝 {n['file']}")
     for w in weak:
-        print(f"  ⚠️ {w['subject']} / {w['name']}（遗忘{w['lapses']} 近期错{w['recent_wrong']}）")
+        print(f"  ⚠️ {w['subject']} / {w['name']}"
+              f"（正确率{w['accuracy']}%，{w['correct']}/{w['total']}）")
     for u in uncovered:
         print(f"  🔍 {u['subject']} / {u['name']}（权重{u['weight']}）")
 

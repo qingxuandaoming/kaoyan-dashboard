@@ -109,6 +109,59 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'list_card_reports',
+      description: '列出学生标记为「这道题有问题」的闪卡（多个选项都对 / 答案有误 / 题干有误…）。'
+        + '他说「看看有哪些被标记的卡」「那些有问题的题」时用它。'
+        + '⚠️ 这些是**题目本身错了**（不是他记错），所以要核对修复，而不是给他讲题。',
+      parameters: {
+        type: 'object',
+        properties: {
+          subject: { type: 'string', enum: SUBJECT_ENUM, description: '限定科目；不确定就别传' },
+          status: {
+            type: 'string', enum: ['open', 'fixed', 'dismissed', 'all'],
+            description: '默认 open（还没核对的）',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'fix_card',
+      description: '复核一条「这题有问题」的标记并**当场把题改对**（改选项/答案/题干/解析）。'
+        + '⚠️ 只在**核对过**之后调：自己验算过，或学生明确说清了哪里错。'
+        + '核对下来不是问题 → 用 dismissed 驳回并写清理由；这题没救/重复 → deleted。'
+        + '宁可驳回也不要硬改——改坏了比不改更糟。',
+      parameters: {
+        type: 'object',
+        properties: {
+          report_id: { type: 'number', description: 'list_card_reports 返回的标记 id' },
+          action: {
+            type: 'string', enum: ['fixed', 'dismissed', 'deleted'],
+            description: '默认 fixed（改题）；dismissed=不是问题；deleted=删掉这张卡',
+          },
+          note: { type: 'string', description: '复核结论（必写）：改了什么 / 为什么不是问题 / 为什么删' },
+          patch: {
+            type: 'object',
+            description: '只写要改的字段。选项必须恰好 4 条、不带 A./B 前缀；'
+              + 'answer 给下标或选项原文；判断题 answer 给「正确」/「错误」',
+            properties: {
+              stem: { type: 'string' },
+              options: { type: 'array', items: { type: 'string' } },
+              answer: {},
+              explanation: { type: 'string' },
+              traps: { type: 'array', items: { type: 'string' } },
+            },
+          },
+        },
+        required: ['report_id', 'note'],
+      },
+    },
+  },
 ];
 
 /** 「正在干什么」的实时标签（流式时先报这个，工具跑完再报结果）。
@@ -126,6 +179,11 @@ function runningLabel(name, args) {
     const n = Array.isArray(a.card_ids) ? a.card_ids.length : 0;
     return n ? ('正在打开闪卡浮窗（' + n + ' 张）…') : '正在打开闪卡浮窗…';
   }
+  if (name === 'list_card_reports') return '正在翻「这题有问题」的标记…';
+  if (name === 'fix_card') {
+    const id = a.report_id == null ? '' : ('#' + a.report_id);
+    return '正在核对被标记的题' + id + '…';
+  }
   return '正在干活…';
 }
 
@@ -137,7 +195,10 @@ const AGENT_HINT = [
   '· search_notes(query)：查笔记的准确标题与路径，要学生重读时给他。',
   '· make_cards(cards)：**出了小题就调它**，把题写进题库并拿到 card_id（同题干自动复用已有卡）。',
   '· open_practice(card_ids)：让学生屏幕上直接弹出闪卡浮窗开始练（只能用本轮 make_cards 拿到的 card_id）。',
+  '· list_card_reports(subject?, status?)：列出他标记为「这道题有问题」的闪卡（题目本身错了，不是他记错）。',
+  '· fix_card(report_id, action, note, patch?)：复核并当场改题。**核对过再调**；不是问题就 dismissed 并写理由。',
   '学生说「要练 / 给我出题」这类诉求时，正常顺序是：讲清原理 → make_cards → open_practice。',
+  '学生问「那些我标了有问题的题呢 / 修好了吗 / 有哪些问题卡」时：list_card_reports → （核对后）fix_card。',
   '⚠️ 走工具这条路时，**不要再在正文里贴 cards JSON 块**（那是没有工具时的退路，贴了等于给两遍）。',
 ].join('\n');
 
@@ -251,6 +312,75 @@ function makeToolRunner(deps) {
       actions.push({ type: 'practice', card_ids: ids, title: '🧠 ' + title });
       return { ok: true, summary: '开练：' + ids.length + ' 张（浮窗已弹出）',
                card_ids: ids, note: '页面上的闪卡浮窗已为这 ' + ids.length + ' 张卡打开。' };
+    }
+
+    if (name === 'list_card_reports') {
+      const CR = d.cardReports;
+      if (!CR) return { ok: false, summary: '查标记失败：没接上标记模块', error: 'cardReports 依赖缺失' };
+      const status = ['open', 'fixed', 'dismissed', 'all'].indexOf(String(a.status || 'open')) >= 0
+        ? String(a.status || 'open') : 'open';
+      let rows = [];
+      try {
+        rows = CR.listReports(d.db, {
+          status: status, subject: subj === 'all' ? '' : subj, limit: 20,
+        }) || [];
+      } catch (e) { rows = []; }
+      return {
+        ok: true,
+        summary: '查「这题有问题」的标记：' + rows.length + ' 条'
+          + (status === 'open' ? '待修' : '（' + status + '）'),
+        reports: rows.map(r => ({
+          id: r.id, card_id: r.card_id, card_type: r.type,
+          kind: r.kind, kind_label: r.kind_label, note: r.note || '',
+          subject: r.subject || '', topic: r.topic_name || '',
+          // 题干与选项一起给：他要接着改题，而这些字段就是改的对象
+          stem: clip(r.stem, 90),
+          options: (r.content && Array.isArray(r.content.options)) ? r.content.options.map(o => clip(o, 60)) : [],
+          answer: r.content ? r.content.answer : undefined,
+          stale: !!r.stale,
+        })),
+        hint: rows.length
+          ? '要改就调 fix_card(report_id, note, patch)；改之前自己先验算一遍；不是问题就 dismissed。'
+          : '没有待修的问题卡。',
+      };
+    }
+
+    if (name === 'fix_card') {
+      const CR = d.cardReports;
+      if (!CR) return { ok: false, summary: '复核失败：没接上标记模块', error: 'cardReports 依赖缺失' };
+      const id = parseInt(a.report_id, 10);
+      if (!Number.isInteger(id)) {
+        return { ok: false, summary: '复核失败：report_id 不对',
+                 error: 'report_id 必须是 list_card_reports 返回的那个 id（数字）' };
+      }
+      const action = ['fixed', 'dismissed', 'deleted'].indexOf(String(a.action || 'fixed')) >= 0
+        ? String(a.action || 'fixed') : 'fixed';
+      const note = String(a.note == null ? '' : a.note);
+      let out;
+      try {
+        out = CR.resolveReport(d.db, id, { action: action, note: note, patch: a.patch || null });
+      } catch (e) {
+        return { ok: false, summary: '复核出错：' + clip(e.message, 40), error: e.message };
+      }
+      if (!out || !out.ok) {
+        const err = (out && out.error) || '复核失败';
+        return { ok: false, summary: '复核被拒：' + clip(err, 60), error: err };
+      }
+      // 前端据此给个「改好了」的留痕（服务端改的是库，界面上那张卡不会自己变）
+      actions.push({
+        type: 'card_fixed', report_id: id, card_id: out.card_id,
+        status: out.status, changes: out.changes || [],
+      });
+      const what = out.status === 'fixed'
+        ? ('改好了：' + ((out.changes || []).join('/') || '只写了结论'))
+        : (out.status === 'dismissed' ? '驳回（不是问题）' : '已删卡');
+      return {
+        ok: true,
+        summary: '复核 #' + id + ' → ' + what,
+        card_id: out.card_id, status: out.status, changes: out.changes || [],
+        warnings: out.warnings || [],
+        hint: '改完可以顺手告诉他：这题上次错在哪、现在正确的是什么。',
+      };
     }
 
     return { ok: false, summary: '未知工具：' + clip(name, 20), error: 'unknown tool: ' + name };

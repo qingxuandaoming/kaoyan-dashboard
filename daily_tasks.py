@@ -195,6 +195,21 @@ def review_hot_causes(per_subject=3):
     return out
 
 
+def card_reports():
+    """待修的问题卡（闪卡练习里标记的「题目本身错了」）。
+
+    为什么每日任务一定要带上它：用户在练习时一键标记，**出口只有这里**——
+    agent 看到这份清单才会去改题/驳回/删卡（`node src/card_reports.js list|fix|dismiss`）。
+    取数复用 daily_planner.load_card_reports，免得两处口径漂移。
+    """
+    try:
+        import daily_planner as dp
+        return dp.load_card_reports()
+    except Exception as e:                                     # noqa: BLE001
+        print(f"  WARN: 读取问题卡标记失败（{e}）", file=sys.stderr)
+        return []
+
+
 def cmd_context(args):
     d = resolve_date(args.date)
     conn = connect()
@@ -229,6 +244,10 @@ def cmd_context(args):
         "review_by_subject": rev,
         # 复盘错因：优先据此排「针对性重做/重刷」类任务，比泛泛的"复习某科"有用
         "review_hot_causes": review_hot_causes(),
+        # 待修的问题卡：练习时标记的「题目本身错了」，修它的是 agent 而不是用户。
+        # 复核命令：node src/card_reports.js list | show <id> | fix <id> --patch-file p.json
+        #          | dismiss <id> --note … | delete <id> --note …
+        "card_reports": card_reports(),
         "plan_goals": [] if args.no_plan else planner_goals(d),
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))

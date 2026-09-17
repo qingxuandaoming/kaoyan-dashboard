@@ -235,6 +235,43 @@ function run(dbPath) {
       CREATE INDEX IF NOT EXISTS idx_note_qa_path ON note_qa(note_path, id)
     `);
 
+    // --- 4f. card_reports 表（「这道题有问题」标记，2026-09-17）---
+    // 与 schema.sql 同源，改一边要改另一边。
+    // 存在的理由：闪卡里有一类错不是学生记错，是题目本身错了——最典型的是选择题
+    // 有两个正确选项（用户在练习里实测到：叠加原理那道 A、C 都对），他按对的项却被
+    // 判错，越练越糊涂，还把 FSRS 的难度/稳定度带偏。练习时一键标记，每日任务里
+    // 由 agent 逐张核对并修好。
+    // 与🗑删卡（cards.suspended）的区别：删卡是当场判死刑、卡直接下架；标记是**待核实**，
+    // 卡还在、还显示（前端画徽标），等复核后回写 status。
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS card_reports (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        card_id     TEXT NOT NULL,
+        question_id TEXT,
+        kind        TEXT NOT NULL DEFAULT 'other',
+        note        TEXT,
+        chosen      TEXT,
+        correct     TEXT,
+        snapshot    TEXT,
+        status      TEXT NOT NULL DEFAULT 'open',
+        source      TEXT NOT NULL DEFAULT 'user',
+        fix_note    TEXT,
+        fixed_at    TEXT,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        updated_at  TEXT
+      )
+    `);
+    // 部分唯一索引：一张卡同时只有一条 open 标记（重复标记＝改内容）。
+    // 已修/已驳回的历史行不受约束，所以同一张卡可以被标记很多次。
+    db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_card_reports_open
+        ON card_reports(card_id) WHERE status = 'open'
+    `);
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_card_reports_status
+        ON card_reports(status, created_at)
+    `);
+
     // --- 5. schema_version ---
     db.exec(`
       CREATE TABLE IF NOT EXISTS schema_version (
@@ -285,6 +322,8 @@ function run(dbPath) {
     db.prepare('INSERT OR IGNORE INTO schema_version (version) VALUES (?)').run(3);
     // 4 = review_log.chosen（记录学生实际选的那一项）
     db.prepare('INSERT OR IGNORE INTO schema_version (version) VALUES (?)').run(4);
+    // 5 = card_reports 表（「这道题有问题」标记 + 复核留痕）
+    db.prepare('INSERT OR IGNORE INTO schema_version (version) VALUES (?)').run(5);
 
     report.ok = true;
   } catch (e) {

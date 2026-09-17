@@ -305,6 +305,64 @@ def load_question_bank():
         return {}
 
 
+# 「这道题有问题」标记的原因标签。
+# ⚠️ 与服务端 src/card_reports.js 的 KINDS 同源，**改一边要改另一边**：
+#    跨语言没法共享常量（和 due_date/due_at 的处理一样，那边注释也写着这句）。
+CARD_REPORT_KINDS = {
+    "multi_correct": "多个选项都对",
+    "answer_wrong": "答案有误",
+    "stem_wrong": "题干有误",
+    "unclear": "表述不清",
+    "dup": "与别的卡重复",
+    "other": "其它",
+}
+
+
+def load_card_reports(limit=50):
+    """待修的「这道题有问题」标记 —— 也就是 agent 每日任务里要处理的那批活。
+
+    用户在闪卡练习里一键标记（题目本身错了：多个选项都对 / 答案有误 …），
+    复核与修复落在每日任务里。取数入口就是这里：
+      · 网页上同一份数据：GET /api/flashcards/reports
+      · 命令行（改题/驳回/删卡）：node src/card_reports.js list | fix | dismiss
+    单独读一次而不是并进 load_question_bank：那是「统计口径」用的，这是「待办的活」，
+    两件事分开——库里还没这张表时也不该影响掌握度计算。
+    """
+    if not os.path.exists(QUESTION_BANK_PATH):
+        return []
+    try:
+        conn = sqlite3.connect(QUESTION_BANK_PATH)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT r.id, r.card_id, r.kind, r.note, r.chosen, r.correct, r.created_at,"
+            "       q.content, q.type, t.name AS topic_name, COALESCE(t.subject, '') AS subject"
+            "  FROM card_reports r"
+            "  LEFT JOIN cards c ON c.id = r.card_id"
+            "  LEFT JOIN questions q ON q.id = COALESCE(r.question_id, c.question_id)"
+            "  LEFT JOIN topics t ON t.id = q.topic_id"
+            " WHERE r.status = 'open' ORDER BY r.id DESC LIMIT ?", (limit,)).fetchall()
+        conn.close()
+    except sqlite3.Error:
+        return []          # 老库还没建这张表：当成「没有待修」，不报错、不影响计划生成
+
+    out = []
+    for r in rows:
+        stem = ""
+        try:
+            stem = str((json.loads(r["content"]) or {}).get("stem") or "")
+        except Exception:
+            stem = ""
+        out.append({
+            "id": r["id"], "card_id": r["card_id"], "kind": r["kind"],
+            "kind_label": CARD_REPORT_KINDS.get(r["kind"], "其它"),
+            "note": r["note"] or "", "chosen": r["chosen"] or "", "correct": r["correct"] or "",
+            "subject": r["subject"] or "", "topic_name": r["topic_name"] or "",
+            "type": r["type"] or "", "created_at": r["created_at"] or "",
+            "stem": re.sub(r"\s+", " ", stem)[:80],
+        })
+    return out
+
+
 def load_sync_state():
     """Load sync_state.json if it exists."""
     if os.path.exists(SYNC_STATE_PATH):
@@ -735,7 +793,7 @@ def get_gap_summary(subject, graphs, notes_index):
 # Daily Goals Generation
 # ---------------------------------------------------------------------------
 
-def generate_goals(subject_selections, due_cards, phase_name):
+def generate_goals(subject_selections, due_cards, phase_name, card_reports=None):
     """Generate checklist items for today's goals."""
     goals = []
     for subject, selections in subject_selections.items():
@@ -751,6 +809,12 @@ def generate_goals(subject_selections, due_cards, phase_name):
     total_due = sum(v.get("due", 0) for v in due_cards.values())
     if total_due > 0:
         goals.append("闪卡复习全部完成")
+
+    # 待修的问题卡：这是**agent 的活**，写进今日目标它才会流转到每日任务/飞书任务里
+    # （daily_tasks.py 的 planner_goals 就是抠这份 `- [ ]` 清单）。
+    reports = card_reports or []
+    if reports:
+        goals.append(f"修复 {len(reports)} 张被标记有问题的闪卡（node src/card_reports.js list）")
 
     return goals
 
@@ -892,11 +956,24 @@ def generate_plan_markdown(target_date, graphs, notes_index, qb_data,
     est_max = int((total_due + total_new) * 2.0)
     if total_due + total_new > 0:
         lines.append(f"- 预计耗时：{est_min}-{est_max} 分钟")
+
+    # 待修的问题卡（用户在练习里标记的「题目本身错了」）：这是 **agent 的活**，
+    # 不是他的——所以既要在这里写清有几张（免得他以为标记丢了），
+    # 也要进下面的今日目标，才会流转到每日任务与飞书任务清单里。
+    card_reports = load_card_reports()
+    if card_reports:
+        by_kind = {}
+        for r in card_reports:
+            by_kind[r["kind_label"]] = by_kind.get(r["kind_label"], 0) + 1
+        lines.append(f"- ⚠️ 待修的问题卡：**{len(card_reports)} 张**（"
+                     + " + ".join(f"{k} x {v}" for k, v in by_kind.items()) + "）")
+        lines.append("- 复核入口：`node src/card_reports.js list`（改题 / 驳回 / 删卡都在那儿；"
+                     "网页上筛「⚑ 待修」也能直接复看）")
     lines.append("")
 
     # Goals
     lines.append("## 今日目标")
-    goals = generate_goals(subject_selections, due_cards, phase_name)
+    goals = generate_goals(subject_selections, due_cards, phase_name, card_reports)
     if goals:
         for goal in goals:
             lines.append(f"- [ ] {goal}")
@@ -1280,6 +1357,13 @@ def main():
             print(f"    {subj_key}: {overall*100:.0f}% ({phase})")
     else:
         print(f"  学习进度：progress.json 不存在，使用笔记覆盖率估算")
+
+    # 待修的问题卡（闪卡练习里标记的「题目本身错了」）：这是 agent 的活，
+    # 每次生成计划都报一句，别让它们沉在库里没人管。
+    _reports = load_card_reports()
+    if _reports:
+        print(f"  ⚠️ 待修的问题卡：{len(_reports)} 张"
+              f"（node src/card_reports.js list → 改题/驳回/删卡）")
 
     days_to_exam = (EXAM_DATE - target_date).days
     phase_name, phase_data = get_current_phase(target_date)

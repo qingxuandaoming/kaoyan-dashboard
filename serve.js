@@ -8,6 +8,61 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { DatabaseSync } = require('node:sqlite');
 
+// ============================================================
+// 日志落盘（2026-09-18）：本仓库原来只有零散 console.log，问题出问题时
+// 没有行走痕迹可查。现在把 console.log/warn/error 全部 mirror 到 src/logs/：
+//   info.log    → log / warn
+//   error.log   → error（含堆栈）
+//   request.log → 每次 HTTP 请求一行（method path status 耗时 来源）
+// 单文件超过 LOG_MAX_BYTES 就轮转成 .1（最多留一个旧档），避免无脑撑大。
+// 端点在 /api/logs（GET ?lines=&levels=），可拉最近日志。
+// 现有各样式调试行（[Flash] [Grade] [Sync]…）的 console.* 调用点一个字不改，
+// 靠下面的 monkey-patch 一并落盘。
+// ============================================================
+const LOG_DIR = path.join(__dirname, 'logs');
+try { if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true }); } catch (e) { /* 建不了就只控制台 */ }
+const LOG_MAX_BYTES = 2 * 1024 * 1024;   // 单份 2MB 封顶，避免轮转太快
+function _logRotate(file) {
+  try {
+    const st = fs.statSync(file);
+    if (st && st.size > LOG_MAX_BYTES) {
+      const bk = file + '.1';
+      if (fs.existsSync(bk)) fs.rmSync(bk);
+      fs.renameSync(file, bk);
+    }
+  } catch (e) { /* 不存在/磁盘状况，忽略 */ }
+}
+function _logWrite(level, args) {
+  try {
+    const ts = new Date().toISOString();
+    const msg = Array.prototype.slice.call(args).map(function (a) {
+      if (typeof a === 'string') return a;
+      try { const s = JSON.stringify(a); return s === undefined ? String(a) : s; } catch (e) { return String(a); }
+    }).join(' ');
+    const file = level === 'ERROR' ? path.join(LOG_DIR, 'error.log') : path.join(LOG_DIR, 'info.log');
+    _logRotate(file);
+    fs.appendFileSync(file, ts + ' [' + level + '] ' + String(msg).replace(/\n/g, ' ') + '\n', 'utf8');
+  } catch (e) { /* 磁盘满等极端情况不反向打断主流程 */ }
+}
+// 请求行单独一个文件：方法 path 状态 耗时 来源
+function _logRequest(req, res, t0) {
+  try {
+    const ms = Date.now() - t0;
+    _logRotate(path.join(LOG_DIR, 'request.log'));
+    const ip = String((req.socket && req.socket.remoteAddress) || '');
+    fs.appendFileSync(path.join(LOG_DIR, 'request.log'),
+      new Date().toISOString() + ' [' + req.method + ' ' + req.url + '] '
+      + res.statusCode + ' +' + ms + 'ms ' + ip + '\n', 'utf8');
+  } catch (e) { /* ignore */ }
+}
+// mirror 现有 console.* —— 全部调用点无需改动
+(function mirrorConsole() {
+  const o = { log: console.log.bind(console), warn: console.warn.bind(console), error: console.error.bind(console) };
+  console.log   = function () { o.log.apply(null, arguments); _logWrite('INFO', arguments); };
+  console.warn  = function () { o.warn.apply(null, arguments); _logWrite('WARN', arguments); };
+  console.error = function () { o.error.apply(null, arguments); _logWrite('ERROR', arguments); };
+})();
+
 // PORT / DB_PATH 支持环境变量覆盖：便于在副本库上做验证，不动真实复习数据。
 //   例：PORT=8081 DB_PATH=./_test.db node src/serve.js
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -57,7 +112,10 @@ function resolveNotePath(rel) {
   const decoded = decodeURIComponent(rel).replace(/\\/g, '/');
   if (decoded.includes('..')) return null;
   const abs = path.resolve(ROOT_DIR, decoded);
-  if (!abs.startsWith(ROOT_DIR + path.sep)) return null;
+  // 大小写不敏感比较：morning_review.json 里存的是大写盘符 "C:/..."，
+  // 而 Windows 上 path.resolve 给的 ROOT_DIR 常是小写 "c:\..."，startsWith
+  // 区分大小写会把这批笔记误判成非法路径（2026-09-18 排查）。
+  if (!abs.toLowerCase().startsWith(ROOT_DIR.toLowerCase() + path.sep)) return null;
   if (!abs.toLowerCase().endsWith('.md')) return null;
   return abs;
 }
@@ -420,13 +478,42 @@ const studyCards = require('./study_cards');
 // 「网页里的 AI 自己调接口」的工具层（搜题库/搜笔记/归卡/开浮窗）。
 // 单独成模块：以后要把它包成 MCP 喂给 DeepSeek Harness，工具本身一行不用改。
 const studyAgent = require('./study_agent');
+// 「这道题有问题」标记的规则层（报卡去重 / 改题白名单校验 / 复核回写）。
+// 与它共用一份逻辑的还有命令行：node src/card_reports.js list|fix —— 每日任务里
+// agent 不一定要开着网页，那条路走 CLI（见 tools/test_card_reports.js）。
+const cardReports = require('./card_reports');
 
 // ---- 闪卡调度辅助 --------------------------------------------------------
 
-/** 本地日期 YYYY-MM-DD。⚠️ 不要用 toISOString().slice(0,10)，那是 UTC 日期，
+/**
+ * 学习日起点：凌晨 4 点前算前一天（2026-09-17）。
+ *
+ * 为什么是 4 点：**FSRS 那边本来就这么定的**——卡片的到期时刻一律按
+ * `due_date + 'T04:00:00'` 算（fsrs_core.js:119/277、serve.js:1145/1520/1650/1746），
+ * 也就是「17 号到期」的卡其实 17 号凌晨 4 点才到期。可计数这边一直按午夜切，
+ * 于是 0:00~4:00 这两边对不上：卡还没到期，计数却已经翻篇了。
+ * 现在统一到 4 点。熬到后半夜的人不会一过零点就被清空「今日」。
+ *
+ * ⚠️ generate_dashboard.py 里有一份**同值**常量 DAY_START_HOUR（注入进页面给
+ *    POMO_JS / FLASH_JS 用）。改这里必须一起改那边——tools/test_day_start.js
+ *    会盯着这两个值是否还相等。
+ */
+const DAY_START_HOUR = 4;
+
+/** 当前学习日的起点，本地时间字符串 'YYYY-MM-DD HH:00:00'。
+ *  直接拿去和 review_date 比——那一列存的是 datetime('now','localtime') 的真实时刻，
+ *  所以只改查询窗口、不动历史数据，以前记的时间戳全都还是真的。 */
+function studyDayStart(d) {
+  const t = d ? new Date(d.getTime()) : new Date();
+  if (t.getHours() < DAY_START_HOUR) t.setDate(t.getDate() - 1);   // 还没到起点 → 算前一天
+  t.setHours(DAY_START_HOUR, 0, 0, 0);
+  return FSRS.localDateStr(t) + ' ' + String(DAY_START_HOUR).padStart(2, '0') + ':00:00';
+}
+
+/** 本地「学习日」YYYY-MM-DD。⚠️ 不要用 toISOString().slice(0,10)，那是 UTC 日期，
  *  在 UTC+8 下早 8 点前会算成前一天，导致"今日到期/已复习"计数错位。 */
-function localToday() {
-  return FSRS.localDateStr(new Date());
+function localToday(d) {
+  return studyDayStart(d).slice(0, 10);
 }
 
 /** 从 config 表读调度参数（迁移器已灌入默认值）；失败时回落默认配置 */
@@ -680,12 +767,46 @@ const writeFlashSession = (db, sess) => {
   }
 };
 
-/** 今天已经答过的 card_id 集合（跨设备：都写在同一张 review_log 里） */
+/**
+ * 算出「这一组还剩哪些卡要刷」：剔掉今天已经答过的，再去掉当前位置之前那些。
+ *
+ * 两件事都要做，而且 peek 与 resume **必须用同一套算法**：
+ *
+ *  ① **剔今天已答的** —— 「同一题一天问好几遍」的堵口（另一台设备答的也算）。
+ *  ② **去掉 idx 之前的** —— 那些卡要么今天答过、要么更早答过，**无论如何都不会
+ *     再展示**；留在列表里只会让「从第 N 张起」的编号虚高，人读成「要跳过 N-1 张
+ *     没答的」。2026-09-17 用户就是照这个问上来的：库里 18 张、idx=5，今天答过的
+ *     3 张剔完显示「从第 3 张起」，可最前两张是当天凌晨 4 点前答的（按学习日算
+ *     昨天）没进剔除名单，于是编号从本该的 1 变成了 3。
+ *
+ * 返回的 idx 恒为 0：剩下的就是「从头接着刷」。所以闸门按钮不必再报位置 ——
+ * 报出来的永远是第 1 张，纯属噪音。
+ *
+ * ⚠️ 抽成独立函数是因为 peek 和 resume 各写一份正是上一个 bug 的来源：peek 报
+ *    原始列表（从第 7 张起）、resume 剔完变成从第 3 张起，按钮写的和点下去拿到的
+ *    不是一个东西。别在路由里再手搓一遍。
+ */
+const remainingCards = (cards, idx, done) => {
+  const keep = [];
+  let passed = 0;                    // 当前位置之前被剔掉了几张
+  cards.forEach((c, i) => {
+    const cid = String((c && c.card_id) || '');
+    if (cid && done.has(cid)) { if (i < idx) passed += 1; return; }
+    keep.push(c);
+  });
+  // 站到的位置 = 原 idx 往前挪掉「前面剔掉的」；越界就夹回长度（脏数据兜底）
+  const at = Math.max(0, Math.min(idx - passed, keep.length));
+  return { cards: keep.slice(at), idx: 0 };
+};
+
+/** 今天（学习日）已经答过的 card_id 集合（跨设备：都写在同一张 review_log 里） */
 const answeredToday = (db) => {
   const set = new Set();
   try {
+    // 起点用 studyDayStart()（凌晨 4 点），不是 localToday()+' 00:00:00'：
+    // 后者在 0:00~4:00 之间会把「今天刚答的」算成新的一天，同一组卡一天问好几遍。
     const rows = db.prepare("SELECT DISTINCT card_id FROM review_log WHERE review_date >= ?")
-      .all(localToday() + ' 00:00:00');
+      .all(studyDayStart());
     for (const r of rows) set.add(String(r.card_id));
   } catch (e) {}
   return set;
@@ -727,6 +848,9 @@ const SENSITIVE_PATHS = [
   '/api/explain', '/api/notes/ask', '/api/study/chat', '/api/study/agent',
   '/api/study/cards', '/api/grade',
   '/api/review/chat', '/api/ark', '/api/settings',
+  // 标记有问题 / 复核改题（2026-09-17）：会写 questions.content 与 card_reports，
+  // 属于「能改学习数据」的那一类，和 /api/study/cards 同待遇（前缀匹配，覆盖 /resolve）。
+  '/api/flashcards/reports',
 ];
 const isSensitivePath = (u) => SENSITIVE_PATHS.some(p => String(u || '').indexOf(p) === 0);
 
@@ -745,9 +869,64 @@ const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
+  // 每次 HTTP 请求都留下一行 request.log（方法 path 状态 耗时 来源）
+  const t0 = Date.now();
+  res.on('finish', () => { try { _logRequest(req, res, t0); } catch (e) {} });
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
+    return;
+  }
+
+  const logPath = (req.url || '').split('?')[0];
+
+  // 前端运行时错误上报：POST {source, entries:[{ts,page,message,stack}]}
+  // 逐条落 error.log（带 [web] 前缀），随 GET /api/logs 一起可查。
+  if (logPath === '/api/logs' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const p = JSON.parse(body || '{}');
+        const entries = (p.entries && p.entries.length) ? p.entries : [{ ts: Date.now(), message: body }];
+        entries.forEach((e) => {
+          const src = p.source || 'web';
+          const ts = e.ts ? new Date(e.ts).toISOString() : new Date().toISOString();
+          const page = e.page ? ('[' + e.page + '] ') : '';
+          const msg = String(e.message || '').replace(/\n/g, ' ');
+          _logWrite('ERROR', [String(src) + page + msg + (e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : '')]);
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: true, n: entries.length }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, error: String(err && err.message || err) }));
+      }
+    });
+    return;
+  }
+
+  // 读取本机日志（只读，?lines=&levels=info,error,req）：
+  //   用于「出问题时拉最近日志」——前端没有做专门的日志界面，这个端点喂给 AI/工具即可。
+  if (logPath === '/api/logs' && req.method === 'GET') {
+    const lines = Math.max(1, Math.min(parseInt((req.url.match(/[?&]lines=(\d+)/) || [])[1] || '200', 10), 2000));
+    const want = new Set(((req.url.match(/[?&]levels=([^&]+)/) || [])[1] || 'info,error,req').split(','));
+    // 文件名 → 级别 token：info.log→info, error.log→error, request.log→req
+    const LOG_NAME_LEVEL = { 'info.log': 'info', 'error.log': 'error', 'request.log': 'req' };
+    const out = [];
+    ['info.log', 'error.log', 'request.log'].forEach(function (name) {
+      if (!want.has(LOG_NAME_LEVEL[name]) && !want.has(name.slice(0, -4)) && !want.has('all')) return;
+      const file = path.join(LOG_DIR, name);
+      try {
+        const txt = fs.readFileSync(file, 'utf8');
+        const arr = txt.split('\n').filter(Boolean);
+        out.push.apply(out, arr.slice(-lines - 0));
+      } catch (e) { /* 还没写过的文件就不回 */ }
+    });
+    const merged = out.length ? out.slice(-lines) : ['（暂无日志：' + LOG_DIR + '）'];
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(merged.join('\n'));
     return;
   }
 
@@ -993,21 +1172,12 @@ const server = http.createServer((req, res) => {
         sendJsonRaw(res, 200, { ok: true, saved: null, cards: [] });
         return;
       }
-      let cards = sess.cards;
-      let idx = sess.idx;
-      if (wantCards) {
-        const done = answeredToday(rdb);
-        // 剔掉今天答过的：这是「同一题一天问好几遍」的堵口
-        const keep = [];
-        let droppedBefore = 0;
-        cards.forEach((c, i) => {
-          const cid = String((c && c.card_id) || '');
-          if (cid && done.has(cid)) { if (i < idx) droppedBefore += 1; return; }
-          keep.push(c);
-        });
-        cards = keep;
-        idx = Math.max(0, Math.min(idx - droppedBefore, cards.length));
-      }
+      // ⚠️ peek 也要走同一套：否则闸门按钮上的数字来自**没处理过**的那份列表，
+      //    点下去 resume 却换了一份 —— 按钮写的和真正拿到的不是一个东西。
+      //    peek 只算不写（它是 GET、只读连接），resume 照旧把结果写回服务端。
+      const left = remainingCards(sess.cards, sess.idx, answeredToday(rdb));
+      const cards = left.cards;
+      const idx = left.idx;
       rdb.close();
       if (wantCards) {
         // 剔完可能就空了 / 已经刷完 → 顺手把服务端那份也更新掉，别让别的端又拿到旧列表
@@ -1049,6 +1219,9 @@ const server = http.createServer((req, res) => {
       mature: 'c.state = 2 AND COALESCE(c.interval_days, 0) >= 21',
       leech: 'COALESCE(c.leech, 0) = 1',
       suspended: 'COALESCE(c.suspended, 0) = 1',
+      // 待修的「这题有问题」（2026-09-17）：唯一能重新看到这些卡的地方——
+      // 智能组会主动把它们排除（见下面 where 里那条 NOT EXISTS）。
+      flagged: "EXISTS (SELECT 1 FROM card_reports r WHERE r.card_id = c.id AND r.status = 'open')",
     };
     const rawBucket = (params.get('bucket') || '').trim();
     const bucket = Object.keys(BUCKETS).includes(rawBucket) ? rawBucket : '';
@@ -1085,6 +1258,15 @@ const server = http.createServer((req, res) => {
       where.push('c.id IN (' + ids.map(() => '?').join(',') + ')');
       ids.forEach(x => bind.push(x));
     }
+    // 被标成「这题有问题」的卡**不进智能组**（2026-09-17）：用户标记的意思就是
+    // 「在我看到它被修好之前别再考我」——题目本身错了，他照着正确答案点也被判错，
+    // 越练越糊涂，还会把 FSRS 的难度/稳定度带偏。
+    // 自选通道（browse / ids 点名 / 筛选页）**不过滤**：要复看、要复核时还得见得到它，
+    // 统计面板里也照旧列着（不会悄悄消失）。修好之后（status 不是 open）它自己就回来了。
+    if (mode !== 'browse') {
+      where.push("NOT EXISTS (SELECT 1 FROM card_reports r"
+        + " WHERE r.card_id = c.id AND r.status = 'open')");
+    }
     const whereSql = 'WHERE ' + where.join(' AND ');   // 恒非空：至少有一条 suspended 条件
       // 今天已经答过的卡不再进**智能组**（review_log 是所有端共同的）→ 同一题一天只问一次。
       // 自选（browse）不过滤：用户就是想专门再刷一遍那个范围。
@@ -1094,7 +1276,7 @@ const server = http.createServer((req, res) => {
     try {
       const db = new DatabaseSync(DB_PATH, { readOnly: true });
       const today = localToday();
-      if (noRepeatSql) bind.push(today + ' 00:00:00');   // 对应 noRepeatSql 里的那个 ?
+      if (noRepeatSql) bind.push(studyDayStart());       // 对应 noRepeatSql 里的那个 ?（学习日起点，不是午夜）
       // extra（今日额度刷完后的「再来一组」）：数量由设置决定，默认 10。
       // ⚠️ 必须在这里读（db 打开之后）：上面那段还不能碰 cfgGet/readCfgValue 之外的配置读取，
       //    而 cfgGet 本身定义在 3000 行外，引用会踩 TDZ。
@@ -1129,10 +1311,12 @@ const server = http.createServer((req, res) => {
                c.due_at, c.reps, c.lapses, c.last_review,
                c.learning_step, c.relearning_step, c.leech, c.suspended, c.interval_days,
                q.id AS qid, q.type, q.topic_id, q.content,
-               t.name AS topic_name, COALESCE(t.subject, '') AS subject, t.exam_weight
+               t.name AS topic_name, COALESCE(t.subject, '') AS subject, t.exam_weight,
+               cr.id AS rep_id, cr.kind AS rep_kind, cr.note AS rep_note, cr.created_at AS rep_at
         FROM cards c
         JOIN questions q ON c.question_id = q.id
         LEFT JOIN topics t ON q.topic_id = t.id
+        LEFT JOIN card_reports cr ON cr.card_id = c.id AND cr.status = 'open'
         ${whereSql}${noRepeatSql}
       `).all(...bind);
 
@@ -1175,6 +1359,12 @@ const server = http.createServer((req, res) => {
           suspended: r.suspended || 0,
           due_now: due,
           content,
+          // 待修的「这题有问题」标记（前端画警示徽标 + 提示「AI 会核对」）。
+          // browse / ids 通道会真的取到带标记的卡，所以这个字段必须下发，不能只在智能组靠排除。
+          report: r.rep_id ? {
+            id: r.rep_id, kind: r.rep_kind, kind_label: cardReports.kindLabel(r.rep_kind),
+            note: r.rep_note || '', created_at: r.rep_at || '',
+          } : null,
         };
         // Anki 风格：每张卡下发四档间隔预览（按钮副标题）
         try {
@@ -1513,7 +1703,9 @@ const server = http.createServer((req, res) => {
       const nowIso = new Date().toISOString();
       let reviewed = 0;
       let dueReview = 0, dueLearning = 0, dueNew = 0;
-      try { reviewed = db.prepare('SELECT COUNT(*) c FROM review_log WHERE date(review_date) = ?').get(today).c; } catch (e) {}
+      // 「今日已复习」= 本学习日（凌晨 4 点起）答过多少张。
+      // 不能用 date(review_date) = today：那个按日历日切，0:00~4:00 会漏掉。
+      try { reviewed = db.prepare('SELECT COUNT(*) c FROM review_log WHERE review_date >= ?').get(studyDayStart()).c; } catch (e) {}
       try {
         // 到期判定统一走 due_at（缺列时回落 due_date）
         const rows = db.prepare(`
@@ -1635,6 +1827,111 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ---- 「这道题有问题」标记（2026-09-17）------------------------------------
+  // 三个端点合起来就是一条闭环：
+  //   POST /api/flashcards/reports          练习时标记（带原因 + 可选一句话）
+  //   GET  /api/flashcards/reports          谁来看：前端统计面板画「待修清单」、
+  //                                         agent 每日任务（也可走 node src/card_reports.js list）
+  //   POST /api/flashcards/reports/resolve  复核：改题（patch）/ 驳回（dismissed）/ 删卡（deleted）
+  //
+  // 规则层全在 src/card_reports.js（去重、改题白名单与校验、状态回写），这里只管 HTTP
+  // 与库连接——这样同一套规则能从命令行单独跑用例，也能在没有网页时用。
+  if (url === '/api/flashcards/reports' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const p = JSON.parse(body || '{}');
+        const db = new DatabaseSync(DB_PATH);
+        const r = cardReports.addReport(db, {
+          card_id: p.card_id, kind: p.kind, note: p.note,
+          chosen: p.chosen, correct: p.correct,
+          source: p.source || 'user',
+        });
+        if (!r.ok) {
+          db.close();
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, error: r.error }));
+          return;
+        }
+        db.close();
+        console.log('[CardReports] 标记 #' + r.id + ' ' + r.card_id
+          + ' → ' + cardReports.kindLabel(r.kind) + (r.created ? '（新）' : '（更新）')
+          + '，待修 ' + r.count + ' 张');
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          ok: true, id: r.id, created: r.created, card_id: r.card_id,
+          kind: r.kind, kind_label: cardReports.kindLabel(r.kind), count: r.count,
+        }));
+      } catch (e) {
+        console.error('[CardReports] report error:', e.message);
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // GET /api/flashcards/reports?status=open|fixed|dismissed|all&subject=&card_id=&limit=
+  if (url.startsWith('/api/flashcards/reports') && req.method === 'GET') {
+    try {
+      const params = new URL('http://x' + url).searchParams;
+      const db = new DatabaseSync(DB_PATH, { readOnly: true });
+      const rows = cardReports.listReports(db, {
+        status: params.get('status') || 'open',
+        subject: (params.get('subject') || '').trim(),
+        card_id: (params.get('card_id') || '').trim(),
+        limit: params.get('limit'),
+      });
+      const open = cardReports.countOpen(db);
+      db.close();
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      // kinds 一并下发：前端那个「哪里有问题」的原因清单就是这份（不另抄一份到
+      // generate_dashboard.py，免得两边标签漂移——报卡原因是给模型看的话术，最怕不一致）。
+      res.end(JSON.stringify({
+        ok: true, open_count: open, count: rows.length, reports: rows,
+        kinds: cardReports.KINDS,
+      }));
+    } catch (e) {
+      console.error('[CardReports] list error:', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+
+  // POST /api/flashcards/reports/resolve  {id, action, note, patch, dry_run}
+  if (url === '/api/flashcards/reports/resolve' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      const fail = (code, msg) => {
+        res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, error: msg }));
+      };
+      try {
+        const p = JSON.parse(body || '{}');
+        const db = new DatabaseSync(DB_PATH);
+        const r = cardReports.resolveReport(db, p.id, {
+          action: p.action, note: p.note, patch: p.patch, dry_run: !!p.dry_run,
+        });
+        db.close();
+        if (!r.ok) { fail(400, r.error || '复核失败'); return; }
+        if (!r.dry_run) {
+          console.log('[CardReports] 复核 #' + r.id + ' ' + r.card_id + ' → ' + r.status
+            + (r.changes && r.changes.length ? '（改了 ' + r.changes.join('/') + '）' : '')
+            + '，待修还剩 ' + r.count + ' 张');
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(r));
+      } catch (e) {
+        console.error('[CardReports] resolve error:', e.message);
+        fail(500, e.message);
+      }
+    });
+    return;
+  }
+
   // GET /api/flashcards/stats — 统计与预测（Anki 风格面板数据）
   if (url.startsWith('/api/flashcards/stats')) {
     try {
@@ -1742,6 +2039,9 @@ const server = http.createServer((req, res) => {
                SUM(CASE WHEN c.state = 2 AND COALESCE(c.interval_days, 0) >= 21 THEN 1 ELSE 0 END) AS mature,
                SUM(CASE WHEN COALESCE(c.leech, 0) = 1     THEN 1 ELSE 0 END) AS leech,
                SUM(CASE WHEN COALESCE(c.suspended, 0) = 1 THEN 1 ELSE 0 END) AS suspended,
+               SUM(CASE WHEN EXISTS (SELECT 1 FROM card_reports r
+                                     WHERE r.card_id = c.id AND r.status = 'open')
+                        THEN 1 ELSE 0 END) AS flagged,
                SUM(CASE WHEN COALESCE(c.suspended, 0) = 0
                         AND COALESCE(c.due_at, c.due_date || 'T04:00:00') <= ? THEN 1 ELSE 0 END) AS due
         FROM cards c
@@ -1750,17 +2050,51 @@ const server = http.createServer((req, res) => {
         GROUP BY COALESCE(t.subject, '(未分类)')
         ORDER BY total DESC
       `).all(nowIso);
-      db.close();
 
       // 合计由服务端算，前端不重复一遍逻辑
       const totals = rows.reduce((a, r) => {
-        for (const k of ['total', 'new', 'learning', 'review', 'mature', 'leech', 'suspended', 'due']) {
+        for (const k of ['total', 'new', 'learning', 'review', 'mature', 'leech', 'suspended', 'flagged', 'due']) {
           a[k] = (a[k] || 0) + (r[k] || 0);
         }
         return a;
       }, {});
+
+      // 知识点维度（2026-09-18 用户要「筛到知识点级别」）：按「科目-章节」两段前缀归并，
+      // 与薄弱点模块的 topicPrefix() 口径一致（408-OS / MATH-GS / POL-XX…）。session 端点
+      // 的 topic 筛选就是 t.id LIKE '<前缀>%'，所以这里归到什么粒度，筛选就下探到什么粒度。
+      const topicRows = db.prepare(`
+        SELECT t.id AS topic_id, COALESCE(t.subject, '(未分类)') AS subject,
+               COUNT(*) AS total,
+               SUM(CASE WHEN c.state = 0 THEN 1 ELSE 0 END) AS new,
+               SUM(CASE WHEN c.state IN (1, 3) THEN 1 ELSE 0 END) AS learning,
+               SUM(CASE WHEN c.state = 2 AND COALESCE(c.interval_days, 0) < 21  THEN 1 ELSE 0 END) AS review,
+               SUM(CASE WHEN c.state = 2 AND COALESCE(c.interval_days, 0) >= 21 THEN 1 ELSE 0 END) AS mature,
+               SUM(CASE WHEN COALESCE(c.leech, 0) = 1     THEN 1 ELSE 0 END) AS leech,
+               SUM(CASE WHEN COALESCE(c.suspended, 0) = 1 THEN 1 ELSE 0 END) AS suspended
+        FROM cards c
+        JOIN questions q ON c.question_id = q.id
+        LEFT JOIN topics t ON q.topic_id = t.id
+        GROUP BY t.id, COALESCE(t.subject, '(未分类)')
+      `).all();
+      const tp = (tid) => String(tid || '').split('-').slice(0, 2).join('-');
+      const topMap = new Map();   // key = 前缀\x00科目（前缀跨科目理论上唯一，仍按科目兜底）
+      for (const r of topicRows) {
+        if (!r.topic_id) continue;   // 未分类的卡进不了知识点维度，丢给「全部闪卡」兜着
+        const prefix = tp(r.topic_id);
+        const key = prefix + '\u0000' + (r.subject || '(未分类)');
+        let g = topMap.get(key);
+        if (!g) { g = { prefix, subject: r.subject || '(未分类)' }; topMap.set(key, g); }
+        g.total = (g.total || 0) + (r.total || 0);
+        for (const k of ['new', 'learning', 'review', 'mature', 'leech', 'suspended']) {
+          g[k] = (g[k] || 0) + (r[k] || 0);
+        }
+      }
+      const topics = [...topMap.values()].sort((a, b) => (b.total || 0) - (a.total || 0));
+
+      db.close();
+
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ ok: true, today, subjects: rows, totals }));
+      res.end(JSON.stringify({ ok: true, today, subjects: rows, totals, topics }));
     } catch (e) {
       console.error('[Flashcards] facets error:', e.message);
       res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -2629,6 +2963,11 @@ const server = http.createServer((req, res) => {
     '· 判断题：type 写 "judge"，不要 options，answer 写 "正确" 或 "错误"。',
     '· 填空题：type 写 "fill"，answer 写答案本身，题干里用 ____ 表示空缺。',
     '· stem 只写题干，不要重复选项；explanation / traps 尽量写全，练的时候会显示出来。',
+    // 2026-09-17：新出的卡直接进题库，写法要一次到位。ASCII 写法（2^32、e^(x^2)、∬_D）
+    // 大盘虽能兜底渲染，但飞书周报、Anki 导出走的是纯文本路径，TeX 会在那边露源码；
+    // 「指数后面粘字母」（2^32B）连大盘也分不清。所以要求写成 $...$。
+    '· 公式一律用 $...$ 写：上标 $2^{32}$、$e^{x^2}$，下标 $x_i$、$\\iint_D$；',
+    '  不要写 2^32、e^(x^2)、x_i、∬_D 这类写法 —— 闪卡、周报、Anki 导出三处都要能正确显示。',
     '· 这个 JSON 块不计入上面的字数限制；这一轮没出题就不要这个块。',
   ];
 
@@ -3026,6 +3365,7 @@ const server = http.createServer((req, res) => {
           insertCards: (cards, subj) => studyCards.insertCards(db, cards, {
             subject: subj === 'all' ? '' : subj, today: localToday(), findTopic: studyTopicId,
           }),
+          cardReports: cardReports,   // list_card_reports / fix_card（见 study_agent.js）
         });
         const messages = [{ role: 'system', content: sc.ctx }]
           .concat(history, [{ role: 'user', content: message }]);
@@ -3119,6 +3459,9 @@ const server = http.createServer((req, res) => {
           insertCards: (cards, subj) => studyCards.insertCards(db, cards, {
             subject: subj === 'all' ? '' : subj, today: localToday(), findTopic: studyTopicId,
           }),
+          // 「这题有问题」标记的读写：list_card_reports 读、fix_card 改题。
+          // 整份模块传进去（它自己只认第一个参数 db），规则不必在 serve.js 里重写一遍。
+          cardReports: cardReports,
         });
         const messages = [{ role: 'system', content: sc.ctx }]
           .concat(history, [{ role: 'user', content: message }]);
@@ -3807,13 +4150,17 @@ const SECRETS_PATH = process.env.SECRETS_PATH
 
   // ==========================================================================
   // 番茄钟运行状态（跨设备同步，2026-09-21 晚）
-  //   GET  /api/pomodoro/state         → 当前这一轮 + 今日成绩 + 近 14 天
+  //   GET  /api/pomodoro/state?days=N → 当前这一轮 + 今日成绩 + 近 N 天（默认 14）
   //   POST /api/pomodoro/state {run}   → 覆盖写入（各端每次动作后调用）
   //   POST /api/pomodoro/credit {min}  → 记一个完成的番茄（服务端自增，两端不互相覆盖）
   // 状态放服务端而不是 localStorage，就是为了「电脑上开着、走到平板接着看」。
+  // days 是给首页「月热力图」用的：默认 14 天够看趋势，要铺满一个月就传 42。
+  // 上限 180 是 POMO_LOG_KEEP 的保留天数——再往前日志已经裁掉了，问了也是空。
   // ==========================================================================
   if (url === '/api/pomodoro/state' && req.method === 'GET') {
     try {
+      const q = new URL('http://x' + url).searchParams;
+      const nDays = clamp(parseInt(q.get('days'), 10) || 14, 7, POMO_LOG_KEEP);
       const db = new DatabaseSync(DB_PATH, { readOnly: true });
       const get = cfgGet(db);
       const run = readPomoRun(get);
@@ -3824,7 +4171,7 @@ const SECRETS_PATH = process.env.SECRETS_PATH
         ok: true, server_now: Date.now(), today,
         run,
         today_stat: log[today] || { pomos: 0, min: 0 },
-        days: pomoDays(log, 14),
+        days: pomoDays(log, nDays),
       });
     } catch (e) { sendJson(500, { ok: false, error: e.message }); }
     return;

@@ -13,27 +13,22 @@ const { execFileSync } = require("child_process");
 
 const SRC = path.join(__dirname, "..", "generate_dashboard.py");
 const OUT = path.join(os.tmpdir(), "kaoyan_pomo_extracted.js");
-execFileSync("python", ["-c", `
-import ast, io
-src = io.open(r"${SRC}", encoding="utf-8").read()
-tree = ast.parse(src)
-for node in tree.body:
-    if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "POMO_JS":
-        io.open(r"${OUT}", "w", encoding="utf-8").write(ast.literal_eval(node.value))
-        break
-`], { maxBuffer: 1 << 24 });
+// 走公共脚本：它会把 DAY_START_JS（studyDay / DAY_START_HOUR）一起带上，
+// 只抠 POMO_JS 的话跑起来是 ReferenceError。
+execFileSync("python", [path.join(__dirname, "extract_js.py"), "POMO_JS", OUT],
+  { maxBuffer: 1 << 24 });
 const js = fs.readFileSync(OUT, "utf-8");
+const { dayKey } = require("./_day");
 
 /* ---------------- 虚拟时钟 ---------------- */
 const MIN = 60000;
-// ⚠️ 用例里的「今天」必须跟着**真实日期**走。写死某一天的话，第二天跑就会莫名失败
-//    ——2026-09-16 凌晨就踩到了：桩里回 09-15，而 todayKey() 已经是 09-16，
-//    mergeToday 判定「服务端那份属于新的一天」于是把刚记的成绩覆盖成 0。
-function localToday() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
-    + "-" + String(d.getDate()).padStart(2, "0");
-}
+// ⚠️ 用例里的「今天」必须跟着**真实日期**走，而且必须和页面同一套规则
+//    （凌晨 4 点前算前一天）。写死某一天会失败；用日历日而页面用学习日也会失败
+//    ——2026-09-16 凌晨踩过一次（桩里回 09-15、todayKey() 已是 09-16），
+//    2026-09-17 凌晨加学习日起点时又踩了一次（桩里回 09-17、todayKey() 是 09-16）。
+//    两次都是 mergeToday 判定「服务端那份属于新的一天」把刚记的成绩覆盖成 0。
+//    规则和常量统一从抽出来的页面 JS 里读，见 tools/_day.js。
+const localToday = d => dayKey(js, d);
 let fakeNow = 0;
 let timers = [];        // {id, fn, every, next}
 let nextTimerId = 1;
@@ -202,7 +197,7 @@ let audioPlays = 0, audioPauses = 0, pipCalls = [], mediaSession = null, lastPip
 //   { run, nowOffset, today_stat, days }
 // nowOffset 用来模拟「服务端时钟比本机快 N 毫秒」，验证 end_at 的换算
 // caps：模拟浏览器能力 { media: Media Session, pip: Document PiP }
-function boot(pomoCfg, savedRun, savedDay, srv, caps) {
+function boot(pomoCfg, savedRun, savedDay, srv, caps, extraStore) {
   REG = {}; CLASSES = {}; BYATTR = {}; timers = []; nextTimerId = 1; fakeNow = 1770000000000;
   audioPlays = 0; audioPauses = 0; pipCalls = []; mediaSession = null; lastPipWin = null;
   const slot = mkEl("div"), overlay = mkEl("div");
@@ -210,6 +205,8 @@ function boot(pomoCfg, savedRun, savedDay, srv, caps) {
   const store = {};
   if (savedRun) store["kaoyan.pomo.run.v1"] = JSON.stringify(savedRun);
   if (savedDay) store["kaoyan.pomo.day.v1"] = JSON.stringify(savedDay);
+  // extraStore：塞任意 localStorage 项（自己存的预设、小窗透明度…）做「刷新后还在」那类用例
+  if (extraStore) Object.assign(store, extraStore);
   const doc = {
     title: "考研学习仪表盘", hidden: false,
     body: mkEl("body"),                // setFull 要往 body 上挂 pm-lock
@@ -563,8 +560,13 @@ function check(name, cond, extra) {
     check("滑杆旁显示百分比", field("opv") === "50%", field("opv"));
     check("透明度落盘（按设备记）", JSON.parse(env.store["kaoyan.pomo.mini.v1"] || "{}").op === 0.5,
       env.store["kaoyan.pomo.mini.v1"]);
-    op.value = "10"; op.oninput();     // 低于下限要被夹到 25%
-    check("透明度有下限（不会调到看不见）", mini.style._vars["--pm-mini-op"] === "0.25", mini.style._vars["--pm-mini-op"]);
+    op.value = "10"; op.oninput();     // 低于下限要被夹到 MINI_OP_MIN（12%）
+    check("透明度有下限（不会调到彻底看不见）", mini.style._vars["--pm-mini-op"] === "0.12",
+      mini.style._vars["--pm-mini-op"]);
+    // 这两条只能查源码：极简 DOM 桩没有 CSS 引擎，量不出「滑杆在 PiP 里显不显示」
+    check("滑杆下限放到 12%（比原来的 25% 更透）", /data-act="op" min="12"/.test(js));
+    check("PiP 里也不再藏着透明度滑杆",
+      js.indexOf(".pm-mini-op{display:none}") < 0 && /\.pm-mini-op\{display:flex/.test(js));
 
     // 拖动 + 边界夹紧
     const head = (CLASSES["pm-mini-head"] || [])[0];
@@ -609,7 +611,9 @@ function check(name, cond, extra) {
     check("支持时按钮露出来", REG["pm-pip"].hidden === false);
     REG["pm-pip"].click();
     await tick(); await tick();
-    check("点了会申请一个 208×158 的 PiP 窗口", pipCalls.length === 1 && pipCalls[0].width === 208 && pipCalls[0].height === 158,
+    // 196 高：比原来多留一条给透明度滑杆（PiP 里也放出来了）
+    check("点了会申请一个 208×196 的 PiP 窗口",
+      pipCalls.length === 1 && pipCalls[0].width === 208 && pipCalls[0].height === 196,
       JSON.stringify(pipCalls));
     check("PiP 里注入了小窗结构", (CLASSES["pm-mini-pip"] || []).length === 1);
     const pipBody = (CLASSES["pm-mini-pip"] || [])[0];
@@ -729,6 +733,80 @@ function check(name, cond, extra) {
     check("不支持的浏览器上按钮是藏着的", REG["pm-pip"].hidden === true);
     check("页内小窗里也不给「跳出浏览器」按钮",
       ((BYATTR["data-act"] || []).find(x => x.dataset.act === "pip") || {}).hidden === true);
+  }
+
+  console.log("\n[16] 自己存预设（＋ 存为预设 / 删掉）");
+  {
+    const env = boot(); await tick();
+    check("一开始只有 5 个内置预设", (BYATTR["data-preset"] || []).length === 5,
+      String((BYATTR["data-preset"] || []).length));
+    check("内置那五个没有删除尾巴", (BYATTR["data-del"] || []).length === 0,
+      String((BYATTR["data-del"] || []).length));
+
+    // 存一组：50 分专注 + 8 分歇 × 2 轮
+    REG["pm-cwork"].value = "50";
+    REG["pm-cbrk"].value = "8";
+    REG["pm-crounds"].value = "2";
+    REG["pm-csave"].click();
+    await tick();
+    const chips = BYATTR["data-preset"] || [];
+    check("存完多出一个 chip", chips.length === 6, String(chips.length));
+    const mine = chips.find(b => b.dataset.preset === "my:50x8x2");
+    check("id 由参数拼出来（同样数字天然去重）", !!mine,
+      chips.map(b => b.dataset.preset).join(","));
+    // chip 的文字读不出来：parseInto 只认标签和属性，建出来的桩节点不带文本。
+    // 所以查渲染出来的整段 innerHTML（REG["pm-presets"] 就是 #pm-presets）。
+    check("文案跟内置一个长法：50 + 8 × 2",
+      /50 \+ 8 × 2/.test(REG["pm-presets"]._html),
+      REG["pm-presets"]._html.slice(0, 220));
+    check("它带着删除尾巴", (BYATTR["data-del"] || []).some(b => b.dataset.del === "my:50x8x2"));
+    check("落盘了", JSON.parse(env.store["kaoyan.pomo.presets.v1"] || "[]").length === 1,
+      env.store["kaoyan.pomo.presets.v1"]);
+    check("存预设不顺手把正在跑的那轮换掉（还是 45+10×3）",
+      txt("pm-plan").indexOf("2 小时 45") >= 0, txt("pm-plan"));
+
+    mine.click();
+    await tick();
+    check("点自己存的 chip 能切过去（50×2 + 8×2 = 1 小时 56 分）",
+      txt("pm-plan").indexOf("1 小时 56") >= 0, txt("pm-plan"));
+
+    REG["pm-csave"].click();
+    await tick();
+    check("同样的数字存第二次不多出一个 chip", (BYATTR["data-preset"] || []).length === 6,
+      String((BYATTR["data-preset"] || []).length));
+
+    // ⚠️ 删掉的正是在用的那个：表不能被重置（那等于把用户当前这一轮清掉了）
+    (BYATTR["data-del"] || []).find(b => b.dataset.del === "my:50x8x2").click();
+    await tick();
+    check("删掉后 chip 没了", (BYATTR["data-preset"] || []).length === 5,
+      String((BYATTR["data-preset"] || []).length));
+    check("落盘也清了", JSON.parse(env.store["kaoyan.pomo.presets.v1"] || "[]").length === 0);
+    check("★ 删掉在用的预设不会把表重置（读数还是 50:00，不是内置的 45:00）",
+      txt("pm-time") === "50:00", txt("pm-time"));
+    check("它只是改回「自定义」不再挂任何 chip",
+      txt("pm-plan").indexOf("自定义") >= 0, txt("pm-plan"));
+
+    // 刷新后还在
+    const env2 = boot(null, null, null, null, null, {
+      "kaoyan.pomo.presets.v1": JSON.stringify([
+        { id: "my:30x5x4", label: "30 + 5 × 4", work: 30, brk: 5, rounds: 4, note: "x" }]),
+    });
+    await tick();
+    check("刷新后自己存的预设还在", (BYATTR["data-preset"] || []).length === 6,
+      String((BYATTR["data-preset"] || []).length));
+    check("也带着删除尾巴", (BYATTR["data-del"] || []).length === 1);
+
+    // localStorage 里的东西不可信（手改过 / 旧版本写的）
+    const env3 = boot(null, null, null, null, null, {
+      "kaoyan.pomo.presets.v1": JSON.stringify([
+        { id: "evil", work: 30 }, { id: "my:0x0x1", work: 0 },
+        { id: "my:25x5x2", label: "25 + 5 × 2", work: 25, brk: 5, rounds: 2 }]),
+    });
+    await tick();
+    check("坏数据被挡掉：不是 my: 前缀的、work<=0 的",
+      (BYATTR["data-preset"] || []).length === 6
+      && (BYATTR["data-preset"] || []).some(b => b.dataset.preset === "my:25x5x2"),
+      (BYATTR["data-preset"] || []).map(b => b.dataset.preset).join(","));
   }
 
   console.log("\n" + (fail === 0 ? "全部通过" : "有失败") + "：pass=" + pass + " fail=" + fail);

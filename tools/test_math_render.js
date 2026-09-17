@@ -172,6 +172,77 @@ console.log("\n【真实卡】从题库取一张已 LaTeX 化的数学卡，确�
   );
 }
 
+console.log("\n【ASCII 上下标】_(x) / _i / ^{n} / ^n 渲染成 <sub>/<sup>");
+// 2026-09-17：题库 38 张卡、笔记 200 余处用这种写法（O(n^2)、∬_D、e^(x²/2)、W_T），
+// 而 splitMath 只认 $...$ 与带反斜杠命令的裸 LaTeX，原先整串原样漏出。
+check("单选题解析里的 F_(x)", richText("全微分方程。F_(x) = x²+y → F = x³/3"),
+  "全微分方程。F<sub>x</sub> = x²+y → F = x³/3");
+check("括号式上标 e^(x²/2)", richText("得 y = e^(x²/2)"), "得 y = e<sup>x²/2</sup>");
+check("花括号式上标", richText("T(n)=Θ(n^{log_b a})"), "T(n)=Θ(n<sup>log_b a</sup>)");
+check("单词式上标 O(2^n)", richText("O(2^n) 与 O(n^3)"), "O(2<sup>n</sup>) 与 O(n<sup>3</sup>)");
+check("单词式下标 ∬_D / ∮_C", richText("∮_C Pdx = ∬_D 积分"), "∮<sub>C</sub> Pdx = ∬<sub>D</sub> 积分");
+check("多字母下标 W_T（括号式）", richText("GBN：W_{T} ≤ 2^n"), "GBN：W<sub>T</sub> ≤ 2<sup>n</sup>");
+check("函数括号里的下标 LOC(a_i)", richText("LOC(a_i)=LOC(a_0)+i×L"),
+  "LOC(a<sub>i</sub>)=LOC(a<sub>0</sub>)+i×L");
+check("数字底数 10^6", richText("f/(CPI×10^6)"), "f/(CPI×10<sup>6</sup>)");
+check("右括号底数 (x+y)^2", richText("先算 (x+y)^2"), "先算 (x+y)<sup>2</sup>");
+check("多个标记共存", richText("e^(−y)dy = e^(2x)dx"), "e<sup>−y</sup>dy = e<sup>2x</sup>dx");
+// ③ Pandoc 配对写法：收尾的 ^ 必须一起吃掉，不能留下孤立的 ^
+check("Pandoc 配对 O(n^2^)", richText("答案：O(n^2^)"), "答案：O(n<sup>2</sup>)");
+check("Pandoc 配对 3^x^", richText("则 3^x^ = n"), "则 3<sup>x</sup> = n");
+
+console.log("\n【ASCII 上下标·不误判】文件名 / 标识符 / 区间号 / 填空线一律不动");
+check("文件名 第5章_IO管理.md", richText("见 第5章_IO管理.md"), "见 第5章_IO管理.md");
+check("章节号 CO_6.4", richText("CO_6.4 中断系统"), "CO_6.4 中断系统");
+check("标识符 book_id", richText("字段 book_id、exam_frequency"), "字段 book_id、exam_frequency");
+check("文件名 scan_pdf.py", richText("跑 src/scan_pdf.py"), "跑 src/scan_pdf.py");
+check("正则 (^|x)", richText("正则 (^|x) 的写法"), "正则 (^|x) 的写法");
+check("行首 ^", richText("^abc 开头"), "^abc 开头");
+// ④ 中文里的 ~ 是区间号，绝不能当上下标（审计时抓到的真实用例）
+check("区间号 60~70分钟", richText("控制在60~70分钟内"), "控制在60~70分钟内");
+check("题号区间 1~11", richText("数据结构1~11、计组12~22"), "数据结构1~11、计组12~22");
+check("Pandoc 下标 a~i~ 不处理", richText("结点 a~i~"), "结点 a~i~");
+check("填空线 ____", richText("使____、调____"), "使____、调____");
+// 中文底数：笔记里有「真题_2009_15_Cache_Tag字段_8路组相联.jpg」这类文件名，
+// 中文永远不是数学底数（全库审计抓到的误判）
+check("中文底数 字段_8路", richText("真题_Tag字段_8路组相联.jpg"), "真题_Tag字段_8路组相联.jpg");
+// C 类型名：int64_t 的数字底数后面还粘着字母，不是 10^6 那种数字上标（同样来自审计）
+check("C 类型名 int64_t", richText("假设 int64_t*，5×8=40"), "假设 int64_t*，5×8=40");
+check("uint8_t / float32_t", richText("uint8_t 与 float32_t"), "uint8_t 与 float32_t");
+check("数字底数 10^6 仍要转", richText("MIPS=主频/(CPI×10^6)"), "MIPS=主频/(CPI×10<sup>6</sup>)");
+// 括号式是自定界的，多字母底数（函数名）照收：log_(a) x、Qe^(∫Pdx)
+check("函数名底数 log_(a) x", richText("(log_(a) x)′ = 1/(x ln a)"), "(log<sub>a</sub> x)′ = 1/(x ln a)");
+check("乘积底数 Qe^(∫Pdx)", richText("y=e^(-∫Pdx)[∫Qe^(∫Pdx)dx+C]"),
+  "y=e<sup>-∫Pdx</sup>[∫Qe<sup>∫Pdx</sup>dx+C]");
+check("中文后面的括号式不动", richText("见第5章_(x)"), "见第5章_(x)");
+// 括号内容里带反斜杠 → 是 LaTeX 残段，整体放弃交给 KaTeX 或原样显示
+check("括号内含反斜杠则跳过", richText("x^{2\\3}"), "x^{2\\3}");
+// $...$ 与 ASCII 记号混在一句里，各走各的
+globalThis.katex = {
+  renderToString(tex, opts) { mathCalls.push({ tex, display: !!opts.displayMode }); return "<KATEX>" + tex + "</KATEX>"; },
+};
+check("$公式$ 与 x_i 混排", richText("由 $\\sum a_n$ 得 x_i 收敛"),
+  "由 <KATEX>\\sum a_n</KATEX> 得 x<sub>i</sub> 收敛");
+// 2^32B 这类「上标后面还粘着字母」的写法语义有歧义（2³² B 还是 2^(32B)？），
+// 渲染层故意不动，交给题库数据层写成 $2^{32}$ B —— 别在这里"顺手"改掉。
+check("歧义写法 2^32B 保持原样", richText("主存4GB=2^32B"), "主存4GB=2^32B");
+
+console.log("\n【ASCII 上下标·与既有规则不打架】");
+globalThis.katex = {
+  renderToString(tex, opts) { mathCalls.push({ tex, display: !!opts.displayMode }); return "<KATEX>" + tex + "</KATEX>"; },
+};
+mathCalls.length = 0;
+check("$...$ 里的 ^ _ 仍归 KaTeX，不被 asciiMath 抢", richText("$10^6$ 与 $x_{i}$"),
+  "<KATEX>10^6</KATEX> 与 <KATEX>x_{i}</KATEX>");
+checkTrue("KaTeX 收到的是未改动的 LaTeX 原文",
+  mathCalls.some(c => c.tex === "10^6") && mathCalls.some(c => c.tex === "x_{i}"),
+  "收到的 tex: " + JSON.stringify(mathCalls.map(c => c.tex)));
+check("行内代码里的 _ 原样保留", richText("写 `a_i` 即可"),
+  '写 <code class="md-code">a_i</code> 即可');
+check("粗体与上下标共存", richText("**重点**：x_j 的系数"),
+  "<strong>重点</strong>：x<sub>j</sub> 的系数");
+check("转义仍生效（上下标内容里的尖括号）", richText("a<b 且 x_i"), "a&lt;b 且 x<sub>i</sub>");
+
 console.log("\n" + "=".repeat(52));
 console.log(`通过 ${pass} 项，失败 ${fail} 项`);
 console.log("=".repeat(52));

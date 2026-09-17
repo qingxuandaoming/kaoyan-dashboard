@@ -24,16 +24,12 @@ const fireWin = (ev, obj) => (globalThis.__winListeners[ev] || []).slice().forEa
 // ---- 用 Python 的 ast 取出 FLASH_JS 字面量（避免自己写 Python 字符串解析）----
 // 走文件而不是 stdout：Windows 控制台默认 GBK，⚠ 之类的字符会直接炸掉管道。
 const OUT = path.join(os.tmpdir(), "kaoyan_flash_extracted.js");
-execFileSync("python", ["-c", `
-import ast, io
-src = io.open(r"${SRC}", encoding="utf-8").read()
-tree = ast.parse(src)
-for node in tree.body:
-    if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "FLASH_JS":
-        io.open(r"${OUT}", "w", encoding="utf-8").write(ast.literal_eval(node.value))
-        break
-`], { maxBuffer: 1 << 24 });
+// 走公共脚本：它会把 DAY_START_JS（studyDay / DAY_START_HOUR）一起带上，
+// 只抠 FLASH_JS 的话跑起来是 ReferenceError。
+execFileSync("python", [path.join(__dirname, "extract_js.py"), "FLASH_JS", OUT],
+  { maxBuffer: 1 << 24 });
 const js = fs.readFileSync(OUT, "utf-8");
+const _day = require("./_day");
 
 // ---- 极简 DOM 桩 ----
 let registry = {};
@@ -55,6 +51,16 @@ function mkEl(tag) {
     tagName: (tag || "div").toUpperCase(),
     children: [], _cls: new Set(), dataset: {}, style: {},
     disabled: false, onclick: null, _html: "", _text: "",
+    // 真实 <input> 的 value 永远是字符串，没打过字就是 ""。桩不给默认值的话，
+    // 代码里 input.value.trim() 会直接抛 TypeError——2026-09-17 加「空追问框按回车」
+    // 用例时踩到，那条路以前根本没被跑到。
+    value: "",
+    // id 要能读。全局快捷键那条守卫是 `e.target.id === "fs-exp-input"`——桩以前没有 id，
+    // 恒为 undefined，于是「追问框里按 1-4 / 空格该不该放行给闪卡」这条从来没生效过
+    // （2026-09-17 查「回车是发送还是下一张」时才暴露）。
+    _id: "",
+    get id() { return this._id; },
+    set id(v) { this._id = String(v); },
     // parentNode 要跟着更新、并且**从原父摘走**：浮窗是「节点搬家」（把练习区整块
     // 挪进 #fs-float），用例靠这两条判断搬走了没有 / 搬回来没有（2026-09-22）。
     appendChild(c) {
@@ -92,7 +98,8 @@ function mkEl(tag) {
       const prop = this["on" + ev];
       if (typeof prop === "function") prop(obj || {});
     },
-    setAttribute() {}, getAttribute() { return null; },
+    setAttribute(k, v) { (this._attrs = this._attrs || {})[k] = String(v); },
+    getAttribute(k) { return (this._attrs || {})[k] === undefined ? null : this._attrs[k]; },
     // 闪卡全屏会申请**对模块自己的**原生全屏（2026-09-21）；桩里记一笔供断言
     requestFullscreen() { fsCalls.push("request:" + this.tagName.toLowerCase()); return Promise.resolve(); },
     querySelectorAll(sel) { return qsa(this, sel); },
@@ -127,6 +134,10 @@ function mkEl(tag) {
   // 「不要拽走我的滚动条」这条断言就测不准了。
   if (el.scrollHeight === undefined) el.scrollHeight = 600;
   if (el.clientHeight === undefined) el.clientHeight = 300;
+  // 「这个节点现在看得见吗」——闪卡全屏的 F 键守卫靠它判断（练到一半人在别的
+  // 子页、浮窗也关着时，练习区是 hidden 的，那时按 F 会把人锁进看不见的全屏里）。
+  // 桩默认「看得见」（给一个非空 rect 列表）；要测隐藏就把它清空。
+  el.getClientRects = () => [{ top: 0, left: 0, width: 800, height: 600 }];
   return el;
 }
 // canvas 桩：简答题上传图片时只关心"压缩后的尺寸"，画什么不重要
@@ -143,10 +154,16 @@ function registerIds(host, html, reg) {
   // 反馈区自己是被 renderCard 一次性建出来的，之后的 innerHTML 只含子元素 id，
   // 所以这里只补子元素；先把「谁是反馈区」记下来，免得被下面的循环换掉。
   const isFeedback = reg["fs-feedback"] === host;
-  const re = /id="([\w-]+)"/g; let m;
+  // ⚠️ 标签名要按 HTML 里真实的来，不能一律建 div。全局快捷键那条守卫是
+  //    `/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)`——以前 #fs-exp-input 在桩里
+  //    是个 div，守卫永远不触发，「输入框里的键会不会被全局抢走」根本测不出来
+  //    （2026-09-17 查「追问框里回车=发送还是下一张」时才暴露）。
+  const re = /<(\w+)[^>]*?\bid="([\w-]+)"/g; let m;
   while ((m = re.exec(html))) {
-    if (m[1] === "fs-feedback" && isFeedback) continue;
-    reg[m[1]] = mkEl("div");
+    if (m[2] === "fs-feedback" && isFeedback) continue;
+    const el = mkEl(m[1]);
+    el._id = m[2];
+    reg[m[2]] = el;
   }
   // 评分按钮是 innerHTML 拼出来的，补成子元素好让 querySelectorAll 找得到
   if (isFeedback) {
@@ -156,9 +173,23 @@ function registerIds(host, html, reg) {
       host.children.push(b);
     }
   }
+  // 「这题有问题」的原因芯片也是 innerHTML 拼的（只有 data-kind、没有 id）：
+  // 补成子元素，才能用 querySelectorAll('.fs-flag-kind') 找到并点它（2026-09-17）。
+  if (html.indexOf('class="fs-flag-kind"') >= 0) {
+    const re3 = /data-kind="([\w-]+)"[^>]*?aria-pressed="(\w+)"/g;
+    while ((m = re3.exec(html))) {
+      const b = mkEl("button"); b._cls.add("fs-flag-kind");
+      b.dataset.kind = m[1];
+      b.setAttribute("aria-pressed", m[2]);
+      host.children.push(b);
+    }
+  }
 }
 function matches(el, sel) {
   sel = sel.trim();
+  // .cls[attr="值"] —— 原因芯片的「当前选中」就是这么标的
+  const am = sel.match(/^\.([\w-]+)\[([\w-]+)="([^"]*)"\]$/);
+  if (am) return el._cls.has(am[1]) && (el._attrs || {})[am[2]] === am[3];
   if (sel[0] === ".") return el._cls.has(sel.slice(1));
   if (sel === "[data-rate]") return el.dataset && el.dataset.rate !== undefined;
   return el.tagName === sel.toUpperCase();
@@ -194,6 +225,17 @@ const CARDS = [
 let fetchCalls = [], keyHandler = null;
 // 用例可预置「上次同题同错选的解析」（GET /api/explain 的返回值）
 let explainCache = null;
+// 「这题有问题」标记：POST 过的请求体（2026-09-17）
+let reportsCalls = [];
+// 用例可模拟「serve.js 改了但没重启」：旧版服务对 reports 路径回 404
+let reportsHttp404 = false;
+// 服务端下发的报卡原因清单（真实接口 GET /api/flashcards/reports 的 kinds 字段）
+const REPORT_KINDS = [
+  { id: "multi_correct", label: "多个选项都对", hint: "不止一个正确项" },
+  { id: "answer_wrong", label: "答案有误", hint: "标出的答案不对" },
+  { id: "other", label: "其它", hint: "看备注" },
+];
+const REPORT_LABEL = REPORT_KINDS.reduce((m, k) => { m[k.id] = k.label; return m; }, {});
 // 用例可换一套卡：默认那套没有 question_id，压根不会触发解析区
 let cardsPayload = null;
 // 用例可预置「服务端的当日那一组」（多端共享的那份进度，2026-09-21）
@@ -201,7 +243,9 @@ let serverSession = null;
 
 function boot(seed) {
   registry = {}; fetchCalls = []; keyHandlers = []; fsCalls = []; docListeners = {}; focusSim = true;
-  // 每次 boot 等于「新开一次页面」：窗口监听者与「同步钩子已接线」标记都要重置，
+  reportsCalls = [];
+  reportsHttp404 = false;
+  // 「每次 boot 等于新开一次页面」：窗口监听者与「同步钩子已接线」标记都要重置，
   // 否则第二次 boot 不再注册 hashchange/visibilitychange 钩子，同步就测不到了。
   globalThis.__winListeners = {};
   globalThis.__flashSyncWired = false;
@@ -306,9 +350,28 @@ function boot(seed) {
       feedback: "结论和核心推理都对，补上判据那句就更完整。",
       reference_answer: "是拐点。f''(0) 不存在但两侧变号。",
     };
-    return Promise.resolve({ json: () => Promise.resolve(payload) });
-  };
-  // ⚠️ location 必须给桩：FLASH_JS / SETTINGS_JS 开头就读 location.protocol 决定 API 基址，
+    // 「这题有问题」标记（2026-09-17）：GET 回原因清单（前端不自己抄一份标签表），
+    // POST 回新标记（含待修总数，前端那句 toast 要用）。
+    else if (url.includes("/flashcards/reports")) {
+      if (opts && opts.body) {
+        if (reportsHttp404) {
+          // 模拟「serve.js 改了但没重启」：旧版服务对这个路径回 404，body 也不是 JSON
+          return Promise.resolve({ ok: false, status: 404,
+            json: () => Promise.reject(new Error("不是 JSON")) });
+        }
+        const b = JSON.parse(opts.body);
+        reportsCalls.push(b);
+        payload = { ok: true, id: 7, created: true, card_id: b.card_id, kind: b.kind,
+                    kind_label: REPORT_LABEL[b.kind] || "其它", count: 1 };
+      } else {
+        payload = { ok: true, open_count: 1, count: 0, reports: [], kinds: REPORT_KINDS };
+      }
+    }
+    // ⚠️ 真实 fetch 的 Response 带 ok/status —— 桩也必须给：生产代码现在会先看
+    //    `if (!r0.ok)` 区分「旧版服务 404」与「真的连不上」，桩不给这两个字段的话
+    //    ok 恒为 undefined → 明明成功的请求被判成失败（2026-09-17 踩到，一次假红灯）。
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
+  };  // ⚠️ location 必须给桩：FLASH_JS / SETTINGS_JS 开头就读 location.protocol 决定 API 基址，
   //    少了它整段 IIFE 在 ReferenceError 里当场死掉（2026-09-21 补，之前 47 项全炸）。
   const loc = { protocol: "http:", origin: "http://localhost:8080", hash: "#/flash" };
   globalThis.__flashTestLoc = loc;   // 用例里要改 hash 触发「切子页」的同步钩子
@@ -664,8 +727,9 @@ function check(name, cond, extra) {
   // ---------- 13. 刷新回来：闸门要给「继续本组」而不是偷偷重新组题 ----------
   console.log("\n[13] 刷新中断后继续");
   {
-    const d = new Date();
-    const today = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    // 用学习日，跟页面 todayStr() 同一套（凌晨 4 点前算前一天）。
+    // 用日历日的话，0:00~4:00 之间闸门会认定「这不是今天的组」而认不出本组。
+    const today = _day.dayKey(js);
     const saved = { date: today, cards: CARDS, idx: 2, stats: { 1: 0, 2: 0, 3: 1, 4: 0 }, lastRatedIdx: null, filter: null };
     boot({ kaoyan_flash_session_v1: JSON.stringify(saved) });
     await tick();
@@ -952,6 +1016,74 @@ function check(name, cond, extra) {
     }
   }
 
+  console.log("\n[追问框里的键位：回车=发送，空格=下一张]");
+  {
+    // 用户 2026-09-17 反馈：「在输入框里回车就是发送的意思，下一张交给空格」。
+    // 关键是**事件会冒泡**：追问框自己的 onkeydown 和全局那个挂在 document 上的
+    // 快捷键监听器**两个都会跑到**（preventDefault 只挡默认行为，不挡传播）。
+    // 所以用例必须两个都派发，才等于用户真的按了一下键——以前那条用例只派发了
+    // 元素自己的 onkeydown，于是「全局会不会抢这个键」根本没被验证过。
+    const keyOn = (el, key, code) => {
+      const ev = { key: key, code: code || ("Key" + key), target: el, preventDefault() {} };
+      if (typeof el.onkeydown === "function") el.onkeydown(ev);
+      keyHandlers.forEach(fn => fn(ev));
+    };
+
+    const card = () => (registry["flash-studio"]._html.match(/第 \d+ \/ \d+ 张/) || ["(找不到)"])[0];
+    // 每个小分支都从「第 1 张、已答对、空追问框」重新起——按键会翻页，
+    // 挤在同一轮里测的话，后一条跑到的其实是下一张卡的状态（数字键那条就这么假失败过）。
+    const freshAskBox = async () => {
+      // ⚠️ 必须带上 question_id：mountExplain 一开头就是 `if (!qid) return;`，
+      //    默认那组夹具卡没有这个字段，解析面板（连同追问框）根本不会挂上来。
+      cardsPayload = CARDS.map((c, i) => Object.assign({}, c, { question_id: "Q-TEST-" + (i + 1) }));
+      serverSession = null;
+      await bootStarted();
+      press("B");                                 // 第 1 张答对 → 挂上空的追问框
+      // mountExplain 里面挂壳是同步的，但整条链路要等几拍才进 DOM
+      for (let i = 0; i < 6; i++) await tick();
+      return registry["fs-exp-input"];
+    };
+
+    // ① 空框按回车：不翻页（回车在这个框里只表示发送，而发送空消息本就无事发生）
+    let input = await freshAskBox();
+    check("追问框在场且是空的", !!input && input.tagName === "INPUT" && !input.value,
+      input ? input.tagName + " " + JSON.stringify(input.value) : "(无输入框)");
+    check("现在在第 1 张", card() === "第 1 / 5 张", card());
+    keyOn(input, "Enter", "Enter");
+    await tick(); await tick();
+    check("★ 空追问框里按回车 → 不翻页（回车只表示发送）", card() === "第 1 / 5 张", card());
+    check("★ 也没有误发消息",
+      !fetchCalls.some(c => c.url.includes("/followup") || c.url.includes("/api/explain")),
+      JSON.stringify(fetchCalls.map(c => c.url.slice(-40))));
+
+    // ② 空框按空格：翻页并记为「记得 3」（「下一张」只认空格）
+    input = await freshAskBox();
+    keyOn(input, " ", "Space");
+    await tick(); await tick();
+    check("★ 空追问框里按空格 → 翻到第 2 张", card() === "第 2 / 5 张", card());
+    check("   空格走的是「记得」那一档", rated().length === 1 && rated()[0].body.rating === 3,
+      JSON.stringify(rated().map(r => r.body.rating)));
+
+    // ③ 空框按 1-4：仍然放行给自评。这是 2026-09-21 另一条用户反馈修出来的行为
+    //    （空框里第一个字符不可能是提问，数字键该给闪卡用）。这条以前同样测不到，
+    //    因为桩的 tagName 和 id 都不对，守卫恒不成立。
+    input = await freshAskBox();
+    keyOn(input, "1", "Digit1");
+    await tick(); await tick();
+    check("★ 空追问框里按 1 → 记为「忘记」并翻页（数字键仍归闪卡）",
+      rated().length === 1 && rated()[0].body.rating === 1, JSON.stringify(rated().map(r => r.body.rating)));
+
+    // ④ 框里有字：回车 = 发送（这条是输入框的本分，不能被改坏）
+    input = await freshAskBox();
+    input.value = "这里为什么要这样？";
+    keyOn(input, "Enter", "Enter");
+    await tick(); await tick(); await tick();
+    check("★ 框里有字时回车 = 发送（不是翻页）",
+      fetchCalls.some(c => /followup|\/api\/explain/.test(c.url)),
+      JSON.stringify(fetchCalls.map(c => c.url.slice(-30))));
+    check("字被送出去了（输入框清空）", input.value === "", JSON.stringify(input.value));
+  }
+
   console.log("\n[答对/看答案：只给空的追问框，不预设问题、不预先生成]");
   {
     // 第 1 张卡答案=乙（序号 1）：按 B 就是答对
@@ -1014,9 +1146,14 @@ function check(name, cond, extra) {
     await tick(); await tick();
     check("闸门能认出服务端那份没刷完的组（本机清过缓存也不怕）",
       !!registry["fs-gate-resume"], Object.keys(registry).join(","));
-    check("按钮写明从第几张接上（跨设备看得见）",
-      registry["flash-studio"]._html.indexOf("从第 3 张起") >= 0,
+    // 2026-09-17 起不再显示「从第 N 张起」：服务端 resume 交回来的就是「剩下的那些」，
+    // 位置恒为第 1 张（见 serve.js 的 remainingCards）。以前那个数字是按没剔过的列表
+    // 算的，会虚高，人读成「要跳过几张没答的」。跨设备接续真正有用的信息是「还剩几张」。
+    check("★ 按钮写明还剩几张（跨设备看得见）",
+      registry["flash-studio"]._html.indexOf("继续本组（还剩 " + (CARDS.length - 2) + " 张）") >= 0,
       registry["flash-studio"]._html.slice(0, 280));
+    check("不再出现「从第 N 张起」（剩下的就是从第 1 张起）",
+      registry["flash-studio"]._html.indexOf("从第") < 0);
     check("提示里说明进度存服务端、多设备共用",
       registry["flash-studio"]._html.indexOf("进度存在服务端") >= 0);
     check("提示里点名上次是哪台设备刷的",
@@ -1323,6 +1460,222 @@ function check(name, cond, extra) {
     fireWin("hashchange", {});
     check("★ 切回闪卡页自动收起（练习区该回家了，闪卡页看上去才是完整的）",
       api2.isOpen() === false);
+  }
+
+  // ---------- 22. 自定义键位：改完键，闪卡真的跟着换 ----------
+  // 2026-09-17 加了键位总表（KEYS_JS），闪卡键盘段不再自己比 ev.key，改成问
+  // __keys.matches()。这一组就是那次改造的回归网：只测「总表算得对」不够，
+  // 真正要防的是**表改了、模块没读表** —— 那种情况设置页看着一切正常，按键却
+  // 毫无反应，是最难查的一类。所以每条都走 press()，从监听器那头验。
+  // 表自己的算法与设置页 UI 在 tools/test_keys.js 里。
+  console.log("\n[22] 自定义键位：设置里改了键，闪卡键盘真的跟着换");
+  {
+    // ⚠️ 这两个是模块级的「这一轮用哪套卡 / 服务端那份进度」开关，前面的用例
+    //    会把它们改掉且只在文件末尾才复位。不复位的话这一组会拿到空卡组，
+    //    闪卡区停在「今日计划已完成」上，按什么键都没反应——断言会全绿或全红
+    //    但都不是我们要测的东西（2026-09-17 加这一组时踩到，查了半天）。
+    cardsPayload = null;
+    serverSession = null;
+    const seedKeys = o => ({ "kaoyan.keys.v1": JSON.stringify(o) });
+    const bootWith = async (o) => {
+      const d = boot(seedKeys(o));
+      await tick();
+      const b = gateBtn();
+      if (b) b.click();
+      await tick(); await tick();
+      return d;
+    };
+
+    // ① 撤销改到 N：新键生效，旧键 U 失效
+    {
+      await bootWith({ "flash.undo": "n" });
+      check("（前置）键位表读到了自定义键", globalThis.__keys.specOf("flash.undo") === "n",
+        globalThis.__keys.specOf("flash.undo"));
+      press("A"); await tick();               // 答错 → 自动判，idx 停在当前张
+      check("（前置）A 已作答并被锁定",
+        opts()[0] && opts()[0].disabled === true);
+      check("答错后仍在当前张（撤销的前提）", !fb().includes("data-rate"));
+      press("N"); await tick();
+      check("★ 撤销改到 N 之后，按 N 能撤销",
+        undos().length === 1 && undos()[0].body.card_id === 1, JSON.stringify(undos()));
+      press("U"); await tick();
+      check("★ 旧键 U 已失效（不再撤销第二次）", undos().length === 1,
+        JSON.stringify(undos()));
+    }
+
+    // ② 显示答案改到 X：空格失效，X 生效
+    {
+      await bootWith({ "flash.reveal": "x" });
+      press(" "); await tick();               // 空格（ev.key = " "、code = "Space"）
+      check("★ 显示答案改到 X 之后，空格不再揭晓", !fb().includes("data-rate"),
+        fb().slice(0, 60));
+      press("X"); await tick();
+      check("★ 按 X 揭晓答案", (fb().match(/data-rate=/g) || []).length === 4);
+    }
+
+    // ③ 别名不受改键影响：reveal 改走 X 之后，回车仍然等效
+    {
+      await bootWith({ "flash.reveal": "x" });
+      press("Enter"); await tick();
+      check("★ 回车是常驻别名，主键被改掉也还管用",
+        (fb().match(/data-rate=/g) || []).length === 4);
+    }
+
+    // ④ 全屏键改到 G：F 失效，G 生效
+    {
+      const d = await bootWith({ "flash.full": "g" });
+      const sec = () => d.getElementById("flash-practice");
+      press("F"); await tick();
+      check("★ 全屏改到 G 之后，F 不再进全屏", !sec()._cls.has("is-full"));
+      press("G"); await tick();
+      check("★ 按 G 进全屏", sec()._cls.has("is-full"));
+    }
+
+    // ⑤ 同 scope 撞键会被设置页拦住，所以这里只会出现「默认键位原样能用」
+    {
+      await bootWith({});
+      press("B"); await tick();
+      check("没改键时默认行为不变：B 仍是选选项",
+        opts()[1] && opts()[1]._cls.has("correct"));
+    }
+  }
+
+  // ---------- 23. 「这题有问题」标记（2026-09-17）----------
+  // 用户的诉求：有些闪卡**本身**是错的（他实测到那道叠加原理的题 A、C 都对），
+  // 练习时要能就地标出来，并且 AI 要能在每日任务里拿到并修掉。
+  // 这一组盯住前端那一半：徽标看得见、面板打得开、提交的字段对（错一个字段，
+  // 每日任务里 AI 拿到的现场就是错的，等于白标）。
+  console.log("\n[23] 「这题有问题」标记：徽标 / 原因面板 / 提交");
+  {
+    cardsPayload = null; serverSession = null;
+
+    // ① 已经标记过的卡：题面下要看得见「它在等修复」，否则用户会以为标记丢了
+    const flagged = Object.assign({}, CARDS[0], {
+      card_id: "C-FLAG-1", question_id: "Q-FLAG-1",
+      report: { id: 3, kind: "multi_correct", kind_label: "多个选项都对",
+                note: "A、C 都对", created_at: "" },
+    });
+    cardsPayload = [flagged];
+    boot();
+    await tick(); await tick();
+    gateBtn().click();
+    await tick(); await tick();
+    const area = () => registry["flash-studio"]._html || "";
+    check("★ 已标记的卡带头部徽标（⚑ 待修 · 多个选项都对）",
+      area().indexOf("fs-report-badge") >= 0 && area().indexOf("⚑ 待修 · 多个选项都对") >= 0,
+      area().slice(0, 200));
+    check("★ 题面下说清「已排进每日任务等 AI 核对修复」",
+      area().indexOf("fs-report-note") >= 0 && area().indexOf("每日任务") >= 0);
+    check("标过的话也带出来（他自己写的那句）", area().indexOf("A、C 都对") >= 0);
+    // 标记按钮在**反馈区**（和🗑删卡同一排）：没揭晓答案前不摆出来，
+    // 免得答题时被一个「这题有问题」按钮分神。
+    check("（前置）没揭晓答案时反馈区还没出现（按钮在那儿）", !registry["fs-flag"]);
+    press(" "); await tick(); await tick();      // 直接看答案
+    check("★ 揭晓后按钮就是「已标记：多个选项都对」（不用点开才知道）",
+      !!registry["fs-flag"]
+      && fb().indexOf('class="fs-btn fs-flag on"') >= 0
+      && fb().indexOf("⚑ 已标记：多个选项都对") >= 0,
+      fb().slice(-260));
+    // 改原因：点开面板时要把原来那条选中、把那句话填回去，不然等于让人重打一遍
+    registry["fs-flag"].click();
+    await tick(); await tick(); await tick();
+    const rePanel = (registry["fs-flag-panel"] || {})._html || "";
+    check("改原因：原来那条仍是选中态",
+      (rePanel.match(/aria-pressed="true"/g) || []).length === 1
+      && rePanel.indexOf('data-kind="multi_correct" aria-pressed="true"') >= 0,
+      rePanel.slice(0, 260));
+    check("改原因：上次那句话填回备注框",
+      registry["fs-flag-note"] && registry["fs-flag-note"].value === "A、C 都对",
+      registry["fs-flag-note"] && registry["fs-flag-note"].value);
+    registry["fs-flag-cancel"].click();
+    check("点取消 → 面板收起、按钮状态不变（没提交任何东西）",
+      !(registry["fs-flag-panel"] || {})._html && reportsCalls.length === 0,
+      JSON.stringify(reportsCalls));
+
+    // ② 没标记过的卡：点「⚑ 这题有问题」弹出原因面板
+    //    这张卡带 question_id：答对后 AI 解析区会真的挂上，好在提交标记之后
+    //    验证「解析与追问框没被冲掉」（那正是「就地更新」的意义）。
+    cardsPayload = [Object.assign({}, CARDS[0], { question_id: "Q-FLAG-2" })];
+    boot();
+    await tick(); await tick();
+    gateBtn().click();
+    await tick(); await tick();
+    check("（前置）未标记的卡没有徽标与提示条",
+      area().indexOf("fs-report-badge") < 0 && area().indexOf("fs-report-note") < 0);
+    // 答对（B）之后才会出现反馈区：标记按钮在那儿
+    press("B"); await tick(); await tick(); await tick();
+    check("（前置）已进入反馈区", fb().indexOf("fs-flag") >= 0);
+    check("（前置）AI 解析区已经挂上（追问框在）", !!registry["fs-exp-input"]);
+    check("未标记时按钮写着「这题有问题」", fb().indexOf("⚑ 这题有问题") >= 0, fb().slice(-240));
+    check("（前置）面板是空的", !(registry["fs-flag-panel"] || {})._html);
+    registry["fs-flag"].click();
+    await tick(); await tick(); await tick();
+    const panelHtml = (registry["fs-flag-panel"] || {})._html || "";
+    check("★ 面板里是服务端下发的原因清单（前端不自己抄一份标签）",
+      panelHtml.indexOf("多个选项都对") >= 0 && panelHtml.indexOf("答案有误") >= 0,
+      panelHtml.slice(0, 160));
+    check("面板有备注框与提交按钮",
+      panelHtml.indexOf('id="fs-flag-note"') >= 0 && panelHtml.indexOf('id="fs-flag-save"') >= 0);
+    check("第一个原因默认选中（只点一下就能提交）",
+      (panelHtml.match(/aria-pressed="true"/g) || []).length === 1, panelHtml.slice(0, 300));
+
+    // ③ 换一个原因（默认是「多个选项都对」，这里改成「答案有误」）
+    const chips = (registry["fs-flag-panel"] || {}).children
+      .filter(c => c._cls.has("fs-flag-kind"));
+    check("（前置）原因芯片都被补成了可点的节点", chips.length === 3, String(chips.length));
+    if (chips.length === 3) {
+      chips[1].click();
+      check("点了第二个芯片 → 选中态跟着换",
+        chips[1].getAttribute("aria-pressed") === "true"
+        && chips[0].getAttribute("aria-pressed") === "false");
+    }
+
+    // ④ 填一句话再提交
+    registry["fs-flag-note"].value = "答案应该是 B 不是 A";
+    registry["fs-flag-save"].click();
+    await tick(); await tick();
+    check("★ 提交了报卡请求", reportsCalls.length === 1, JSON.stringify(reportsCalls));
+    check("★ 带上卡号 + 选中的原因 + 那句话",
+      reportsCalls[0] && reportsCalls[0].card_id === 1
+      && reportsCalls[0].kind === "answer_wrong"
+      && reportsCalls[0].note === "答案应该是 B 不是 A",
+      JSON.stringify(reportsCalls[0]));
+    check("★ 正确答案存成可读形式（「B. 乙」而不是下标 1——复核时要一眼看懂）",
+      reportsCalls[0] && String(reportsCalls[0].correct || "").indexOf("B. 乙") === 0,
+      JSON.stringify(reportsCalls[0]));
+    check("★ 按钮变成已标记（就地改，不重绘整张卡）",
+      registry["fs-flag"].className.indexOf("fs-flag on") >= 0
+      && registry["fs-flag"].textContent.indexOf("已标记：答案有误") >= 0,
+      registry["fs-flag"].textContent);
+    check("面板收起来了", !(registry["fs-flag-panel"] || {})._html);
+    check("★ 解析区与追问框没被冲掉（就地更新：刚问的话还在）",
+      !!registry["fs-exp-input"] && !!registry["fs-explain"],
+      Object.keys(registry).filter(k => k.indexOf("exp") > 0).join(","));
+
+    // ⑤ 服务端还是旧版（改了 serve.js 却没重启）→ 路径 404、body 也不是 JSON。
+    //    这种必须说清「重启大盘后生效」：含混成「无法连接本地服务」的话，人会以为
+    //    是服务没开，去反复刷新（2026-09-17 首次上线当天就撞到一次）。
+    //    ⚠️ 开关要在 boot() **之后**设：boot 每次都会把它复位（等于新开一次页面）。
+    //    ⚠️ cardsPayload 也必须复位：上一段的对象已经被 submitReport 挂上 report 了，
+    //       不清的话新卡一渲染就是「已标记」，这条断言会假红（模块级状态串场，踩过多次）。
+    cardsPayload = null;
+    const d5 = boot();
+    await tick(); await tick();
+    gateBtn().click();
+    await tick(); await tick();
+    press("B"); await tick(); await tick();
+    reportsHttp404 = true;
+    registry["fs-flag"].click();
+    await tick(); await tick(); await tick();
+    registry["fs-flag-save"].click();
+    await tick(); await tick();
+    const said = (d5.body.children || []).map(c => c.textContent || "").join(" | ");
+    check("★ 旧版服务时说清「重启大盘后生效」（不是含混的「无法连接」）",
+      said.indexOf("重启") >= 0 && said.indexOf("无法连接") < 0, said);
+    check("没假装成功：按钮没变成「已标记」",
+      fb().indexOf("⚑ 已标记") < 0 && reportsCalls.length === 0,
+      "已标记?=" + (fb().indexOf("⚑ 已标记") >= 0) + " calls=" + JSON.stringify(reportsCalls));
+    reportsHttp404 = false;
   }
 
   cardsPayload = null;

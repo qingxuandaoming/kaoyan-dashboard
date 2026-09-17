@@ -47,6 +47,13 @@ backups/
 sync_state.json
 note_reviews.json
 
+# ---------- 本地数据库备份（含私人学习数据，绝不上传）----------
+_bak_*.db
+*.bak_*.db
+
+# ---------- 一次性调试脚本（硬编码本机绝对路径，不入库）----------
+tools/_tmp_*.js
+
 # ---------- Obsidian Bases（属于笔记库，不属于本工程）----------
 *.base
 
@@ -61,3 +68,6 @@ Desktop.ini
 *.tmp
 *.log
 ~$*
+
+# ---------- 含硬编码 API key 的本地测试脚本（密钥不入库）----------
+tools/408/test_vlm.py

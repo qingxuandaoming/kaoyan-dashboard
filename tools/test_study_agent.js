@@ -48,12 +48,44 @@ const card = (stem) => ({
   options: ["甲", "乙", "丙", "丁"], answer: 2, explanation: "因为丙", topic: "常微分方程",
 });
 
+// 带「这题有问题」标记模块的假 deps（2026-09-17）
+function mkReportDeps(over) {
+  const resolved = [];
+  const base = {
+    cardReports: {
+      listReports: () => [{
+        id: 12, card_id: "C-STUDY-ABCD1234", type: "choice", kind: "multi_correct",
+        kind_label: "多个选项都对", note: "A、C 都对", subject: "数学一", topic_name: "微分方程",
+        stem: "已知 y₁* 是 y″+p(x)y′+q(x)y=f₁(x) 的特解…",
+        content: { options: ["甲", "乙", "丙", "丁"], answer: 0 }, stale: false,
+      }],
+      resolveReport: (db, id, opts) => {
+        resolved.push({ id: id, opts: opts });
+        if (opts.action === "fixed" && !opts.note && !opts.patch) {
+          return { ok: false, error: "fixed 要么给 patch（改题），要么给 note" };
+        }
+        return {
+          ok: true, id: id, action: opts.action,
+          status: opts.action === "fixed" ? "fixed"
+            : (opts.action === "dismissed" ? "dismissed" : "deleted"),
+          card_id: "C-STUDY-ABCD1234",
+          changes: opts.patch ? Object.keys(opts.patch) : [],
+          warnings: [],
+        };
+      },
+    },
+    resolved: resolved,
+  };
+  return mkDeps(Object.assign(base, over));
+}
+
 // ---------------------------------------------------------------------------
 console.log("\n[1] 工具定义：模型看不看得懂，全靠这几句描述");
 {
   const names = agent.TOOLS.map(t => t.function.name);
-  check("四个工具都在：search_bank / search_notes / make_cards / open_practice",
-    ["search_bank", "search_notes", "make_cards", "open_practice"].every(n => names.includes(n)),
+  check("六个工具都在：search_bank / search_notes / make_cards / open_practice / list_card_reports / fix_card",
+    ["search_bank", "search_notes", "make_cards", "open_practice", "list_card_reports", "fix_card"]
+      .every(n => names.includes(n)),
     names.join(","));
   check("每个工具都带 description 与 parameters",
     agent.TOOLS.every(t => t.function.description && t.function.parameters
@@ -171,6 +203,63 @@ console.log("\n[2] 查题库 / 查笔记");
 
     const r3 = await run("make_cards", { cards: "不是数组" });
     check("cards 不是数组 → 失败而不是抛异常", r3.ok === false);
+  }
+
+  // -------------------------------------------------------------------------
+  console.log("\n[5b] 「这题有问题」标记的读写（list_card_reports / fix_card）");
+  {
+    const d = mkReportDeps();
+    const run = agent.makeToolRunner(d);
+
+    const r = await run("list_card_reports", {});
+    check("列标记：带回 id / 原因 / 题干 / 选项（模型要接着改题）",
+      r.ok && r.reports.length === 1 && r.reports[0].id === 12
+      && r.reports[0].kind_label === "多个选项都对" && r.reports[0].options.length === 4,
+      JSON.stringify(r.reports));
+    check("summary 说明有几条待修", /1 条待修/.test(r.summary), r.summary);
+
+    const bad = await run("list_card_reports", { subject: "数学一" });
+    check("带科目也不炸（假实现忽略科目）", bad.ok === true);
+
+    const noId = await run("fix_card", { note: "改好了" });
+    check("★ 没有 report_id → 拒绝（不许瞎改一张不知道是哪张的卡）",
+      noId.ok === false && !!noId.error, JSON.stringify(noId));
+
+    const noNote = await run("fix_card", { report_id: 12 });
+    check("既没 patch 也没 note → 如实失败（模块那句错误原样带回）",
+      noNote.ok === false && /patch/.test(noNote.error), JSON.stringify(noNote));
+
+    const fixed = await run("fix_card", {
+      report_id: 12, note: "把 C 改成真干扰项",
+      patch: { options: ["甲", "乙", "丙", "丁"], answer: 0 },
+    });
+    check("改题成功：报出改了哪些字段", fixed.ok && /改好了/.test(fixed.summary)
+      && fixed.changes.indexOf("options") >= 0, JSON.stringify(fixed));
+    check("传下去的是 report_id + note + patch（原样交给模块，不在这里重写规则）",
+      d.resolved.some(x => x.id === 12 && x.opts.note === "把 C 改成真干扰项" && !!x.opts.patch),
+      JSON.stringify(d.resolved));
+    check("留痕：actions 里有 card_fixed（前端 toast 用）",
+      d.actions.some(a => a.type === "card_fixed" && a.report_id === 12 && a.status === "fixed"));
+
+    const dis = await run("fix_card", { report_id: 12, action: "dismissed", note: "我记错了，题没毛病" });
+    check("驳回想得通", dis.ok && dis.status === "dismissed" && /驳回/.test(dis.summary), dis.summary);
+
+    const noDep = await agent.makeToolRunner(mkDeps({}))("list_card_reports", {});
+    check("★ 没接上标记模块时如实失败（不抛异常、不谎报「没有」）",
+      noDep.ok === false && !!noDep.error, JSON.stringify(noDep));
+
+    const boom = await agent.makeToolRunner(mkReportDeps({
+      cardReports: { listReports: () => [], resolveReport: () => { throw new Error("库锁了"); } },
+    }))("fix_card", { report_id: 1, note: "x" });
+    check("改题抛错也不炸整轮", boom.ok === false && /库锁了/.test(boom.error), JSON.stringify(boom));
+
+    check("实时标签：翻标记 / 核对某条", /标记/.test(agent.runningLabel("list_card_reports", {}))
+      && /#12/.test(agent.runningLabel("fix_card", { report_id: 12 })),
+      agent.runningLabel("list_card_reports", {}) + " / " + agent.runningLabel("fix_card", { report_id: 12 }));
+    check("工具说明里写了「核对过再调」和「宁可驳回也不要硬改」",
+      /核对过/.test(agent.TOOLS.find(t => t.function.name === "fix_card").function.description));
+    check("AGENT_HINT 教它什么时候用（学生问「那些标了有问题的题」）",
+      /list_card_reports/.test(agent.AGENT_HINT) && /fix_card/.test(agent.AGENT_HINT));
   }
 
   // -------------------------------------------------------------------------

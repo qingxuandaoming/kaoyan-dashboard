@@ -57,6 +57,481 @@ OUTPUT_PATH   = BASE_DIR / "src" / "dashboard.html"
 
 EXAM_DATE = date(2026, 12, 19)
 
+# 学习日起点：凌晨 4 点前算前一天（2026-09-17）。
+# 下发给页面里的 POMO_JS（todayKey）与 FLASH_JS（todayStr），让前端算出来的
+# 「今天」跟服务端 localToday() 是同一个。两边对不上会出真 bug：POMO_JS 拿
+# 本地 todayKey 去和服务端返回的 today 做跨设备合并，差一天就会把刚记的成绩覆盖成 0。
+# ⚠️ serve.js 里有一份**同值**常量 DAY_START_HOUR，改这里必须一起改那边。
+#    tools/test_day_start.js 会盯着这两个值是否还相等。
+DAY_START_HOUR = 4
+
+# 下发给页面的那段 JS（占位符 // __DAY_START__）。studyDay() 是前端版的
+# localToday()，跟 serve.js 的实现逐行对应，别只改一边。
+DAY_START_JS = """
+// ── 学习日起点（generate_dashboard.py 注入，值来自那边的 DAY_START_HOUR）──
+// 凌晨 4 点前算前一天。跟服务端 localToday() / studyDayStart() 是同一套规则：
+// 前端算出的「今天」必须和服务端一致，否则 POMO_JS 跨设备合并时会把成绩覆盖成 0。
+// ⚠️ 这段必须排在 FLASH_JS / POMO_JS 前面（占位符在脚本块最开头）。
+const DAY_START_HOUR = %d;
+function studyDay(d) {
+    const t = d ? new Date(d.getTime()) : new Date();
+    if (t.getHours() < DAY_START_HOUR) t.setDate(t.getDate() - 1);   // 还没到起点 → 算前一天
+    return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0")
+         + "-" + String(t.getDate()).padStart(2, "0");
+}
+""" % DAY_START_HOUR
+
+# ============================================================
+# 快捷键总表（占位符 // __KEYS_JS__，2026-09-17）
+#
+# 为什么要有这一层：以前每个模块各自写死 ev.key === "u"，键位散在六七个地方，
+# 设置页想说清楚「现在有哪些快捷键」只能靠手抄，改一个键得翻遍全文，而且改完
+# 提示文案还留在旧键上教人按错。这里收成一张表 —— **表是唯一真相源**：模块只问
+# 「这个事件是不是这个动作」，设置页直接读表渲染，提示文案也从表里生成。
+#
+# 三条约定，改键盘前先读：
+#  ① **空格在 ev.key 里是 " "（一个空格字符），不是 "Space"** —— 直接写
+#     ev.key === "Space" 永远不成立（闪卡那边一直用的是 ev.code，两套写法混着
+#     最容易出「改了键没反应」这种查半天的 bug）。所有键名先进 canonKey() 归一化。
+#  ② **Scope 决定撞键算不算冲突**：闪卡练习区和笔记阅读弹窗互斥出现，同一个 F
+#     各管各的，不算冲突；同一个 scope 内撞了才是真冲突，设置页会拦住。
+#  ③ **Shift 不参与匹配**：F 和 Shift+F 是同一个物理键，浏览器给的 ev.key 一个是
+#     "f" 一个是 "F"，要求 shift 精确相等的话，大写状态按 F 就没反应了 —— 这是
+#     原代码 `ev.key !== "f" && ev.key !== "F"` 在防的坑，别在匹配器里重新踩回去。
+# ============================================================
+# 运行时错误日志（2026-09-18）：最先注入（marker // __LOG_JS__ 在主脚本最顶部，
+# 早于 const D）。
+#   - 捕获 window 'error' / 'unhandledrejection' / console.error，带 时间+页面+堆栈。
+#   - 环形缓冲进 localStorage(kaoyan_runtime_log, 上限 300 条)，并批量 POST 到
+#     /api/logs 落服务端 error.log（[web] 前缀），出问题时敢 GET /api/logs 拉。
+#   - 全部 try/catch 静默，绝不反向打断页面。
+#   - 暴露 window.__webLog({kind,message,stack}) 供关键动作埋点复用。
+LOG_JS = '''
+(function () {
+    var KEY = 'kaoyan_runtime_log';
+    var pending = [];
+    var timer = null;
+    function page() { return (location.hash || '').replace(/^#\\/?/, '') || 'root'; }
+    function push(kind, message, stack) {
+        var e = { ts: Date.now(), page: page(), kind: kind, message: message, stack: stack || '' };
+        try {
+            var arr = [];
+            try { arr = JSON.parse(window.localStorage.getItem(KEY) || '[]'); } catch (_) {}
+            if (!Array.isArray(arr)) arr = [];
+            arr.push(e);
+            if (arr.length > 300) arr = arr.slice(arr.length - 300);
+            try { window.localStorage.setItem(KEY, JSON.stringify(arr)); } catch (_) {}
+        } catch (_) {}
+        pending.push(e);
+        if (pending.length >= 5) flush();
+        else if (!timer) { timer = setTimeout(function () { timer = null; flush(); }, 12000); }
+    }
+    function flush() {
+        if (!pending.length) return;
+        var batch = pending; pending = [];
+        try {
+            fetch('/api/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ source: 'web', entries: batch }) }).catch(function () {});
+        } catch (_) {}
+    }
+    if (window.addEventListener) {
+        window.addEventListener('error', function (ev) {
+            try {
+                var msg = ev && ev.message ? String(ev.message) : '';
+                var st = ev && ev.error && ev.error.stack ? String(ev.error.stack) : '';
+                if (!msg && ev && ev.filename) msg = String(ev.filename) + ':' + (ev.lineno || '');
+                push('error', msg, st);
+            } catch (_) {}
+        }, true);
+        window.addEventListener('unhandledrejection', function (ev) {
+            try {
+                var r = (ev && ev.reason) || {};
+                var msg = r && r.message ? String(r.message) : String(r);
+                push('reject', msg, (r && r.stack ? String(r.stack) : ''));
+            } catch (_) {}
+        });
+    }
+    try {
+        var oe = console.error.bind(console);
+        console.error = function () {
+            oe.apply(null, arguments);
+            try {
+                push('console-error', Array.prototype.slice.call(arguments).map(function (a) {
+                    if (typeof a === 'string') return a;
+                    try { var s = JSON.stringify(a); return s === undefined ? String(a) : s; } catch (_) { return String(a); }
+                }).join(' '), '');
+            } catch (_) {}
+        };
+    } catch (_) {}
+    window.__webLog = function (o) { push(o.kind || 'info', o.message || '', o.stack || ''); };
+    window.__webLogDump = function () {
+        try { return JSON.parse(window.localStorage.getItem(KEY) || '[]'); } catch (_) { return []; }
+    };
+})();
+'''
+
+# ============================================================
+KEYS_JS = '''
+(function () {
+    const LS_KEY = "kaoyan.keys.v1";
+
+    // 可改键的动作。spec = 主键，aliases = 常驻别名（不可改，界面上标出来）。
+    const DEFS = [
+        { id: "flash.reveal", group: "闪卡练习区", scope: "flash",
+          label: "显示答案 / 下一张",
+          desc: "未作答时揭晓答案；答错时翻下一张；自评阶段＝「记得」",
+          spec: "Space", aliases: ["Enter"] },
+        { id: "flash.undo", group: "闪卡练习区", scope: "flash",
+          label: "撤销上一次评分",
+          desc: "任何阶段都能按，回到上一张重新作答",
+          spec: "u" },
+        { id: "flash.full", group: "闪卡练习区", scope: "flash",
+          label: "全屏练习",
+          desc: "练习区铺满屏幕，再按一次退出",
+          spec: "f" },
+        { id: "read.full", group: "笔记阅读弹窗", scope: "read",
+          label: "弹窗内全屏",
+          desc: "读笔记时铺满屏幕，左侧会出现章节大纲",
+          spec: "f" },
+    ];
+
+    // 固定键位：只展示不给改。两条理由 ——
+    //  ① 一组键（选项 A–D、自评 1–4）要改就得改成另一组，界面得做成「键位组
+    //     编辑器」；而这组键还靠「有没有显示答案」消歧（同一个数字键在未作答时
+    //     是选选项、揭晓后是自评），随便改容易把那个状态机绕晕。
+    //  ② Esc：原生全屏、各层弹窗关闭都吃它。改掉指不定把人锁在全屏里出不来。
+    const FIXED = [
+        { group: "闪卡练习区", label: "选择选项", keys: "A–D / 1–4",
+          desc: "字母或数字都行，按选项序号；当前题库最多 A–D" },
+        { group: "闪卡练习区", label: "自评熟练度", keys: "1–4",
+          desc: "1 忘记 · 2 模糊 · 3 记得 · 4 简单。和「选择选项」共用数字键，靠是否已显示答案区分" },
+        { group: "闪卡练习区", label: "提交简答批改", keys: "Ctrl+Enter",
+          desc: "在作答框里提交给 AI 批改；单独按回车是换行" },
+        { group: "各处输入框", label: "发送 / 搜索", keys: "Enter",
+          desc: "追问框、聊天框、任务框、搜索框通用；Shift+Enter 换行" },
+        { group: "退出 / 关闭", label: "退出全屏或关闭弹层", keys: "Esc",
+          desc: "闪卡全屏、笔记阅读弹窗、手写板、番茄钟全屏，按最上面那一层逐层退" },
+    ];
+
+    // ---- 读写 ----
+    function readOverrides() {
+        try {
+            const o = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+            return (o && typeof o === "object") ? o : {};
+        } catch (e) { return {}; }   // 隐私模式 / 坏值都退回默认，不能带崩整页
+    }
+    let overrides = readOverrides();
+
+    function def(id) {
+        for (let i = 0; i < DEFS.length; i++) if (DEFS[i].id === id) return DEFS[i];
+        return null;
+    }
+    function specOf(id) {
+        const d = def(id);
+        if (!d) return null;
+        const o = overrides[id];
+        return (typeof o === "string" && o) ? o : d.spec;
+    }
+    function isCustom(id) {
+        const d = def(id);
+        if (!d) return false;
+        const o = overrides[id];
+        return !!(typeof o === "string" && o && o !== d.spec);
+    }
+    function save() {
+        try { localStorage.setItem(LS_KEY, JSON.stringify(overrides)); } catch (e) {}
+    }
+    function emit() {
+        // 用事件而不是回调列表：模块之间本来就互不认识，谁想跟着更新谁自己听。
+        try { document.dispatchEvent(new CustomEvent("kaoyan:keys-changed")); } catch (e) {}
+    }
+
+    // ---- 键名归一化与匹配 ----
+    // ⚠️ 空格在 ev.key 里是 " "，不是 "Space"（见文件头约定①）。
+    function canonKey(ev) {
+        const k = ev.key;
+        if (k === " " || k === "Spacebar" || ev.code === "Space") return "Space";
+        if (k && k.length === 1) return k.toLowerCase();
+        return k || "";
+    }
+    // "Ctrl+Enter" → { ctrl: true, key: "Enter" }。Shift 刻意不参与（约定③）。
+    function parseSpec(spec) {
+        const parts = String(spec == null ? "" : spec).split("+")
+            .map(function (s) { return s.trim(); })
+            .filter(Boolean);
+        if (!parts.length) return { ctrl: false, alt: false, key: "" };
+        const raw = parts[parts.length - 1];
+        const mods = parts.slice(0, -1).map(function (m) { return m.toLowerCase(); });
+        return {
+            ctrl: mods.indexOf("ctrl") >= 0 || mods.indexOf("cmd") >= 0 || mods.indexOf("meta") >= 0,
+            alt: mods.indexOf("alt") >= 0,
+            key: raw.length === 1 ? raw.toLowerCase() : raw,
+        };
+    }
+    // 这个事件是不是这个动作？模块只该问这一句，别自己比 ev.key。
+    function matches(id, ev) {
+        const d = def(id);
+        if (!d) return false;
+        const list = [specOf(id)].concat(d.aliases || []);
+        const k = canonKey(ev);
+        if (!k) return false;
+        for (let i = 0; i < list.length; i++) {
+            const p = parseSpec(list[i]);
+            if (p.key !== k) continue;
+            if (p.ctrl !== !!(ev.ctrlKey || ev.metaKey)) continue;
+            if (p.alt !== !!ev.altKey) continue;
+            return true;
+        }
+        return false;
+    }
+
+    // ---- 展示 ----
+    const NAMES = {
+        Space: "空格", Escape: "Esc", Enter: "回车", Tab: "Tab", Backspace: "退格",
+        ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→",
+    };
+    function pretty(spec) {
+        const p = parseSpec(spec);
+        if (!p.key) return "—";
+        const base = NAMES[p.key] || (p.key.length === 1 ? p.key.toUpperCase() : p.key);
+        const mods = [];
+        if (p.ctrl) mods.push("Ctrl");
+        if (p.alt) mods.push("Alt");
+        return mods.concat(base).join(" + ");
+    }
+
+    // 主键 + 别名一起排出来（"空格 / 回车"）。底部提示条要显示全部能用的键，
+    // 只写主键的话用户会以为回车不管用了。
+    function prettyAll(id) {
+        const d = def(id);
+        if (!d) return "";
+        return [specOf(id)].concat(d.aliases || []).map(pretty).join(" / ");
+    }
+    function keysOf(id) { return pretty(specOf(id)); }
+
+    // 同 scope 内撞键检测（约定②）。返回撞上的那个动作定义，没撞返回 null。
+    function conflicts(id, spec) {
+        const d = def(id);
+        if (!d) return null;
+        const p = parseSpec(spec);
+        if (!p.key) return null;
+        for (let i = 0; i < DEFS.length; i++) {
+            const o = DEFS[i];
+            if (o.id === id || o.scope !== d.scope) continue;
+            const list = [specOf(o.id)].concat(o.aliases || []);
+            for (let j = 0; j < list.length; j++) {
+                const q = parseSpec(list[j]);
+                if (q.key === p.key && q.ctrl === p.ctrl && q.alt === p.alt) return o;
+            }
+        }
+        return null;
+    }
+
+    // ---- 改键 ----
+    function set(id, spec) {
+        const d = def(id);
+        if (!d) return { ok: false, msg: "没有这个动作" };
+        if (spec === d.spec) delete overrides[id];    // 改回默认就当没改过，不落盘
+        else overrides[id] = spec;
+        save(); emit();
+        return { ok: true };
+    }
+    function reset(id) { if (def(id)) { delete overrides[id]; save(); emit(); } }
+    function resetAll() { overrides = {}; save(); emit(); }
+
+    // ---- 设置页 UI ----
+    // 点一下按键芯片就进录制态：按任意键 → 存；Esc → 取消。
+    // 录制用 capture 且 stopPropagation，否则按 U / F 会被闪卡那边顺手接走。
+    let recording = false;
+
+    function status(msg, kind) {
+        const el = document.getElementById("set-keys-status");
+        if (!el) return;
+        el.textContent = msg || "";
+        el.className = "set-status" + (kind ? " " + kind : "");
+    }
+
+    function chipFor(d) {
+        const btn = document.createElement("button");
+        btn.className = "key-chip";
+        btn.type = "button";
+        btn.textContent = pretty(specOf(d.id));
+        if (isCustom(d.id)) {
+            btn.classList.add("custom");
+            btn.title = "已自定义，默认是「" + pretty(d.spec) + "」。点击改键，Esc 取消";
+        } else {
+            btn.title = "点击改键，Esc 取消";
+        }
+        btn.onclick = function () { record(d, btn); };
+        return btn;
+    }
+
+    function record(d, btn) {
+        if (recording) return;
+        recording = true;
+        btn.classList.add("rec");
+        btn.textContent = "按下新键…";
+        status("按下要绑定的键，Esc 取消。只认单键（可带 Ctrl / Alt）。");
+
+        const onKey = function (ev) {
+            ev.preventDefault();
+            // 拦住这一下，别让它冒到闪卡 / 弹窗那边去（正录着键呢）
+            if (ev.stopPropagation) ev.stopPropagation();
+            if (ev.key === "Escape") { stop(); status("已取消"); renderUI(); return; }
+            // 纯修饰键不是键位，等真正的那个键
+            if (["Control", "Shift", "Alt", "Meta"].indexOf(ev.key) >= 0) return;
+            const k = canonKey(ev);
+            if (!k) return;
+            const parts = [];
+            if (ev.ctrlKey || ev.metaKey) parts.push("Ctrl");
+            if (ev.altKey) parts.push("Alt");
+            parts.push(k);
+            const spec = parts.join("+");
+            const other = conflicts(d.id, spec);
+            if (other) {
+                // 撞了就留在录制态让人直接换一个，别一脚踢出去重来
+                status("「" + pretty(spec) + "」已经被「" + other.label + "」占了，换一个。", "warn");
+                return;
+            }
+            set(d.id, spec);
+            stop();
+            status("「" + d.label + "」已改为 " + pretty(spec), "ok");
+            renderUI();
+        };
+        const stop = function () {
+            recording = false;
+            document.removeEventListener("keydown", onKey, true);
+        };
+        document.addEventListener("keydown", onKey, true);
+    }
+
+    function bindableRow(d) {
+        const row = document.createElement("div");
+        row.className = "key-row";
+
+        const info = document.createElement("div");
+        info.className = "key-info";
+        const name = document.createElement("div");
+        name.className = "key-name";
+        name.textContent = d.label;
+        // 别名（回车等价于空格）标出来，否则用户会以为「回车怎么没用」
+        (d.aliases || []).forEach(function (a) {
+            const tag = document.createElement("span");
+            tag.className = "key-alias";
+            tag.textContent = pretty(a) + " 也可";
+            name.appendChild(tag);
+        });
+        const desc = document.createElement("div");
+        desc.className = "key-desc";
+        desc.textContent = d.desc;
+        info.appendChild(name);
+        info.appendChild(desc);
+        row.appendChild(info);
+
+        row.appendChild(chipFor(d));
+
+        const undo = document.createElement("button");
+        undo.className = "key-mini";
+        undo.type = "button";
+        undo.textContent = "↺";
+        undo.title = "恢复默认（" + pretty(d.spec) + "）";
+        undo.disabled = !isCustom(d.id);
+        undo.onclick = function () {
+            reset(d.id);
+            status("「" + d.label + "」已恢复默认 " + pretty(d.spec));
+            renderUI();
+        };
+        row.appendChild(undo);
+        return row;
+    }
+
+    function fixedRow(f) {
+        const row = document.createElement("div");
+        row.className = "key-row fixed";
+        const info = document.createElement("div");
+        info.className = "key-info";
+        const name = document.createElement("div");
+        name.className = "key-name";
+        name.textContent = f.label;
+        const desc = document.createElement("div");
+        desc.className = "key-desc";
+        desc.textContent = f.desc;
+        info.appendChild(name); info.appendChild(desc);
+        row.appendChild(info);
+        const chip = document.createElement("span");
+        chip.className = "key-chip fixed";
+        chip.textContent = f.keys;
+        chip.title = "固定键位，不开放修改";
+        row.appendChild(chip);
+        const pad = document.createElement("span");
+        pad.className = "key-mini-pad";
+        row.appendChild(pad);
+        return row;
+    }
+
+    function renderUI() {
+        const box = document.getElementById("set-keys");
+        if (!box) return;
+        // 重渲染会把状态行一起冲掉（改完键要显示「已改为 …」），先记下再补回去。
+        // 换来的好处是调用方不用关心「先报状态还是先重渲染」的顺序。
+        const prev = document.getElementById("set-keys-status");
+        const prevText = prev ? prev.textContent : "";
+        const prevCls = prev ? prev.className : "set-status";
+        box.innerHTML = "";
+        // 分组顺序：先按 DEFS 里出现的顺序，再把只在 FIXED 里出现的组补在后面
+        const groups = [];
+        DEFS.forEach(function (d) { if (groups.indexOf(d.group) < 0) groups.push(d.group); });
+        FIXED.forEach(function (f) { if (groups.indexOf(f.group) < 0) groups.push(f.group); });
+
+        groups.forEach(function (g) {
+            const wrap = document.createElement("div");
+            wrap.className = "key-group";
+            const h = document.createElement("div");
+            h.className = "key-group-name";
+            h.textContent = g;
+            wrap.appendChild(h);
+            DEFS.filter(function (d) { return d.group === g; }).forEach(function (d) {
+                wrap.appendChild(bindableRow(d));
+            });
+            FIXED.filter(function (f) { return f.group === g; }).forEach(function (f) {
+                wrap.appendChild(fixedRow(f));
+            });
+            box.appendChild(wrap);
+        });
+
+        const foot = document.createElement("div");
+        foot.className = "set-row key-foot";
+        const all = document.createElement("button");
+        all.className = "fs-btn";
+        all.type = "button";
+        all.textContent = "全部恢复默认";
+        all.disabled = !DEFS.some(function (d) { return isCustom(d.id); });
+        all.onclick = function () {
+            resetAll();
+            status("已全部恢复默认");
+            renderUI();
+        };
+        foot.appendChild(all);
+        const st = document.createElement("span");
+        st.className = prevCls;
+        st.id = "set-keys-status";
+        st.textContent = prevText;
+        foot.appendChild(st);
+        box.appendChild(foot);
+    }
+
+    globalThis.__keys = {
+        DEFS: DEFS, FIXED: FIXED,
+        matches: matches, specOf: specOf, pretty: pretty, prettyAll: prettyAll,
+        keysOf: keysOf, isCustom: isCustom,
+        set: set, reset: reset, resetAll: resetAll, conflicts: conflicts,
+        renderUI: renderUI,
+        recording: function () { return recording; },
+    };
+})();
+
+'''
+
 # 四科的规范名（与 topics.subject 的原值一致）。
 # 活动页的「各科正确率」要**固定**按这个顺序输出四个，缺的补 0——
 # 早先用 GROUP BY t.subject 直接从答题记录取，没练过的科目干脆不出现，
@@ -209,8 +684,18 @@ def load_db_stats() -> dict:
     return stats
 
 
+# 低于这个练习次数就标「样本少」：正确率本身没问题，但 1/3 和 60/90 的说服力
+# 差得远，得让用户知道这个百分比是靠几次题算出来的。
+WEAK_LOW_SAMPLE = 5
+
+
 def load_weak_topics() -> dict:
-    """从闪卡数据库提取薄弱知识点：卡片遗忘次数(lapses) + 近30天错误评分(rating<=2)。
+    """从闪卡数据库提取薄弱知识点，按「正确率」排序。
+
+    正确率 = 答对次数(rating>=3) / 练习次数。早先按「错误次数」排有两个毛病：
+    练得多的考点天然错得多（刷了 90 次的必然比只刷 3 次的错得多），而只错一次
+    的考点又会靠运气挤进榜单——两个方向的偏差都让榜单失真。
+    近 30 天正确率单独算一份，用来区分「一直不会」和「最近才掉下来」。
 
     返回 {"weak": [...], "uncovered_weighty": [...]}。大盘只负责提醒薄弱处，
     不评判每日任务完成情况（用户有自己的计划）。
@@ -222,28 +707,46 @@ def load_weak_topics() -> dict:
     conn = sqlite3.connect(str(DB_PATH))
     c = conn.cursor()
 
-    # 1) 薄弱知识点：按 topic 汇总 lapses 与近30天错误次数
+    # 1) 薄弱知识点：按 topic 汇总练习次数 / 答对次数，只统计真正练过的考点。
+    #    用 INNER JOIN review_log（练过才进榜）；不再 JOIN cards——cards 与
+    #    review_log 同时展开是笛卡尔积，会让 SUM(cd.lapses) 按答题记录条数翻倍
+    #    （全库真实 lapses 合计只有 1，之前却有考点显示「遗忘 8 次」）。
     try:
         rows = c.execute("""
             SELECT t.id, t.name, t.subject,
-                   COALESCE(SUM(cd.lapses), 0) AS lapse_cnt,
-                   COALESCE(SUM(CASE WHEN rl.rating <= 2
-                          AND rl.review_date >= datetime('now', 'localtime', '-30 days')
-                          THEN 1 ELSE 0 END), 0) AS recent_wrong
+                   COUNT(rl.id) AS total,
+                   SUM(CASE WHEN rl.rating >= 3 THEN 1 ELSE 0 END) AS correct,
+                   SUM(CASE WHEN rl.review_date >= datetime('now', 'localtime', '-30 days')
+                            THEN 1 ELSE 0 END) AS recent_total,
+                   SUM(CASE WHEN rl.rating <= 2
+                             AND rl.review_date >= datetime('now', 'localtime', '-30 days')
+                            THEN 1 ELSE 0 END) AS recent_wrong
             FROM topics t
-            LEFT JOIN questions q  ON q.topic_id = t.id
-            LEFT JOIN cards cd     ON cd.question_id = q.id
-            LEFT JOIN review_log rl ON rl.question_id = q.id
+            JOIN questions  q  ON q.topic_id = t.id
+            JOIN review_log rl ON rl.question_id = q.id
             GROUP BY t.id
-            HAVING lapse_cnt > 0 OR recent_wrong > 0
-            ORDER BY (recent_wrong * 2 + lapse_cnt) DESC, lapse_cnt DESC
-            LIMIT 8
         """).fetchall()
-        for tid, name, subject, lapses, wrong in rows:
+        for tid, name, subject, total, correct, recent_total, recent_wrong in rows:
+            total = int(total or 0)
+            correct = int(correct or 0)
+            if total <= 0 or correct >= total:
+                continue          # 没练过、或一次没错的考点不算薄弱
+            recent_total = int(recent_total or 0)
+            recent_wrong = int(recent_wrong or 0)
             result["weak"].append({
                 "id": tid, "name": name, "subject": subject,
-                "lapses": int(lapses), "recent_wrong": int(wrong),
+                "total": total,
+                "correct": correct,
+                "accuracy": round(correct / total * 100),
+                "recent_total": recent_total,
+                "recent_wrong": recent_wrong,
+                "recent_accuracy": (round((recent_total - recent_wrong) / recent_total * 100)
+                                    if recent_total else None),
+                "low_sample": total < WEAK_LOW_SAMPLE,
             })
+        # 正确率越低越薄弱；正确率相同的，练得多的更可信、排前面
+        result["weak"].sort(key=lambda w: (w["accuracy"], -w["total"]))
+        result["weak"] = result["weak"][:8]
     except Exception:
         pass
 
@@ -990,6 +1493,42 @@ FLASH_CSS = '''
         .fs-del-confirm { font-size: 0.72rem; padding: 5px 12px;
             background: var(--zhusha); color: #fff; border-color: var(--zhusha); }
         .fs-del-confirm:hover { background: var(--zhusha-lt); }
+        /* --- 「这道题有问题」标记（2026-09-17）---
+           练习时一键标记题目本身错了（多个选项都对/答案有误…），每日任务里由 AI 核对修复。
+           配色统一走告警橘（--accent-orange），和「删卡」的朱砂、水蛭卡的紫刻意分开——
+           这是在说「别信这题」，不是在说「这题我不会」。 */
+        .fs-flag { font-size: 0.72rem; padding: 5px 12px; opacity: .7;
+            border-color: var(--accent-orange); color: var(--accent-orange); }
+        .fs-flag:hover { opacity: 1; background: rgba(245,158,11,.12); }
+        .fs-flag.on { opacity: 1; border-color: var(--zhusha); color: var(--zhusha-lt);
+            background: rgba(var(--zhusha-rgb),.10); }
+        .fs-report-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+            background: rgba(245,158,11,.15); color: var(--accent-orange);
+            border: 1px solid rgba(245,158,11,.45); }
+        .fs-report-note { margin: 0 0 12px; padding: 8px 12px; font-size: 0.78rem;
+            border-left: 3px solid var(--accent-orange); border-radius: 4px;
+            background: rgba(245,158,11,.08); color: var(--text-secondary); line-height: 1.6; }
+        .fs-flag-panel { margin-top: 10px; padding: 10px 12px; border-radius: 6px;
+            background: var(--bg-primary); border: 1px solid var(--border-color); }
+        .fs-flag-panel:empty { display: none; }
+        .fs-flag-title { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px; }
+        .fs-flag-kinds { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+        .fs-flag-kind { font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; cursor: pointer;
+            background: none; color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .fs-flag-kind:hover { border-color: var(--accent-orange); }
+        .fs-flag-kind[aria-pressed="true"] { border-color: var(--accent-orange);
+            color: var(--accent-orange); background: rgba(245,158,11,.12); }
+        .fs-flag-note { width: 100%; box-sizing: border-box; min-height: 46px; resize: vertical;
+            font: inherit; font-size: 0.8rem; padding: 6px 8px; border-radius: 6px;
+            background: var(--bg-secondary); color: var(--text-primary);
+            border: 1px solid var(--border-color); }
+        .fs-flag-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; line-height: 1.55; }
+        .fs-flag-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+        .fs-report-list { border-top: 1px dashed var(--border-color); margin-top: 4px; padding-top: 6px; }
+        .fs-report-item { font-size: 0.76rem; color: var(--text-secondary); padding: 3px 0;
+            line-height: 1.6; }
+        .fs-report-item b { color: var(--accent-orange); }
+        .fs-report-item .fs-report-stem { color: var(--text-muted); }
         .fs-toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); background: rgba(var(--mo-rgb),.96); color: var(--xuan); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 8px 18px; font-size: 0.82rem; z-index: 9999; }
         .fs-stats-panel { margin-bottom: 12px; }
         .fs-stats-panel:empty { display: none; }
@@ -1084,6 +1623,17 @@ FLASH_CSS = '''
                    border-top: var(--rule); flex-wrap: wrap; }
         .ff-summary { font-size: 0.8rem; color: var(--text-secondary); margin-right: auto; }
         .ff-summary b { color: var(--xuan); }
+        /* --- 闪卡范围筛选：练习区下方的收起条（2026-09-18）--- */
+        .fl-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .fl-label { font-size: 0.82rem; color: var(--text-secondary); letter-spacing: .04em; }
+        .fl-scope { font-size: 0.84rem; color: var(--text-secondary); margin-right: auto; min-width: 0;
+                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .fl-scope b { color: var(--xuan); }
+        /* 浮窗里知识点：直接换行铺开，不做横向滚动（用户要求）；要滚也是整个
+           浮窗上下滚（.sk-body 自带 overflow-y:auto） */
+        .ff-topics .ff-chips { flex-wrap: wrap; }
+        .ff-topics .ff-chip { flex: none; }
+        .ff-nothing { font-size: 0.76rem; color: var(--text-muted); padding: 6px 2px; }
 
         /* --- 全屏练习（2026-09-14）---
            练习区脱离文档流铺满视口、自己滚动。这样出答案时新增的解析只在
@@ -1293,14 +1843,132 @@ FLASH_JS = '''
      * 而 AI 和题库作者都习惯写 **重点**。原先这里只认 $公式$、不认 Markdown，
      * 页面上就是两颗裸露的星号（用户截图反馈：「却**是**拐点」）。
      * 注意：先转义再认标记（标记都是 ASCII，转义不影响）。
+     * 行内代码与 ASCII 上下标的处理见下面 asciiMath。
      */
+    // 行内代码的占位符：SOH + 序号 + SOH，正文里不会出现这两个字符
+    const AS_SOH = String.fromCharCode(1);
+    const AS_CODE_RE = new RegExp(AS_SOH + "([0-9]+)" + AS_SOH, "g");
     function mdInline(t) {
         let s = escHtml(t);
-        s = s.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
+        // 行内代码先摘出来、最后再放回：
+        //   ① 代码里的 _ ^ 不该被当成上下标（写在代码里的 a_i 就该原样显示）；
+        //   ② 摘出来之后，代码里的 ** 也不会被下一行的粗体规则吃掉。
+        const codes = [];
+        s = s.replace(/`([^`]+)`/g, function (m, c) {
+            codes.push(c);
+            return AS_SOH + (codes.length - 1) + AS_SOH;
+        });
         s = s.replace(/\\*\\*([^*]+)\\*\\*/g, "<strong>$1</strong>");
         // 单个星号当斜体，但别把 2*3 这种算式吃掉：要求有配对的第二个星号
         s = s.replace(/(^|[^*])\\*([^*\\n]+)\\*/g, "$1<em>$2</em>");
-        return s;
+        s = asciiMath(s);
+        return s.replace(AS_CODE_RE, function (m, i) {
+            return '<code class="md-code">' + codes[+i] + "</code>";
+        });
+    }
+
+    // ============================================================
+    // 「ASCII 上下标」兜底：把 _(x) / _i / ^{n} / ^n 渲染成 <sub>/<sup>。
+    //
+    // 【为什么需要】题库和笔记里的公式大量是这么写的：O(n^2)、∬_D、e^(x²/2)、
+    // W_T、log_(a) x。它们既不是 Unicode 上下标（x²、a₁₄、C₁ 那种能直接显示），
+    // 也没有 $...$ 定界；而 splitMath 只认 $...$ 与带反斜杠命令的裸 LaTeX，
+    // 于是整串原样漏出，页面上就是「F_(x)」这种带下划线的源码
+    // （2026-09-17 用户截图反馈）。实测题库 38 张卡 129 处、笔记 200 余处。
+    //
+    // 【与 $公式$ 的分工】$...$ 里的 _ ^ 是 LaTeX，由 KaTeX 负责，这里**绝不能碰**——
+    // asciiMath 只作用在 splitMath 切出来的**文本段**上（richText / mdTex 都是这个走法）。
+    //
+    // 【规则：保守优先，宁漏不误】改规则前先跑 tools/audit_asciimath.js（拿**这份实现**
+    // 扫全部笔记，逐条列出会改哪些片段）——下面两条都是它抓出来的误判：
+    //   ① 底数约束（挡文件名，如 CO_6.4 / 第5章_IO管理.md / book_id / scan_pdf.py）：
+    //      · 括号式 _(...) ^{...} 是**自定界**的，只要求前面粘着一个非中文的符号——
+    //        于是 log_(a) x、F_(x)、Qe^(∫Pdx) 都能转（语料里这类只有 1 处，全是真公式）；
+    //      · 单词式 _x 没有右边界，收紧：底数前面**再往前一个**不能还是字母数字，
+    //        且只吃 1 个字符、后面不能再跟字母数字。
+    //   ② 括号配平、不超 34 字符、不跨行；内容里出现反斜杠就整体放弃
+    //      （那是 LaTeX 命令的残段，交给 KaTeX/原样显示，别插手）。
+    //   ③ Pandoc 配对写法 ^x^ 要把收尾的 ^ 一起吃掉，否则页面上留下一个孤立的 ^
+    //      （笔记里 O(n^2^) 与 O(n^2) 两种写法并存）。
+    //   ④ ~x~ **故意不处理**：中文里 ~ 是区间号（60~70分钟、第 1~11 题），
+    //      转了就是洋相（审计时抓到的）。下标要写就写 _x 或 $x_{i}$。
+    // ============================================================
+    const AS_NL = String.fromCharCode(10);
+    const AS_TAB = String.fromCharCode(9);
+    const AS_BS = String.fromCharCode(92);
+    function isAlnum(c) {
+        return !!c && ((c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9"));
+    }
+    function isDigit(c) { return !!c && c >= "0" && c <= "9"; }
+    function isCJK(c) {
+        if (!c) return false;
+        const n = c.charCodeAt(0);
+        return (n >= 0x3000 && n <= 0x303f) || (n >= 0x4e00 && n <= 0x9fff)
+            || (n >= 0xff00 && n <= 0xffef);
+    }
+    /** ① 底数约束：src[i] 这个 _ 或 ^ 能不能当上下标标记（bracketed = 后面跟的是括号式） */
+    function isScriptBase(src, i, bracketed) {
+        const prev = src.charAt(i - 1);
+        if (i < 1 || !prev || prev === " " || prev === AS_TAB
+            || prev === "(" || prev === "[") return false;
+        if (bracketed) return !isCJK(prev);                // 自定界，只要不粘在中文后面
+        // 右括号收尾的底数照收：(x+y)^2
+        if (prev === ")" || prev === "]" || prev === "}") return true;
+        if (isCJK(prev)) return false;                     // 中文永远不是数学底数：字段_8路
+        const prev2 = src.charAt(i - 2);
+        if (!isAlnum(prev2)) return true;                  // 独立符号：x_j、∬_D、∞^0
+        // 数字底数：10^6、2^5。往回跳过整串数字后不能还粘着字母，
+        // 否则 int64_t / float32_t / uint8_t 这些 C 类型名会被啃掉一截（全库审计抓到的）。
+        if (!isDigit(prev)) return false;
+        let k = i - 1;
+        while (k >= 0 && isDigit(src.charAt(k))) k--;
+        return !isAlnum(src.charAt(k));
+    }
+    /** ② 读出上/下标的内容，返回 {body, next}；读不到返回 null */
+    function readScript(src, j) {
+        const open = src.charAt(j);
+        if (open === "(" || open === "{") {
+            const close = open === "(" ? ")" : "}";
+            let depth = 0, k = j;
+            while (k < src.length && k - j <= 34) {
+                const c = src.charAt(k);
+                if (c === AS_NL) return null;              // 不跨行，免得把正文吞进公式
+                if (c === open) depth++;
+                else if (c === close) { depth--; if (!depth) break; }
+                k++;
+            }
+            if (depth !== 0 || k >= src.length || k - j > 34) return null;
+            const body = src.slice(j + 1, k);
+            if (!body || body.indexOf(AS_BS) >= 0) return null;   // LaTeX 命令残段，不插手
+            return { body: body, next: k + 1 };
+        }
+        // 单词式：只吃 1 个字符，后面不能还跟着字母数字或下划线
+        const after = src.charAt(j + 1);
+        if (isAlnum(open) && !isAlnum(after) && after !== "_") {
+            return { body: open, next: j + 1 };
+        }
+        return null;
+    }
+    function asciiMath(src) {
+        let out = "", i = 0;
+        while (i < src.length) {
+            const ch = src.charAt(i);
+            const open0 = src.charAt(i + 1);
+            const bracketed = (open0 === "(" || open0 === "{");
+            if ((ch === "_" || ch === "^") && isScriptBase(src, i, bracketed)) {
+                const got = readScript(src, i + 1);
+                if (got) {
+                    const tag = ch === "_" ? "sub" : "sup";
+                    out += "<" + tag + ">" + got.body + "</" + tag + ">";
+                    i = got.next;
+                    if (ch === "^" && src.charAt(i) === "^") i++;   // ③ 配对的收尾 ^
+                    continue;
+                }
+            }
+            out += ch;
+            i++;
+        }
+        return out;
     }
 
     function richText(s) {
@@ -1470,6 +2138,10 @@ FLASH_JS = '''
     //    忘了桥接的后果很实在：mdTex 一调用就 ReferenceError，AI 回复整块渲染不出来，
     //    而 catch 把它吞了，表现成「复用没生效，又问了一遍 AI」。测试抓到的。
     window.mdInline = mdInline;
+    // asciiMath 同样过桥：笔记预览走的是 mdRender 里**另一套** inline()（它有自己的
+    // 代码/表格/图片处理链，不经过 mdInline），但 ASCII 上下标是同一类问题，
+    // 必须共用同一套规则，否则笔记和闪卡会呈现出两种结果。
+    window.asciiMath = asciiMath;
     // splitMath 也要过桥：mdTex 在后面那个 IIFE 里，且它同样需要认「裸 LaTeX」
     window.splitMath = splitMath;
 })();
@@ -1617,11 +2289,9 @@ const SFX = (function () {
     let pending = { subject: "", bucket: "", topic: "" };
 
     function esc(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
-    // ⚠️ 本地日期，不要用 toISOString().slice(0,10)（那是 UTC，UTC+8 早 8 点前会差一天）
-    function todayStr() {
-        const d = new Date();
-        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    }
+    // ⚠️ 本地日期，不要用 toISOString().slice(0,10)（那是 UTC，UTC+8 早 8 点前会差一天）。
+    // 走 studyDay()：凌晨 4 点前算前一天，跟服务端 localToday() 同一套规则。
+    function todayStr() { return studyDay(); }
 
     // ---- 进度保持（2026-09-21 改成服务端为准）----
     // 以前本组会话只存 localStorage：换设备各刷各的（同一题一天问好几遍），
@@ -1796,7 +2466,10 @@ const SFX = (function () {
 
     // ---- 筛选条件 ----
     const SUBJECTS = ["政治", "408", "数学一", "英语一"];
-    const BUCKETS = ["", "new", "learning", "review", "mature", "leech", "suspended"];
+    // flagged = 「这道题有问题」的待修卡（2026-09-17）。它跟 leech/suspended 一样是
+    // **叠加标签**，不参与智能组的互斥分桶；智能组还会主动把待修卡排除掉，
+    // 唯一能看到它们的地方就是这里（服务端 bucket=flagged 走的也是自选通道）。
+    const BUCKETS = ["", "new", "learning", "review", "mature", "leech", "suspended", "flagged"];
     function readFilter() {
         try {
             const f = JSON.parse(localStorage.getItem(LS_FILTER) || "null");
@@ -1933,9 +2606,10 @@ const SFX = (function () {
             + '<div class="fs-gate-title">' + (saved ? "继续本组？" : "开始这一组闪卡") + '</div>'
             + '<div class="fs-gate-line">' + esc(gateLine()) + '</div>'
             + (saved
-                ? '<button class="fs-btn fs-gate-go" id="fs-gate-resume">▶ 继续本组（还剩 ' + left + ' 张'
-                  + (fromServer && serverSaved && serverSaved.idx ? '，从第 ' + (serverSaved.idx + 1) + ' 张起' : '')
-                  + '）</button>'
+                // 不再报「从第 N 张起」：服务端 resume 交回来的就是「剩下的那些」，
+                // 位置恒为第 1 张（见 serve.js 的 remainingCards）。以前那句数字是
+                // 按没剔过的列表算的，报出来还会虚高，反而让人以为要跳过几张没答的。
+                ? '<button class="fs-btn fs-gate-go" id="fs-gate-resume">▶ 继续本组（还剩 ' + left + ' 张）</button>'
                   + '<button class="fs-btn fs-gate-alt" id="fs-gate-new">↺ 放弃，重新挑一组</button>'
                 : '<button class="fs-btn fs-gate-go" id="fs-gate-start">▶ 开始学习</button>')
             + (fromServer && serverSaved && serverSaved.updated
@@ -2089,18 +2763,38 @@ const SFX = (function () {
         if (!el) return;
         const c = state.cards[state.idx] || {};
         const opts = optionsOf(c);
+        // 键名一律从快捷键总表取（见 KEYS_JS）：用户在设置里改了键，这六条提示
+        // 自动跟着变。写死「空格 / U / F」的话，一改键提示就开始教人按错的。
+        // ⚠️ 这三个必须在 if 外面取——下面 autoWrong / 自评两个分支也要用。
+        const KS = __keys;
+        const SP = KS.prettyAll("flash.reveal");   // 空格 / 回车
+        const UD = KS.keysOf("flash.undo");        // U
+        const FS = KS.keysOf("flash.full");        // F
         if (!state.revealed) {
             if (c.type === "short") {
-                el.textContent = "快捷键：Ctrl+Enter 提交批改 · 空格 先看参考答案 · U 撤销";
-            } else if (!opts.length) el.textContent = "快捷键：空格 显示答案 · U 撤销上一张";
-            else if (c.type === "judge") el.textContent = "快捷键：1 正确 · 2 错误 · 空格 显示答案";
-            else el.textContent = "快捷键：A–D 或 1–4 选选项 · 空格 显示答案";
+                el.textContent = "快捷键：Ctrl+Enter 提交批改 · " + SP + " 先看参考答案 · "
+                    + UD + " 撤销 · " + FS + " 全屏";
+            } else if (!opts.length) {
+                el.textContent = "快捷键：" + SP + " 显示答案 · " + UD + " 撤销上一张 · " + FS + " 全屏";
+            } else if (c.type === "judge") {
+                el.textContent = "快捷键：1 正确 · 2 错误 · " + SP + " 显示答案 · " + FS + " 全屏";
+            } else {
+                el.textContent = "快捷键：A–D 或 1–4 选选项 · " + SP + " 显示答案 · " + FS + " 全屏";
+            }
         } else if (state.autoWrong) {
-            el.textContent = "已记「忘记」· 空格 / 回车 下一张 · U 撤销重答";
+            el.textContent = "已记「忘记」· " + SP + " 下一张 · " + UD + " 撤销重答 · " + FS + " 全屏";
         } else {
-            el.textContent = "自评：2 模糊 · 3 记得 · 4 简单（空格 = 记得）· U 撤销";
+            el.textContent = "自评：2 模糊 · 3 记得 · 4 简单（" + SP + " = 记得）· "
+                + UD + " 撤销 · " + FS + " 全屏";
         }
     }
+
+    // 键位总表改了（设置页里点按键改的）就重算一次提示文案。不刷新的话，
+    // 用户改完键回到闪卡页，底部还在教他按旧键——比没有提示更坑。
+    // 总表派发的是 document 上的自定义事件，这边不依赖 KEYS_JS 的任何内部状态。
+    document.addEventListener("kaoyan:keys-changed", function () {
+        try { updateHint(); } catch (e) {}
+    });
 
     function renderCard() {
         if (state.idx >= state.cards.length) { renderSummary(); return; }
@@ -2121,6 +2815,13 @@ const SFX = (function () {
                 ? '<button class="fs-topic-btn" id="fs-topic-btn" title="只看 ' + esc(c.subject) + '">'
                   + esc(c.subject) + '</button> · '
                 : '') + esc(c.topic_name) + '</span>'
+            // 待修徽标：服务端在 session 里带下来的 open 标记（只有自选/指定通道才取得到
+            // 带标记的卡，智能组已经把这类卡排除了）。放在「统计」左边，别挤走右边的按钮。
+            + (c.report ? '<span class="fs-report-badge" title="'
+                + esc('你标记过：' + c.report.kind_label
+                      + (c.report.note ? '（' + c.report.note + '）' : '')
+                      + '｜AI 会在每日任务里核对修复')
+                + '">⚑ 待修 · ' + esc(c.report.kind_label) + '</span>' : '')
             + '<button class="fs-btn" id="fs-stats-btn" style="margin-left:auto;padding:2px 10px;font-size:0.7rem;">📊 统计</button>'
             + '<button class="fs-btn" id="fs-restart" style="padding:2px 10px;font-size:0.7rem;">重开一组</button>'
             + '</div>'
@@ -2128,6 +2829,15 @@ const SFX = (function () {
         // 填空题挖空（未揭晓时 {{c1::X}} → ______），揭晓后由 showFeedback 填回
         const stemShown = hasCloze(ct.stem) ? clozeText(ct.stem, false) : (ct.stem || ct.question || "");
         html += '<div class="fs-stem">' + texWrap(stemShown) + '</div>';
+        // 已标记的卡：把「为什么标它」摆在题面下面。用户标记的初衷就是「别再让我按错的
+        // 答案作答」，所以这里要说清三件事：标记了什么原因、AI 会处理、本组之后不再考它。
+        if (c.report) {
+            html += '<div class="fs-report-note">⚑ 这题你标记过有问题（'
+                + esc(c.report.kind_label) + '）'
+                + (c.report.note ? '：' + esc(c.report.note) : '')
+                + '，已排进每日任务等 AI 核对修复；修好之前它不再进智能组。'
+                + '<br>先按你自己的判断来的话，点下面的「⚑」可以改原因或补一句说明。</div>';
+        }
         html += '<div id="fs-body"></div><div id="fs-feedback"></div>';
         box.innerHTML = html;
         const rs = document.getElementById("fs-restart");
@@ -3044,8 +3754,14 @@ const SFX = (function () {
         html += '<div class="fs-undo-row"><button class="fs-btn fs-undo" id="fs-undo">'
             + (state.autoWrong ? '↶ 撤销，重新作答（U）' : '↶ 撤销上一次评分（U）')
             + '</button>'
+            // 标记「这题本身有问题」（与🗑删卡是两件事：删掉是当场判死刑，标记是等 AI 复核）
+            + '<button class="fs-btn fs-flag' + (card.report ? ' on' : '') + '" id="fs-flag" title="'
+            + esc('题目本身有问题（多个选项都对 / 答案有误 / 题干有误…）→ 记下来，每日任务里由 AI 核对修复')
+            + '">' + (card.report ? '⚑ 已标记：' + esc(card.report.kind_label) : '⚑ 这题有问题')
+            + '</button>'
             + '<button class="fs-btn fs-del" id="fs-del" title="永久移除此卡，之后不再出现">🗑 这题没用，删掉</button>'
-            + '</div>';
+            + '</div>'
+            + '<div class="fs-flag-panel" id="fs-flag-panel"></div>';
         fb.innerHTML = html;
 
         fb.querySelectorAll("[data-rate]").forEach(b => {
@@ -3108,12 +3824,191 @@ const SFX = (function () {
                 }
             };
         }
+        // 标记「这题有问题」：点一下展开原因清单 + 备注框，提交后按钮变「已标记」。
+        // 只就地改这一小块 DOM（不重绘整张卡）——重绘会把已经挂上的 AI 解析/追问框冲掉。
+        const flagBtn = document.getElementById("fs-flag");
+        if (flagBtn) flagBtn.onclick = () => toggleFlagPanel(card, ct);
         updateHint();
 
         // 解析一出来内容会突然变长。交给 scrollIntoView({block:"nearest"})：
         // 只在没露出来时才滚，而且是平滑的——把被动抽搐换成一次有意的归位。
         if (typeof fb.scrollIntoView === "function") {
             try { fb.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) {}
+        }
+    }
+
+    // ============================================================
+    // 「这道题有问题」标记（2026-09-17）
+    //
+    // 用户的原话：有些闪卡**本身**是错的（他实测到那道叠加原理的题 A、C 都对），
+    // 他照着正确答案点反而被判错。所以要能在练习时就地标出来，并且我（AI）要能
+    // 拿到这个数据、在每日任务里把它修掉。
+    //
+    // 三件事分开做，别混：
+    //   · 报卡 = 这里（一键 + 原因 + 可选一句话），只管记下来，不改题、不判对错；
+    //   · 复核 = 每日任务里的 agent（改选项/答案/解析，或者驳回、删卡）；
+    //   · 展示 = 徽标 + 统计面板的待修清单（让用户看得见「我的标记没丢」）。
+    // 原因清单从服务端下发（GET /api/flashcards/reports 的 kinds），这里不抄一份——
+    // 那份话术是给复核的 AI 看的，两边漂移就会出现「前端标了 A、后端不认识 A」。
+    // ============================================================
+    let FLAG_KINDS = null;      // 取回来就缓存（一次会话只问一次）
+    let flagPanelOpen = false;
+
+    async function ensureFlagKinds() {
+        if (FLAG_KINDS) return FLAG_KINDS;
+        try {
+            const d = await (await fetch(API + "/api/flashcards/reports?limit=1")).json();
+            if (d && d.ok && Array.isArray(d.kinds) && d.kinds.length) FLAG_KINDS = d.kinds;
+        } catch (e) { /* 服务端连不上，走下面的退化分支 */ }
+        // 退路：连不上服务端也得能标记（标记本身最重要，原因回头在每日任务里补）。
+        // 只给「其它」一项，不编造一套本地标签表。
+        if (!FLAG_KINDS) FLAG_KINDS = [{ id: "other", label: "其它", hint: "看备注" }];
+        return FLAG_KINDS;
+    }
+
+    async function toggleFlagPanel(card, ct) {
+        const panel = document.getElementById("fs-flag-panel");
+        if (!panel) return;
+        if (flagPanelOpen) { panel.innerHTML = ""; flagPanelOpen = false; return; }
+        flagPanelOpen = true;
+        panel.innerHTML = '<div class="fs-flag-title">正在准备原因清单…</div>';
+        const kinds = await ensureFlagKinds();
+        // 默认选中：已经标过就选它原来那条（改原因时不用重新找），否则选最常见的那个。
+        const cur = (card.report && card.report.kind) || "multi_correct";
+        const picked = kinds.some(k => k.id === cur) ? cur : kinds[0].id;
+        panel.innerHTML = '<div class="fs-flag-title">这道题哪里有问题？</div>'
+            + '<div class="fs-flag-kinds">' + kinds.map(k =>
+                '<button type="button" class="fs-flag-kind" data-kind="' + esc(k.id) + '" aria-pressed="'
+                + (k.id === picked ? "true" : "false") + '" title="' + esc(k.hint || "") + '">'
+                + esc(k.label) + '</button>').join("") + '</div>'
+            + '<textarea class="fs-flag-note" id="fs-flag-note" rows="2" placeholder="补一句（可选）：比如「A、C 都对」"></textarea>'
+            + '<div class="fs-flag-hint">标记后这题暂时不再进智能组；每日任务里 AI 会核对——能改的就改'
+            + '（选项/答案/解析），需要你拿主意的会来问你。你的原话会一起存下来。</div>'
+            + '<div class="fs-flag-actions">'
+            +   '<button class="fs-btn primary" id="fs-flag-save">标记有问题</button>'
+            +   '<button class="fs-btn" id="fs-flag-cancel">取消</button>'
+            + '</div>';
+        const noteEl = document.getElementById("fs-flag-note");
+        // 选中的原因用**局部变量**记着（不只靠 aria-pressed 那个属性）：
+        // 提交时直接拿它，不依赖 DOM 属性的读回——样式状态与提交内容是两件事，
+        // 混在一起以后改样式就会顺手改坏提交。
+        let pickedKind = picked;
+        // 已有标记时把上次那句话填回去（改原因不用重打一遍）
+        if (noteEl && card.report && card.report.note) noteEl.value = card.report.note;
+        panel.querySelectorAll(".fs-flag-kind").forEach(b => {
+            b.onclick = () => {
+                pickedKind = b.dataset.kind;
+                panel.querySelectorAll(".fs-flag-kind").forEach(x =>
+                    x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+            };
+        });
+        const save = document.getElementById("fs-flag-save");
+        if (save) save.onclick = () => {
+            submitReport(card, ct, pickedKind, noteEl ? String(noteEl.value || "") : "");
+        };
+        const cancel = document.getElementById("fs-flag-cancel");
+        if (cancel) cancel.onclick = () => {
+            panel.innerHTML = ""; flagPanelOpen = false;
+            toast("已取消（这题还没被标记）");
+        };
+        if (typeof panel.scrollIntoView === "function") {
+            try { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) {}
+        }
+    }
+
+    // 标完立刻把徽标与提示条补上 —— **就地插入，不重绘整张卡**（重绘会把已经挂上的
+    // AI 解析与追问框冲掉，用户刚问的话就没了）。幂等：先摘旧的再插，重复标记不会叠两个。
+    // 位置与 renderCard 里那两处保持一致（徽标在头部「统计」左边、提示条紧贴题面下方）。
+    function paintReportMarks(card) {
+        try {
+            const head = box.querySelector(".fs-head");
+            if (head) {
+                const old = head.querySelector(".fs-report-badge");
+                if (old && old.parentNode) old.parentNode.removeChild(old);
+                if (card.report) {
+                    const span = document.createElement("span");
+                    span.className = "fs-report-badge";
+                    span.title = "你标记过：" + card.report.kind_label
+                        + (card.report.note ? "（" + card.report.note + "）" : "")
+                        + "｜AI 会在每日任务里核对修复";
+                    span.textContent = "⚑ 待修 · " + card.report.kind_label;
+                    const anchor = head.querySelector("#fs-stats-btn");
+                    if (anchor) head.insertBefore(span, anchor); else head.appendChild(span);
+                }
+            }
+            const stem = box.querySelector(".fs-stem");
+            if (stem) {
+                const oldN = box.querySelector(".fs-report-note");
+                if (oldN && oldN.parentNode) oldN.parentNode.removeChild(oldN);
+                if (card.report) {
+                    const div = document.createElement("div");
+                    div.className = "fs-report-note";
+                    div.textContent = "⚑ 这题你标记过有问题（" + card.report.kind_label + "）"
+                        + (card.report.note ? "：" + card.report.note : "")
+                        + "，已排进每日任务等 AI 核对修复；修好之前它不再进智能组。";
+                    if (stem.parentNode) stem.parentNode.insertBefore(div, stem.nextSibling);
+                }
+            }
+        } catch (e) { console.warn("[flash] 标记状态补画失败", e); }
+    }
+
+    // 提交标记。**只就地改这一小块 DOM**（按钮 + 面板 + 徽标/提示条），不重绘整张卡——
+    // 重绘会把已经挂上的 AI 解析与追问框冲掉，用户刚问的话就没了。
+    async function submitReport(card, ct, kind, note) {
+        const btn = document.getElementById("fs-flag-save");
+        if (btn) { btn.disabled = true; btn.textContent = "标记中…"; }
+        const restore = () => { if (btn) { btn.disabled = false; btn.textContent = "标记有问题"; } };
+        try {
+            const r0 = await fetch(API + "/api/flashcards/reports", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    card_id: card.card_id, kind: kind, note: String(note || "").trim(),
+                    // chosen / correct 一起存：复核时能看出「他是按哪一项被判错的」，
+                    // 光有「这题有问题」四个字，AI 还得重推一遍他的现场。
+                    chosen: state.chosen || null,
+                    // 正确答案存**可读形式**（「B. 乙」）而不是下标：复核的 AI 要一眼看出
+                    // 标答是哪一项，光存个 "1" 还得回头查选项表（选择题才有下标，
+                    // 判断题/填空题 answerText 本来就是文本）。
+                    correct: (function () {
+                        try {
+                            const opts = optionsOf(card);
+                            const ci = correctIndex(ct, opts);
+                            if (opts.length && ci >= 0 && opts[ci] != null) {
+                                return String.fromCharCode(65 + ci) + ". " + opts[ci];
+                            }
+                            return answerText(ct) || null;
+                        } catch (e) { return null; }
+                    })(),
+                })
+            });
+            // ⚠️ 服务端还是**旧版**（改了 serve.js 却没重启）时这里回 404，body 也不是 JSON。
+            //    这种情况必须说清是「重启大盘后生效」——含混成「无法连接本地服务」的话，
+            //    人会以为是服务没开，去反复刷新甚至重装（首次上线当天就撞到一次）。
+            if (!r0.ok) {
+                toast(r0.status === 404
+                    ? "标记失败：本地服务还是旧版 —— 双击桌面「启动考研大盘」重启后生效"
+                    : ("标记失败：本地服务返回 HTTP " + r0.status));
+                restore();
+                return false;
+            }
+            const d = await r0.json();
+            if (!d.ok) { toast("标记失败：" + (d.error || "")); restore(); return false; }
+            // 本地也记上：撤销回头、下一组再遇到它时，徽标和提示还在。
+            card.report = { id: d.id, kind: d.kind, kind_label: d.kind_label, note: String(note || "").trim() };
+            const fb = document.getElementById("fs-flag");
+            if (fb) { fb.className = "fs-btn fs-flag on"; fb.textContent = "⚑ 已标记：" + d.kind_label; }
+            const panel = document.getElementById("fs-flag-panel");
+            if (panel) panel.innerHTML = "";
+            flagPanelOpen = false;
+            paintReportMarks(card);   // 徽标 + 题面下的提示条立刻出现（就地插，不重绘）
+            SFX.play("reveal");
+            toast("已标记「" + d.kind_label + "」· 待修 " + d.count + " 张，AI 会在每日任务里核对");
+            return true;
+        } catch (e) {
+            toast("标记失败：无法连接本地服务");
+            restore();
+            return false;
         }
     }
 
@@ -3257,6 +4152,23 @@ const SFX = (function () {
                 + '</div>'
                 + '<div class="fs-forecast-label">未来 30 天到期预测</div>'
                 + '<div class="fs-forecast">' + bars + '</div>';
+            // 待修清单（「这道题有问题」标记）：用户得看得见「我的标记还在等处理」，
+            // 否则标完就没了下文，他会以为白标了。数据与每日任务里 agent 看的是同一份。
+            try {
+                const rep = await (await fetch(API + "/api/flashcards/reports?status=open&limit=20")).json();
+                const n = (rep && rep.ok) ? (rep.open_count || 0) : 0;
+                if (n > 0) {
+                    panel.insertAdjacentHTML("beforeend",
+                        '<div class="fs-report-list">'
+                        + '<div class="fs-report-item">⚑ 待修的问题卡 <b>' + n + '</b> 张'
+                        + '<span class="fs-muted">（已排进每日任务，AI 会核对修复；筛选页「⚑ 待修」可直接复看）</span></div>'
+                        + rep.reports.map(r => '<div class="fs-report-item">· <b>' + esc(r.kind_label) + '</b> '
+                            + esc([r.subject, r.topic_name].filter(Boolean).join("·")) + ' '
+                            + '<span class="fs-report-stem">'
+                            + esc(String(r.stem || "").slice(0, 46)) + '</span></div>').join("")
+                        + '</div>');
+                }
+            } catch (e) { /* 清单取不到不影响统计本身 */ }
         } catch (e) {
             panel.innerHTML = '<div class="fs-empty">统计加载失败：' + esc(e.message) + '</div>';
         }
@@ -3273,7 +4185,7 @@ const SFX = (function () {
         { key: "", label: "全部" }, { key: "new", label: "未学习" },
         { key: "learning", label: "学习中" }, { key: "review", label: "复习中" },
         { key: "mature", label: "已掌握" }, { key: "leech", label: "水蛭" },
-        { key: "suspended", label: "已暂停" },
+        { key: "suspended", label: "已暂停" }, { key: "flagged", label: "⚑ 待修" },
     ];
     let facets = null;
 
@@ -3316,45 +4228,141 @@ const SFX = (function () {
             + esc(label) + (n == null ? "" : '<span class="ff-n">' + n + "</span>") + "</button>";
     }
 
+    // 知识点粒度：按「科目-章节」两段前缀归并（408-OS / MATH-GS / POL-XX …），
+    // 口径与薄弱点模块 topicPrefix() 一致。session 端点按 t.id LIKE '<前缀>%' 匹配，
+    // 所以选中 408-OS 会把下面的所有子主题一起划进来。
+    function topicCount(prefix) {
+        if (!facets || !prefix) return null;
+        for (const t of (facets.topics || [])) {
+            if (t.prefix !== prefix) continue;
+            if (pending.subject && t.subject !== pending.subject) continue;
+            return pending.bucket ? (t[pending.bucket] || 0) : (t.total || 0);
+        }
+        return 0;
+    }
+    function visibleTopics() {
+        const list = facets && Array.isArray(facets.topics) ? facets.topics : [];
+        if (!pending.subject) return list;
+        return list.filter(t => t.subject === pending.subject);
+    }
+    // 把筛选对象翻译成一句话，浮窗底栏「当前范围」与收起态说明共用。
+    function scopeParts(f) {
+        const parts = [];
+        if (!f) return parts;
+        if (f.subject) parts.push(f.subject);
+        const bm = BUCKET_META.filter(b => b.key === f.bucket)[0];
+        if (bm && bm.key) parts.push(bm.label);
+        if (f.topic) parts.push("考点 " + f.topic);
+        if (Array.isArray(f.ids) && f.ids.length) parts.push("指定 " + f.ids.length + " 张");
+        return parts;
+    }
+
+    // 浮窗关闭后不要丢掉已选范围：应用后的 state.filter 才是「正在生效」的，
+    // pending 是浮窗里待确认的选择。二者在「开始刷题」后经 startWithFilter 收敛。
+    let filterOv = null;
+    // 当前待确认筛选精确命中的卡数：科目/考点各自已内部再叠加 bucket，
+    // 所以按「考点 > 科目 > 状态桶 > 全部」取最窄一层即可对齐当前范围。
+    function pendingCount() {
+        if (!facets) return null;
+        if (pending.topic) return topicCount(pending.topic);
+        if (pending.subject) return subjectCount(pending.subject);
+        if (pending.bucket) return bucketCount(pending.bucket);
+        return facets.totals ? (facets.totals.total || 0) : 0;
+    }
     function renderFilterBar() {
         if (!fbox) return;
+        const f = state.filter ? normalizeFilter(state.filter) : null;
+        const parts = (f && Array.isArray(f.ids) && f.ids.length)
+            ? scopeParts(f)
+            : scopeParts({ subject: pending.subject, bucket: pending.bucket, topic: pending.topic });
+        const scope = parts.length ? parts.join(" · ") : "全部闪卡";
+        const n = pendingCount();
+        // 平时收成一行说明 + 一个按钮，整张筛选表点开变成浮窗
+        fbox.innerHTML =
+            '<div class="fl-row"><span class="fl-label">📚 范围</span>'
+            + '<span class="fl-scope">' + esc(scope) + (n == null ? "" : " · <b>" + n + "</b> 张") + "</span>"
+            + '<button class="fs-btn" id="fl-open">🔎 打开闪卡筛选</button>'
+            + '</div>';
+        const ob = fbox.querySelector("#fl-open");
+        if (ob) ob.onclick = openFilterModal;
+    }
+
+    function buildFilterModal(ov) {
         const buckets = BUCKET_META.map(b =>
             chip(b.label, b.key, bucketCount(b.key), pending.bucket === b.key, "data-bucket")).join("");
         const subs = [""].concat(SUBJECTS).map(s =>
             chip(s || "全部", s, subjectCount(s), pending.subject === s, "data-subject")).join("");
-        const n = subjectCount(pending.subject || "");
-        const parts = [];
-        if (pending.subject) parts.push(pending.subject);
-        const bm = BUCKET_META.filter(b => b.key === pending.bucket)[0];
-        if (bm && bm.key) parts.push(bm.label);
-        // 复盘页跳过来时会带 topic 前缀，必须让用户看得见、也清得掉
-        if (pending.topic) parts.push("考点 " + pending.topic);
-        // 学习页「练这几张」是按卡号点名的：不写出来的话，范围看着像「全部闪卡」，
-        // 人会以为额度或筛选坏了。数量同 loadSession 的上限（40）。
-        if (state.filter && Array.isArray(state.filter.ids) && state.filter.ids.length) {
-            parts.push("指定 " + state.filter.ids.length + " 张");
-        }
+        const vt = visibleTopics();
+        const tops = vt.length
+            ? vt.map(t =>
+                chip(t.prefix, t.prefix, topicCount(t.prefix), pending.topic === t.prefix, "data-topic")).join("")
+            : '<span class="ff-nothing">（先选科目，或当前没有带章节的知识点卡片）</span>';
+        const n = pendingCount();
+        const parts = scopeParts({ subject: pending.subject, bucket: pending.bucket, topic: pending.topic });
         const scope = parts.length ? parts.join(" · ") : "全部闪卡";
-        fbox.innerHTML =
-            '<h2>闪卡筛选</h2>'
-            + '<div class="ff-group"><div class="ff-label">状态</div><div class="ff-chips">' + buckets + '</div></div>'
+        const body = ov.querySelector(".fl-body");
+        body.innerHTML =
+            '<div class="ff-group"><div class="ff-label">状态</div><div class="ff-chips">' + buckets + '</div></div>'
             + '<div class="ff-group"><div class="ff-label">科目</div><div class="ff-chips">' + subs + '</div></div>'
+            + '<div class="ff-group ff-topics"><div class="ff-label">知识点</div>'
+            +   '<div class="ff-chips">' + tops + '</div></div>'
             + '<div class="ff-foot">'
             +   '<span class="ff-summary">当前范围：' + esc(scope)
             +     (n == null ? "" : ' · <b>' + n + '</b> 张') + '</span>'
             +   '<button class="fs-btn fs-next" id="ff-start">开始刷题</button>'
             +   '<button class="fs-btn" id="ff-all">全部闪卡</button>'
             + '</div>';
-        fbox.querySelectorAll("[data-bucket]").forEach(b => {
-            b.onclick = () => { pending.bucket = b.dataset.bucket; renderFilterBar(); };
+        body.querySelectorAll("[data-bucket]").forEach(b => {
+            b.onclick = () => { pending.bucket = b.dataset.bucket; buildFilterModal(ov); };
         });
-        fbox.querySelectorAll("[data-subject]").forEach(b => {
-            b.onclick = () => { pending.subject = b.dataset.subject; renderFilterBar(); };
+        body.querySelectorAll("[data-subject]").forEach(b => {
+            b.onclick = () => {
+                pending.subject = b.dataset.subject;
+                pending.topic = "";      // 换了科目，上一科的考点不再适用，一起清掉
+                buildFilterModal(ov);
+            };
         });
-        const sb = fbox.querySelector("#ff-start");
-        if (sb) sb.onclick = () => startWithFilter(pending);
-        const ab = fbox.querySelector("#ff-all");
-        if (ab) ab.onclick = () => { pending = { subject: "", bucket: "", topic: "" }; startWithFilter(null); };
+        body.querySelectorAll("[data-topic]").forEach(b => {
+            b.onclick = () => {
+                pending.topic = b.dataset.topic;
+                buildFilterModal(ov);
+            };
+        });
+        const sb = body.querySelector("#ff-start");
+        if (sb) sb.onclick = () => { closeFilterModal(); startWithFilter(pending); };
+        const ab = body.querySelector("#ff-all");
+        if (ab) ab.onclick = () => {
+            pending = { subject: "", bucket: "", topic: "" };
+            closeFilterModal();
+            startWithFilter(null);
+        };
+    }
+
+    function openFilterModal() {
+        if (!filterOv) {
+            const page = fbox.closest('.page[data-page="flash"]') || document.body;
+            filterOv = document.createElement("div");
+            filterOv.className = "sk-overlay";      // 复用快捷键浮窗同款遮罩/容器样式
+            filterOv.innerHTML =
+                '<div class="sk-box">'
+                + '<div class="sk-head"><span class="sk-title">🔎 闪卡范围筛选</span>'
+                + '<button class="rev-modal-close" id="fl-close" type="button" '
+                + 'title="关闭（Esc）">✕</button></div>'
+                + '<div class="sk-body fl-body"></div>'
+                + '</div>';
+            page.appendChild(filterOv);
+            filterOv.querySelector("#fl-close").onclick = closeFilterModal;
+            // 点遮罩空白处关掉；同样用 capture、先于其它层注册，避免录键等冲突
+            filterOv.addEventListener("click", ev => { if (ev.target === filterOv) closeFilterModal(); });
+            document.addEventListener("keydown", function (ev) {
+                if (!filterOv.hidden && ev.key === "Escape") closeFilterModal();
+            }, true);
+        }
+        buildFilterModal(filterOv);
+        filterOv.hidden = false;
+    }
+    function closeFilterModal() {
+        if (filterOv) filterOv.hidden = true;
     }
 
     // 键盘分四个阶段，互不重叠（数字键在不同阶段含义不同，靠状态消歧）：
@@ -3370,23 +4378,34 @@ const SFX = (function () {
         if (!STUDY.started) return;
         if (!state.cards.length || state.idx >= state.cards.length) return;
         const k = e.key;
-        const isEnter = e.code === "Space" || k === "Enter";
+        // 键位一律问总表（见 KEYS_JS），这里不再自己比 ev.key / ev.code：
+        // 用户在「设置 → 快捷键」里改了键，这两行自动跟着变，提示文案也是同一份。
+        // ⚠️ 别再写回 e.code === "Space" —— 空格在 ev.key 里是 " "，两套写法混着
+        //    最容易出「改了键没反应」这种查半天的 bug（KEYS_JS 的 canonKey 在收口）。
+        const isShowAnswer = __keys.matches("flash.reveal", e);
         if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) {
             // ⚠️ 追问框（#fs-exp-input）会吃掉数字键：用户点过它、或它刚被挂上时，
             //    按 1/2/3/4 本想标熟练度，结果打进了输入框（2026-09-21 用户反馈）。
             //    判据：**空输入框里第一个字符不可能是有意义的提问** —— 数字与空格一律放行给闪卡快捷键。
             //    只在「空 + 数字/空格」时放行，所以正常打字、以及简答题作答区完全不受影响。
+            //    数字与空格放行给闪卡快捷键（空框里第一个字符不可能是提问）。
+            //
+            // ⚠️ 回车**不在放行名单里**（2026-09-17 用户反馈：「在输入框里回车就是发送的意思，
+            //    下一张交给空格」）。以前回车也放行，于是空框按回车会翻页——可人的直觉是
+            //    「回车=发送」，而发送一条空消息本来就该什么都不发生。翻页请按空格。
             const empty = !String(e.target.value || "");
-            const ratingKey = /^[1-9]$/.test(k) || isEnter;
-            if (!(e.target.id === "fs-exp-input" && empty && ratingKey)) return;
+            // 「回车」是显示答案键的别名，所以这里要显式把它摘掉——光看
+            // isShowAnswer 的话回车也会被放行，正好和上面那条 2026-09-17 的决定相反。
+            const shortcutKey = /^[1-9]$/.test(k) || (isShowAnswer && k !== "Enter");
+            if (!(e.target.id === "fs-exp-input" && empty && shortcutKey)) return;
         }
         // 读笔记弹层 / 卡组覆盖层打开时不要评分——那时数字键是在翻笔记，不是在答题
         if (document.querySelector(".rev-modal, .deck-overlay")) return;
         // 番茄钟全屏时同样要闭嘴：它盖在最上面，但按键事件还是会打到这一层来
         if (typeof globalThis.__pomoFullscreen === "function" && globalThis.__pomoFullscreen()) return;
 
-        // U 在哪个阶段都是撤销，先拦下来。选项键只占 A–I / 1–9，不会和它撞。
-        if (k === "u" || k === "U") { e.preventDefault(); undo(); return; }
+        // 撤销在哪个阶段都管用，先拦下来。选项键只占 A–I / 1–9，不会和它撞。
+        if (__keys.matches("flash.undo", e)) { e.preventDefault(); undo(); return; }
 
         // ① 选选项
         const opts = optionButtons();
@@ -3398,25 +4417,25 @@ const SFX = (function () {
                 if (i < opts.length) { e.preventDefault(); opts[i].click(); }
                 return;   // 超出范围的键位不落到下面的分支去
             }
-            if (isEnter) { e.preventDefault(); reveal(); }
+            if (isShowAnswer) { e.preventDefault(); reveal(); }
             return;
         }
 
         // ② 已自动判错：只等翻页
         if (state.autoWrong) {
-            if (isEnter) { e.preventDefault(); goNext(); }
+            if (isShowAnswer) { e.preventDefault(); goNext(); }
             return;
         }
 
         // ③ 自评
         if (state.revealed) {
             if (["1", "2", "3", "4"].includes(k)) { e.preventDefault(); rate(parseInt(k, 10)); }
-            else if (isEnter) { e.preventDefault(); rate(3); }
+            else if (isShowAnswer) { e.preventDefault(); rate(3); }
             return;
         }
 
         // ④ 填空/简答：先看答案
-        if (isEnter) {
+        if (isShowAnswer) {
             e.preventDefault();
             const skipBtn = document.getElementById("fs-skip");   // 简答卡：空格 = 先看参考答案
             const bodyBtn = skipBtn || document.querySelector("#fs-body .fs-btn");
@@ -3630,14 +4649,23 @@ const SFX = (function () {
     const isFull = () => section.classList.contains("is-full");
     const onFlashPage = () => (location.hash || "").replace(/^#\/?/, "") === "flash";
 
-    function setFull(on) {
-        section.classList.toggle("is-full", on);
-        document.body.classList.toggle("fs-lock", on);
-        const label = on ? "退出全屏（Esc）" : "全屏练习（Esc 退出）";
+    // 按钮上的文字/提示单独抽出来：改键位时要能只刷新文案，不能顺手再
+    // setFull 一次（那会在已经全屏时又 requestFullscreen，白挨一次浏览器告警）。
+    function syncLabel() {
+        const on = isFull();
+        // 键名从总表读，用户改了键这儿自动跟着变（别再写死 "F"）
+        const fk = __keys.pretty(__keys.specOf("flash.full"));
+        const label = on ? ("退出全屏（" + fk + " / Esc）") : ("全屏练习（" + fk + "，Esc 退出）");
         btn.textContent = on ? "✕ 退出全屏" : "⛶ 全屏";
         btn.title = label;
         btn.setAttribute("aria-label", label);
         btn.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+
+    function setFull(on) {
+        section.classList.toggle("is-full", on);
+        document.body.classList.toggle("fs-lock", on);
+        syncLabel();
         try { localStorage.setItem(KEY, on ? "1" : "0"); } catch (e) {}
         // 2026-09-21 起和番茄钟一套做法：进全屏时向浏览器申请**对这个模块**的真全屏，
         // 铺满物理屏幕、不再需要用户自己按 F11。拿不到（没有用户手势 / 浏览器不支持）
@@ -3670,9 +4698,32 @@ const SFX = (function () {
 
     btn.addEventListener("click", () => setFull(!isFull()));
 
+    // 键盘：Esc 退出，F 进/出全屏（2026-09-17 用户要求给闪卡加个进全屏的快捷键）。
+    // ⚠️ 为什么不是 U —— U 在闪卡里是「撤销上一次评分」（见 FLASH_JS 的键盘段），
+    //    抢过来会让人按错一下就把评分撤掉，代价太大。F 与笔记阅读弹窗的全屏键一致。
     document.addEventListener("keydown", (ev) => {
-        if (ev.key === "Escape" && isFull()) setFull(false);
+        if (ev.key === "Escape" && isFull()) { setFull(false); return; }
+        if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+        if (!__keys.matches("flash.full", ev)) return;
+        // 正在输入框里打字时 F 就是字母 f，不能抢（追问框、填空作答区都算）
+        if (ev.target && (/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName) || ev.target.isContentEditable)) return;
+        // 笔记阅读弹窗 / 卡组覆盖层自带 F（切弹窗自己的全屏），让给它们
+        if (document.querySelector(".rev-modal, .deck-overlay")) return;
+        // 番茄钟全屏盖在最上面，键盘归它管（同 FLASH_JS 键盘段的口径）
+        if (typeof globalThis.__pomoFullscreen === "function" && globalThis.__pomoFullscreen()) return;
+        // 练习区不可见时（人在别的子页、浮窗也关着）不响应——否则会把整页
+        // 锁进一个看不见的全屏态里，只能靠 Esc 摸黑出来。
+        if (!section.getClientRects().length) return;
+        // ⚠️ 这条要在最后：FLASH_JS 的键盘段（本监听器之前注册，先跑）在选择题阶段
+        //    会把字母键当选项用（A–I）。它认领了就会 preventDefault —— 那种时候 F
+        //    是「选项 F」不是「全屏」，我们不抢。现在题库最多 A–D，撞不上，但留着兜底。
+        if (ev.defaultPrevented) return;
+        ev.preventDefault();
+        setFull(!isFull());
     });
+
+    // 改了键位就刷新按钮文案（tooltip 与 aria-label 里都带着键名）
+    document.addEventListener("kaoyan:keys-changed", syncLabel);
 
     window.addEventListener("hashchange", () => {
         if (isFull() && !onFlashPage()) setFull(false);
@@ -4158,7 +5209,10 @@ def generate_html(data: dict) -> str:
             min-height: 200px;
         }}
 
-        .chart-container svg {{
+        /* ⚠️ 只作用于**直接子** svg。写成 `.chart-container svg` 的话，容器里嵌套的
+           svg（环形图、趋势图）也会被拉成整行宽——环形图圆心还钉在 x=130，
+           右边就是一片空白。分栏布局必须让嵌套 svg 用自己的 width 属性。 */
+        .chart-container > svg {{
             width: 100%;
         }}
 
@@ -4187,10 +5241,9 @@ def generate_html(data: dict) -> str:
         .heatmap-cell {{ animation: cellIn .34s ease-out backwards; }}
         .heatmap-row-label {{ animation: chartRise .42s ease-out backwards; }}
         .heatmap-legend {{ animation: chartFade .5s ease-out backwards; animation-delay: .3s; }}
-        .act-cell {{ animation: cellIn .3s ease-out backwards; }}
         @media (prefers-reduced-motion: reduce) {{
             .chart-container > svg, .chart-legend, .metric-card, .heatmap-cell,
-            .heatmap-row-label, .heatmap-legend, .act-cell {{ animation: none !important; }}
+            .heatmap-row-label, .heatmap-legend {{ animation: none !important; }}
         }}
 
         /* 图表标题行：左标题右切换按钮，切按钮不会把图挤矮 */
@@ -4267,6 +5320,58 @@ def generate_html(data: dict) -> str:
             border-radius: 2px;
         }}
 
+        /* --- 闪卡记忆状态：左右分栏（环形图 | 正确率趋势）---
+           原来环形图独占整行、趋势图横在下面 80px：右半边全是空的，趋势线
+           被压成一条看不出起伏的细线。分栏后左边定宽放环形图+图例，右边自适应
+           放趋势图（带坐标轴和悬停读数）。 */
+        .fc-layout {{
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            flex-wrap: wrap;
+        }}
+        .fc-donut {{
+            position: relative;
+            flex: 0 0 220px;
+            width: 220px;
+        }}
+        /* 220px 的窄栏里横向排会折成「New (464) Learning (10) / Review (95)」这种
+           半截换行，竖排一行一项更好认，鼠标也更好停在上面 */
+        .fc-donut .chart-legend {{
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 3px;
+            margin-top: 6px;
+            padding-left: 46px;
+        }}
+        .fc-trend {{
+            position: relative;
+            flex: 1 1 320px;
+            min-width: 280px;
+        }}
+        .fc-trend-head {{
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 2px;
+        }}
+        .fc-trend-title {{ font-size: 0.8rem; color: var(--text-secondary); }}
+        .fc-trend-now {{
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }}
+        .fc-trend-now b {{ color: var(--zhuqing-lt); font-size: 0.9rem; }}
+        .fc-trend-empty {{
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            padding: 40px 0;
+            text-align: center;
+        }}
+        .fc-donut-svg, .fc-trend-svg {{ animation: chartFade .55s ease-out backwards; }}
+
         /* --- Responsive --- */
         @media (max-width: 768px) {{
             .metrics {{
@@ -4327,7 +5432,37 @@ def generate_html(data: dict) -> str:
             font-size: 0.88rem;
         }}
         .weak-item:last-child {{ border-bottom: none; }}
+        .weak-main {{ flex: 1; min-width: 0; }}
+        .weak-head {{ display: flex; align-items: baseline; gap: 8px; }}
         .weak-name {{ font-weight: 600; }}
+        .weak-acc {{
+            font-size: 0.8rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }}
+        .weak-acc.bad {{ color: var(--zhusha-lt); }}
+        .weak-acc.warn {{ color: var(--xiang-lt); }}
+        .weak-acc.ok {{ color: var(--tao); }}
+        /* 正确率条：一眼看出谁真的低，而不是谁错得多 */
+        .weak-bar {{
+            height: 3px;
+            max-width: 200px;
+            margin: 5px 0 4px;
+            border-radius: 2px;
+            background: rgba(var(--xuan-rgb), .08);
+            overflow: hidden;
+        }}
+        .weak-bar-fill {{ height: 100%; border-radius: 2px; }}
+        .weak-tag {{
+            font-size: 0.64rem;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0 5px;
+            margin-left: 6px;
+            white-space: nowrap;
+        }}
         .weak-meta {{ font-size: 0.72rem; color: var(--text-muted); }}
         .weak-count {{
             font-size: 0.78rem;
@@ -4350,6 +5485,20 @@ def generate_html(data: dict) -> str:
             color: var(--text-muted);
             line-height: 1.6;
         }}
+        /* --- 薄弱提醒 / 真缺口折叠（2026-09-18：平时只展示前 3 项，展开 + 浮窗查看）--- */
+        .weak-item.over-cap {{ display: none; }}
+        .gap-item.over-cap {{ display: none; }}
+        .cap-foot {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 0 2px;
+            margin-top: 6px; border-top: 1px dashed var(--border-color); font-size: 0.76rem;
+            color: var(--text-muted); }}
+        .cap-info {{ margin-right: auto; }}
+        .cap-btn {{ font-size: 0.76rem; color: var(--xuan-lt); background: rgba(var(--xuan-rgb), .10);
+            border: 1px solid var(--border-color); border-radius: 8px; padding: 3px 10px; cursor: pointer;
+            font-family: var(--font-serif); }}
+        .cap-btn:hover {{ background: rgba(var(--xuan-rgb), .18); }}
+        .cap-float {{ color: var(--accent-red); background: rgba(239,68,68,.10); }}
+        .cap-float:hover {{ background: rgba(239,68,68,.18); }}
+        .cap-body .weak-item, .cap-body .gap-item {{ padding: 10px 0; }}
         /* __FLASH_CSS__ */
         /* __DECK_CSS__ */
         /* __REVIVE_CSS__ */
@@ -4389,7 +5538,7 @@ def generate_html(data: dict) -> str:
         <button class="sidenav-item" data-page="overview" data-short="总" title="总览">总览</button>
         <button class="sidenav-item" data-page="notes" data-short="笔" title="笔记">笔记</button>
         <button class="sidenav-item" data-page="flash" data-short="闪" title="闪卡">闪卡</button>
-        <button class="sidenav-item" data-page="activity" data-short="活" title="活动">活动</button>
+        <button class="sidenav-item" data-page="activity" data-short="计" title="计划页">计划页</button>
         <button class="sidenav-item" data-page="mistakes" data-short="复" title="错题复盘">错题复盘</button>
         <button class="sidenav-item" data-page="study" data-short="学" title="薄弱点学习">薄弱点学习</button>
         <button class="sidenav-item" data-page="review" data-short="早" title="早间回顾">早间回顾</button>
@@ -4419,10 +5568,10 @@ def generate_html(data: dict) -> str:
             <div class="strip-loading">正在读取专注与打卡数据…</div>
         </div>
 
-        <!-- Section 3: 薄弱提醒（闪卡错误驱动，已验证掌握的不再提醒） -->
+        <!-- Section 3: 薄弱提醒（闪卡正确率驱动，已验证掌握的不再提醒） -->
         <div class="row">
             <div class="section">
-                <h2>薄弱知识点（来自你的闪卡错误）</h2>
+                <h2>薄弱知识点（按闪卡正确率）</h2>
                 <div id="weak-list"></div>
             </div>
             <div class="section">
@@ -4501,9 +5650,6 @@ def generate_html(data: dict) -> str:
 
     <!-- ============ 闪卡 ============ -->
     <div class="page" data-page="flash" hidden>
-        <!-- Section 4a: 闪卡筛选（先选范围，再开始刷） -->
-        <div class="section" id="flash-filter"></div>
-
         <!-- Section 4b: 闪卡练习区（看大盘时顺便刷题） -->
         <div class="section" id="flash-practice">
             <div class="chart-head">
@@ -4516,11 +5662,14 @@ def generate_html(data: dict) -> str:
                             title="结束本次学习并停止计时">⏹ 结束</button>
                     <button class="fs-full-toggle" id="fs-sfx-toggle" title="答题音效">🔊 音效</button>
                     <button class="fs-full-toggle" id="fs-full-toggle"
-                            title="全屏练习（Esc 退出）">⛶ 全屏</button>
+                            title="全屏练习（F，Esc 退出）">⛶ 全屏</button>
                 </div>
             </div>
             <div class="fs-box" id="flash-studio"></div>
         </div>
+
+        <!-- Section 4c: 闪卡范围筛选（顺位放在练习区下面；平时收起，点按钮浮窗打开） -->
+        <div class="section" id="flash-filter"></div>
 
         <!-- Flashcard Stats -->
         <div class="section">
@@ -4529,7 +5678,7 @@ def generate_html(data: dict) -> str:
         </div>
     </div>
 
-    <!-- ============ 练习活动 ============ -->
+    <!-- ============ 计划页（今日任务，agent 定时生成 + 手动增删） ============ -->
     <div class="page" data-page="activity" hidden>
         <!-- Section 5a: 今日任务（agent 定时生成 + 手动增删） -->
         <div class="section">
@@ -4551,22 +5700,6 @@ def generate_html(data: dict) -> str:
                 <button class="fs-btn" id="task-add-btn">添加</button>
             </div>
             <div class="task-hint" id="task-hint"></div>
-        </div>
-
-        <!-- Section 5b: 练习活动（真实答题记录，非打卡监督） -->
-        <div class="section">
-            <h2>🔥 练习活动 · 近12周真实答题</h2>
-            <div class="act-wrap">
-                <div class="act-cal-block">
-                    <div class="act-cal" id="act-cal"></div>
-                    <div class="act-cal-labels" id="act-cal-labels"></div>
-                </div>
-                <div class="act-side">
-                    <div class="act-stat"><span>累计答题</span><b id="act-total">0</b></div>
-                    <div class="act-stat"><span>连续练习天数</span><b id="act-streak">0</b></div>
-                    <div id="act-acc" style="margin-top:10px;"></div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -4628,6 +5761,7 @@ def generate_html(data: dict) -> str:
 </div>
 
 <script>
+// __LOG_JS__
 // ============================================================
 // Data (injected by Python)
 // ============================================================
@@ -4739,12 +5873,6 @@ document.getElementById("verified-count").textContent = D.verified_count || 0;
             value: D.flashcard.due + " 张",
             detail: "题库共 " + D.flashcard.total + " 张",
             cls: D.flashcard.due > 0 ? "orange" : "green"
-        }},
-        {{
-            label: "真缺口",
-            value: D.gap_count + " 处",
-            detail: "无笔记且未验证掌握的考点",
-            cls: D.gap_count > 10 ? "red" : D.gap_count > 0 ? "orange" : "green"
         }}
     ];
 
@@ -5189,9 +6317,12 @@ window.__pageRenderers.overview = [function () {{
 }});
 
 // ============================================================
-// Section 5: Flashcard State Pie Chart
+// Section 5: 闪卡记忆状态 —— 左环形图 + 右正确率趋势
 // ============================================================
-// 同在「闪卡」页，同样读 clientWidth，同样要等页面可见才画
+// 同在「闪卡」页，同样读 clientWidth，同样要等页面可见才画。
+// 2026-09-17 改版：原来环形图占满整行（圆心钉在 x=130，右边一大片空白），
+// 趋势图横在下面 80px——没有坐标轴、没有悬停读数，正确率挤在 67~88 之间
+// 被 0~100 的刻度压成一条直线。现在左右分栏，两边都带悬停浮层。
 window.__pageRenderers.flash = [function () {{
     const container = document.getElementById("flashcard-chart");
     const states = D.card_states;
@@ -5206,24 +6337,32 @@ window.__pageRenderers.flash = [function () {{
         .filter(([, v]) => v > 0)
         .map(([k, v]) => ({{label: k, value: v}}));
 
-    const w = Math.min(container.clientWidth, 260);
-    const radius = w / 2 - 10;
-
-    const svg = d3.select(container).append("svg")
-        .attr("width", w)
-        .attr("height", w)
-        .append("g")
-        .attr("transform", `translate(${{w/2}},${{w/2}})`);
+    // render() 有被再次调用的可能，先清空，免得图例叠成两份
+    container.innerHTML = "";
+    const layout = el("div", {{className: "fc-layout"}}, container);
+    const left = el("div", {{className: "fc-donut"}}, layout);
+    const right = el("div", {{className: "fc-trend"}}, layout);
 
     const color = d3.scaleOrdinal()
         .domain(["New", "Learning", "Review", "Relearning"])
         .range([PALETTE.hui, PALETTE.xiang, PALETTE.zhuqing, PALETTE.zhusha]);
 
+    // ===================== 左：环形图 =====================
+    const w = 220;
+    const radius = w / 2 - 8;
+
+    const svg = d3.select(left).append("svg")
+        .attr("class", "fc-donut-svg")
+        .attr("width", w)
+        .attr("height", w)
+        .append("g")
+        .attr("transform", `translate(${{w/2}},${{w/2}})`);
+
     const pie = d3.pie().value(d => d.value).sort(null);
-    const arc = d3.arc().innerRadius(radius * 0.5).outerRadius(radius);
+    const arc = d3.arc().innerRadius(radius * 0.56).outerRadius(radius);
 
     let sweeping = CHART_MOTION;
-    const arcBig = d3.arc().innerRadius(radius * 0.5).outerRadius(radius + 6);
+    const arcBig = d3.arc().innerRadius(radius * 0.56).outerRadius(radius + 5);
     const arcs = svg.selectAll("path")
         .data(pie(pieData))
         .enter().append("path")
@@ -5263,14 +6402,33 @@ window.__pageRenderers.flash = [function () {{
         .attr("font-size", "0.7rem")
         .text("张闪卡");
 
-    // ---- 悬停：这一块向外弹 6px、其余压暗，中心数字换成这一块的值 ----
+    // ---- 悬停：这一块向外弹 5px、其余压暗，中心数字换成这一块的值，并弹浮层 ----
+    // ⚠️ d3 v7 的 on() 回调是 (event, d)，**事件在前**。写成 function (d) 的话
+    // 拿到的是 MouseEvent，d.data 是 undefined——一悬停就 TypeError，扇形不动、
+    // 中心数字也不换，看起来就是「悬停没反应」。
     const numEl = svg.select(".pie-center-num"), labEl = svg.select(".pie-center-label");
-    function pieHot(d) {{
-        if (sweeping) return;                    // 扫开途中不接，免得把补间打断
+    const pieTip = el("div", {{className: "tl-tip"}}, left);
+    pieTip.style.display = "none";
+    const pct = v => (v / total * 100).toFixed(1) + "%";
+
+    function pieHot(ev, d) {{
+        if (sweeping || !d) return;              // 扫开途中不接，免得把补间打断
         arcs.classed("dimmed", x => x !== d);
         d3.select(this).attr("d", arcBig);
         numEl.text(d.data.value);
         labEl.text(d.data.label);
+
+        const c = color(d.data.label);
+        pieTip.innerHTML = '<div class="tl-tip-head">' + d.data.label + '</div>'
+            + '<div class="tl-tip-row"><i style="background:' + c + '"></i>张数<b>'
+            + d.data.value + '</b></div>'
+            + '<div class="tl-tip-row"><i style="background:' + c + '"></i>占比<b>'
+            + pct(d.data.value) + '</b></div>';
+        pieTip.style.display = "block";
+        const p = d3.pointer(ev, left);
+        const tw = pieTip.offsetWidth || 0;
+        pieTip.style.left = Math.max(0, Math.min(left.clientWidth - tw, p[0] - tw / 2)) + "px";
+        pieTip.style.top = Math.max(0, p[1] - (pieTip.offsetHeight || 0) - 10) + "px";
     }}
     function pieCalm() {{
         if (sweeping) return;
@@ -5278,11 +6436,12 @@ window.__pageRenderers.flash = [function () {{
         arcs.attr("d", arc);
         numEl.text(total);
         labEl.text("张闪卡");
+        pieTip.style.display = "none";
     }}
     arcs.on("mouseenter", pieHot).on("mouseleave", pieCalm);
 
     // Legend：悬停某一项 = 把对应的那块扇形弹出并高亮（和直接悬停扇形一个效果）
-    const legendDiv = el("div", {{className: "chart-legend"}}, container);
+    const legendDiv = el("div", {{className: "chart-legend"}}, left);
     pieData.forEach(d => {{
         const item = el("div", {{className: "chart-legend-item"}}, legendDiv);
         const dot = el("div", {{className: "chart-legend-dot"}}, item);
@@ -5302,47 +6461,129 @@ window.__pageRenderers.flash = [function () {{
         }};
     }});
 
-    // Accuracy trend (if available)
-    if (D.accuracy_trend && D.accuracy_trend.length > 0) {{
-        const accDiv = el("div", {{style: "margin-top:16px;"}}, container);
-        el("div", {{
-            style: "font-size:0.8rem;color:var(--text-secondary);margin-bottom:8px;",
-            textContent: "正确率趋势 (近14天)"
-        }}, accDiv);
-
-        const accH = 80;
-        const accSvg = d3.select(accDiv).append("svg")
-            .attr("width", container.clientWidth - 20)
-            .attr("height", accH);
-
-        const ax = d3.scaleBand()
-            .domain(D.accuracy_trend.map(d => d.date))
-            .range([30, container.clientWidth - 30]);
-
-        const ay = d3.scaleLinear()
-            .domain([0, 100])
-            .range([accH - 15, 5]);
-
-        const accLine = d3.line()
-            .x(d => ax(d.date) + ax.bandwidth() / 2)
-            .y(d => ay(d.accuracy))
-            .curve(d3.curveMonotoneX);
-
-        accSvg.append("path")
-            .datum(D.accuracy_trend)
-            .attr("fill", "none")
-            .attr("stroke", PALETTE.zhuqing)
-            .attr("stroke-width", 2)
-            .attr("d", accLine);
-
-        D.accuracy_trend.forEach(d => {{
-            accSvg.append("circle")
-                .attr("cx", ax(d.date) + ax.bandwidth() / 2)
-                .attr("cy", ay(d.accuracy))
-                .attr("r", 3)
-                .attr("fill", PALETTE.zhuqing);
-        }});
+    // ===================== 右：正确率趋势 =====================
+    const trend = (D.accuracy_trend || []).slice();
+    const head = el("div", {{className: "fc-trend-head"}}, right);
+    el("div", {{className: "fc-trend-title", textContent: "正确率趋势（近 14 天）"}}, head);
+    if (trend.length > 0) {{
+        const last = trend[trend.length - 1];
+        const now = el("div", {{className: "fc-trend-now"}}, head);
+        el("b", {{textContent: last.accuracy + "%"}}, now);
+        el("span", {{textContent: " " + last.date.slice(5) + " · " + last.total + " 题"}}, now);
     }}
+
+    if (trend.length === 0) {{
+        el("div", {{className: "fc-trend-empty", textContent: "近 14 天还没有闪卡记录"}}, right);
+        return;
+    }}
+
+    const W = Math.max(260, right.clientWidth || (container.clientWidth - 260) || 360);
+    const H = 190;
+    const M = {{top: 12, right: 14, bottom: 26, left: 40}};
+    const pT = M.top, pB = H - M.bottom, pL = M.left, pR = W - M.right;
+
+    const tsvg = d3.select(right).append("svg")
+        .attr("class", "fc-trend-svg")
+        .attr("width", W)
+        .attr("height", H);
+
+    const xs = d3.scalePoint().domain(trend.map(d => d.date)).range([pL, pR]).padding(0.4);
+
+    // 正确率常年挤在 60~90 之间，硬用 0~100 会把线压成一条直线；下界退到最近的
+    // 十位（**不低于 0**），但刻度一定要画出来——截断坐标轴而不标注就是视觉夸大。
+    const lo = Math.min.apply(null, trend.map(d => d.accuracy));
+    const yMin = lo >= 50 ? Math.floor((lo - 10) / 10) * 10 : 0;
+    const ys = d3.scaleLinear().domain([yMin, 100]).range([pB, pT]);
+    const yTicks = ys.ticks(4);
+
+    // 横向网格线 + 纵轴刻度（"%"就写在刻度上，省掉一条旋转的轴标题）
+    tsvg.append("g").selectAll("line")
+        .data(yTicks).enter().append("line")
+        .attr("x1", pL).attr("x2", pR)
+        .attr("y1", d => ys(d)).attr("y2", d => ys(d))
+        .attr("stroke", PALETTE.bian).attr("stroke-width", 1)
+        .attr("stroke-dasharray", d => (d === 100 ? null : "2 4"));
+
+    tsvg.append("g").selectAll("text")
+        .data(yTicks).enter().append("text")
+        .attr("x", pL - 6).attr("y", d => ys(d))
+        .attr("text-anchor", "end").attr("dominant-baseline", "middle")
+        .attr("fill", PALETTE.hui).attr("font-size", "0.62rem")
+        .text(d => d + "%");
+
+    // 横轴日期
+    tsvg.append("g").selectAll("text")
+        .data(trend).enter().append("text")
+        .attr("x", d => xs(d.date)).attr("y", pB + 16)
+        .attr("text-anchor", "middle")
+        .attr("fill", PALETTE.hui).attr("font-size", "0.62rem")
+        .text(d => d.date.slice(5));
+
+    // 面积 + 折线（面积只是给线一个落脚的底，压得很淡）
+    tsvg.append("path")
+        .datum(trend)
+        .attr("fill", PALETTE.zhuqing).attr("opacity", .12)
+        .attr("d", d3.area().x(d => xs(d.date)).y0(pB).y1(d => ys(d.accuracy))
+            .curve(d3.curveMonotoneX));
+
+    tsvg.append("path")
+        .datum(trend)
+        .attr("fill", "none")
+        .attr("stroke", PALETTE.zhuqing)
+        .attr("stroke-width", 2)
+        .attr("d", d3.line().x(d => xs(d.date)).y(d => ys(d.accuracy))
+            .curve(d3.curveMonotoneX));
+
+    tsvg.append("g").selectAll("circle")
+        .data(trend).enter().append("circle")
+        .attr("cx", d => xs(d.date)).attr("cy", d => ys(d.accuracy))
+        .attr("r", 3.2)
+        .attr("fill", PALETTE.zhuqing)
+        .attr("stroke", PALETTE.mo).attr("stroke-width", 1.5);
+
+    // ---- 悬停：竖向准线 + 光环 + 当天读数（日期 / 正确率 / 练习题数）----
+    const tip = el("div", {{className: "tl-tip"}}, right);
+    tip.style.display = "none";
+    // 浮层是列内绝对定位，而准线坐标是 svg 内的 —— 差一个表头高度
+    const svgTop = head.offsetHeight || 0;
+
+    const guide = tsvg.append("line")
+        .attr("class", "tl-guide").attr("y1", pT).attr("y2", pB).attr("x1", 0).attr("x2", 0)
+        .style("display", "none");
+    const halo = tsvg.append("circle")
+        .attr("r", 6.5).attr("fill", PALETTE.zhuqing).attr("opacity", .3)
+        .style("display", "none");
+
+    tsvg.append("rect")
+        .attr("x", pL - 12).attr("y", pT)
+        .attr("width", Math.max(1, pR - pL + 24)).attr("height", Math.max(1, pB - pT))
+        .attr("fill", "none").attr("pointer-events", "all")
+        .on("mousemove", function (ev) {{
+            const mx = d3.pointer(ev)[0];
+            let best = 0, bestD = Infinity;
+            trend.forEach((d, i) => {{
+                const dist = Math.abs(xs(d.date) - mx);
+                if (dist < bestD) {{ bestD = dist; best = i; }}
+            }});
+            const d = trend[best], cx = xs(d.date), cy = ys(d.accuracy);
+            guide.style("display", null).attr("x1", cx).attr("x2", cx);
+            halo.style("display", null).attr("cx", cx).attr("cy", cy);
+
+            tip.innerHTML = '<div class="tl-tip-head">' + d.date + '</div>'
+                + '<div class="tl-tip-row"><i style="background:' + PALETTE.zhuqing + '"></i>正确率<b>'
+                + d.accuracy + '%</b></div>'
+                + '<div class="tl-tip-row"><i style="background:' + PALETTE.hui + '"></i>练习题数<b>'
+                + d.total + '</b></div>';
+            tip.style.display = "block";
+            const tw = tip.offsetWidth || 0;
+            tip.style.left = Math.max(2, Math.min(W - tw - 2, cx - tw / 2)) + "px";
+            tip.style.top = Math.max(0, svgTop + cy - (tip.offsetHeight || 0) - 12) + "px";
+        }})
+        .on("mouseleave", function () {{
+            guide.style("display", "none");
+            halo.style("display", "none");
+            tip.style.display = "none";
+        }});
 }}];
 
 // ============================================================
@@ -5358,11 +6599,35 @@ window.__pageRenderers.flash = [function () {{
         return;
     }}
 
+    // 正确率分档上色：<60% 朱砂、60-79% 缃、>=80% 青灰（越红越该复习）
+    const accBand = a => a < 60 ? "bad" : a < 80 ? "warn" : "ok";
+    const accColor = a => a < 60 ? "var(--zhusha)" : a < 80 ? "var(--xiang)" : "var(--zhuqing)";
+
     weak.forEach(w => {{
         const item = el("div", {{className: "weak-item"}}, box);
-        const left = el("div", {{}}, item);
-        el("div", {{className: "weak-name", textContent: w.name}}, left);
-        el("div", {{className: "weak-meta", textContent: w.subject + " · 遗忘" + w.lapses + "次 · 近期错" + w.recent_wrong + "次"}}, left);
+        const left = el("div", {{className: "weak-main"}}, item);
+
+        const head = el("div", {{className: "weak-head"}}, left);
+        const name = el("div", {{className: "weak-name", textContent: w.name}}, head);
+        if (w.low_sample) {{
+            const tag = el("span", {{className: "weak-tag", textContent: "样本少"}}, name);
+            tag.title = "练习次数不足 5 次，正确率仅供参考";
+        }}
+        el("div", {{className: "weak-acc " + accBand(w.accuracy),
+                    textContent: w.accuracy + "%"}}, head);
+
+        const bar = el("div", {{className: "weak-bar"}}, left);
+        const fill = el("div", {{className: "weak-bar-fill"}}, bar);
+        fill.style.width = Math.max(2, w.accuracy) + "%";
+        fill.style.background = accColor(w.accuracy);
+
+        const meta = w.subject + " · 正确率 " + w.correct + "/" + w.total + " 题";
+        el("div", {{className: "weak-meta",
+                    textContent: w.recent_total
+                        ? meta + " · 近30天 " + w.recent_accuracy + "%（"
+                          + (w.recent_total - w.recent_wrong) + "/" + w.recent_total + "）"
+                        : meta}}, left);
+
         el("div", {{className: "weak-count", textContent: "重点复习"}}, item);
     }});
 
@@ -5373,7 +6638,11 @@ window.__pageRenderers.flash = [function () {{
     }}
 
     const note = el("div", {{className: "weak-note"}}, box);
-    note.textContent = "规则：薄弱由你的实际答题错误驱动；无笔记但答对过的考点不会出现在这里。";
+    note.textContent = "规则：按正确率（答对题数/练习题数）从低到高排，不是按错误次数——"
+        + "练得多的考点自然错得多，比错误次数等于比谁刷得多。"
+        + "从没练过的考点不在这里（去下面练习区开卡）；答对过的考点不会因为「没整理笔记」被点名。";
+
+    capList(box, ".weak-item", 3, "薄弱知识点（按闪卡正确率） · 全部");
 }})();
 
 // ============================================================
@@ -5402,8 +6671,56 @@ window.__pageRenderers.flash = [function () {{
             textContent: g.weight + "分"
         }}, li);
     }});
+
+    capList(list, ".gap-item", 3, "真缺口（无笔记且未验证掌握） · 全部");
 }})();
 
+// ============================================================
+// 总览页薄弱提醒两卡的折叠（2026-09-18）：平时只展示前 N 项，
+// 「展开全部 / 收起」就地展开，「浮窗查看」弹 sk-overlay 模态看全量。
+// ============================================================
+function capList(box, itemSel, n, title) {{
+    const items = Array.from(box.querySelectorAll(itemSel));
+    if (items.length <= n) return;                       // 不足 N 项就不折腾
+    const hidden = items.slice(n);
+    hidden.forEach(function (el) {{ el.classList.add("over-cap"); }});
+
+    const foot = document.createElement("div");
+    foot.className = "cap-foot";
+    foot.innerHTML = '<span class="cap-info">共 ' + items.length + ' 项 · 默认展示前 ' + n + ' 项</span>'
+        + '<button class="cap-btn" data-act="expand">展开全部 ▾</button>'
+        + '<button class="cap-btn cap-float" data-act="float">🔍 浮窗查看</button>';
+    box.after(foot);
+
+    const expand = foot.querySelector('[data-act="expand"]');
+    expand.onclick = function () {{
+        const collapsed = hidden[0].classList.contains("over-cap");
+        hidden.forEach(function (el) {{ el.classList.toggle("over-cap", !collapsed); }});
+        expand.textContent = collapsed ? "收起 ▴" : "展开全部 ▾";
+    }};
+    const fl = foot.querySelector('[data-act="float"]');
+    fl.onclick = function () {{ openCapFloat(items, title); }};
+}}
+function openCapFloat(items, title) {{
+    const ov = document.createElement("div");
+    ov.className = "sk-overlay";
+    ov.innerHTML = '<div class="sk-box">'
+        + '<div class="sk-head"><span class="sk-title"></span>'
+        + '<button class="rev-modal-close" type="button" title="关闭（Esc）">✕</button></div>'
+        + '<div class="sk-body cap-body"></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector(".sk-title").textContent = title;
+    const body = ov.querySelector(".sk-body");
+    items.forEach(function (el) {{ body.appendChild(el.cloneNode(true)); }});
+    ov.querySelector(".rev-modal-close").onclick = function () {{ ov.remove(); }};
+    ov.addEventListener("click", function (ev) {{ if (ev.target === ov) ov.remove(); }});
+    document.addEventListener("keydown", function esc(e) {{
+        if (e.key === "Escape" && ov.isConnected) {{ ov.remove(); document.removeEventListener("keydown", esc, true); }}
+    }}, true);
+}}
+
+// __DAY_START__
+// __KEYS_JS__
 // __FLASH_JS__
 // __REVIVE_JS__
 // __NOTEQ_JS__
@@ -5518,21 +6835,7 @@ REVIVE_CSS = '''
         .rev-modal-body td, .rev-modal-body th { border: 1px solid var(--border-color); padding: 4px 9px; font-size: 0.82rem; }
         .rev-modal-foot { padding: 12px 18px; border-top: var(--rule); display: flex; justify-content: flex-end; gap: 8px; }
 
-        /* 练习活动日历 */
-        .act-wrap { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
-        .act-cal-block { flex-shrink: 0; }
-        .act-cal { display: grid; grid-template-rows: repeat(7, 12px); grid-auto-flow: column; grid-auto-columns: 12px; gap: 3px; }
-        .act-cell { width: 12px; height: 12px; border-radius: 2px; background: var(--bg-secondary); }
-        .act-cal-labels { font-size: 0.68rem; color: var(--text-muted); margin-top: 6px; }
-        .act-side { flex: 1; min-width: 220px; }
-        .act-stat { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; }
-        .act-stat:last-of-type { border-bottom: none; }
-        .act-acc-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 0.78rem; }
-        .act-acc-name { width: 40px; color: var(--text-secondary); flex-shrink: 0; }
-        .act-acc-bar { flex: 1; height: 10px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden; }
-        .act-acc-fill { height: 100%; border-radius: 5px; }
-        .act-acc-val { width: 82px; text-align: right; color: var(--text-muted); font-size: 0.72rem; flex-shrink: 0; }
-'''
+        '''
 
 REVIVE_JS = '''
 // ============================================================
@@ -5700,6 +7003,10 @@ REVIVE_JS = '''
     // 与全局同一实现（全局版用 escHtml 兜底，行为一致）
     const katexHtml = window.katexHtml
         || ((tex) => '<code class="tex-fallback">' + esc(tex) + '</code>');
+    // ASCII 上下标（O(n^2)、∬_D、a_i → <sub>/<sup>）：与闪卡、AI 回复共用同一份实现，
+    // 免得同一段公式在笔记和闪卡里呈现两种结果。桥没搭上就原样返回——
+    // 笔记照常能看，只是少个上下标效果（2026-09-17）。
+    const asciiMath = window.asciiMath || ((s) => s);
 
     // ---- 简易 Markdown 渲染（只覆盖笔记常用语法）----
     // 数学公式：先把 $$...$$ 与 $...$ 摘成占位符。**必须在 HTML 转义之前摘**，
@@ -5923,13 +7230,27 @@ REVIVE_JS = '''
         }
 
         function inline(x) {
-            return x
+            // ⚠️ ASCII 上下标（O(n^2)、∬_D、a_i）必须**排在最前面**处理：
+            //    此时 @@MATH / @@IMG 还是占位符，不会被误伤；等 @@MATH 换成 KaTeX 之后再跑，
+            //    未就绪时的 tex-fallback 里就是公式源码，会被二次加工。
+            //    规则与闪卡、AI 回复共用同一份（前一个 IIFE 挂在 window 上）；
+            //    桥没搭上（脚本被裁/顺序变了）就跳过，笔记照常能看。
+            const codes = [];
+            const SOH = String.fromCharCode(1);
+            // 行内代码先摘出来：代码里的 _ ^ 是程序文本，不该变成上下标
+            let y = x.replace(/`([^`]+)`/g, (m, c) => {
+                codes.push(c);
+                return SOH + (codes.length - 1) + SOH;
+            });
+            y = asciiMath(y);
+            return y
                 .replace(/@@IMG(\\d+)@@/g, (m, i) => buildImg(imgSpecs[+i] || {}))
-                .replace(/`([^`]+)`/g, "<code>$1</code>")
                 .replace(/\\*\\*([^*]+)\\*\\*/g, "<b>$1</b>")
                 .replace(/!\[([^\]]*)\]\([^)]+\)/g, "[图:$1]")
                 .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-                .replace(/@@MATH(\d+)@@/g, (m, i) => katexHtml(maths[+i].tex, maths[+i].display));
+                .replace(/@@MATH(\d+)@@/g, (m, i) => katexHtml(maths[+i].tex, maths[+i].display))
+                .replace(new RegExp(SOH + "([0-9]+)" + SOH, "g"),
+                         (m, i) => "<code>" + codes[+i] + "</code>");
         }
     }
 
@@ -5944,7 +7265,8 @@ REVIVE_JS = '''
         // 「就问这段」：把右侧提问面板展开（面板本身由 NOTEQ_JS 挂上来）
         const qaBtn = el("button", { className: "rev-modal-tool", textContent: "💬 就问这段",
                                      title: "就我正在读的这一段问 AI" }, head);
-        const fsBtn = el("button", { className: "rev-modal-tool", textContent: "⛶ 全屏", title: "全屏阅读（F）" }, head);
+        const fsBtn = el("button", { className: "rev-modal-tool", textContent: "⛶ 全屏",
+            title: "全屏阅读（" + __keys.pretty(__keys.specOf("read.full")) + "）" }, head);
         const closeBtn = el("button", { className: "rev-modal-close", textContent: "✕" }, head);
 
         // 主区：左侧 outline（仅全屏时显示）+ 正文 + 右侧提问面板（可折叠）
@@ -6062,7 +7384,7 @@ REVIVE_JS = '''
             if (e.key === "Escape") {
                 e.stopPropagation();
                 if (isFull) setFull(false); else close();
-            } else if ((e.key === "f" || e.key === "F") && !/INPUT|TEXTAREA/.test(e.target.tagName)) {
+            } else if (__keys.matches("read.full", e) && !/INPUT|TEXTAREA/.test(e.target.tagName)) {
                 setFull(!isFull);
             }
         }
@@ -6090,8 +7412,8 @@ REVIVE_JS = '''
             renderMermaidIn(body, mermaidBlocks.slice());
             // 从搜索进来（带了关键词/小标题）就定位到命中处——件、公式都渲染完再做，
             // 否则文本节点还会被 KaTeX 替换掉，定位就到不了。
-            if ((t.query || t.anchor) && typeof globalThis.__noteHitLocate === "function") {
-                try { globalThis.__noteHitLocate(body, { query: t.query || "", anchor: t.anchor || "" }); }
+            if ((t.query || t.anchor || t.keywords) && typeof globalThis.__noteHitLocate === "function") {
+                try { globalThis.__noteHitLocate(body, { query: t.query || "", anchor: t.anchor || "", keywords: t.keywords || "" }); }
                 catch (e) { console.error("[笔记] 定位命中处失败:", e); }
             }
             if (!katexOk) body.insertAdjacentHTML("afterbegin",
@@ -6163,70 +7485,16 @@ REVIVE_JS = '''
     globalThis.__revOpenNote = function (opts) {
         const file = typeof opts === "string" ? opts : (opts && opts.file);
         const name = (typeof opts === "object" && opts && opts.name) || String(file || "").split("/").pop();
+        const anchor = (typeof opts === "object" && opts && opts.anchor) || "";
+        const query = (typeof opts === "object" && opts && opts.query) || "";
+        const keywords = (typeof opts === "object" && opts && opts.keywords) || "";
         if (!file) return false;
-        openNote({ file: file, name: name }, null);
+        openNote({ file: file, name: name, anchor: anchor, query: query, keywords: keywords }, null);
         return true;
     };
 })();
 
 // ============================================================
-// 练习活动：近12周真实答题日历 + 各科正确率
-// ============================================================
-(function() {
-    const ACT = ((D.revival || {}).activity) || {};
-    document.getElementById("act-total").textContent = ACT.total_reviews || 0;
-    document.getElementById("act-streak").textContent = ACT.streak || 0;
-
-    // 日历：以周一为行首，补齐前后
-    const cal = document.getElementById("act-cal");
-    const days = ACT.calendar || [];
-    if (days.length > 0) {
-        const first = new Date(days[0].date + "T00:00:00");
-        const lead = (first.getDay() + 6) % 7;
-        for (let i = 0; i < lead; i++) { const c = el("div", { className: "act-cell" }, cal); c.style.visibility = "hidden"; }
-        const maxN = Math.max(1, ...days.map(d => d.n));
-        days.forEach((d, di) => {
-            const c = el("div", { className: "act-cell" }, cal);
-            c.style.animationDelay = (di * 3) + "ms";   // 一天一格，从左到右铺开
-            c.title = d.date + " · " + d.n + " 次答题";
-            if (d.n > 0) {
-                const a = 0.3 + 0.7 * Math.min(1, d.n / maxN);
-                c.style.background = "rgba(16,185,129," + a.toFixed(2) + ")";
-            }
-        });
-    }
-    const labels = document.getElementById("act-cal-labels");
-    if (days.length > 0) {
-        labels.textContent = days[0].date + " → " + days[days.length - 1].date;
-    } else {
-        labels.textContent = "暂无答题记录";
-    }
-
-    // 各科正确率
-    const accBox = document.getElementById("act-acc");
-    const subs = ACT.by_subject || [];
-    if (subs.length === 0) {
-        accBox.innerHTML = '<div class="rev-empty" style="padding:12px 0;">暂无答题数据 —— 去上方练习区刷几组闪卡</div>';
-    }
-    subs.forEach(x => {
-        const row = el("div", { className: "act-acc-row" }, accBox);
-        el("div", { className: "act-acc-name", textContent: x.subject }, row);
-        const bar = el("div", { className: "act-acc-bar" }, row);
-        const fill = el("div", { className: "act-acc-fill" }, bar);
-        // 一次没练过的科目照样占一行，显示「未练」——早先它干脆不出现，
-        // 用户看到的是「少了两科」而不是「这两科还没开始」，会以为数据坏了。
-        const none = !x.total;
-        fill.style.width = none ? "0%" : x.accuracy + "%";
-        fill.style.background = none ? "transparent"
-            : x.accuracy >= 80 ? PALETTE.zhuqing
-            : x.accuracy >= 60 ? PALETTE.xiang : PALETTE.zhusha;
-        const val = el("div", {
-            className: "act-acc-val",
-            textContent: none ? "未练" : (x.accuracy + "% · " + x.total + "题"),
-        }, row);
-        if (none) val.style.color = "var(--text-muted)";
-    });
-})();
 '''
 
 
@@ -6285,7 +7553,7 @@ FX_CSS = '''
            此前反馈是散的——有的元素有过渡、有的一按下去毫无动静，
            这里集中补齐，省得以后每个模块再各写各的。
            ============================================================ */
-        .metric-card, .weak-item, .gap-list li, .act-cell, .deck-card,
+        .metric-card, .weak-item, .gap-list li, .deck-card,
         .fs-opt, .fs-btn, .heatmap-cell, .range-btn, .sidenav-item {
             transition: transform .16s ease, border-color .16s ease,
                         background .16s ease, box-shadow .16s ease, color .16s ease;
@@ -6299,9 +7567,6 @@ FX_CSS = '''
         /* 热力图格子放大时要盖住相邻格，所以必须带 z-index。
            .heatmap-cell 本身已是 position:relative，不用重复声明。 */
         .heatmap-cell:hover { transform: scale(1.1); z-index: 3; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
-
-        /* 练习日历格子只有 12px，不放大几乎看不出悬停反馈 */
-        .act-cell:hover { transform: scale(1.35); outline: 1px solid var(--accent-blue); }
 
         .fs-opt:hover:not(:disabled) { transform: translateX(3px); }
         .fs-btn:active, .range-btn:active { transform: scale(.95); }
@@ -6325,13 +7590,13 @@ FX_CSS = '''
 
         /* 对动效敏感的人：位移/缩放全关，只保留颜色变化 */
         @media (prefers-reduced-motion: reduce) {
-            .metric-card, .weak-item, .gap-list li, .act-cell, .deck-card, .fs-opt,
+            .metric-card, .weak-item, .gap-list li, .deck-card, .fs-opt,
             .fs-btn, .heatmap-cell, .range-btn, .sidenav-item, .sidenav,
             .section.is-full, .fs-full-toggle {
                 transition: none !important;
             }
             .metric-card:hover, .weak-item:hover, .gap-list li:hover, .heatmap-cell:hover,
-            .act-cell:hover, .fs-opt:hover:not(:disabled), .fs-btn:active,
+            .fs-opt:hover:not(:disabled), .fs-btn:active,
             .range-btn:active, .metric-card:active, .deck-card:active {
                 transform: none !important;
             }
@@ -6490,11 +7755,8 @@ TASK_JS = '''
     let busy = false;
 
     // 本地日期。禁止 toISOString()——那是 UTC，UTC+8 凌晨会差一天。
-    function todayStr() {
-        const d = new Date();
-        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
-             + "-" + String(d.getDate()).padStart(2, "0");
-    }
+    // 走 studyDay()：凌晨 4 点前算前一天，跟服务端 localToday() 同一套规则。
+    function todayStr() { return studyDay(); }
 
     function toast(msg) {
         const t = document.createElement("div");
@@ -6681,8 +7943,7 @@ THEME_CSS = '''
         /* 有背景图时卡片走毛玻璃，否则一大块不透明会把图完全盖住 */
         body.has-bg .section,
         body.has-bg .sidenav,
-        body.has-bg .metric-card,
-        body.has-bg .act-cal-block {
+        body.has-bg .metric-card {
             backdrop-filter: blur(14px) saturate(1.15);
             -webkit-backdrop-filter: blur(14px) saturate(1.15);
             background: rgba(var(--mo-rgb), .72);
@@ -6751,6 +8012,70 @@ SETTINGS_CSS = '''
         .set-thumb-x:hover { background: var(--zhusha); }
         .set-thumb-empty { grid-column: 1 / -1; font-size: 0.72rem; color: var(--text-muted);
             border: 1px dashed var(--border-color); border-radius: 6px; padding: 14px 10px; text-align: center; }
+        /* --- 快捷键表（2026-09-17）---
+           一张按组排的表：左边动作名 + 说明，右边按键芯片。芯片就是「按钮」，
+           点一下进录制态 —— 所以它得看着像能按（有边框、hover 变色），
+           不然没人会想到去点它。 */
+        .key-group { margin-top: 14px; }
+        .key-group-name { font-size: 0.74rem; color: var(--text-secondary); margin-bottom: 2px;
+            padding-bottom: 6px; border-bottom: 1px solid var(--border-color); }
+        .key-row { display: flex; align-items: center; gap: 10px; padding: 8px 0;
+            border-bottom: 1px dashed var(--border-color); }
+        .key-row:last-child { border-bottom: 0; }
+        .key-info { flex: 1; min-width: 0; }
+        .key-name { font-size: 0.8rem; color: var(--text-primary); display: flex;
+            align-items: center; gap: 8px; flex-wrap: wrap; }
+        .key-alias { font-size: 0.66rem; color: var(--text-muted); border: 1px solid var(--border-color);
+            border-radius: 3px; padding: 1px 5px; }
+        .key-desc { font-size: 0.7rem; color: var(--text-muted); margin-top: 3px; line-height: 1.6; }
+        .key-chip { font: inherit; font-family: Consolas, "Courier New", monospace; font-size: 0.76rem;
+            flex-shrink: 0; min-width: 86px; text-align: center; padding: 5px 10px; cursor: pointer;
+            background: var(--bg-secondary); color: var(--text-primary);
+            border: 1px solid var(--border-color); border-radius: 5px; transition: all .15s; }
+        .key-chip:hover { border-color: var(--dianqing); color: var(--dianqing); }
+        /* 录制态：红框 + 呼吸，让人知道「现在正在等按键」 */
+        .key-chip.rec { border-color: var(--zhusha); color: var(--zhusha-lt); background: transparent;
+            animation: key-rec 1.1s ease-in-out infinite; }
+        @keyframes key-rec { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+        /* 改过的键位标成缃色：扫一眼就知道哪些不是默认了 */
+        .key-chip.custom { border-color: var(--xiang); color: var(--xiang-lt); }
+        .key-chip.fixed { cursor: default; color: var(--text-muted); background: transparent;
+            border-style: dashed; }
+        .key-chip.fixed:hover { border-color: var(--border-color); color: var(--text-muted); }
+        .key-mini { font: inherit; font-size: 0.76rem; flex-shrink: 0; width: 26px; height: 26px;
+            line-height: 1; padding: 0; cursor: pointer; color: var(--text-secondary);
+            background: transparent; border: 1px solid var(--border-color); border-radius: 5px;
+            transition: all .15s; }
+        .key-mini:hover:not(:disabled) { border-color: var(--dianqing); color: var(--dianqing); }
+        .key-mini:disabled { opacity: .25; cursor: default; }
+        /* 固定行没有「恢复默认」按钮，用等宽占位让两边的芯片对齐 */
+        .key-mini-pad { flex-shrink: 0; width: 26px; }
+        .key-foot { margin-top: 14px; }
+        /* --- 快捷键设置浮窗（2026-09-18）---
+           设置页平时收成一个「打开」按钮，整张键位表放进这个浮窗。
+           结构与 rev-modal 同源，但故意用独立的 sk- 前缀——因为它的锚点
+           是设置页（.page[data-page="settings"]）而不是 body，一离开该页
+           整块一起藏掉，不会被其它 fixed 层互相挤压。 */
+        .sk-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55);
+            -webkit-backdrop-filter: blur(14px) saturate(0.85); backdrop-filter: blur(14px) saturate(0.85);
+            display: flex; align-items: center; justify-content: center; z-index: 100; }
+        /* 用 hidden 属性隐藏浮窗时，必须显式盖回 display:none——.sk-overlay 上面的
+           display:flex 会覆盖浏览器对 [hidden] 的默认 display:none，于是 ✕/Esc 点了
+           关不掉（2026-09-18 用户反馈）。这条选择器权重更高，能压住它。 */
+        .sk-overlay[hidden] { display: none; }
+        .sk-box { width: min(760px, 92vw); max-height: 86vh; background: var(--bg-card);
+            border: 1px solid var(--border-color); border-radius: 12px; display: flex;
+            flex-direction: column; overflow: hidden; box-shadow: 0 18px 48px rgba(0,0,0,.5); }
+        .sk-head { padding: 14px 18px; border-bottom: var(--rule); font-weight: 600;
+            display: flex; align-items: center; gap: 10px; flex: none; }
+        .sk-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap; font-family: var(--font-serif); letter-spacing: .03em; }
+        .sk-body { flex: 1; min-height: 0; padding: 14px 18px 18px; overflow-y: auto;
+            font-size: 0.88rem; line-height: 1.75; scroll-behavior: smooth; }
+        /* 设置页收起态那个「已自定义 N 项 / 未修改」小尾注 */
+        .sk-count { margin-left: 8px; font-weight: 400; font-size: 0.72rem;
+            color: var(--text-muted); }
+        .sk-count.has { color: var(--xiang-lt); }
 '''
 
 SETTINGS_JS = '''
@@ -6970,10 +8295,104 @@ SETTINGS_JS = '''
           + '整页背景是一张铺底，番茄钟要的是一叠轮换。番茄钟本体在大盘「总览」页顶部，'
           + '预设 45+10×3 / 60+15×2 / 90 / 120 / 180，也支持全屏。</div>'
           + '  </div>'
+          + '  <div class="set-group" id="set-keys-group"><div class="set-title">⌨ 快捷键'
+          + '      <span class="sk-count" id="sk-count"></span></div>'
+          + '    <div class="set-hint">平时收起，点下面按钮用浮窗打开全部快捷键；'
+          + '在浮窗里点按键就能改：点一下 → 按下新键，Esc 取消。</div>'
+          + '    <button class="fs-btn" id="sk-open" type="button">⌨ 打开快捷键设置</button>'
+          + '  </div>'
           + '</div>';
         bind(container);
         bindPomo(container);
+        initKeysModal(container);      // 先建好浮窗（含 #set-keys），再让 KEYS_JS 往里填表
+        renderKeys(container);
         load(container);
+    }
+
+    // 快捷键设置：设置页平时只留一个「打开」按钮，整张键位表放在浮窗里。
+    // 浮窗挂在该设置页下（.page[data-page="settings"]）而不是 body——这样
+    // 一离开设置页它就被一起藏掉，不会被 backdrop-filter 弄得 fixed 错位。
+    function initKeysModal(container) {
+        const open = container.querySelector("#sk-open");
+        const countEl = container.querySelector("#sk-count");
+        if (!open) return;
+        const pageEl = container.closest('.page[data-page="settings"]') || document.body;
+
+        function updateKeyCount() {
+            if (!countEl) return;
+            let n = 0;
+            if (globalThis.__keys && globalThis.__keys.DEFS) {
+                n = globalThis.__keys.DEFS.filter(function (d) {
+                    return globalThis.__keys.isCustom(d.id);
+                }).length;
+            }
+            countEl.textContent = n > 0 ? ("已自定义 " + n + " 项 · ") : "未修改 · ";
+            countEl.classList.toggle("has", n > 0);
+        }
+
+        let ov = document.getElementById("sk-overlay");
+        if (ov) {
+            ov._anchor = pageEl;         // 页面重建过也可能换容器，记录当前归属
+            if (ov.parentNode !== pageEl) pageEl.appendChild(ov);
+            open.onclick = function () { ov.hidden = false; updateKeyCount(); };
+            updateKeyCount();
+            return;
+        }
+
+        ov = document.createElement("div");
+        ov.id = "sk-overlay";
+        ov.className = "sk-overlay";
+        ov.hidden = true;
+        ov.innerHTML =
+            '<div class="sk-box">'
+            + '<div class="sk-head"><span class="sk-title">⌨ 快捷键设置</span>'
+            + '<button class="rev-modal-close" id="sk-close" type="button" title="关闭（Esc）">✕</button></div>'
+            + '<div class="sk-body">'
+            + '<div class="set-hint" style="margin-top:0;">点按键就能改：点一下 → 按下新键，Esc 取消。'
+            + '改过的键标成金色，右边 ↺ 恢复默认。只认单键（可带 Ctrl / Alt），'
+            + 'Shift 不区分——按 F 和按 Shift+F 是同一个键。</div>'
+            + '<div id="set-keys"></div>'
+            + '<div class="set-hint">虚线框的是固定键位，不开放修改：'
+            + '「选项 A–D / 自评 1–4」是一整组键，还要靠「有没有显示答案」区分含义；'
+            + '「Esc」被全屏与各层弹窗共用，改了容易把人锁在里面出不来。</div>'
+            + '</div></div>';
+        pageEl.appendChild(ov);
+
+        const close = function () {
+            // 正在录键时按 Esc 是「取消这次改键」，不该顺手把浮窗关了
+            if (globalThis.__keys && globalThis.__keys.recording && globalThis.__keys.recording()) return;
+            ov.hidden = true;
+        };
+        ov.querySelector("#sk-close").onclick = close;
+        ov.addEventListener("click", function (ev) { if (ev.target === ov) close(); });
+
+        open.onclick = function () {
+            ov.hidden = false;
+            // 打开时重刷一遍键位表 + 计数，确保跟最新的自定义状态一致
+            if (globalThis.__keys && typeof globalThis.__keys.renderUI === "function") {
+                try { globalThis.__keys.renderUI(); } catch (e) {}
+            }
+            updateKeyCount();
+        };
+
+        // 录键一定要用 capture、且比 KEYS_JS 的录制监听**先注册**：非录制态 Esc 关浮窗，
+        // 录制态则不拦（留给 KEYS_JS 去「取消改键」，否则会连浮窗一起关掉）。
+        document.addEventListener("keydown", function (ev) {
+            if (ov.hidden || ev.key !== "Escape") return;
+            if (globalThis.__keys && globalThis.__keys.recording && globalThis.__keys.recording()) return;
+            close();
+        }, true);
+
+        // 改完键/恢复默认都会 emit 这个事件，收起态那枚计数跟着变
+        document.addEventListener("kaoyan:keys-changed", updateKeyCount);
+        updateKeyCount();
+    }
+
+    // 快捷键表整块交给 KEYS_JS 自己渲染 —— 表在它手里，设置页不该知道条目长什么样，
+    // 否则加一个动作要改两个文件。它内部是按 id 找 #set-keys 的。
+    function renderKeys(container) {
+        try { globalThis.__keys.renderUI(); }
+        catch (e) { console.error("[settings] 快捷键分组渲染失败:", e); }
     }
 
     let cur = null;
@@ -7472,6 +8891,21 @@ POMO_CSS = '''
             background: rgba(var(--zhusha-rgb), .18); }
         .pm-chip .pm-chip-n { font-size: 0.68rem; color: var(--text-muted); margin-left: 6px; }
         .pm-chip.on .pm-chip-n { color: var(--tao); }
+        /* 自己存的预设：chip 右边接一小截 ✕ 用来删。内置那五个不给这个口子
+           ——删了没法恢复，不如不给。 */
+        .pm-chipw { display: inline-flex; }
+        .pm-chipw .pm-chip { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+        .pm-chip-x { font: inherit; font-size: 0.7rem; line-height: 1; cursor: pointer;
+            padding: 0 10px; border: 1px solid var(--border-color); border-left: 0;
+            background: var(--bg-primary); color: var(--text-muted);
+            border-radius: 0 16px 16px 0; transition: all .15s; }
+        .pm-chip-x:hover { color: var(--zhusha-lt); border-color: var(--zhusha);
+            background: rgba(var(--zhusha-rgb), .12); }
+        /* 触屏没有 hover，那截就常驻；鼠标设备上平时藏着，指过去才浮出来 */
+        @media (hover: hover) {
+            .pm-chip-x { opacity: 0; }
+            .pm-chipw:hover .pm-chip-x { opacity: 1; }
+        }
 
         .pm-body { display: flex; gap: 26px; align-items: center; flex-wrap: wrap; }
         .pm-dial { position: relative; width: 216px; height: 216px; flex: none; }
@@ -7508,7 +8942,9 @@ POMO_CSS = '''
             background: var(--bg-primary); color: var(--text-primary);
             border: 1px solid var(--border-color); border-radius: 4px; }
         .pm-cnum:focus { outline: none; border-color: var(--dianqing); }
-        .pm-capply { font-size: 0.74rem; padding: 4px 12px; }
+        /* 自定义那一行里两颗按钮（用这套 / ＋存为预设）收小一号，
+           跟「自定义 45 分 专注 10 分 歇 2 轮」那排输入框一样高 */
+        .pm-capply, .pm-csave { font-size: 0.74rem; padding: 4px 12px; }
         .pm-hint { font-size: 0.7rem; color: var(--text-muted); line-height: 1.75; }
 
         /* ---- 全屏层 ---- */
@@ -7660,10 +9096,10 @@ POMO_JS = '''
         const h = Math.floor(min / 60), m = min % 60;
         return (h > 0 ? h + " 小时" : "") + (h > 0 && m > 0 ? " " : "") + (m > 0 || h === 0 ? m + " 分" : "");
     }
-    function todayKey() {
-        const d = new Date();
-        return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-    }
+    // ⚠️ 必须和服务端 localToday() 一致（都是「凌晨 4 点前算前一天」）。
+    // 差一天就会真的坏事：下面 mergeToday 拿服务端那份 today 跟本地这份比，
+    // 判定「服务端那份属于新的一天」时会把刚记上的成绩覆盖成 0。
+    function todayKey() { return studyDay(); }
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
     function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
@@ -7738,8 +9174,35 @@ POMO_JS = '''
             workMin: work * rounds
         };
     }
+    // ---- 自己存的预设（2026-09-17）----
+    // 内置那五个写死在 PRESETS 里；这一份是用户拿「＋ 存为预设」攒的，只存本机。
+    // 没往服务端放：番茄钟的偏好本来就走 localStorage（LS_PLAN / LS_RUN / MINI_KEY），
+    // 预设属于「这台机器上我顺手的节奏」，跟跨设备的计时状态不是一回事。
+    const MY_KEY = "kaoyan.pomo.presets.v1";
+    const MY_MAX = 12;                       // 上限：别让一排 chip 长到换三行
+    let myPresets = (function () {
+        const a = readJson(MY_KEY);
+        if (!Array.isArray(a)) return [];
+        // 存进来的东西不可信（手改过 localStorage / 旧版本写的），逐条验一遍
+        return a.filter(function (p) {
+            return p && typeof p.id === "string" && p.id.indexOf("my:") === 0
+                && Number(p.work) > 0;
+        }).slice(0, MY_MAX);
+    })();
+    function saveMy() { lsSet(MY_KEY, JSON.stringify(myPresets)); }
+    function allPresets() { return PRESETS.concat(myPresets); }
+    // 标签跟内置那五个一个长法：90 分钟 / 45 + 10 × 3
+    function myLabel(work, brk, rounds) {
+        return (brk > 0 || rounds > 1)
+            ? work + (brk > 0 ? " + " + brk : "") + (rounds > 1 ? " × " + rounds : "")
+            : work + " 分钟";
+    }
+    // id 由参数算出来（不是随机数）：同样的节奏存两次会撞成同一个，
+    // 于是「重复保存」天然变成「跳到已有那个」，不会攒出一排一模一样的 chip。
+    function myId(work, brk, rounds) { return "my:" + work + "x" + brk + "x" + rounds; }
+
     function presetById(id) {
-        for (const p of PRESETS) if (p.id === id) return p;
+        for (const p of allPresets()) if (p.id === id) return p;
         return null;
     }
     function segMs(s) { return s.min * 60000; }
@@ -8042,6 +9505,7 @@ POMO_JS = '''
         + '        <input class="pm-cnum" id="pm-crounds" type="number" min="1" max="24" value="2" title="轮数">'
         + '        <span class="pm-cu">轮</span>'
         + '        <button class="fs-btn pm-capply" id="pm-capply">用这套</button>'
+        + '        <button class="fs-btn pm-csave" id="pm-csave" title="把上面这组数字存成一个预设，以后一键切（存出来的 chip 右边带 ✕，可以删）">＋ 存为预设</button>'
         + '      </div>'
         + '      <div class="pm-hint">番茄钟是墙钟：切到别的窗口也照走（和闪卡那个「失焦即停」的学习计时是两回事）。'
         + '轮播背景在「设置 → 🍅 番茄钟」里配。<span class="pm-esc">按 Esc 退出全屏。</span></div>'
@@ -8057,18 +9521,41 @@ POMO_JS = '''
         toggle: $("pm-toggle"), reset: $("pm-reset"), skip: $("pm-skip"), stop: $("pm-stop"),
         full: $("pm-full"), sound: $("pm-sound"),
         miniBtn: $("pm-mini-btn"), pip: $("pm-pip"), media: $("pm-media"),
-        cwork: $("pm-cwork"), cbrk: $("pm-cbrk"), crounds: $("pm-crounds"), capply: $("pm-capply")
+        cwork: $("pm-cwork"), cbrk: $("pm-cbrk"), crounds: $("pm-crounds"),
+        capply: $("pm-capply"), csave: $("pm-csave")
     };
 
     function renderPresets() {
-        els.presets.innerHTML = PRESETS.map(function (p) {
-            return '<button class="pm-chip' + (plan.id === p.id ? " on" : "") + '" data-preset="'
+        els.presets.innerHTML = allPresets().map(function (p) {
+            const chip = '<button class="pm-chip' + (plan.id === p.id ? " on" : "") + '" data-preset="'
                 + esc(p.id) + '" title="' + esc(p.note) + '">' + esc(p.label)
                 + '<span class="pm-chip-n">' + p.rounds + " 段</span></button>";
+            if (p.id.indexOf("my:") !== 0) return chip;      // 内置的不带删除尾巴
+            return '<span class="pm-chipw">' + chip + '<button class="pm-chip-x" data-del="'
+                + esc(p.id) + '" title="删除这个预设">✕</button></span>';
         }).join("");
         els.presets.querySelectorAll("[data-preset]").forEach(function (b) {
             b.onclick = function () { pick(presetById(b.dataset.preset)); };
         });
+        els.presets.querySelectorAll("[data-del]").forEach(function (b) {
+            b.onclick = function () { dropMy(b.getAttribute("data-del")); };
+        });
+    }
+    function dropMy(id) {
+        const hit = presetById(id);
+        myPresets = myPresets.filter(function (p) { return p.id !== id; });
+        saveMy();
+        // 删掉的正是在跑/暂停中那个：表不能停（人正在专心），但它从此不再对应任何
+        // 预设，于是就地改成「自定义」。这里**不能**写 pick(PRESETS[0])——那会把
+        // 用户当前这一轮的进度清掉，删个预设不该有这个代价。
+        if (plan.id === id) {
+            plan = Object.assign({}, plan, { id: CUSTOM.id, label: CUSTOM.label, note: CUSTOM.note });
+            lsSet(LS_PLAN, JSON.stringify({ id: plan.id, work: plan.work, brk: plan.brk,
+                                            rounds: plan.rounds, label: plan.label }));
+            saveRun();
+        }
+        renderPresets(); paint();
+        if (hit) toast("已删除预设：" + hit.label);
     }
 
     // ---- 绘制 ------------------------------------------------------------
@@ -8267,6 +9754,27 @@ POMO_JS = '''
         };
         pick(p);
     };
+    els.csave.onclick = function () {
+        // 和输入框上的 min/max 对齐：手打进来的数也要夹一次
+        const work = Math.max(1, Math.min(600, Math.round(Number(els.cwork.value) || 45)));
+        const brk = Math.max(0, Math.min(60, Math.round(Number(els.cbrk.value) || 0)));
+        const rounds = Math.max(1, Math.min(24, Math.round(Number(els.crounds.value) || 1)));
+        const id = myId(work, brk, rounds);
+        const dup = presetById(id);
+        if (dup) { toast("这组数字已经存过了：" + dup.label); pick(dup); return; }
+        if (myPresets.length >= MY_MAX) {
+            toast("自定义预设最多 " + MY_MAX + " 个，先删掉几个再存");
+            return;
+        }
+        const p = { id: id, label: myLabel(work, brk, rounds), work: work, brk: brk, rounds: rounds,
+                    note: "我存的预设 · 专注 " + work + " 分钟" + (rounds > 1 ? " × " + rounds + " 轮" : "") };
+        myPresets.push(p);
+        saveMy();
+        // 存归存，不顺手把正在跑的那一轮换掉——「记下来」和「切过去」是两件事，
+        // 用户想用自己去点那颗新 chip。
+        renderPresets();
+        toast("已存为预设：" + p.label + "（点它就能用，右边的 ✕ 删掉）");
+    };
 
     // ============================================================
     // 浮动小窗 / 系统小窗 / 锁屏显示（2026-09-21 晚）
@@ -8283,6 +9791,9 @@ POMO_JS = '''
     //     它必须由一次用户点击启动（浏览器不给自动播音频）。
     // ============================================================
     const MINI_KEY = "kaoyan.pomo.mini.v1";
+    // 透明度下限：原来是 25%，淡到那个程度页内小窗基本只剩个影子，
+    // 想要「几乎看不见、只剩个数字」也随你——反正鼠标一碰就回到不透明。
+    const MINI_OP_MIN = 0.12;
     const mini = { on: true, x: null, y: null, op: 0.85 };
     (function loadMini() {
         const o = readJson(MINI_KEY);
@@ -8291,7 +9802,7 @@ POMO_JS = '''
         if (typeof o.x === "number") mini.x = o.x;
         if (typeof o.y === "number") mini.y = o.y;
         const op = Number(o.op);
-        if (op >= 0.25 && op <= 1) mini.op = op;
+        if (op >= MINI_OP_MIN && op <= 1) mini.op = op;
     })();
     function saveMini() { lsSet(MINI_KEY, JSON.stringify(mini)); }
 
@@ -8313,7 +9824,7 @@ POMO_JS = '''
             + '<button class="pm-mini-btn" data-act="pip" title="跳出浏览器：开一个独立置顶小窗（桌面版 Chrome / Edge）" hidden>\\u2197</button>'
             + '</div>'
             + '<div class="pm-mini-op" title="调整小窗透明度">'
-            + '<input type="range" data-act="op" min="25" max="100" step="5" aria-label="小窗透明度">'
+            + '<input type="range" data-act="op" min="12" max="100" step="2" aria-label="小窗透明度">'
             + '<span data-f="opv">85%</span>'
             + '</div>';
     }
@@ -8331,9 +9842,12 @@ POMO_JS = '''
             else if (act === "full") b.onclick = function () { setFull(true); };
             else if (act === "pip") b.onclick = function () { openPip(); };
             else if (act === "op") b.oninput = function () {
-                mini.op = Math.max(0.25, Math.min(1, Number(b.value) / 100));
+                mini.op = Math.max(MINI_OP_MIN, Math.min(1, Number(b.value) / 100));
                 applyMiniOpacity(); saveMini();
-                setField(miniEl, "opv", Math.round(mini.op * 100) + "%");
+                // 页内小窗和 PiP 各有一份自己的百分比文字，写在各自的 root 上
+                root.querySelectorAll('[data-f="opv"]').forEach(function (s) {
+                    s.textContent = Math.round(mini.op * 100) + "%";
+                });
             };
         });
     }
@@ -8344,10 +9858,24 @@ POMO_JS = '''
     if (document.body && document.body.appendChild) document.body.appendChild(miniEl);
     bindMiniActions(miniEl, function () { setMini(false); });
 
+    // 页内小窗和 PiP 卡片是两棵 DOM 树（PiP 那份在另一个 document 里），
+    // 透明度得两边都写一遍，不能只写 miniEl。
+    function miniRoots() {
+        const out = [miniEl];
+        try {
+            if (pipWin && !pipWin.closed && pipWin.document) {
+                const c = pipWin.document.querySelector(".pm-mini");
+                if (c) out.push(c);
+            }
+        } catch (e) { /* PiP 文档已经没了就算了 */ }
+        return out;
+    }
     function applyMiniOpacity() {
-        if (miniEl.style && miniEl.style.setProperty) {
-            miniEl.style.setProperty("--pm-mini-op", String(mini.op));
-        }
+        miniRoots().forEach(function (el) {
+            if (el && el.style && el.style.setProperty) {
+                el.style.setProperty("--pm-mini-op", String(mini.op));
+            }
+        });
     }
     function placeMini() {
         if (!miniEl.offsetWidth) return;      // 还没量到尺寸（隐藏中）就先不摆
@@ -8447,11 +9975,15 @@ POMO_JS = '''
 
     // ---- 系统小窗（Document PiP，桌面版 Chromium 独有）----
     let pipWin = null;
+    // ⚠️ PiP 窗口是系统级窗口，浏览器不给做真透明（窗口本身永远是一块实心底），
+    //    所以这里的「透明度」只能是**内容变淡**：字、进度条、按钮往底色里退。
+    //    想要真透明请用页内小窗——那个才真的透出后面的东西。
     const PIP_CSS = 'html,body{margin:0;height:100%;background:#151A1A;color:#E5E9E7;'
         + 'font-family:system-ui,"Microsoft YaHei",sans-serif}'
         + '.pm-mini{position:static;width:auto;height:100%;box-sizing:border-box;'
         + 'display:flex;flex-direction:column;justify-content:center;'
-        + 'padding:10px 12px;border:0;border-radius:0;box-shadow:none;opacity:1;background:#151A1A}'
+        + 'padding:10px 12px;border:0;border-radius:0;box-shadow:none;background:#151A1A;'
+        + 'opacity:var(--pm-mini-op,1);transition:opacity .18s}'
         + '.pm-mini-head{display:flex;align-items:center;gap:6px}'
         + '.pm-mini-dot{width:7px;height:7px;border-radius:50%;background:#B84A42}'
         + '.pm-mini-ph{flex:1;font-size:11px;color:#97A5A3;overflow:hidden;white-space:nowrap}'
@@ -8463,7 +9995,9 @@ POMO_JS = '''
         + '.pm-mini-btn{flex:1;padding:4px 0;font:inherit;font-size:12px;cursor:pointer;'
         + 'background:#1F2626;color:#97A5A3;border:1px solid #2C3636;border-radius:5px}'
         + '.pm-mini-btn.go{flex:1.5;color:#E08A80;border-color:#B84A42}'
-        + '.pm-mini-op{display:none}';
+        + '.pm-mini-op{display:flex;align-items:center;gap:6px;margin-top:7px}'
+        + '.pm-mini-op input{flex:1;min-width:0;height:12px;accent-color:#5B7C99;cursor:pointer}'
+        + '.pm-mini-op span{min-width:30px;text-align:right;font-size:10px;color:#66726F}';
     function pipSupported() {
         return typeof window !== "undefined" && !!window.documentPictureInPicture
             && typeof window.documentPictureInPicture.requestWindow === "function";
@@ -8481,6 +10015,11 @@ POMO_JS = '''
         if (bar && bar.style) bar.style.width = (seg ? Math.round(100 * (1 - left / segMs(seg))) : 100) + "%";
         const tg = doc.querySelector('[data-act="toggle"]');
         if (tg) tg.textContent = running ? "\\u23F8" : "\\u25B6";
+        // 透明度滑杆：PiP 里也放出来了，得跟着 mini.op 走
+        const op = doc.querySelector('[data-act="op"]');
+        if (op && doc.activeElement !== op) op.value = String(Math.round(mini.op * 100));
+        setField(doc, "opv", Math.round(mini.op * 100) + "%");
+        applyMiniOpacity();
     }
     function openPip() {
         if (!pipSupported()) {
@@ -8492,7 +10031,8 @@ POMO_JS = '''
         }
         if (pipWin && !pipWin.closed) return;      // 已经开着一个了
         try {
-            const pr = window.documentPictureInPicture.requestWindow({ width: 208, height: 158 });
+            // 高度 196：比原来多留一条，给透明度滑杆（PiP 里也放出来了）
+            const pr = window.documentPictureInPicture.requestWindow({ width: 208, height: 196 });
             if (!pr || !pr.then) return;
             pr.then(function (w) {
                 pipWin = w;
@@ -8702,45 +10242,105 @@ SHELL_CSS = '''
             .shell-fs { top: auto; bottom: 14px; right: 12px; padding: 8px 12px; font-size: 0.74rem; }
         }
 
-        /* --- 首页「专注与打卡」数据条 --- */
+        /* --- 首页「专注与打卡」数据条（2026-09-21 双视角改版）---
+           番茄钟成绩和早间回顾打卡合成一张卡，两个视角切换：
+           周曲线看形状（这几天是不是在掉），月热力图看密度（这个月有没有整段空掉）。 */
         .strip-loading { font-size: 0.8rem; color: var(--text-muted); padding: 6px 0; }
-        .strip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-        @media (max-width: 820px) { .strip-grid { grid-template-columns: 1fr; } }
-        .strip-col { min-width: 0; }
-        .strip-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        .strip-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
         .strip-title { font-size: 0.92rem; font-weight: 600; font-family: var(--font-serif);
             color: var(--text-primary); }
-        .strip-sub { font-size: 0.72rem; color: var(--text-muted); }
-        .strip-kpis { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 12px; }
+        .strip-grow { flex: 1 1 auto; }
+        .strip-kpis { display: flex; align-items: flex-start; gap: 22px; flex-wrap: wrap; margin-bottom: 14px; }
         .strip-kpi { font-size: 0.72rem; color: var(--text-secondary); }
         .strip-kpi b { display: block; font-size: 1.18rem; font-variant-numeric: tabular-nums;
             color: var(--text-primary); line-height: 1.35; }
         .strip-kpi.zhu b { color: var(--zhusha-lt); }
         .strip-kpi.qing b { color: var(--zhuqing-lt); }
         .strip-kpi.xiang b { color: var(--xiang-lt); }
-        .strip-bars { display: flex; align-items: flex-end; gap: 4px; height: 56px;
-            border-bottom: 1px solid var(--border-color); }
-        .strip-bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
-            align-items: center; height: 100%; }
-        .strip-bar i { display: block; width: 100%; min-height: 2px; border-radius: 2px 2px 0 0;
-            background: var(--zhusha); opacity: .42; }
-        .strip-bar.has i { opacity: .72; }
-        .strip-bar.today i { opacity: 1; }
-        .strip-bar-n { font-size: 0.58rem; color: var(--text-muted); margin-top: 2px; }
-        .strip-labels { display: flex; gap: 4px; margin-top: 5px; }
-        .strip-labels span { flex: 1; text-align: center; font-size: 0.6rem; color: var(--text-muted); }
-        .strip-dots { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 12px; }
-        .strip-dot { width: 14px; height: 14px; border-radius: 3px; background: var(--bg-secondary);
-            border: 1px solid var(--border-color); }
-        .strip-dot.studied { background: rgba(var(--dianqing-rgb), .32); }
-        .strip-dot.checked { background: rgba(var(--zhuqing-rgb), .55); border-color: var(--zhuqing); }
-        .strip-dot.today { box-shadow: 0 0 0 2px rgba(var(--xiang-rgb), .5); }
+        .strip-sep { width: 1px; height: 34px; background: var(--border-color); flex: 0 0 auto; }
+        .strip-view { min-height: 188px; }
         .strip-hint { font-size: 0.7rem; color: var(--text-muted); margin-top: 10px; line-height: 1.75; }
         .strip-empty { font-size: 0.76rem; color: var(--text-muted); padding: 4px 0 2px; }
         .strip-link { font: inherit; font-size: 0.72rem; cursor: pointer; padding: 3px 11px;
             border-radius: 10px; background: none; border: 1px solid var(--border-color);
             color: var(--text-secondary); }
         .strip-link:hover { color: var(--text-primary); border-color: var(--dianqing); }
+
+        /* --- 周曲线 ---
+           SVG 走 preserveAspectRatio="none" 横向铺满，横竖拉伸比不一样，
+           所以圆点和数字不用 <circle>，改成绝对定位的 HTML 叠在上面——
+           否则圆点会被压成椭圆。线条用 non-scaling-stroke 保住 2px 粗细。 */
+        /* 高度和月热力图（188px）对齐，切视角时下面的内容不会跳一下 */
+        .curve-wrap { position: relative; height: 188px; }
+        /* 顶部 16px 留给峰值那天的数字，底部 32px 给星期和状态点——
+           基线离轴太近的话，零值那几天的平线会从「五六日」脸上压过去 */
+        .curve-plot { position: absolute; left: 0; right: 0; top: 16px; bottom: 32px; }
+        .curve-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+        .curve-area { stroke: none; }
+        .curve-line { fill: none; stroke: var(--zhusha); stroke-width: 2;
+            stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+        .curve-base { stroke: var(--border-color); stroke-width: 1; vector-effect: non-scaling-stroke; }
+        .curve-layer { position: absolute; inset: 0; }
+        .curve-pt { position: absolute; width: 0; height: 0; }
+        .curve-pt i { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px;
+            border-radius: 50%; background: var(--zhusha); box-shadow: 0 0 0 2.5px var(--bg-card); }
+        .curve-pt.zero i { background: var(--mo-hover); }
+        .curve-pt.today i { box-shadow: 0 0 0 2.5px var(--bg-card),
+            0 0 0 4.5px rgba(var(--xiang-rgb), .45); }
+        .curve-pt b { position: absolute; left: 0; bottom: 11px; transform: translateX(-50%);
+            font-size: 0.62rem; font-weight: 500; font-variant-numeric: tabular-nums;
+            color: var(--text-muted); white-space: nowrap; }
+        .curve-axis { position: absolute; left: 0; right: 0; bottom: 0; height: 32px; }
+        .curve-axis-x { position: absolute; top: 0; transform: translateX(-50%); text-align: center; }
+        .curve-axis-x span { display: block; font-size: 0.62rem; color: var(--text-muted); }
+        .curve-axis-x em { display: block; width: 6px; height: 6px; margin: 4px auto 0;
+            border-radius: 50%; background: transparent; border: 1px solid var(--border-color); }
+        .curve-axis-x em.studied { background: rgba(var(--dianqing-rgb), .55);
+            border-color: var(--dianqing); }
+        .curve-axis-x em.checked { background: var(--zhuqing); border-color: var(--zhuqing); }
+
+        /* --- 月热力图 ---
+           行=周，列=周一到周日，铺最近 5 周。两个维度挤在一格里：
+           底色写专注时长，描边写打卡——填充管「练了多久」，描边管「打没打卡」。 */
+        .hm-wrap { display: flex; align-items: flex-start; gap: 34px; flex-wrap: wrap; }
+        /* 左标签 32 + 7 列 28 + 6 道 4px 缝 = 256；行高 28 × 6 + 缝 = 188，
+           正好和曲线的 .curve-wrap 一样高，切视角时下面不跳。 */
+        .hm-grid { display: grid; grid-template-columns: 32px repeat(7, 28px);
+            grid-auto-rows: 28px; gap: 4px; flex: 0 0 auto; }
+        .hm-wd { display: flex; align-items: center; justify-content: center;
+            font-size: 0.62rem; color: var(--text-muted); }
+        .hm-wk { display: flex; align-items: center; font-size: 0.62rem; color: var(--text-muted);
+            font-variant-numeric: tabular-nums; }
+        .hm-cell { border-radius: 5px; background: var(--bg-secondary);
+            border: 1px solid var(--border-color); }
+        .hm-cell.l1 { background: rgba(var(--zhusha-rgb), .18); border-color: rgba(var(--zhusha-rgb), .24); }
+        .hm-cell.l2 { background: rgba(var(--zhusha-rgb), .34); border-color: rgba(var(--zhusha-rgb), .40); }
+        .hm-cell.l3 { background: rgba(var(--zhusha-rgb), .52); border-color: rgba(var(--zhusha-rgb), .58); }
+        .hm-cell.l4 { background: rgba(var(--zhusha-rgb), .72); border-color: rgba(var(--zhusha-rgb), .78); }
+        .hm-cell.l5 { background: rgba(var(--zhusha-rgb), .95); border-color: var(--zhusha-lt); }
+        .hm-cell.future { background: transparent; border-style: dashed; opacity: .45; }
+        /* 圈要压得住底色（最深那档是实心朱砂），所以给到 2px 并提亮一档 */
+        .hm-cell.checked { box-shadow: inset 0 0 0 2px var(--zhuqing-lt); }
+        .hm-cell.studied { box-shadow: inset 0 0 0 2px var(--dianqing-lt); }
+        .hm-cell.today { outline: 2px solid var(--xiang-lt); outline-offset: 1px; }
+        /* 侧栏只占自己那份宽（别 flex:1 把空档吃光，否则右边那组汇总数就没法靠边了），
+           说明用 flex-wrap 横向铺开。窄屏放不下时整块换行。 */
+        .hm-side { flex: 0 1 auto; min-width: 0; }
+        .hm-legend { display: flex; align-items: center; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+        .hm-legend .hm-cell, .hm-note .hm-cell { width: 14px; height: 14px; border-radius: 3px; }
+        .hm-legend-t { font-size: 0.66rem; color: var(--text-muted); margin: 0 5px; }
+        .hm-notes { display: flex; flex-wrap: wrap; gap: 6px 26px; margin-bottom: 12px; }
+        .hm-note { display: flex; align-items: center; gap: 8px; font-size: 0.66rem;
+            color: var(--text-muted); }
+        .hm-note .hm-cell { background: rgba(var(--zhusha-rgb), .34); }
+        /* 三个汇总数靠右顶住卡片边：不这么摆的话，宽屏上热力图右边会空一大片 */
+        .hm-stats { display: flex; gap: 30px; flex: 0 0 auto; margin-left: auto; }
+        .hm-kpi { font-size: 0.7rem; color: var(--text-secondary); }
+        .hm-kpi b { display: block; font-size: 1.1rem; font-variant-numeric: tabular-nums;
+            color: var(--text-primary); line-height: 1.35; margin-top: 2px; }
+        .hm-kpi.zhu b { color: var(--zhusha-lt); }
+        .hm-kpi.qing b { color: var(--zhuqing-lt); }
+        .hm-kpi.xiang b { color: var(--xiang-lt); }
 '''
 
 SHELL_JS = '''
@@ -8933,14 +10533,26 @@ SHELL_JS = '''
     })();
 
     // ---------- ④ 首页「专注与打卡」数据条 ----------
+    //  番茄钟成绩和早间回顾打卡合成一张卡：这两个数回答的是同一个问题
+    //  「这些天到底练了多少」，并排摆反而要眼睛来回找。
+    //  两个视角各管一头——周曲线看形状（这几天是不是在掉），
+    //  月热力图看密度（这个月有没有整段空掉）。选哪边记在 localStorage。
     const strip = document.getElementById("focus-strip");
     if (!strip) return;
 
+    const VIEW_KEY = "strip.view";
+    let view = "week";
+    // 无痕模式下 localStorage 会直接抛异常，不能让它带崩整条数据条
+    try { if (localStorage.getItem(VIEW_KEY) === "month") view = "month"; } catch (e) {}
+
     function pad(n) { return (n < 10 ? "0" : "") + n; }
     function dstr(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+    // 以「学习日」为最后一天往前数 n 天。用日历日的话，0:00~4:00 之间曲线尾巴会
+    // 多出一格空的、而服务端刚记的那笔还挂在前一天上，看着像今天白干了。
     function lastDays(n) {
         const out = [];
-        const t = new Date();
+        const p = studyDay().split("-");
+        const t = new Date(+p[0], +p[1] - 1, +p[2]);
         for (let i = n - 1; i >= 0; i--) {
             const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() - i);
             out.push(dstr(d));
@@ -8956,77 +10568,221 @@ SHELL_JS = '''
         const d = new Date(+p[0], +p[1] - 1, +p[2]);
         return "日一二三四五六".charAt(d.getDay());
     }
-    let mrCache = null, mrAt = 0;
-    function drawStats(pomo, mr) {
-        // --- 番茄钟 ---
-        const d = (pomo && pomo.day) || { pomos: 0, min: 0 };
-        const byDay = {};
-        ((pomo && pomo.days) || []).forEach(x => { byDay[x.date] = x; });
+    // 折线平滑：Catmull-Rom 转三次贝塞尔。x 是均匀的，控制点取 dx/6 就够顺；
+    // 端点各缺一个邻居，直接用自己顶上（切线减半，不会甩出去）。
+    function smooth(pts) {
+        if (pts.length < 2) return "";
+        let d = "M" + pts[0][0].toFixed(2) + "," + pts[0][1].toFixed(2);
+        for (let i = 0; i < pts.length - 1; i++) {
+            const p0 = pts[i - 1] || pts[i], p1 = pts[i];
+            const p2 = pts[i + 1], p3 = pts[i + 2] || pts[i + 1];
+            d += " C" + (p1[0] + (p2[0] - p0[0]) / 6).toFixed(2) + "," + (p1[1] + (p2[1] - p0[1]) / 6).toFixed(2)
+               + " " + (p2[0] - (p3[0] - p1[0]) / 6).toFixed(2) + "," + (p2[1] - (p3[1] - p1[1]) / 6).toFixed(2)
+               + " " + p2[0].toFixed(2) + "," + p2[1].toFixed(2);
+        }
+        return d;
+    }
+    // 点上的数字用紧凑写法：90 分钟 → 1.5h，450 → 7.5h。四位数的「450」会挤到邻居。
+    function fmtShort(min) {
+        if (min <= 0) return "";
+        return min >= 60 ? (Math.round(min / 6) / 10) + "h" : min + "m";
+    }
+    // 专注时长分档（月热力图底色）。按本段最长的一天取相对值，不写死绝对值——
+    // 状态好的月份和状态差的月份都能看出层次。
+    function lvl(min, max) {
+        if (min <= 0) return 0;
+        return Math.max(1, Math.min(5, Math.ceil(min / max * 5)));
+    }
+
+    // --- 视角①：周曲线（近 7 天专注时长，格子底下挂打卡状态）---
+    function weekHtml(byDay, mk) {
         const win7 = lastDays(7);
-        const maxP = Math.max(1, ...win7.map(x => (byDay[x] || {}).pomos || 0));
+        const today = win7[win7.length - 1];
+        const mins = win7.map(x => (byDay[x] || {}).min || 0);
+        if (!mins.some(v => v > 0)) {
+            return '<div class="strip-empty">近 7 天还没有专注记录。在总览页顶部的番茄钟里点「▶ 开始」，'
+                 + "每跑完一段专注就会自动记上一笔（多设备共用同一份）。</div>";
+        }
+        // viewBox 是 0..100 的百分比空间（preserveAspectRatio="none"）。
+        // BOT 是零值的基线，压在 86 而不是 94：留给下面那排星期和状态点。
+        const max = Math.max(1, ...mins);
+        const X0 = 4, X1 = 96, TOP = 26, BOT = 86;
+        const xs = i => X0 + (X1 - X0) * i / (win7.length - 1);
+        const ys = v => BOT - (BOT - TOP) * v / max;
+        const pts = win7.map((x, i) => [xs(i), ys(mins[i])]);
+        const line = smooth(pts);
+        const area = line + " L" + X1.toFixed(2) + "," + BOT + " L" + X0.toFixed(2) + "," + BOT + " Z";
+
+        const dots = win7.map((x, i) => {
+            const rec = byDay[x] || { pomos: 0, min: 0 };
+            const tip = x + "：" + (rec.pomos || 0) + " 个番茄 · " + fmtMin(rec.min || 0)
+                + (mk.checked.has(x) ? " · 已打卡" : (mk.studied.has(x) ? " · 有复习" : ""));
+            return '<div class="curve-pt' + (mins[i] ? "" : " zero") + (x === today ? " today" : "")
+                + '" style="left:' + xs(i).toFixed(2) + "%;bottom:" + (100 - ys(mins[i])).toFixed(2) + '%">'
+                + '<b title="' + esc(tip) + '">' + fmtShort(mins[i]) + "</b>"
+                + '<i title="' + esc(tip) + '"></i></div>';
+        }).join("");
+        const axis = win7.map((x, i) => '<div class="curve-axis-x" style="left:'
+            + xs(i).toFixed(2) + '%" title="' + esc(x) + '">'
+            + "<span>" + wd(x) + "</span>"
+            + '<em class="' + (mk.checked.has(x) ? "checked" : (mk.studied.has(x) ? "studied" : ""))
+            + '"></em></div>').join("");
+
+        return '<div class="curve-wrap">'
+            + '<div class="curve-plot">'
+            +   '<svg class="curve-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+            +     '<defs><linearGradient id="curveFill" x1="0" y1="0" x2="0" y2="1">'
+            +       '<stop offset="0%" stop-color="rgba(184,74,66,.34)"/>'
+            +       '<stop offset="100%" stop-color="rgba(184,74,66,0)"/>'
+            +     "</linearGradient></defs>"
+            +     '<path class="curve-area" d="' + area + '" fill="url(#curveFill)"/>'
+            +     '<line class="curve-base" x1="0" y1="' + BOT + '" x2="100" y2="' + BOT + '"/>'
+            +     '<path class="curve-line" d="' + line + '"/>'
+            +   "</svg>"
+            +   '<div class="curve-layer">' + dots + "</div>"
+            + "</div>"
+            + '<div class="curve-axis">' + axis + "</div>"
+            + "</div>";
+    }
+
+    // --- 视角②：月热力图（最近 5 周，行=周，列=周一到周日）---
+    function monthHtml(byDay, mk) {
+        // 网格也锚在学习日上，跟前两者一套（见 lastDays 的注释）
+        const tp = studyDay().split("-");
+        const t = new Date(+tp[0], +tp[1] - 1, +tp[2]);
+        const today = dstr(t);
+        const dow = (t.getDay() + 6) % 7;                       // 周一 = 0
+        const monday = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
+        const start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 28);
+
+        const WEEKS = 5;
+        let max = 0, sum = 0, active = 0;
+        const grid = [];
+        for (let i = 0; i < WEEKS * 7; i++) {
+            const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+            const ds = dstr(d);
+            const future = ds > today;
+            const rec = byDay[ds] || { pomos: 0, min: 0 };
+            if (!future) {
+                max = Math.max(max, rec.min || 0);
+                sum += rec.min || 0;
+                if (rec.min > 0) active++;
+            }
+            grid.push({ date: ds, min: rec.min || 0, pomos: rec.pomos || 0, future: future });
+        }
+
+        let cells = '<div class="hm-wd"></div>'
+            + "一二三四五六日".split("").map(c => '<div class="hm-wd">' + c + "</div>").join("");
+        for (let w = 0; w < WEEKS; w++) {
+            const first = grid[w * 7];
+            const p = first.date.split("-");
+            cells += '<div class="hm-wk">' + (+p[1]) + "/" + (+p[2]) + "</div>";
+            for (let i = 0; i < 7; i++) {
+                const c = grid[w * 7 + i];
+                const n = c.future ? "future" : "l" + lvl(c.min, Math.max(1, max));
+                const ring = (!c.future && mk.checked.has(c.date)) ? " checked"
+                    : ((!c.future && mk.studied.has(c.date)) ? " studied" : "");
+                const tip = c.future ? c.date + "（还没到）"
+                    : c.date + "：" + (c.min > 0 ? c.pomos + " 个番茄 · " + fmtMin(c.min) : "没有专注记录")
+                      + (mk.checked.has(c.date) ? " · 已打卡" : (mk.studied.has(c.date) ? " · 有复习" : ""));
+                // hm-d = 日子格（图例里那几个色块也挂 .hm-cell，靠这个类分开）
+                cells += '<div class="hm-cell hm-d ' + n + ring + (c.date === today ? " today" : "")
+                    + '" title="' + esc(tip) + '"></div>';
+            }
+        }
+
+        const side =
+              '<div class="hm-side">'
+            +   '<div class="hm-legend"><span class="hm-legend-t">专注时长</span>'
+            +     '<i class="hm-cell"></i><i class="hm-cell l1"></i><i class="hm-cell l2"></i>'
+            +     '<i class="hm-cell l3"></i><i class="hm-cell l4"></i><i class="hm-cell l5"></i>'
+            +     '<span class="hm-legend-t">少 → 多</span></div>'
+            +   '<div class="hm-notes">'
+            +     '<div class="hm-note"><i class="hm-cell l3 checked"></i>已打卡</div>'
+            +     '<div class="hm-note"><i class="hm-cell l3 studied"></i>有复习内容但没打卡</div>'
+            +     '<div class="hm-note"><i class="hm-cell today"></i>今天</div>'
+            +   "</div>"
+            + "</div>"                                  // ← 先收 .hm-side
+            + '<div class="hm-stats">'                  //   汇总数得是 .hm-wrap 的直接子元素，
+            +   '<div class="hm-kpi zhu">近 5 周专注<b>' + fmtMin(sum) + "</b></div>"
+            +   '<div class="hm-kpi qing">有专注的天数<b>' + active + " 天</b></div>"
+            +   '<div class="hm-kpi xiang">最久的一天<b>' + fmtMin(max) + "</b></div>"
+            + "</div>";                                 //   不然 margin-left:auto 靠不了右
+
+        // 那 5 周一次没练过就别摆一排空格子了，直接说明白
+        const body = active === 0
+            ? '<div class="strip-empty">近 5 周还没有专注记录。跑完一段番茄钟就会在这里点亮一格。</div>'
+            : '<div class="hm-grid">' + cells + "</div>" + side;
+        return '<div class="hm-wrap">' + body + "</div>";
+    }
+
+    let POMO = null, MR = null, mrLoaded = false;
+    function render() {
+        const d = (POMO && POMO.day) || { pomos: 0, min: 0 };
+        const byDay = {};
+        ((POMO && POMO.days) || []).forEach(x => { byDay[x.date] = x; });
+        const win7 = lastDays(7);
+        const today = win7[win7.length - 1];
         const sum7 = win7.reduce((a, x) => a + ((byDay[x] || {}).pomos || 0), 0);
         const min7 = win7.reduce((a, x) => a + ((byDay[x] || {}).min || 0), 0);
-        const today = win7[win7.length - 1];
-        const bars = win7.map(x => {
-            const v = (byDay[x] || {}).pomos || 0;
-            return '<div class="strip-bar' + (v ? " has" : "") + (x === today ? " today" : "")
-                + '" title="' + esc(x) + '：' + v + ' 个番茄">'
-                + '<span class="strip-bar-n">' + (v || "") + "</span>"
-                + '<i style="height:' + Math.round(100 * v / maxP) + '%"></i></div>';
-        }).join("");
-        const labels = win7.map(x => "<span>" + wd(x) + "</span>").join("");
-        const pomoHtml =
-              '<div class="strip-head"><span class="strip-title">🍅 番茄钟</span>'
-            + '<span class="strip-sub">近 7 天</span>'
-            + '<button class="strip-link" id="strip-go-pomo">去跑一轮</button></div>'
-            + '<div class="strip-kpis">'
+
+        // 打卡集合：接口没回来（或本地服务没起）时留空集合，
+        // 曲线底下的点会全部显示成空心——比整条数据条消失好。
+        const mk = {
+            checked: new Set((MR && MR.checkins) || []),
+            studied: new Set(((MR && MR.days) || []).filter(x => x.studied).map(x => x.date)),
+        };
+        const checkedToday = mk.checked.has(today);
+        // MR 读不到时打卡那几个数写成 "--"：显示 0 天会让人以为断签了
+        const mrNum = v => mrLoaded ? (v || 0) : "--";
+
+        const head = '<div class="strip-head">'
+            + '<span class="strip-title">🍅 专注与打卡</span>'
+            + '<div class="range-toggle" id="strip-view">'
+            +   '<button class="range-btn' + (view === "week" ? " is-active" : "")
+            +     '" data-view="week">周曲线</button>'
+            +   '<button class="range-btn' + (view === "month" ? " is-active" : "")
+            +     '" data-view="month">月热力图</button>'
+            + "</div>"
+            + '<span class="strip-grow"></span>'
+            + '<button class="strip-link" id="strip-go-pomo">去跑一轮</button>'
+            + '<button class="strip-link" id="strip-go-mr">'
+            +   (checkedToday ? "今日已打卡 ✓" : "去打卡") + "</button>"
+            + "</div>";
+
+        const kpis = '<div class="strip-kpis">'
             +   '<div class="strip-kpi zhu">今日番茄<b>' + d.pomos + " 个</b></div>"
             +   '<div class="strip-kpi zhu">今日专注<b>' + fmtMin(d.min) + "</b></div>"
             +   '<div class="strip-kpi">近 7 天<b>' + sum7 + " 个 · " + fmtMin(min7) + "</b></div>"
-            + '</div>'
-            + '<div class="strip-bars">' + bars + "</div>"
-            + '<div class="strip-labels">' + labels + "</div>"
-            + (sum7 === 0
-                ? '<div class="strip-hint">还没有番茄记录。在总览页顶部的番茄钟里点「▶ 开始」，'
-                  + "每跑完一段专注就会自动记上一笔（多设备共用同一份）。</div>"
-                : '<div class="strip-hint">跑完一段专注自动计一个；跳过或中途结束不计。</div>');
-
-        // --- 早间回顾打卡 ---
-        let mrHtml;
-        if (!mr) {
-            mrHtml = '<div class="strip-head"><span class="strip-title">\\uD83C\\uDF05 早间回顾打卡</span></div>'
-                + '<div class="strip-empty">暂时读不到早间回顾数据（本地服务没起或 morning_review.json 缺失）。</div>';
-        } else {
-            const checked = new Set(mr.checkins || []);
-            const studied = new Set((mr.days || []).filter(x => x.studied).map(x => x.date));
-            const win14 = lastDays(14);
-            const td = win14[win14.length - 1];
-            const dots = win14.map(x => '<span class="strip-dot'
-                + (checked.has(x) ? " checked" : (studied.has(x) ? " studied" : ""))
-                + (x === td ? " today" : "")
-                + '" title="' + esc(x) + (checked.has(x) ? " · 已打卡" : (studied.has(x) ? " · 有复习" : " · 空"))
-                + '"></span>').join("");
-            const lastChecked = (mr.checkins || []).slice(-1)[0] || "";
-            mrHtml =
-                  '<div class="strip-head"><span class="strip-title">🌅 早间回顾打卡</span>'
-                + '<span class="strip-sub">最近 14 天</span>'
-                + '<button class="strip-link" id="strip-go-mr">'
-                + (checked.has(td) ? "今日已打卡 ✓" : "去打卡") + "</button></div>"
-                + '<div class="strip-kpis">'
-                +   '<div class="strip-kpi qing">连续打卡<b>' + (mr.streak || 0) + " 天</b></div>"
-                +   '<div class="strip-kpi qing">累计<b>' + (mr.total_days || 0) + " 天</b></div>"
-                +   '<div class="strip-kpi xiang">今天<b>' + (checked.has(td) ? "已打卡" : "未打卡") + "</b></div>"
-                + '</div>'
-                + '<div class="strip-dots">' + dots + "</div>"
-                + '<div class="strip-hint">绿格=已打卡 · 蓝格=当天有复习内容但没打卡 · 今天那格带橙圈。'
-                + (lastChecked ? "最近一次打卡：" + esc(lastChecked) + "。" : "")
-                + "连续天数按「打卡或当天有复习」连着算。</div>";
-        }
-
-        strip.innerHTML = '<div class="strip-grid">'
-            + '<div class="strip-col">' + pomoHtml + "</div>"
-            + '<div class="strip-col">' + mrHtml + "</div>"
+            +   '<div class="strip-sep"></div>'
+            +   '<div class="strip-kpi qing">连续打卡<b>' + mrNum(MR && MR.streak) + " 天</b></div>"
+            +   '<div class="strip-kpi qing">累计打卡<b>' + mrNum(MR && MR.total_days) + " 天</b></div>"
+            +   '<div class="strip-kpi xiang">今天<b>' + (checkedToday ? "已打卡" : "未打卡") + "</b></div>"
             + "</div>";
+
+        const hint = view === "month"
+            ? "底色深浅＝那天专注了多久（相对近 5 周最久的一天）· 绿圈＝已打卡 · "
+              + "蓝圈＝当天有复习内容但没打卡 · 今天那格带橙框。"
+              + (MR && (MR.checkins || []).length
+                  ? "最近一次打卡：" + esc((MR.checkins || []).slice(-1)[0]) + "。" : "")
+              + (pomoShort
+                  ? " ※ 番茄记录只读到近 14 天：本地服务没起，或是还在跑不认识 ?days=42 的旧版——"
+                    + "重启「考研复习服务」后就能铺满 5 周。" : "")
+            : "曲线是每天的专注时长；圆点下面那格是当天的打卡状态（绿＝已打卡 · 蓝＝有复习没打卡）。"
+              + "跑完一段专注自动计一个，跳过或中途结束不计。";
+
+        strip.innerHTML = head + kpis + '<div class="strip-view">'
+            + (view === "month" ? monthHtml(byDay, mk) : weekHtml(byDay, mk)) + "</div>"
+            + '<div class="strip-hint">' + hint + "</div>";
+
+        strip.querySelectorAll("#strip-view .range-btn").forEach(b => {
+            b.onclick = () => {
+                if (b.dataset.view === view) return;
+                view = b.dataset.view;
+                try { localStorage.setItem(VIEW_KEY, view); } catch (e) {}
+                render();
+            };
+        });
         const b1 = document.getElementById("strip-go-pomo");
         if (b1) b1.onclick = () => { const t = document.getElementById("pm-slot");
             if (t && t.scrollIntoView) t.scrollIntoView({ behavior: "smooth", block: "start" }); };
@@ -9034,6 +10790,7 @@ SHELL_JS = '''
         if (b2) b2.onclick = () => { location.hash = "#/review"; };
     }
 
+    let mrCache = null, mrAt = 0;
     function loadMr(force) {
         const now = Date.now();
         if (!force && mrCache && now - mrAt < 120000) return Promise.resolve(mrCache);
@@ -9043,24 +10800,48 @@ SHELL_JS = '''
             return mrCache;
         }).catch(() => null);
     }
+    // 退回 14 天时置位：月视角只铺得起 2 周，得说一声，
+    // 不然 3 周前的空格子会被当成「那天没学」——这是会骗人的。
+    let pomoShort = false;
     function pomoStats() {
-        // POMO_JS 在场就直接拿它手里那份（含近 14 天），省一次来回
-        if (typeof globalThis.__pomoStats === "function") {
-            try { return Promise.resolve(globalThis.__pomoStats()); } catch (e) {}
-        }
-        return fetch(API + "/api/pomodoro/state").then(r => r.json())
-            .then(d => (d && d.ok) ? { day: d.today_stat, days: d.days } : { day: null, days: [] })
-            .catch(() => ({ day: null, days: [] }));
+        // 要 42 天：月热力图铺 5 周，POMO_JS 手里那份只有 14 天。
+        // 今日那一格优先用 POMO_JS 的：刚记完一笔时它比接口回包还新。
+        return fetch(API + "/api/pomodoro/state?days=42").then(r => {
+            if (!r.ok) throw new Error("http " + r.status);
+            return r.json();
+        }).then(d => {
+            if (!d || !d.ok) throw new Error("bad payload");
+            let day = d.today_stat;
+            if (typeof globalThis.__pomoStats === "function") {
+                try { const p = globalThis.__pomoStats(); if (p && p.day) day = p.day; } catch (e) {}
+            }
+            pomoShort = false;
+            return { day: day, days: d.days || [] };
+        }).catch(() => {
+            // 接口够不着（直接开 file:// 没起服务），或服务端还是不认识 ?days= 的旧版
+            pomoShort = true;
+            if (typeof globalThis.__pomoStats === "function") {
+                try { const p = globalThis.__pomoStats(); if (p) return p; } catch (e) {}
+            }
+            return { day: null, days: [] };
+        });
     }
-    function reload() {
-        Promise.all([pomoStats(), loadMr(false)]).then(([p, mr]) => drawStats(p, mr));
+    function reload(force) {
+        // 番茄钟那边刚记完一笔会立刻叫一声，那次不能被 2 分钟的缓存挡住
+        const p = pomoStats();
+        const m = loadMr(!!force);
+        Promise.all([p, m]).then(([po, mr]) => {
+            POMO = po;
+            MR = mr;
+            mrLoaded = !!mr;
+            render();
+        });
     }
     // 番茄钟那边记完一笔会叫一声（见 POMO_JS 的 __focusStripReload）
-    globalThis.__focusStripReload = function () { reload(); };
-    reload();
+    globalThis.__focusStripReload = function () { reload(true); };
+    reload(false);
     // 每 60 秒顺手对一次打卡状态（早间回顾那页打卡后，这条不用刷新整页也会变）
-    setInterval(function () { if (!document.hidden) loadMr(true).then(mr => drawStats(
-        (typeof globalThis.__pomoStats === "function" ? globalThis.__pomoStats() : null), mr)); }, 60000);
+    setInterval(function () { if (!document.hidden) reload(true); }, 60000);
 })();
 '''
 
@@ -9144,6 +10925,8 @@ NOTEQ_CSS = '''
             0% { background: rgba(var(--xiang-rgb), .35); }
             100% { background: transparent; }
         }
+        /* 关键词重叠定位的整块闪烁：滚到最像的那段，整段泛一下光再褪掉 */
+        .rev-hit-node { animation: revHitFlash 2.4s ease-out 1; }
         /* 命中导航条：粘在正文顶部，滚多远都够得着 */
         .rev-find { position: sticky; top: 0; z-index: 6; display: flex; align-items: center;
             gap: 8px; margin: -6px 0 14px; padding: 7px 12px; border-radius: 6px;
@@ -9547,11 +11330,61 @@ NOTEQ_JS = '''
         if (!root || !root.querySelectorAll || !anchor) return null;
         const want = String(anchor).replace(/\s+/g, "");
         const hs = root.querySelectorAll("h1, h2, h3, h4");
+        // 第一遍：整体匹配（子串，双向都算）——命中说明标题就是小标题原文。
         for (let i = 0; i < hs.length; i++) {
             const t = String(hs[i].textContent || "").replace(/\s+/g, "");
             if (t && (t.indexOf(want) >= 0 || want.indexOf(t) >= 0)) return hs[i];
         }
-        return null;
+        // 第二遍：标题带括号/破折号时，整体往往撞不上笔记小标题（如
+        // 「扩展操作码（变长操作码）」→ 笔记小标题只有「…扩展操作码技术」）。
+        // 那就按分隔符拆成关键词，挑「笔记里真实出现的那段」，取最长的那截去定位，
+        // 保证能滚到对应那一节而不是打开在笔记开头。
+        const segs = want.split(/[（）()\[\]{}、，,。.；;：:/\\s—–-]+/)
+            .map(function (s) { return s.trim(); })
+            .filter(function (s) { return s.length >= 2; });
+        let best = null, bestLen = 0;
+        for (let i = 0; i < hs.length; i++) {
+            const t = String(hs[i].textContent || "").replace(/\s+/g, "");
+            for (let k = 0; k < segs.length; k++) {
+                if (segs[k].length > bestLen && t.indexOf(segs[k]) >= 0) {
+                    best = hs[i]; bestLen = segs[k].length;
+                }
+            }
+        }
+        return best;
+    }
+    // 标题≠笔记小标题、正文又没原句时（早间回顾的条目基本都这样——title 是「话题」，
+    // body 是改写句），按关键词重叠挑「命中词累计长度最大」的那一格滚过去整块闪一下。
+    function keywordFlash(root, text) {
+        if (!root || !text) return 0;
+        const kws = [], seen = {};
+        String(text).split(/[^\u4e00-\u9fa5A-Za-z0-9]+/g)
+            .forEach(function (s) {
+                if (!s || s.length < 2) return;
+                const k = s.toLowerCase();
+                if (!seen[k]) { seen[k] = 1; kws.push(k); }
+            });
+        if (!kws.length) return 0;
+        let best = null, bestScore = 0;
+        textNodesOf(root).forEach(function (n) {
+            const low = (n.nodeValue || "").toLowerCase();
+            let sc = 0;
+            for (let i = 0; i < kws.length; i++) if (low.indexOf(kws[i]) >= 0) sc += kws[i].length;
+            if (sc > bestScore) { bestScore = sc; best = n; }
+        });
+        if (!best || bestScore <= 0) return 0;
+        let el = best;
+        while (el && el !== root && !/^(P|LI|H[1-6]|TD|DIV|BLOCKQUOTE|PRE|UL|OL)$/i.test(el.nodeName)) {
+            el = el.parentNode;
+        }
+        if (!el || el === root) el = best.parentNode || best;
+        try { el.scrollIntoView({ behavior: "smooth", block: "center" }); }
+        catch (e) { try { el.scrollIntoView(); } catch (e2) {} }
+        if (el.classList) {
+            el.classList.add("rev-hit-node");
+            setTimeout(function () { if (el.classList) el.classList.remove("rev-hit-node"); }, 2600);
+        }
+        return 1;
     }
     globalThis.__noteHitLocate = function (root, opts) {
         if (!root || !opts) return { count: 0, mode: "none" };
@@ -9590,6 +11423,8 @@ NOTEQ_JS = '''
             setTimeout(function () { if (head.classList) head.classList.remove("rev-hit-head"); }, 2600);
             return { count: 0, mode: "anchor" };
         }
+        const kwText = String(opts.keywords || opts.anchor || opts.query || "").trim();
+        if (kwText && keywordFlash(root, kwText)) return { count: 0, mode: "keyword" };
         return { count: 0, mode: "none" };
     };
 
@@ -9757,17 +11592,7 @@ MR_CSS = '''
            ============================================================ */
         .mr-loading, .mr-empty { padding: 26px 4px; font-size: .84rem; color: var(--text-muted); line-height: 1.8; }
         .mr-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-        .mr-dates { display: flex; gap: 6px; overflow-x: auto; flex: 1; min-width: 180px;
-            padding: 2px 2px 6px; scrollbar-width: thin; }
-        .mr-chip { flex: none; font: inherit; font-size: .76rem; line-height: 1.4; padding: 5px 9px;
-            border: 1px solid var(--border-color); border-radius: var(--border-radius);
-            background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer;
-            display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-        .mr-chip:hover { color: var(--text-primary); border-color: var(--dianqing); }
-        .mr-chip.on { color: var(--dianqing-lt); border-color: var(--dianqing);
-            background: rgba(var(--dianqing-rgb), .14); }
-        .mr-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); opacity: .5; }
-        .mr-chip.checked .mr-dot { background: var(--zhusha); opacity: 1; }
+        .mr-today { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
         .mr-stat { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
         .mr-stat b { color: var(--text-primary); }
         .mr-btn { font: inherit; font-size: .78rem; padding: 5px 13px; cursor: pointer;
@@ -9830,6 +11655,17 @@ MR_CSS = '''
         .mr-no:hover { background: rgba(var(--xiang-rgb), .13); }
         .mr-next { border-color: var(--dianqing); color: var(--dianqing-lt); }
         .mr-next:hover { background: rgba(var(--dianqing-rgb), .13); }
+        .mr-btn.primary { color: var(--zhuqing-lt); border-color: var(--zhuqing);
+            background: rgba(var(--zhuqing-rgb), .14); }
+        .mr-btn.primary:hover { background: rgba(var(--zhuqing-rgb), .22); }
+        .mr-note { margin-top: 7px; color: var(--dianqing-lt); border-color: rgba(var(--dianqing-rgb), .35); }
+        .mr-note:hover { background: rgba(var(--dianqing-rgb), .13); }
+        .mr-fc-start { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            padding: 13px 15px; border: 1px solid var(--border-color); border-radius: var(--border-radius);
+            background: var(--bg-secondary); }
+        .mr-fc-infos { display: flex; align-items: center; gap: 7px; font-size: .8rem;
+            color: var(--text-secondary); }
+        .mr-fc-start .mr-hint { margin-left: auto; }
 
         /* 英语长难句 */
         .mr-sent { padding: 12px 14px; background: var(--bg-secondary);
@@ -9862,6 +11698,28 @@ MR_CSS = '''
         .mr-code, .mr-item code, .mr-a code, .mr-gram code { padding: 1px 5px;
             background: var(--bg-secondary); border-radius: 3px;
             font-family: Consolas, "Courier New", monospace; font-size: .95em; }
+        /* ---- 布局优化（融入大盘，兼顾美学+效率）---- */
+        .mr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+        .mr-span2 { grid-column: 1 / -1; }
+        @media (max-width: 880px) { .mr-grid { grid-template-columns: 1fr; } }
+        .mr-agenda { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 11px 14px;
+            margin-bottom: 14px; background: linear-gradient(90deg, rgba(var(--dianqing-rgb), .10), rgba(var(--zhusha-rgb), .06));
+            border: 1px solid var(--border-color); border-radius: 10px; }
+        .mr-agenda-l { display: flex; align-items: baseline; gap: 9px; white-space: nowrap; }
+        .mr-agenda-t { font-size: .95rem; font-weight: 600; color: var(--text-primary); }
+        .mr-agenda-amt { font-size: .74rem; color: var(--text-muted); }
+        .mr-agenda-amt b { color: var(--zhusha); font-size: 1rem; }
+        .mr-agenda-m { display: flex; gap: 6px; flex-wrap: wrap; }
+        .mr-meter { display: inline-flex; align-items: center; gap: 5px; font-size: .72rem;
+            padding: 3px 8px; border-radius: 10px; background: var(--bg-card);
+            border: 1px solid var(--border-color); color: var(--text-secondary); }
+        .mr-meter b { color: var(--dianqing-lt); }
+        .mr-agenda-r { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .mr-focus-h { font-size: .72rem; color: var(--text-muted); }
+        .mr-focus { font-size: .7rem; padding: 2px 9px; border-radius: 9px; color: var(--xiang-lt);
+            background: rgba(var(--xiang-rgb), .12); }
+        .mr-time { font-size: .68rem; font-weight: 400; color: var(--text-muted); margin-left: 6px; }
+        .mr-item .mr-kind { display: inline-flex; margin-left: auto; }
 '''
 
 MR_JS = '''
@@ -9883,10 +11741,13 @@ MR_JS = '''
 
     const esc = (s) => String(s == null ? "" : s)
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    // 答案里的换行要变 <br> 才看得出层次（不转义，保留数据里的 HTML 标记）
-    const br = (s) => String(s == null ? "" : s).replace(/\\n/g, "<br>");
 
-    const S = { ov: null, date: null, day: null, q: null, tab: null, idx: 0, flipped: false, busy: false };
+    // 早间回顾的卡号 → 主闪卡库卡号（本地缓存，避免每次打开都重复归卡）。
+    // ⚠️ 只缓存卡号映射，不缓存任何进度 —— 进度由主闪卡库 FSRS 统一管。
+    const CARDMAP_KEY = 'kaoyan_mr_cardmap';
+    const loadCardMap = () => { try { return JSON.parse(localStorage.getItem(CARDMAP_KEY) || '{}'); } catch (e) { return {}; } };
+    const saveCardMap = () => { try { localStorage.setItem(CARDMAP_KEY, JSON.stringify(S.cardMap)); } catch (e) {} };
+    const S = { ov: null, date: null, day: null, q: null, tab: null, idx: 0, flipped: false, busy: false, cardMap: loadCardMap() };
 
     function toast(msg) {
         const t = document.createElement("div");
@@ -9908,26 +11769,34 @@ MR_JS = '''
         }).then(r => r.json());
     }
 
-    // ---- 顶部工具条：日期 / 打卡 / 统计 ----
+    // ---- 顶部工具条：今天的打卡 / 连续统计 ----
+    // 过去每天的记录只保留在数据里（morning_review.json + SQLite），前端不展示历史天。
     function barHtml() {
         const ov = S.ov;
         const cur = ov.days.find(d => d.date === S.date) || {};
-        const chips = ov.days.map(d =>
-            '<button class="mr-chip' + (d.date === S.date ? ' on' : '') + (d.checked ? ' checked' : '')
-            + '" data-date="' + d.date + '" title="' + esc(d.subject || '') + '">'
-            + esc(d.date.slice(5).replace('-', '/')) + ' ' + esc(d.weekday || '')
-            + '<span class="mr-dot"></span></button>').join('');
-        return '<div class="mr-bar"><div class="mr-dates">' + chips + '</div>'
+        return '<div class="mr-bar">'
             + '<button class="mr-btn' + (cur.checked ? ' checked' : '') + '" id="mr-check">'
-            + (cur.checked ? '✅ 已打卡' : '🔖 打卡这天') + '</button>'
+            + (cur.checked ? '✅ 今日已打卡' : '🔖 打卡今天') + '</button>'
             + '<span class="mr-stat">连续 <b>' + (ov.streak || 0) + '</b> 天 · 累计 <b>'
-            + (ov.total_days || 0) + '</b> 天</span></div>';
+            + (ov.total_days || 0) + '</b> 天</span>'
+            + '<span class="mr-stat mr-today" style="margin-left:auto;">' + esc(S.date || '') + '</span></div>';
     }
 
-    function linkHtml(l) {
+    function linkHtml(l, loc) {
         if (!l || !l.name) return '';
-        return '<div class="mr-link">📎 <a href="' + esc(l.path || '') + '" target="_blank"'
-            + ' title="电脑本地笔记：' + esc(l.path || '') + '">' + esc(l.name) + '</a></div>';
+        // 本地笔记不能用 file:// 直接跳（打不开），改成调大盘的阅读器浮窗渲染。
+        // 定位：anchor 是「滚到某小标题」、query 是「高亮正文里那几处」；早间回顾的
+        // 条目标题是「话题」、正文是改写句，两个都撞不上笔记小标题，所以额外带一份
+        // keywords（条目 body 的纯文本），靠关键词重叠滚到最像的那段。都放按钮
+        // data-* 上，点开阅读器时再传给 __revOpenNote。
+        loc = loc || {};
+        return '<button type="button" class="mr-btn mr-note"'
+            + ' data-note="' + esc(l.path || '') + '"'
+            + ' data-name="' + esc(l.name || '') + '"'
+            + ' data-anchor="' + esc(loc.anchor || '') + '"'
+            + ' data-query="' + esc(loc.query || '') + '"'
+            + ' data-words="' + esc(loc.keywords || '') + '"'
+            + ' title="打开笔记：' + esc(l.name || '') + '">📖 打开笔记</button>';
     }
 
     // ---- 知识点回顾 ----
@@ -9942,14 +11811,22 @@ MR_JS = '''
             return '<div class="mr-item">'
                 + (badges ? '<div class="mr-badges">' + badges + '</div>' : '')
                 + '<h4>' + (it.title || '') + '</h4>'
-                + '<p>' + (it.body || '') + '</p>' + list + concl + linkHtml(it.noteLink) + '</div>';
+                + '<p>' + (it.body || '') + '</p>' + list + concl
+                + linkHtml(it.noteLink, {
+                    anchor: it.title,
+                    keywords: String(it.body || '').replace(/<[^>]*>/g, ' ')
+                }) + '</div>';
         }).join('');
         return '<div class="mr-card"><div class="mr-card-h">📚 知识点回顾'
             + '<span class="mr-tag">' + items.length + ' 条</span></div>'
             + '<div class="mr-sub">' + esc(day.subject || '') + '</div>' + html + '</div>';
     }
 
-    // ---- 闪卡练习（队列由服务端算，两端一致）----
+    // ---- 闪卡练习（队列由服务端算；练习本身复用大盘闪卡模块）----
+    // 原来是早间回顾自己另写的一张「点卡翻答案 → 标已经/待巩固」的简易卡——
+    // 打分、间隔重复、进度存档都是独立一套，和主闪卡库各算各的。现在把这组题
+    // 归进主闪卡库（/api/study/cards），再调 __flashFloat.practice 精确开练，
+    // 于是翻转 → 看答案 → 评分、FSRS 调度、多端续刷全都在同一个模块里，没有第二套。
     function fcCard() {
         const q = S.q;
         if (!q || !q.tabs || !q.tabs.length) return '';
@@ -9961,32 +11838,58 @@ MR_JS = '''
         if (!grp || !grp.all.length) {
             inner = '<div class="mr-empty">该科目今日没有待练卡片（都已掌握，或还没到复习点）。</div>';
         } else {
-            const i = Math.min(S.idx, grp.all.length - 1);
-            const c = grp.all[i];
-            const sr = (q.sr && q.sr[c.id]) || null;
-            const isRev = !!(sr && sr.step >= 0);
-            const kind = isRev
-                ? '<span class="mr-kind rev">复习 · 第 ' + (sr.step + 1) + ' 档</span>'
-                : '<span class="mr-kind new">新卡</span>';
-            inner = '<div class="mr-fc" id="mr-flip">'
-                + '<div class="mr-fc-meta">' + kind + '<span>' + esc(c.topic || '') + '</span>'
-                + '<span style="margin-left:auto;">' + (i + 1) + ' / ' + grp.all.length + '</span></div>'
-                + '<div class="mr-q">' + (c.q || '') + '</div>'
-                + (S.flipped
-                    ? '<div class="mr-a">' + br(c.a) + '</div>'
-                    : '<div class="mr-hint" style="margin-top:10px;">点击卡片看参考答案</div>')
+            const revN = grp.all.filter(c => {
+                const s = q.sr && q.sr[c.id];
+                return s && s.step >= 0 && !s.mastered;
+            }).length;
+            inner = '<div class="mr-fc-start">'
+                + '<div class="mr-fc-infos">本组 <b>' + grp.all.length + '</b> 张'
+                + ' · <span class="mr-kind rev">' + revN + ' 复习</span>'
+                + '<span class="mr-kind new">' + (grp.all.length - revN) + ' 新</span></div>'
+                + '<button class="mr-btn primary" id="mr-fc-start">🎯 开始闪卡练习</button>'
+                + '<span class="mr-hint">提问 → 翻卡看答案 → 评分，进度存电脑、换设备一致</span>'
                 + '</div>';
-            if (S.flipped) {
-                inner += '<div class="mr-acts">'
-                    + '<button class="mr-btn mr-ok" data-mark="ok">✓ 已掌握</button>'
-                    + '<button class="mr-btn mr-no" data-mark="no">↻ 待巩固</button>'
-                    + '<button class="mr-btn mr-next" id="mr-skip">跳过 →</button>'
-                    + '<span class="mr-hint">进度保存在电脑，换设备一致</span></div>';
-            }
         }
         return '<div class="mr-card"><div class="mr-card-h">🎯 闪卡练习'
             + '<span class="mr-tag">' + esc(q.date || '') + '</span></div>'
             + '<div class="mr-tabs">' + tabs + '</div>' + inner + '</div>';
+    }
+
+    // 把当前科目的题归进主闪卡库，拿到卡号后交给闪卡浮窗精确开练。
+    // 同一题干重复出现（换一天又来）会被主库去重成同一张卡 → FSRS 进度连得上。
+    async function startPractice() {
+        const grp = S.tab && S.q && S.q.queues[S.tab];
+        if (!grp || !grp.all.length || S.busy) return;
+        S.busy = true;
+        try {
+            const todo = grp.all.filter(c => !S.cardMap[c.id]);
+            if (todo.length) {
+                const r = await post('/api/study/cards', {
+                    subject: S.tab,
+                    cards: todo.map(c => ({
+                        type: 'fill',
+                        stem: String(c.q || ''),
+                        answer: String(c.a || ''),
+                        topic: c.topic || '',
+                    })),
+                });
+                if (!r.ok) { toast('归卡失败：' + (r.error || '')); return; }
+                r.card_ids.forEach((cid, i) => { if (i < todo.length) S.cardMap[todo[i].id] = cid; });
+                saveCardMap();
+            }
+            const ids = grp.all.map(c => S.cardMap[c.id]).filter(Boolean);
+            if (!ids.length) { toast('没有可练习的卡片'); return; }
+            if (typeof globalThis.__flashFloat === 'object' && globalThis.__flashFloat
+                && typeof globalThis.__flashFloat.practice === 'function') {
+                globalThis.__flashFloat.practice(ids, '早间回顾 · ' + (grp.label || S.tab || ''));
+            } else {
+                toast('闪卡模块未就绪，稍后再点一次');
+            }
+        } catch (e) {
+            toast('开启失败：' + e.message);
+        } finally {
+            S.busy = false;
+        }
     }
 
     // ---- 英语长难句 ----
@@ -10017,15 +11920,76 @@ MR_JS = '''
                 + '<th>词汇</th><th>句中含义</th><th>常见熟义</th></tr></thead><tbody>'
                 + words + '</tbody></table>' : '')
             + (gram ? '<div class="mr-h4">📐 核心语法点</div>' + gram : '')
-            + linkHtml(e.noteLink) + '</div>';
+            + linkHtml(e.noteLink, { query: e.sentence || "" }) + '</div>';
+    }
+
+    // ---- 数学要点（计算陷阱 / 错题 / 泰勒专题）----
+    function mathCard(day) {
+        const m = day.math;
+        const pts = (m && m.points) ? m.points : [];
+        if (!pts.length) return '';
+        const html = pts.map(p => {
+            const badges = (p.badges || []).map(b => '<span class="mr-badge">' + esc(b) + '</span>').join('');
+            const concl = p.conclusion ? '<div class="mr-concl">' + p.conclusion + '</div>' : '';
+            const tag = p.type === 'taylor' ? '<span class="mr-kind rev">泰勒·记忆</span>'
+                       : p.type === 'trap' ? '<span class="mr-kind new">陷阱</span>'
+                       : '<span class="mr-kind">' + esc(p.type || '要点') + '</span>';
+            return '<div class="mr-item">'
+                + '<div class="mr-badges">' + badges + tag + '</div>'
+                + '<h4>' + (p.title || '') + '</h4>'
+                + '<p>' + (p.body || '') + '</p>' + concl + linkHtml(p.noteLink, { anchor: p.title }) + '</div>';
+        }).join('');
+        return '<div class="mr-card"><div class="mr-card-h">🧮 数学要点'
+            + '<span class="mr-time">约 ' + Math.max(pts.length * 3, 4) + ' 分钟</span>'
+            + '<span class="mr-tag">陷阱 · 错题 · 泰勒</span></div>' + html + '</div>';
+    }
+
+    // ---- 今日议程：15 分钟时间预算 + 今日焦点（记忆优先，兼顾大盘观感）----
+    function agendaHtml() {
+        const d = S.day || {};
+        const units = [];
+        if ((d.review || []).length) units.push(['📚 知识点', Math.min(d.review.length * 2, 8)]);
+        const mp = (d.math && d.math.points) || [];
+        if (mp.length) units.push(['🧮 数学要点', Math.max(mp.length * 3, 4)]);
+        const hasFc = S.q && S.q.tabs && S.q.tabs.reduce((a, t) => a + ((t.due || 0) + (t.total || 0)), 0);
+        if (hasFc) units.push(['🎯 闪卡', 3]);
+        if (d.english) units.push(['📝 长难句', 2]);
+        const total = Math.min(units.reduce((a, u) => a + u[1], 0), 15);
+        const seen = {}, chips = [];
+        (d.review || []).concat(mp).forEach(it => (it.badges || []).forEach(b => {
+            if (!seen[b] && chips.length < 5) { seen[b] = 1; chips.push(b); }
+        }));
+        const chip = chips.length
+            ? '<span class="mr-focus-h">今日焦点</span>'
+              + chips.map(c => '<span class="mr-focus">' + esc(c) + '</span>').join('') : '';
+        const meter = units.map(u =>
+            '<span class="mr-meter">' + u[0] + ' <b>' + u[1] + '′</b></span>').join('');
+        return '<div class="mr-agenda"><div class="mr-agenda-l"><span class="mr-agenda-t">🌅 今日早间回顾</span>'
+            + '<span class="mr-agenda-amt">约 <b>' + total + '</b> 分钟</span></div>'
+            + '<div class="mr-agenda-m">' + meter + '</div>'
+            + (chip ? '<div class="mr-agenda-r">' + chip + '</div>' : '') + '</div>';
     }
 
     function renderAll() {
         if (!S.ov) return;
-        const body = !S.day
-            ? '<div class="mr-empty">该日期暂无复习内容。</div>'
-            : reviewCard(S.day) + fcCard() + engCard(S.day);
-        root.innerHTML = barHtml() + body;
+        if (!S.day) {
+            root.innerHTML = barHtml() + '<div class="mr-empty">该日期暂无复习内容。</div>';
+            return;
+        }
+        const c1 = reviewCard(S.day);
+        const c2 = mathCard(S.day);
+        const c3 = fcCard();
+        const c4 = engCard(S.day);
+        let inner = '';
+        if (c1) inner += '<div class="mr-span2">' + c1 + '</div>';
+        const halves = [c2, c3].filter(Boolean);
+        if (halves.length) {
+            const cls = halves.length === 1 ? 'mr-span2' : 'mr-span1';
+            inner += '<div class="' + cls + '">' + halves[0] + '</div>'
+                + (halves[1] ? '<div class="mr-span1">' + halves[1] + '</div>' : '');
+        }
+        if (c4) inner += '<div class="mr-span2">' + c4 + '</div>';
+        root.innerHTML = barHtml() + agendaHtml() + '<div class="mr-grid">' + inner + '</div>';
     }
 
     async function refreshOverview() {
@@ -10062,41 +12026,24 @@ MR_JS = '''
         }
     }
 
-    async function reloadQueue() {
-        const enc = encodeURIComponent(S.date);
-        const qq = await get('/api/morning-review/queue?date=' + enc);
-        S.q = qq; S.flipped = false; S.idx = 0;
-        const curTab = S.tab && qq.queues[S.tab];
-        if (!curTab || !curTab.all.length) {
-            const t = (qq.tabs || []).find(x => x.total > 0);
-            if (t) S.tab = t.key;
-        }
-        renderAll();
-    }
-
-    async function mark(kind) {
-        const grp = S.tab && S.q && S.q.queues[S.tab];
-        if (!grp || !grp.all.length) return;
-        const c = grp.all[Math.min(S.idx, grp.all.length - 1)];
-        try {
-            const r = await post('/api/morning-review/sr', { card_id: c.id, mark: kind, date: S.date });
-            if (!r.ok) { toast('保存失败：' + (r.error || '')); return; }
-            toast(kind === 'ok' ? '✓ 已标记掌握（已存到电脑）' : '↻ 下次复习 ' + r.next_due);
-            await reloadQueue();
-        } catch (e) { toast('保存失败：无法连接本地服务'); }
-    }
-
     async function toggleCheckin() {
         if (!S.date || S.busy) return;
         const cur = S.ov.days.find(d => d.date === S.date);
         const on = !(cur && cur.checked);
         try {
             const r = await post('/api/morning-review/checkin', { date: S.date, on });
-            if (!r.ok) { toast('打卡失败：' + (r.error || '')); return; }
+            if (!r.ok) {
+                if (typeof globalThis.__webLog === 'function') globalThis.__webLog({ kind: 'checkin-fail', message: '打卡失败: ' + S.date + ' on=' + on + ' ' + (r.error || '') });
+                toast('打卡失败：' + (r.error || '')); return;
+            }
+            if (typeof globalThis.__webLog === 'function') globalThis.__webLog({ kind: 'checkin', message: '打卡 ' + S.date + ' on=' + on });
             await refreshOverview();
             renderAll();
             toast(on ? '✅ 已打卡（同步到电脑）' : '已取消打卡');
-        } catch (e) { toast('打卡失败：无法连接本地服务'); }
+        } catch (e) {
+            if (typeof globalThis.__webLog === 'function') globalThis.__webLog({ kind: 'checkin-err', message: '打卡异常: ' + String(e && e.message || e) });
+            toast('打卡失败：无法连接本地服务');
+        }
     }
 
     // 统一事件委托：渲染只换 innerHTML，不重复绑监听
@@ -10106,16 +12053,20 @@ MR_JS = '''
         const tab = ev.target.closest('[data-tab]');
         if (tab) { S.tab = tab.dataset.tab; S.idx = 0; S.flipped = false; renderAll(); return; }
         if (ev.target.closest('#mr-check')) { toggleCheckin(); return; }
-        if (ev.target.closest('#mr-flip') && !S.flipped) { S.flipped = true; renderAll(); return; }
-        const mk = ev.target.closest('[data-mark]');
-        if (mk) { mark(mk.dataset.mark); return; }
-        if (ev.target.closest('#mr-skip')) {
-            const grp = S.tab && S.q && S.q.queues[S.tab];
-            if (grp && grp.all.length) {
-                S.idx = (S.idx + 1) % grp.all.length;
-                S.flipped = false;
-                renderAll();
-            }
+        if (ev.target.closest('#mr-fc-start')) { startPractice(); return; }
+        const note = ev.target.closest('[data-note]');
+        if (note) {
+            const file = note.dataset.note;
+            if (!file) return;
+            if (typeof globalThis.__webLog === 'function') globalThis.__webLog({ kind: 'open-note', message: '打开笔记 ' + file + (note.dataset.anchor ? ' #' + note.dataset.anchor : '') });
+            if (typeof globalThis.__revOpenNote === 'function') {
+                globalThis.__revOpenNote({
+                    file: file, name: note.dataset.name || '',
+                    anchor: note.dataset.anchor || '',
+                    query: note.dataset.query || '',
+                    keywords: note.dataset.words || '',
+                });
+            } else { toast('阅读器未就绪，稍后再点一次'); }
             return;
         }
         if (ev.target.closest('#mr-trans-btn')) {
@@ -10829,6 +12780,15 @@ RV_JS = '''
         const list = Array.isArray(actions) ? actions : [];
         const api = window.__flashFloat;
         list.forEach(function (a) {
+            // AI 复核掉一条「这题有问题」的标记：留个痕，说明它真的动了库
+            // （改题发生在服务端，界面上那张卡不会自己变，所以必须说出来）。
+            if (a && a.type === "card_fixed") {
+                const what = a.status === "fixed"
+                    ? ("已改好" + ((a.changes || []).length ? "（" + a.changes.join("/") + "）" : ""))
+                    : (a.status === "dismissed" ? "已驳回（不是问题）" : "已删卡");
+                toast("AI 复核了标记 #" + a.report_id + "：" + what);
+                return;
+            }
             if (!a || a.type !== "practice") return;   // card_filed 只是留痕，不用动界面
             const ids = Array.isArray(a.card_ids) ? a.card_ids : [];
             if (!ids.length) return;
@@ -11171,6 +13131,19 @@ def main():
     # SHELL_JS 在 POMO_JS 之后：首页数据条直接读 POMO_JS 挂在 globalThis 上的
     # __pomoStats()（近 14 天成绩），省一次接口来回。也要在 NAV_JS 之前。
     html = html.replace("// __SHELL_JS__", SHELL_JS)
+
+    # 运行时错误日志必须**最先**注入：要在任何可能抛错的脚本执行前就注册好
+    # window 'error'/'unhandledrejection' 监听，才能抓到第一帧错误；也早于 const D。
+    html = html.replace("// __LOG_JS__", LOG_JS)
+
+    # 学习日起点必须**最先**注入：FLASH_JS / POMO_JS 一加载就要拿它算「今天」，
+    # 晚一行它们就只能退回本地日历日，跟服务端差一天。
+    html = html.replace("// __DAY_START__", DAY_START_JS)
+
+    # 快捷键总表要排在所有用到它的模块前面。其实匹配是事件触发时才走的（加载顺序
+    # 理论上无所谓），但设置页的提示文案与 FLASH_JS 的 updateHint 都会读它，
+    # 放前面省得以后有人把初始化挪到渲染之后，又踩一次「未定义」。
+    html = html.replace("// __KEYS_JS__", KEYS_JS)
 
     # 3.2 输出服务端选题辅助数据（serve.js 的 /api/flashcards/session 读取）
     fresh = data["revival"]["freshness"]

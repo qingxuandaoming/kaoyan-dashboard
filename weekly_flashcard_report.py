@@ -134,23 +134,30 @@ def build_report(conn, gtc, days):
              ORDER BY t.exam_weight DESC, t.subject, t.id""")
     ]
 
-    # ---- 4. 薄弱卡（遗忘过 / 近 30 天答错）----
+    # ---- 4. 薄弱卡（按正确率从低到高，不是按错误次数）----
+    # 错误次数只会选出练得最多的考点；正确率才区分「不会」和「练得多」。
+    # 注意 cards 不能和 review_log 一起 JOIN——那样是笛卡尔积，COUNT/SUM 全会翻倍，
+    # 所以卡数走子查询。
     weak = []
-    for tid, name, subj, lapses, recent_wrong, ncards in q(conn, """
+    for tid, name, subj, total, correct, ncards in q(conn, """
             SELECT t.id, t.name, t.subject,
-                   SUM(COALESCE(c.lapses,0)) AS lapses,
-                   (SELECT COUNT(*) FROM review_log rl JOIN questions qq ON rl.question_id=qq.id
-                     WHERE qq.topic_id = t.id AND rl.rating <= 2
-                       AND rl.review_date >= datetime('now','localtime','-30 days')) AS recent_wrong,
-                   COUNT(c.id) AS ncards
+                   COUNT(rl.id) AS total,
+                   SUM(CASE WHEN rl.rating >= 3 THEN 1 ELSE 0 END) AS correct,
+                   (SELECT COUNT(*) FROM cards c JOIN questions q2 ON c.question_id = q2.id
+                     WHERE q2.topic_id = t.id) AS ncards
               FROM topics t
-              JOIN questions qq ON qq.topic_id = t.id
-              JOIN cards c ON c.question_id = qq.id
-             GROUP BY t.id
-            HAVING lapses > 0 OR recent_wrong > 0
-             ORDER BY recent_wrong DESC, lapses DESC"""):
+              JOIN questions  qq ON qq.topic_id = t.id
+              JOIN review_log rl ON rl.question_id = qq.id
+             GROUP BY t.id"""):
+        total = int(total or 0)
+        correct = int(correct or 0)
+        if total <= 0 or correct >= total:
+            continue          # 没练过、或一次没错的考点不算薄弱
         weak.append({"topic_id": tid, "name": name, "subject": subj,
-                     "lapses": lapses, "recent_wrong_30d": recent_wrong, "cards": ncards})
+                     "total": total, "correct": correct,
+                     "accuracy": round(correct / total * 100),
+                     "cards": int(ncards or 0)})
+    weak.sort(key=lambda w: (w["accuracy"], -w["total"]))
     r["weak_topics"] = weak[:25]
 
     # ---- 5. 水蛭卡 ----
@@ -259,12 +266,12 @@ def render_markdown(r, days):
         L.append(f"- [{x['subject']}] **{x['name']}**（{x['topic_id']}，权重 {x['weight']}）")
     L.append("")
 
-    L.append(f"## 3. 薄弱考点（最该出强化卡）—— 共 {len(r['weak_topics'])} 个")
+    L.append(f"## 3. 薄弱考点（最该出强化卡，按正确率低→高）—— 共 {len(r['weak_topics'])} 个")
     if not r["weak_topics"]:
         L.append("无。")
     for x in r["weak_topics"][:15]:
-        L.append(f"- [{x['subject']}] **{x['name']}**：遗忘 {x['lapses']} 次"
-                 f"，近 30 天错 {x['recent_wrong_30d']} 次，现有 {x['cards']} 张卡")
+        L.append(f"- [{x['subject']}] **{x['name']}**：正确率 {x['accuracy']}%"
+                 f"（{x['correct']}/{x['total']} 题），现有 {x['cards']} 张卡")
     L.append("")
 
     if r["leeches"]:

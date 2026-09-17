@@ -165,3 +165,43 @@ CREATE INDEX IF NOT EXISTS idx_explain_qid
 -- 同 idx_questions_ext_key：唯一索引允许多个 NULL，user 任务不受限
 CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_tasks_ext_key
     ON daily_tasks(ext_key);
+
+-- ============================================================
+-- 「这道题有问题」标记（2026-09-17）
+--
+-- 为什么要它：闪卡里有一类错**不是学生记错**，是题目本身错了——
+-- 最典型的是选择题有两个正确选项（用户实测：y₁+y₂ 与 y₁−y₂ 那类叠加原理的题，
+-- 按真值 A、C 都对），学生怎么答都会被判错，越练越糊涂，还污染 FSRS 的难度估计。
+-- 练习时一键标记 → 每日任务里由 agent 逐张核对并修好（改选项/答案/解析，或删卡）。
+--
+-- 与 cards.suspended（🗑 这题没用）的分工：
+--   suspended 是**用户当场判死刑**，卡直接下架，没人会再碰它；
+--   这里标记是**待核实**，卡还在、还显示（带徽标），等 agent 复核后回写状态。
+-- 表是标记的单一事实源，不做冗余列（不给 cards 加 flagged）——一份数据，两个消费者：
+--   ① 服务端组题时 LEFT JOIN 出 report_* 字段（前端画徽标）；
+--   ② agent 每日任务读它（daily_tasks.py context / tools/card_reports 的 CLI）。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS card_reports (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    card_id     TEXT NOT NULL,
+    question_id TEXT,
+    kind        TEXT NOT NULL DEFAULT 'other',  -- 见 src/card_reports.js 的 KINDS（中文标签在那边）
+    note        TEXT,                           -- 用户自己补的一句话
+    chosen      TEXT,                           -- 报卡时他选的那一项（复现用）
+    correct     TEXT,                           -- 报卡时的「正确答案」，与 chosen 一起判断他是怎么错的
+    snapshot    TEXT,                           -- 报卡那一刻的题目 JSON，改题前的事实基线
+    status      TEXT NOT NULL DEFAULT 'open',   -- open | fixed | dismissed | deleted
+    source      TEXT NOT NULL DEFAULT 'user',   -- user | agent | page-ai（谁报的）
+    fix_note    TEXT,                           -- agent 复核后的结论（修了什么 / 为什么驳回）
+    fixed_at    TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at  TEXT
+);
+
+-- 一张卡同时只允许一条 open 标记（重复标记 = 改内容，不插新行）。
+-- 部分唯一索引：已修/已驳回的历史行不受影响，同一张卡可以被标记多次。
+CREATE UNIQUE INDEX IF NOT EXISTS idx_card_reports_open
+    ON card_reports(card_id) WHERE status = 'open';
+
+CREATE INDEX IF NOT EXISTS idx_card_reports_status
+    ON card_reports(status, created_at);

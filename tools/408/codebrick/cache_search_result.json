@@ -1,0 +1,202 @@
+[
+  {
+    "author": "Stallings",
+    "book_id": "stallings-co",
+    "edition": "11th",
+    "hit_count": 777,
+    "subject": "co",
+    "title": "Computer Organization and Architecture",
+    "top_heading": "",
+    "top_page": 7
+  },
+  {
+    "author": "白中英",
+    "book_id": "bzy-co",
+    "edition": "第6版",
+    "hit_count": 302,
+    "subject": "co",
+    "title": "计算机组成原理",
+    "top_heading": "",
+    "top_page": 7
+  },
+  {
+    "author": "白中英",
+    "book_id": "bzy-ex-co",
+    "edition": "第6版",
+    "hit_count": 219,
+    "subject": "co",
+    "title": "计算机组成原理试题解析",
+    "top_heading": "第2章运算方法和运算器 > 3.1选择题",
+    "top_page": 36
+  },
+  {
+    "author": "袁春风",
+    "book_id": "ycf-co",
+    "edition": "第3版",
+    "hit_count": 209,
+    "subject": "co",
+    "title": "计算机组成与系统结构",
+    "top_heading": "第6章 > 7.5.2 cache的基本工作原理",
+    "top_page": 251
+  },
+  {
+    "author": "袁春风",
+    "book_id": "ycf-sol-co",
+    "edition": "第2版",
+    "hit_count": 203,
+    "subject": "co",
+    "title": "计算机组成与系统结构（习题解答和教学指导）",
+    "top_heading": "计算机组成与系统结构习题解答和教学指导 > 1）cache 和主存间的映射关系",
+    "top_page": 193
+  },
+  {
+    "author": "唐朔飞",
+    "book_id": "tsf-co",
+    "edition": "第3版",
+    "hit_count": 196,
+    "subject": "co",
+    "title": "计算机组成原理",
+    "top_heading": "",
+    "top_page": 3
+  },
+  {
+    "author": "Tanenbaum",
+    "book_id": "tanenbaum-os",
+    "edition": "4th",
+    "hit_count": 164,
+    "subject": "os",
+    "title": "Modern Operating Systems",
+    "top_heading": "",
+    "top_page": 24
+  },
+  {
+    "author": "Silberschatz",
+    "book_id": "silberschatz-os",
+    "edition": "9th",
+    "hit_count": 137,
+    "subject": "os",
+    "title": "Operating System Concepts",
+    "top_heading": "",
+    "top_page": 33
+  },
+  {
+    "author": "蒋本珊",
+    "book_id": "jbs-sol-co",
+    "edition": "第4版",
+    "hit_count": 122,
+    "subject": "co",
+    "title": "计算机组成原理（学习指导与习题解析）",
+    "top_heading": "前言（第1版） > 16.Cache的基本工作原理",
+    "top_page": 126
+  },
+  {
+    "author": "蒋本珊",
+    "book_id": "jbs-co",
+    "edition": "第4版",
+    "hit_count": 52,
+    "subject": "co",
+    "title": "计算机组成原理",
+    "top_heading": "第2章 > 2.Cache的基本结构",
+    "top_page": 178
+  },
+  {
+    "author": "孙钟秀",
+    "book_id": "szx-os",
+    "edition": "第6版",
+    "hit_count": 21,
+    "subject": "os",
+    "title": "操作系统教程",
+    "top_heading": "操作系统教程（第6版） > 4.中央处理器",
+    "top_page": 16
+  },
+  {
+    "author": "Forouzan",
+    "book_id": "forouzan-cn",
+    "edition": "5th",
+    "hit_count": 11,
+    "subject": "cn",
+    "title": "Data Communications and Networking",
+    "top_heading": "",
+    "top_page": 284
+  },
+  {
+    "author": "张尧学",
+    "book_id": "yxf-os",
+    "edition": "第4版",
+    "hit_count": 6,
+    "subject": "os",
+    "title": "计算机操作系统教程",
+    "top_heading": "",
+    "top_page": 2
+  },
+  {
+    "author": "高传善",
+    "book_id": "gcs-cn",
+    "edition": "第2版",
+    "hit_count": 5,
+    "subject": "cn",
+    "title": "数据通信与计算机网络",
+    "top_heading": "",
+    "top_page": 2
+  },
+  {
+    "author": "汤小丹",
+    "book_id": "txd-os",
+    "edition": "第4版",
+    "hit_count": 2,
+    "subject": "os",
+    "title": "计算机操作系统",
+    "top_heading": "",
+    "top_page": 2
+  },
+  {
+    "author": "梁红兵 汤小丹",
+    "book_id": "lhb-os",
+    "edition": "2017",
+    "hit_count": 2,
+    "subject": "os",
+    "title": "计算机操作系统（第4版）学习指导与题解",
+    "top_heading": "",
+    "top_page": 2
+  },
+  {
+    "author": "谢希仁",
+    "book_id": "xxr-cn",
+    "edition": "第7版",
+    "hit_count": 2,
+    "subject": "cn",
+    "title": "计算机网络",
+    "top_heading": "",
+    "top_page": 2
+  },
+  {
+    "author": "蔡开裕",
+    "book_id": "cky-cn",
+    "edition": "第2版",
+    "hit_count": 2,
+    "subject": "cn",
+    "title": "计算机网络",
+    "top_heading": "",
+    "top_page": 2
+  },
+  {
+    "author": "唐朔飞",
+    "book_id": "tsf-sol-co",
+    "edition": "第2版",
+    "hit_count": 2,
+    "subject": "co",
+    "title": "计算机组成原理（学习指导与习题解答）",
+    "top_heading": "",
+    "top_page": 2
+  },
+  {
+    "author": "殷人昆",
+    "book_id": "yrk-ds",
+    "edition": "第2版",
+    "hit_count": 1,
+    "subject": "ds",
+    "title": "数据结构（用面向对象方法与C++描述）",
+    "top_heading": "",
+    "top_page": 2
+  }
+]

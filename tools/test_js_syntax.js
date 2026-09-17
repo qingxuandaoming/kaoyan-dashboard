@@ -66,7 +66,7 @@ console.log("\n[1] 抽取 *_JS 常量");
   const names = Object.keys(consts);
   // 少一个就说明抽取方式坏了（改名/换写法），别让「一个都没抽到」变成假绿
   check("抽到的常量不少于 10 个（防止抽空了还判通过）", names.length >= 10, names.join(","));
-  ["FLASH_JS", "RV_JS", "POMO_JS", "SETTINGS_JS", "SHELL_JS", "NOTEQ_JS", "MR_JS", "NAV_JS", "TASK_JS", "DECK_JS", "REVIVE_JS"]
+  ["KEYS_JS", "FLASH_JS", "RV_JS", "POMO_JS", "SETTINGS_JS", "SHELL_JS", "NOTEQ_JS", "MR_JS", "NAV_JS", "TASK_JS", "DECK_JS", "REVIVE_JS"]
     .forEach(n => check("抽到了 " + n, !!consts[n]));
 }
 

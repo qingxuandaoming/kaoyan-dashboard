@@ -6,8 +6,8 @@
   "meta": {
     "days": 9,
     "first_date": "2026-06-19",
-    "last_date": "2026-07-07",
-    "review_items": 45,
+    "last_date": "2026-09-30",
+    "review_items": 49,
     "quiz_items_unused": 44,
     "english_days": 9,
     "flashcard_cards": 30,
@@ -2033,6 +2033,664 @@
             "noteLink": {
               "name": "第2章_一元函数微分学.md",
               "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-17": {
+      "date": "2026-09-17",
+      "weekday": "周四",
+      "studied": true,
+      "subject": "政治·时代精神 ｜ 数据结构·线性表/链表 ｜ 泰勒专题 D1",
+      "review": [
+        {
+          "id": "pol-1",
+          "badges": [
+            "政治",
+            "记忆点"
+          ],
+          "title": "时代精神 vs 民族精神的核心",
+          "body": "<strong>时代精神的核心是改革创新</strong>，<strong>民族精神的核心是爱国主义</strong>。二者经常混考。",
+          "conclusion": "一句话对偶：时代精神→改革创新；民族精神→爱国主义。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+          }
+        },
+        {
+          "id": "pol-2",
+          "badges": [
+            "政治",
+            "易混"
+          ],
+          "title": "社会主义初级阶段是谁提出的",
+          "body": "<strong>邓小平</strong>提出“社会主义初级阶段”论断。毛泽东曾把社会主义阶段分为<strong>不发达的社会主义</strong>与<strong>比较发达的社会主义</strong>两阶段——这是易混点。",
+          "conclusion": "记人物别串：初级阶段→邓小平；社会主义两阶段分类→毛泽东。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+          }
+        },
+        {
+          "id": "ds-1",
+          "badges": [
+            "数据结构",
+            "线性表"
+          ],
+          "title": "线性表五大特点：有限/顺序/不可分割/同类型/抽象",
+          "body": "线性表满足<strong>有限性、顺序性、不可分割性、同类型、抽象性</strong>。<br>一个由 100 个字符组成的<strong>串也属于线性表</strong>（数据元素被限定为字符）；<strong>数组是对线性表的推广</strong>，因为数组的元素（如数组）违反“元素不可再分”。",
+          "conclusion": "别被题干诈：串=线性表；数组=线性表的推广（因可再分）。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:/Users/92534/Desktop/考研/408/数据结构强化.md"
+          }
+        },
+        {
+          "id": "ds-2",
+          "badges": [
+            "数据结构",
+            "链表"
+          ],
+          "title": "带头结点循环单链表：判空用“值”，不用“地址”",
+          "body": "带头结点的循环单链表判断<strong>空表</strong>：头结点指针域 <strong>与 L 的值相等</strong>（自环），而不是与 L 的地址相等。<br>带头结点循环单链表中<strong>不存在空指针</strong>。",
+          "conclusion": "判空口诀：循环链判空看<strong>值</strong>指向自身，别错用地址。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:/Users/92534/Desktop/考研/408/数据结构强化.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "pol-q1",
+          "question": "时代精神的核心与民族精神的核心分别是什么？容易与哪一对概念混淆？",
+          "answer": "时代精神核心=<strong>改革创新</strong>；民族精神核心=<strong>爱国主义</strong>。易混：社会主义初级阶段（提法）属于<strong>邓小平</strong>，而社会主义分两阶段（论说）属于<strong>毛泽东</strong>。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+          }
+        },
+        {
+          "id": "ds-q1",
+          "question": "为什么说“数组是线性表的推广”？由100个字符组成的串属于线性表吗？",
+          "answer": "因为数组作为数据元素时<strong>可以再分</strong>，违背线性表“元素不可分割”的特点，故称线性表的<strong>推广</strong>。由 100 个字符组成的<strong>串属于线性表</strong>（元素被限定为字符，仍满足线性表结构）。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:/Users/92534/Desktop/考研/408/数据结构强化.md"
+          }
+        }
+      ],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d1-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D1"
+            ],
+            "title": "泰勒公式 ≠ 泰勒级数：何时谈收敛",
+            "body": "泰勒公式是<strong>有限项 + 余项</strong>，在于 x₀ 处逼近，<strong>不讨论收敛</strong>；<br>泰勒级数/幂级数是<strong>无穷多项</strong>，是函数的一种级数表示，必须讨论<strong>收敛域</strong>。<br>一个点处的泰勒公式总是成立的（只要求 f 足够阶可导），“展开式收敛”是另一回事。",
+            "conclusion": "口诀：有限+余项=泰勒公式（不谈收敛）；无穷级数=泰勒级数（谈收敛域）。",
+            "noteLink": {
+              "name": "第2章_一元函数微分学.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+            }
+          },
+          {
+            "id": "trap-gaodian",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "计算陷阱"
+            ],
+            "title": "拐点判定：f''(x₀)=0 只是必要非充分",
+            "body": "<code>f''(x₀)=0</code> <strong>不能直接判拐点</strong>，还必须验证 <code>f''</code> 在 x₀ 两侧<strong>变号</strong>。<br>反例：<code>f(x)=x⁴</code> 在 0 处 f''(0)=0 但不变号，<strong>不是拐点</strong>。<br>反之<strong>拐点处 f'' 可不存在</strong>：<code>f(x)=|x|·x</code> 是拐点但 f''(0) 不存在。",
+            "conclusion": "拐点判据=凹凸性改变（f'' 变号）。f''=0 既不充分也非必需。",
+            "noteLink": {
+              "name": "第2章_一元函数微分学.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-18": {
+      "date": "2026-09-18",
+      "weekday": "周五",
+      "studied": true,
+      "subject": "数据结构·树BFS/栈队列 ｜ 政治·唯物辩证法/认识论 ｜ 线代·方程组/二次型 ｜ 泰勒专题 D2",
+      "review": [
+        {
+          "id": "ds-tree-bfs",
+          "badges": [
+            "408",
+            "数据结构",
+            "树"
+          ],
+          "title": "树的层序遍历＝BFS：树不用 visited，图必须 visited",
+          "body": "在<strong>树</strong>上，<strong>层序遍历就是 BFS</strong>（按层从上到下、从左到右，由近及远），两者等价，都用<strong>队列</strong>实现。关键区别：<br>① <strong>图的 BFS 必须带 visited[]</strong>——图有环，不标记已访问节点就会死循环；出队后遍历它的全部<strong>邻接点</strong>，未访问的才入队并标记；<br>② <strong>树的层序遍历不需要 visited</strong>——树无环、只有父→子的单向路径，不可能走回父节点，直接把<strong>左右孩子</strong>入队；<br>③ 需要按层输出时用 <code>size = queue.size()</code> 把当前层节点一次处理完。",
+          "list": [
+            "图 BFS：visited + 邻接点，防环死循环",
+            "树层序：免标记，左右孩子入队",
+            "按层输出：size 卡一层"
+          ],
+          "conclusion": "树层序＝树的 BFS，无环免标记；图 BFS 必带 visited，否则死循环。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+          }
+        },
+        {
+          "id": "ds-circular-queue",
+          "badges": [
+            "408",
+            "数据结构",
+            "队列"
+          ],
+          "title": "循环队列长度公式 + 链队列根本不需要“循环”",
+          "body": "循环队列<strong>队列长度</strong>＝<code>(rear − front + maxSize) % maxSize</code>；<strong>空闲位置数</strong>＝<code>(front − rear + maxSize) % maxSize</code>（加 maxSize 再取模，防负数）。<br><strong>front 是离开端</strong>（队首先出），<strong>rear 是增长方向</strong>。<br>顺序队列之所以要“循环”，是数组空间有限、出队后前部空位无法利用，会<strong>假溢出</strong>；<strong>链式队列</strong>节点动态申请、出队即 free，<strong>不存在假溢出，完全不需要循环结构</strong>。",
+          "list": [
+            "长度：(rear−front+maxSize)%maxSize",
+            "空位数：(front−rear+maxSize)%maxSize",
+            "链队列：动态分配，无需循环"
+          ],
+          "conclusion": "取模前先加 maxSize 防负；只有顺序队列谈循环，链队列免谈。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+          }
+        },
+        {
+          "id": "ds-stack-overflow",
+          "badges": [
+            "408",
+            "数据结构",
+            "栈"
+          ],
+          "title": "栈的上溢/下溢：满还写＝上溢，空还读＝下溢",
+          "body": "<strong>上溢</strong>：存储器（栈）<strong>已满还往里写</strong>（压栈）；<strong>下溢</strong>：栈<strong>已空还往外读</strong>（弹栈）。<br>栈<strong>只允许在栈顶一端</strong>进行插入删除，不允许两端操作。",
+          "conclusion": "口诀：满写溢上、空读溢下；栈只开一端。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+          }
+        },
+        {
+          "id": "pol-dialectics",
+          "badges": [
+            "政治",
+            "马原",
+            "唯物辩证法"
+          ],
+          "title": "主观辩证法 vs 客观辩证法：两者都是唯物的",
+          "body": "<strong>客观辩证法</strong>是隐藏在客观事物内部的辩证运动规律；<strong>主观辩证法</strong>是以概念、判断、推理等思维形式表现出来的思维发展辩证法，可概括为<strong>概念辩证法</strong>，它是<strong>对客观辩证法的反映</strong>。<br>二者<strong>都是唯物的、正确的</strong>辩证法；<strong>唯心辩证法</strong>则是一种错误的辩证法，不能与前两者混为一谈。",
+          "conclusion": "主观辩证法＝概念辩证法，是客观辩证法的反映；主客观都唯物，唯心辩证法才错。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+          }
+        },
+        {
+          "id": "pol-practice-source",
+          "badges": [
+            "政治",
+            "马原",
+            "认识论"
+          ],
+          "title": "实践是认识的唯一来源：直接经验“源”、间接经验“流”",
+          "body": "<strong>实践是认识的唯一来源</strong>：无论直接经验（亲身实践所得）还是间接经验（书本、课堂、他人、历史传统），追根溯源都来自实践。<br>二者是<strong>“源”与“流”</strong>的关系：间接经验是前人、他人直接经验的总结、提炼与传递；没有直接经验这个“源”，间接经验就成了<strong>无源之水</strong>。",
+          "conclusion": "一切知识归根到底源于实践；直接经验是源，间接经验是流。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+          }
+        },
+        {
+          "id": "pol-quality-quantity",
+          "badges": [
+            "政治",
+            "马原",
+            "唯物辩证法"
+          ],
+          "title": "质与量：区分质是认识量的前提，考察量是认识质的深化",
+          "body": "<strong>区分质是认识量的前提，考察量是认识质的深化</strong>——认识从定性走向定量，二者统一于事物本身。<br>配套观点：<strong>从个性中看到共性，从相对中找到绝对，从暂时中发现永恒</strong>，正是马克思主义物质观体现的唯物辩证法。",
+          "conclusion": "先定性（质）后定量（量）：质是前提，量是深化。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "ds-q-tree-bfs",
+          "question": "树的层序遍历和图的 BFS 在代码实现上最关键的区别是什么？为什么树不需要 visited 而图必须要？",
+          "answer": "关键区别在 <strong>visited 标记</strong>：<strong>图有环</strong>，不标记已访问节点会沿环<strong>死循环</strong>，所以图 BFS 必须带 visited[]，出队后只把未访问的<strong>邻接点</strong>入队；<strong>树无环</strong>且只有父→子单向路径，不可能回到祖先，故层序遍历<strong>无需 visited</strong>，直接把左右孩子入队即可。在树上“层序遍历＝BFS”，二者等价。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+          }
+        },
+        {
+          "id": "ds-q-queue",
+          "question": "写出循环队列中元素个数与空闲位置数的公式；并说明链式队列为什么不需要做成循环队列。",
+          "answer": "元素个数＝<code>(rear − front + maxSize) % maxSize</code>；空闲位置数＝<code>(front − rear + maxSize) % maxSize</code>。<br>顺序队列要循环是因为数组出队后前部空间空出、不能利用会<strong>假溢出</strong>；链式队列节点<strong>动态申请、出队即释放</strong>，不存在空间绕回问题，故<strong>不需要循环</strong>。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+          }
+        },
+        {
+          "id": "pol-q-dialectics",
+          "question": "主观辩证法与客观辩证法是什么关系？“唯心辩证法”和它们的根本区别在哪里？",
+          "answer": "主观辩证法（概念辩证法）是<strong>对客观辩证法的反映</strong>，以概念、判断、推理等思维形式表现；二者<strong>都是唯物的、正确的</strong>辩证法。<strong>唯心辩证法</strong>建立在唯心主义基础上，是<strong>错误</strong>的辩证法——根本区别在是否承认辩证法规律的客观性。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+          }
+        }
+      ],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d2-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D2"
+            ],
+            "title": "麦克劳林记忆块①：eˣ 与 sin x",
+            "body": "<code>eˣ = Σ xⁿ/n! = 1 + x + x²/2! + x³/3! + …</code>（全体实数收敛）<br><code>sin x = Σ (−1)ⁿx²ⁿ⁺¹/(2n+1)! = x − x³/3! + x⁵/5! − …</code>（仅奇数次项）",
+            "conclusion": "eˣ 全阶都有；sin 只含奇次项 → 求偶阶导时要等于 0。",
+            "noteLink": {
+              "name": "第2章_一元函数微分学.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+            }
+          },
+          {
+            "id": "method-xd-colview",
+            "type": "method",
+            "badges": [
+              "线代",
+              "线性方程组",
+              "错题归档"
+            ],
+            "title": "抽象方程组通法：用列向量视角“读”出解",
+            "body": "抽象方程组做不了行变换，唯一武器是<strong>列向量视角</strong>：<br>① <code>Ax=0</code> 的解＝列向量<strong>线性相关关系的系数</strong>——相关式移项即得齐次解（警惕移项变号）；<br>② <code>Ax=β</code> 的特解＝<strong>β 用列向量线性表示的系数</strong>；<br>③ 用 <code>n − r(A)</code> 核对基础解系向量个数。<br>基础解系三条件：<strong>是解＋线性无关＋个数为 n−r</strong>，缺一不可；<strong>等价</strong>向量组锁死全部三条件，<strong>等秩</strong>只锁“无关”一条；“首尾相接”型差向量组 (α−β, β−γ, γ−α) 系数 (1,1,1) 给零组合，<strong>必相关</strong>。",
+            "conclusion": "给相关关系→移项读齐次解；给表示式→系数读特解；n−r 数个数。等价≠等秩。",
+            "noteLink": {
+              "name": "错题归档.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\线代\\错题归档.md"
+            }
+          },
+          {
+            "id": "trap-xd-inertia",
+            "type": "trap",
+            "badges": [
+              "线代",
+              "二次型",
+              "计算陷阱"
+            ],
+            "title": "二次型惯性指数：不能数对角元的正负号",
+            "body": "看到二次型矩阵对角线上 k 个正、m 个负就判 <code>p=k、q=m</code> 是错的：行（列）可能相关（相同/成比例行），<code>r&lt;n</code> 时部分方向并不独立。<strong>p、q 由特征值正负个数决定</strong>，对角元符号只在矩阵本身就是对角矩阵时才作数。<br>正确流程：先求秩 r，<code>p + q = r</code>，零特征值 n−r 个；再求特征值（或用配方法/顺序主子式）。<br>只有<strong>正交变换</strong>得到的标准形系数才等于特征值；<strong>配方法</strong>系数不一定是特征值，但正负号个数 p、q 一定正确（惯性定理：可逆线性变换保持 p、q 不变）。",
+            "conclusion": "对角元符号≠惯性指数；先定秩 p+q=r，再数特征值正负。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\线代\\计算陷阱.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-19": {
+      "date": "2026-09-19",
+      "weekday": "周六",
+      "studied": false,
+      "subject": "泰勒专题 · D3 · 薄弱点",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d3-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D3"
+            ],
+            "title": "麦克劳林记忆块②：cos x、ln(1+x)、(1+x)^α",
+            "body": "<code>cos x = Σ (−1)ⁿx²ⁿ/(2n)! = 1 − x²/2! + x⁴/4! − …</code>（仅偶次项）<br><code>ln(1+x) = Σ (−1)ⁿ⁻¹xⁿ/n = x − x²/2 + x³/3 − …</code>（|x|<1）<br><code>(1+x)^α = Σ C(α,n)xⁿ = 1+αx+α(α−1)x²/2!+…</code>（|x|<1）",
+            "conclusion": "cos 只偶次、ln 系数带 (−1)ⁿ⁻¹/n、(1+x)^α 是二项式推广（α 可为任意实数）。",
+            "noteLink": {
+              "name": "第2章_一元函数微分学.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-20": {
+      "date": "2026-09-20",
+      "weekday": "周日",
+      "studied": false,
+      "subject": "泰勒专题 · D4 · 新学回顾",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d4-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D4"
+            ],
+            "title": "其余常用展开：1/(1−x)、1/(1+x)、arctan x",
+            "body": "<code>1/(1−x) = Σ xⁿ = 1+x+x²+…</code>（|x|<1）<br><code>1/(1+x) = Σ (−x)ⁿ = 1−x+x²−…</code>（|x|<1）<br><code>arctan x = Σ (−1)ⁿx²ⁿ⁺¹/(2n+1) = x − x³/3 + x⁵/5 − …</code>",
+            "conclusion": "等比展开是母函数，很多级数求和都化到它；arctan 由 1/(1+x²) 逐项积分得到。",
+            "noteLink": {
+              "name": "第2章_一元函数微分学.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-21": {
+      "date": "2026-09-21",
+      "weekday": "周一",
+      "studied": false,
+      "subject": "泰勒专题 · D5 · 难度攻坚",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d5-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D5"
+            ],
+            "title": "由展开反推高阶导：f⁽ⁿ⁾(0) = n!·aₙ",
+            "body": "把 f 展开成 <code>Σ aₙxⁿ</code> 后，第 n 阶导在 0 处 = <strong>n! · aₙ</strong>（aₙ 是 xⁿ 的系数）。<br>不必逐阶硬算，只数系数；<strong>奇偶项取舍</strong>：sin/arctan 无偶次项 → 偶阶导为 0。",
+            "conclusion": "易错：忘记乘 n!；读 aₙ 时看“xⁿ 项的系数”，不是第 n 项本身。",
+            "noteLink": {
+              "name": "第2章_一元函数微分学.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-22": {
+      "date": "2026-09-22",
+      "weekday": "周二",
+      "studied": false,
+      "subject": "泰勒专题 · D6 · 做题反馈",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d6-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D6"
+            ],
+            "title": "收敛半径 R：比值法通项",
+            "body": "对标准幂级数 <code>Σaₙ(x−x₀)ⁿ</code>：<br><code>R = lim |aₙ/aₙ₊₁|</code>（或 <code>1 / lim n√|aₙ|</code>，极限须存在）<br>收敛开区间 <code>(x₀−R, x₀+R)</code>。",
+            "conclusion": "求半径只看系数；求出 R 后记住：<strong>端点必须单独验证</strong>，开/闭由此定。",
+            "noteLink": {
+              "name": "第7章_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-23": {
+      "date": "2026-09-23",
+      "weekday": "周三",
+      "studied": false,
+      "subject": "泰勒专题 · D7 · 公式背诵",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d7-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D7"
+            ],
+            "title": "缺项幂级数：禁套系数比公式，回到通项",
+            "body": "缺项形式如 <code>Σaₙx²ⁿ</code>，直接套系数比 <code>R=lim|aₙ/aₙ₊₁|</code> 会错（中间项为 0）。<br>改对<strong>整个通项</strong>用比值法：<code>lim|uₙ₊₁(x)/uₙ(x)|<1</code> 解不等式定域，或用换元 t=xᵏ。",
+            "conclusion": "口诀：缺项→通项法，别套系数比公式。",
+            "noteLink": {
+              "name": "第7章_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-24": {
+      "date": "2026-09-24",
+      "weekday": "周四",
+      "studied": false,
+      "subject": "泰勒专题 · D8 · 概念辨析",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d8-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D8"
+            ],
+            "title": "判敛法四件套：比值/根值/比较/极限比较",
+            "body": "<strong>比值(达朗贝尔)</strong>：<code>lim|uₙ₊₁/uₙ|=ρ</code>，ρ<1 收敛、ρ>1 发散。<br><strong>根值(柯西)</strong>：<code>lim n√|uₙ|=ρ</code>，同上。<br><strong>比较法</strong>：大的收敛→小的收敛；小的发散→大的发散。<br><strong>极限比较法</strong>：lim uₙ/vₙ=l∈(0,∞) 同敛散。",
+            "conclusion": "ρ=1 时比值/根值<strong>全部失效</strong>，要换比较法（1/n 与 1/n² 比值都得 1，一散一敛）。",
+            "noteLink": {
+              "name": "第7章_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-25": {
+      "date": "2026-09-25",
+      "weekday": "周五",
+      "studied": false,
+      "subject": "泰勒专题 · D9 · 记忆类",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d9-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D9"
+            ],
+            "title": "参考级数三标尺：p级数/等比/对数p级数",
+            "body": "<strong>p 级数</strong> <code>Σ1/nᵖ</code>：p>1 收敛、p≤1 发散。<br><strong>等比级数</strong> <code>Σaqⁿ</code>：|q|<1 收敛、|q|≥1 发散。<br><strong>对数 p 级数</strong> <code>Σ1/[n(lnn)ᵖ]</code>：p>1 收敛、p≤1 发散。",
+            "conclusion": "这些是比较法的“标尺”，一般判别首先回想 p 级数与等比。",
+            "noteLink": {
+              "name": "第7章_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-26": {
+      "date": "2026-09-26",
+      "weekday": "周六",
+      "studied": false,
+      "subject": "泰勒专题 · D10 · 易错类",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d10-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D10"
+            ],
+            "title": "绝对收敛 vs 条件收敛；莱布尼茨法",
+            "body": "先判 <code>Σ|uₙ|</code>：收敛→<strong>绝对收敛</strong>（原级数必收敛）；发散再看是否<strong>条件收敛</strong>。<br>交错级数 <code>Σ(−1)ⁿ⁻¹uₙ</code>（uₙ>0）用<strong>莱布尼茨法</strong>：uₙ单调递减 + uₙ→0 ⇒ 收敛。",
+            "conclusion": "交错级数看两项：绝对值单调减、极限趋于零，满足就收敛。只能判收敛不能判发散。",
+            "noteLink": {
+              "name": "第7章_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-27": {
+      "date": "2026-09-27",
+      "weekday": "周日",
+      "studied": false,
+      "subject": "泰勒专题 · D11 · 薄弱点",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d11-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D11"
+            ],
+            "title": "等价无穷小同敛散：只对正项级数成立",
+            "body": "aₙ ~ bₙ（n→∞）⇒ Σaₙ 与 Σbₙ 同敛散，<strong>仅限正项/同号级数</strong>；<br>变号级数中不成立——一阶项可交错抵消收敛，残余的同号高阶小项可能把整体拖发散。<br>通项含 ln(1+uₙ)、e^uₙ−1、sin uₙ 时：<strong>泰勒展开到二阶</strong>，一阶看交错、二阶看 p 级数。",
+            "conclusion": "变号级数通项能展开就先展开到二阶再判；别对变号直接“换等价”。",
+            "noteLink": {
+              "name": "第7章_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-28": {
+      "date": "2026-09-28",
+      "weekday": "周一",
+      "studied": false,
+      "subject": "泰勒专题 · D12 · 新学回顾",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d12-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D12"
+            ],
+            "title": "级数求和的母函数视角",
+            "body": "很多求和化到两个母函数：<br><code>Σxⁿ = 1/(1−x)</code>（等比）与 <code>Σxⁿ/n! = eˣ</code>。<br>先分解成分式/裂项，再对齐已知展开形式求和。",
+            "conclusion": "看到数项级数想求和，先想能否化到等比或 eˣ 的展开式。",
+            "noteLink": {
+              "name": "第7章_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-29": {
+      "date": "2026-09-29",
+      "weekday": "周二",
+      "studied": false,
+      "subject": "泰勒专题 · D13 · 难度攻坚",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d13-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D13"
+            ],
+            "title": "泰勒做极限：找主部，不硬洛必达",
+            "body": "x→0 时把每个因子用麦克劳林<strong>展开到能定阶</strong>，留下“主部”（最低次项），分子分母同阶比较。<br>常用首项：<code>sinx~x</code>、<code>ln(1+x)~x</code>、<code>eˣ−1~x</code>、<code>1−cosx~x²/2</code>。",
+            "conclusion": "等价无穷小只能在<strong>乘除因子</strong>里换；加减项要展开到一阶以上再比。",
+            "noteLink": {
+              "name": "第2章_一元函数微分学.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-09-30": {
+      "date": "2026-09-30",
+      "weekday": "周三",
+      "studied": false,
+      "subject": "泰勒专题 · D14 · 做题反馈",
+      "review": [],
+      "quiz": [],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "taylor-d14-1",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D14"
+            ],
+            "title": "专题自查：默写全部麦克劳林 + 判敛流程",
+            "body": "① 能否默写：eˣ、sin、cos、ln(1+x)、(1+x)^α、1/(1−x)、1/(1+x)、arctan。<br>② 判敛流程：先看通项是否 →0（不→0 必发散）；正项 → p/等比/比较/比值/根值；变号 → 先判绝对，再莱布尼茨判条件。",
+            "conclusion": "收敛域 = 半径 + <strong>端点逐个验</strong>，别漏。今天测一遍，把卡住的记进错题归档。",
+            "noteLink": {
+              "name": "第7章_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
             }
           }
         ]

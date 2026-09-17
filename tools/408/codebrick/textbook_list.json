@@ -1,0 +1,272 @@
+[
+  {
+    "id": "cky-cn",
+    "title": "计算机网络",
+    "author": "蔡开裕",
+    "edition": "第2版",
+    "subject": "cn",
+    "pages": 354,
+    "subject_name": "计算机网络"
+  },
+  {
+    "id": "forouzan-cn",
+    "title": "Data Communications and Networking",
+    "author": "Forouzan",
+    "edition": "5th",
+    "subject": "cn",
+    "pages": 1268,
+    "subject_name": "计算机网络"
+  },
+  {
+    "id": "gcs-cn",
+    "title": "数据通信与计算机网络",
+    "author": "高传善",
+    "edition": "第2版",
+    "subject": "cn",
+    "pages": 646,
+    "subject_name": "计算机网络"
+  },
+  {
+    "id": "gcs-sol-cn",
+    "title": "数据通信与计算机网络（习题解答与实验指南）",
+    "author": "高传善",
+    "edition": "第2版",
+    "subject": "cn",
+    "pages": 222,
+    "subject_name": "计算机网络"
+  },
+  {
+    "id": "lsw-cn",
+    "title": "计算机网络习题与解析",
+    "author": "鲁士文",
+    "edition": "第2版",
+    "subject": "cn",
+    "pages": 369,
+    "subject_name": "计算机网络"
+  },
+  {
+    "id": "wgy-cn",
+    "title": "计算机网络",
+    "author": "吴功宜",
+    "edition": "第5版",
+    "subject": "cn",
+    "pages": 417,
+    "subject_name": "计算机网络"
+  },
+  {
+    "id": "xxr-cn",
+    "title": "计算机网络",
+    "author": "谢希仁",
+    "edition": "第7版",
+    "subject": "cn",
+    "pages": 463,
+    "subject_name": "计算机网络"
+  },
+  {
+    "id": "xxr-sol-cn",
+    "title": "计算机网络（释疑与习题解答）",
+    "author": "谢希仁",
+    "edition": "第7版",
+    "subject": "cn",
+    "pages": 295,
+    "subject_name": "计算机网络"
+  },
+  {
+    "id": "bzy-co",
+    "title": "计算机组成原理",
+    "author": "白中英",
+    "edition": "第6版",
+    "subject": "co",
+    "pages": 371,
+    "subject_name": "计算机组成原理"
+  },
+  {
+    "id": "bzy-ex-co",
+    "title": "计算机组成原理试题解析",
+    "author": "白中英",
+    "edition": "第6版",
+    "subject": "co",
+    "pages": 241,
+    "subject_name": "计算机组成原理"
+  },
+  {
+    "id": "jbs-co",
+    "title": "计算机组成原理",
+    "author": "蒋本珊",
+    "edition": "第4版",
+    "subject": "co",
+    "pages": 355,
+    "subject_name": "计算机组成原理"
+  },
+  {
+    "id": "jbs-sol-co",
+    "title": "计算机组成原理（学习指导与习题解析）",
+    "author": "蒋本珊",
+    "edition": "第4版",
+    "subject": "co",
+    "pages": 283,
+    "subject_name": "计算机组成原理"
+  },
+  {
+    "id": "stallings-co",
+    "title": "Computer Organization and Architecture",
+    "author": "Stallings",
+    "edition": "11th",
+    "subject": "co",
+    "pages": 1111,
+    "subject_name": "计算机组成原理"
+  },
+  {
+    "id": "tsf-co",
+    "title": "计算机组成原理",
+    "author": "唐朔飞",
+    "edition": "第3版",
+    "subject": "co",
+    "pages": 435,
+    "subject_name": "计算机组成原理"
+  },
+  {
+    "id": "tsf-sol-co",
+    "title": "计算机组成原理（学习指导与习题解答）",
+    "author": "唐朔飞",
+    "edition": "第2版",
+    "subject": "co",
+    "pages": 262,
+    "subject_name": "计算机组成原理"
+  },
+  {
+    "id": "ycf-co",
+    "title": "计算机组成与系统结构",
+    "author": "袁春风",
+    "edition": "第3版",
+    "subject": "co",
+    "pages": 364,
+    "subject_name": "计算机组成原理"
+  },
+  {
+    "id": "ycf-sol-co",
+    "title": "计算机组成与系统结构（习题解答和教学指导）",
+    "author": "袁春风",
+    "edition": "第2版",
+    "subject": "co",
+    "pages": 284,
+    "subject_name": "计算机组成原理"
+  },
+  {
+    "id": "djh-ds",
+    "title": "数据结构（C++语言版）",
+    "author": "邓俊辉",
+    "edition": "第3版",
+    "subject": "ds",
+    "pages": 664,
+    "subject_name": "数据结构"
+  },
+  {
+    "id": "djh-sol-ds",
+    "title": "数据结构（C++语言版）习题解析",
+    "author": "邓俊辉",
+    "edition": "第3版",
+    "subject": "ds",
+    "pages": 257,
+    "subject_name": "数据结构"
+  },
+  {
+    "id": "sk-ds",
+    "title": "算法与数据结构考研试题精析",
+    "author": "陈守孔",
+    "edition": "第3版",
+    "subject": "ds",
+    "pages": 409,
+    "subject_name": "数据结构"
+  },
+  {
+    "id": "yrk-ds",
+    "title": "数据结构（用面向对象方法与C++描述）",
+    "author": "殷人昆",
+    "edition": "第2版",
+    "subject": "ds",
+    "pages": 527,
+    "subject_name": "数据结构"
+  },
+  {
+    "id": "yrk-ex-ds",
+    "title": "数据结构习题解析",
+    "author": "殷人昆",
+    "edition": "",
+    "subject": "ds",
+    "pages": 472,
+    "subject_name": "数据结构"
+  },
+  {
+    "id": "ywm-ds",
+    "title": "数据结构（C语言版）",
+    "author": "严蔚敏",
+    "edition": "第2版",
+    "subject": "ds",
+    "pages": 274,
+    "subject_name": "数据结构"
+  },
+  {
+    "id": "lhb-os",
+    "title": "计算机操作系统（第4版）学习指导与题解",
+    "author": "梁红兵 汤小丹",
+    "edition": "2017",
+    "subject": "os",
+    "pages": 248,
+    "subject_name": "操作系统"
+  },
+  {
+    "id": "silberschatz-os",
+    "title": "Operating System Concepts",
+    "author": "Silberschatz",
+    "edition": "9th",
+    "subject": "os",
+    "pages": 943,
+    "subject_name": "操作系统"
+  },
+  {
+    "id": "szx-os",
+    "title": "操作系统教程",
+    "author": "孙钟秀",
+    "edition": "第6版",
+    "subject": "os",
+    "pages": 363,
+    "subject_name": "操作系统"
+  },
+  {
+    "id": "tanenbaum-os",
+    "title": "Modern Operating Systems",
+    "author": "Tanenbaum",
+    "edition": "4th",
+    "subject": "os",
+    "pages": 1137,
+    "subject_name": "操作系统"
+  },
+  {
+    "id": "txd-os",
+    "title": "计算机操作系统",
+    "author": "汤小丹",
+    "edition": "第4版",
+    "subject": "os",
+    "pages": 407,
+    "subject_name": "操作系统"
+  },
+  {
+    "id": "yxf-os",
+    "title": "计算机操作系统教程",
+    "author": "张尧学",
+    "edition": "第4版",
+    "subject": "os",
+    "pages": 315,
+    "subject_name": "操作系统"
+  },
+  {
+    "id": "zys-sol-os",
+    "title": "操作系统教程（习题解答与实验指导）",
+    "author": "张尧学",
+    "edition": "第4版",
+    "subject": "os",
+    "pages": 151,
+    "subject_name": "操作系统"
+  }
+]
