@@ -53,6 +53,9 @@ _bak_*.db
 
 # ---------- 一次性调试脚本（硬编码本机绝对路径，不入库）----------
 tools/_tmp_*.js
+tools/inspect_db.js
+tools/inspect_q.js
+tools/408/tmp_*.py
 
 # ---------- Obsidian Bases（属于笔记库，不属于本工程）----------
 *.base

@@ -28,7 +28,7 @@ ICON_PATH = os.path.join(ROOT, "assets", "kaoyan.ico")
 DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop")
 BAT_PATH = os.path.join(DESKTOP, "启动考研大盘.bat")
 LNK_PATH = os.path.join(DESKTOP, "启动考研大盘.lnk")
-LNK_DESC = "考研学习仪表盘 · 一键启动"
+LNK_DESC = "改造我们的学习 · 一键启动"
 
 
 def build_ps1():

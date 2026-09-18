@@ -1,4 +1,4 @@
-/*
+﻿/*
  * 番茄钟（POMO_JS）行为测试。
  *
  * 从 generate_dashboard.py 里抽出真实的 POMO_JS，用「虚拟时钟 + 极简 DOM」跑：
@@ -208,7 +208,7 @@ function boot(pomoCfg, savedRun, savedDay, srv, caps, extraStore) {
   // extraStore：塞任意 localStorage 项（自己存的预设、小窗透明度…）做「刷新后还在」那类用例
   if (extraStore) Object.assign(store, extraStore);
   const doc = {
-    title: "考研学习仪表盘", hidden: false,
+    title: "改造我们的学习", hidden: false,
     body: mkEl("body"),                // setFull 要往 body 上挂 pm-lock
     getElementById: id => (id === "pm-slot" ? slot : id === "pm-overlay" ? overlay : REG[id] || null),
     createElement: t => mkEl(t),
@@ -321,7 +321,7 @@ function check(name, cond, extra) {
     check("默认按钮是「开始」", txt("pm-toggle").indexOf("开始") >= 0, txt("pm-toggle"));
     check("45+10×3 共 6 段 / 165 分钟", txt("pm-plan").indexOf("165") >= 0 || txt("pm-plan").indexOf("2 小时 45") >= 0, txt("pm-plan"));
     check("轮播图没配时不铺背景", hostOf() && !hostOf()._cls.has("pm-hasbg"));
-    check("一轮都没开始时不抢页面标题", env.doc.title === "考研学习仪表盘", env.doc.title);
+    check("一轮都没开始时不抢页面标题", env.doc.title === "改造我们的学习", env.doc.title);
     check("「结束」按钮在待开始时不出现", REG["pm-stop"].hidden === true);
   }
 
@@ -437,10 +437,10 @@ function check(name, cond, extra) {
     REG["pm-reset"].click();
     check("重置 → 回到第 1 段 45:00", txt("pm-time") === "45:00", txt("pm-time"));
     check("重置 → 按钮回到「▶ 开始」而不是「继续」", txt("pm-toggle") === "▶ 开始", txt("pm-toggle"));
-    check("重置 → 标题交还给页面", env.doc.title === "考研学习仪表盘", env.doc.title);
+    check("重置 → 标题交还给页面", env.doc.title === "改造我们的学习", env.doc.title);
     REG["pm-toggle"].click(); advance(MIN);
     REG["pm-stop"].click();
-    check("中途结束不写「完成」标题（那是放弃不是跑完）", env.doc.title === "考研学习仪表盘", env.doc.title);
+    check("中途结束不写「完成」标题（那是放弃不是跑完）", env.doc.title === "改造我们的学习", env.doc.title);
     check("中途结束不计入今日番茄", txt("pm-day").indexOf("<b>0</b> 个番茄") >= 0, txt("pm-day"));
   }
 
