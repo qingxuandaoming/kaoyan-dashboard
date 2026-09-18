@@ -148,13 +148,60 @@ function resolveAssetPath(rel) {
 // ⚠️ 不要在这里引 YAML 解析器（项目没装 js-yaml）：元数据只读各科的
 //    notes_index.json —— 那也是「笔记元数据的单一事实源」。
 // ============================================================
-const NOTE_SUBJECTS = [
-  { key: '408', label: '408', dir: '408' },
-  { key: '数学一', label: '数学一', dir: 'Math' },
-  { key: '政治', label: '政治', dir: 'Politics' },
-  { key: '英语一', label: '英语一', dir: 'English' },
-  { key: '复试', label: '复试', dir: 'Re-examination' },
-];
+// 学科配置（2026-09-19 泛化「任意学科」）
+//
+// 单一事实源 = src/subjects.json（由 subjects_conf.py 生成/维护，
+// Python 侧同口径视图见 subjects_conf.py，两侧派生规则必须一致）。
+// 内置模板 = src/subjects_templates.json（subjects_conf.py 导出），
+// 引导 UI 与 /api/bootstrap/* 都用它，避免跨语言重复维护模板。
+//
+// NOTE_SUBJECTS / QUOTA_SUBJECTS / TASK_SUBJECTS 都是 let，写配置后
+// 调 refreshSubjectVars() 即刻生效，不用重启服务。
+// ============================================================
+const SUBJECTS_CONF_PATH = path.join(__dirname, 'subjects.json');
+const SUBJECTS_TEMPLATES_PATH = path.join(__dirname, 'subjects_templates.json');
+
+function readSubjectsConf() {
+  try { return JSON.parse(fs.readFileSync(SUBJECTS_CONF_PATH, 'utf-8')); } catch (e) { return null; }
+}
+function confSubjects(conf) {
+  const d = conf || readSubjectsConf();
+  if (!d || !Array.isArray(d.subjects)) return [];
+  return d.subjects.filter(s => s && s.enabled !== false);
+}
+function confNotesExtras(conf) {
+  const d = conf || readSubjectsConf();
+  if (!d || !Array.isArray(d.notes_extra)) return [];
+  return d.notes_extra.filter(x => x && x.dir);
+}
+function confTemplates() {
+  try { return JSON.parse(fs.readFileSync(SUBJECTS_TEMPLATES_PATH, 'utf-8')); } catch (e) { return []; }
+}
+function subjectGraphKey(s) { return (s && s.graph_key) || (s && s.id) || ''; }
+function subjectShort(s) { return (s && s.short) || subjectGraphKey(s); }
+
+// 笔记目录清单：学科 notes_dir + 额外目录（如复试）。兜底：配置缺失时退回
+// 「复试」目录，保证首次使用还没建库时笔记搜索仍能扫到已有笔记。
+let NOTE_SUBJECTS = [];
+let SUBJECT_KEYS = [];
+let QUOTA_SUBJECTS = [];
+let TASK_SUBJECTS = [];
+function refreshSubjectVars() {
+  NOTE_SUBJECTS = [];
+  for (const s of confSubjects()) {
+    if (s.notes_dir) NOTE_SUBJECTS.push({ key: subjectGraphKey(s), label: subjectShort(s), dir: s.notes_dir });
+  }
+  for (const x of confNotesExtras()) {
+    NOTE_SUBJECTS.push({ key: x.key || x.label, label: x.label || x.key, dir: x.dir });
+  }
+  if (!NOTE_SUBJECTS.length) NOTE_SUBJECTS.push({ key: '复试', label: '复试', dir: 'Re-examination' });
+  SUBJECT_KEYS = confSubjects().map(subjectGraphKey);
+  if (!SUBJECT_KEYS.length) SUBJECT_KEYS = ['408', '政治', '数学一', '英语一'];
+  QUOTA_SUBJECTS = SUBJECT_KEYS;
+  TASK_SUBJECTS = SUBJECT_KEYS;
+}
+refreshSubjectVars();
+
 const NOTE_SKIP_DIRS = new Set(['src', 'PDF', 'assets', '.obsidian', '.qoder', '.uploads',
                                 'node_modules', '.git', '0参考教材']);
 const NOTE_MAX_BYTES = 400 * 1024;      // 单文件上限：再大就不进正文索引（只看标题）
@@ -572,8 +619,7 @@ function buildLimits(db, cfg, today) {
 // 额外上限（AND），只会更严、绝不放宽。练得越少的科目分到的弹性名额越多。
 // ---------------------------------------------------------------------------
 
-/** 各科科目名（与 topics.subject 原值一致） */
-const QUOTA_SUBJECTS = ['408', '政治', '数学一', '英语一'];
+/** 各科科目名（与 topics.subject 原值一致；由 subjects.json 派生） */
 
 /**
  * 近 N 天各科的练习量分布（含昨日）。
@@ -851,6 +897,8 @@ const SENSITIVE_PATHS = [
   // 标记有问题 / 复核改题（2026-09-17）：会写 questions.content 与 card_reports，
   // 属于「能改学习数据」的那一类，和 /api/study/cards 同待遇（前缀匹配，覆盖 /resolve）。
   '/api/flashcards/reports',
+  // 学科管理 / 建库（2026-09-19）：写 subjects.json，能改学习范围，同待遇。
+  '/api/subjects', '/api/bootstrap',
 ];
 const isSensitivePath = (u) => SENSITIVE_PATHS.some(p => String(u || '').indexOf(p) === 0);
 
@@ -945,6 +993,245 @@ const server = http.createServer((req, res) => {
   }
 
   const url = req.url;
+
+  // ==========================================================================
+  // 建库引导 + 学科管理（2026-09-19 泛化「任意学科」）
+  //
+  // 单一事实源 subjects.json。写接口（/api/subjects/add|update|delete、
+  // /api/bootstrap/create）都改配置，已在 SENSITIVE_PATHS 里受内网保护。
+  // 学科新增/修改后调 refreshSubjectVars() 即时生效，无需重启。
+  // ==========================================================================
+  const subjectSummary = (s) => s ? ({
+    id: s.id, name: s.name || s.id, short: s.short || s.id,
+    color: s.color || '#888888', enabled: s.enabled !== false,
+    notes_dir: s.notes_dir || '', books: s.books || [], subs: s.subs || [],
+    note_layout: s.note_layout || '', method: s.method || '',
+    template: s.template || 'custom',
+    progress_key: s.progress_key || s.id, graph_key: s.graph_key || s.id,
+    total_score: s.total_score || 100,
+  }) : null;
+  const confPayload = () => {
+    const conf = readSubjectsConf() || { version: 1, notes_extra: [], subjects: [] };
+    return {
+      version: conf.version || 1,
+      notes_extra: confNotesExtras(conf),
+      subjects: confSubjects(conf).map(subjectSummary),
+    };
+  };
+  const readJsonBody = (req, cb) => {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      let p = {};
+      try { p = JSON.parse(body || '{}'); } catch (e) { p = {}; }
+      cb(p);
+    });
+  };
+  // 无配置时的写入口：与 subjects_conf.py 的 _notes_extras() 同口径
+  const ensureConfWritable = () => {
+    const conf = readSubjectsConf();
+    if (conf && Array.isArray(conf.subjects)) return conf;
+    return { version: 1, notes_extra: [{ key: '复试', label: '复试', dir: 'Re-examination' }], subjects: [] };
+  };
+  const writeConf = (conf) => {
+    conf.version = conf.version || 1;
+    conf.updated_at = new Date().toISOString();
+    fs.writeFileSync(SUBJECTS_CONF_PATH, JSON.stringify(conf, null, 2), 'utf-8');
+    refreshSubjectVars();
+  };
+
+  // GET /api/bootstrap/status —— 首屏判定「要不要进建库引导」
+  if (url === '/api/bootstrap/status' && req.method === 'GET') {
+    const conf = readSubjectsConf();
+    const hasConf = !!(conf && Array.isArray(conf.subjects) && conf.subjects.length > 0);
+    const hasData = fs.existsSync(path.join(__dirname, 'progress.json')) || fs.existsSync(DB_PATH);
+    sendJsonRaw(res, 200, {
+      ok: true,
+      need_bootstrap: !hasConf,
+      has_data: hasData,
+      subjects_count: confSubjects(conf).length,
+      templates: confTemplates(),
+      subjects: confSubjects(conf).map(subjectSummary),
+      notes_extra: confNotesExtras(conf),
+    });
+    return;
+  }
+
+  // GET /api/subjects —— 配置摘要（学科管理页用）
+  if (url === '/api/subjects' && req.method === 'GET') {
+    sendJsonRaw(res, 200, { ok: true, payload: confPayload() });
+    return;
+  }
+
+  // POST /api/subjects/add —— 新增学科 {subject:{id?,short?,name?,...}}
+  if (url === '/api/subjects/add' && req.method === 'POST') {
+    readJsonBody(req, (p) => {
+      try {
+        const s = p.subject || {};
+        const id = String(s.id || s.short || s.name || '').trim();
+        if (!id) { sendJsonRaw(res, 400, { ok: false, error: '缺少学科标识（id / short / name 至少一个）' }); return; }
+        const conf = ensureConfWritable();
+        if (conf.subjects.some(x => x.id === id)) {
+          sendJsonRaw(res, 409, { ok: false, error: '学科 ' + id + ' 已存在' }); return;
+        }
+        const rec = {
+          id: id,
+          name: s.name || id,
+          short: s.short || id,
+          graph_key: s.graph_key || id,
+          progress_key: s.progress_key || id,
+          color: s.color || '#888888',
+          enabled: s.enabled !== false,
+          notes_dir: s.notes_dir || '',
+          books: Array.isArray(s.books) ? s.books : [],
+          subs: Array.isArray(s.subs) ? s.subs : [],
+          note_layout: s.note_layout || '',
+          method: s.method || '',
+          template: s.template || 'custom',
+          total_score: s.total_score || 100,
+        };
+        conf.subjects.push(rec);
+        writeConf(conf);
+        if (rec.notes_dir) fs.mkdirSync(path.join(ROOT_DIR, rec.notes_dir), { recursive: true });
+        sendJsonRaw(res, 200, { ok: true, subject: subjectSummary(rec) });
+      } catch (e) {
+        sendJsonRaw(res, 500, { ok: false, error: e.message });
+      }
+    });
+    return;
+  }
+
+  // POST /api/subjects/update —— 改学科 {id, patch:{...}}
+  if (url === '/api/subjects/update' && req.method === 'POST') {
+    readJsonBody(req, (p) => {
+      try {
+        const id = String(p.id || '').trim();
+        const conf = readSubjectsConf();
+        const idx = conf && conf.subjects.findIndex(x => x.id === id);
+        if (!conf || idx < 0) { sendJsonRaw(res, 404, { ok: false, error: '学科不存在：' + id }); return; }
+        const upd = p.patch || {};
+        const merged = Object.assign({}, conf.subjects[idx]);
+        for (const k of ['name', 'short', 'color', 'enabled', 'notes_dir', 'books', 'subs',
+                         'note_layout', 'method', 'template', 'progress_key', 'graph_key', 'total_score']) {
+          if (k in upd) merged[k] = upd[k];
+        }
+        conf.subjects[idx] = merged;
+        writeConf(conf);
+        if (merged.notes_dir) fs.mkdirSync(path.join(ROOT_DIR, merged.notes_dir), { recursive: true });
+        sendJsonRaw(res, 200, { ok: true, subject: subjectSummary(merged) });
+      } catch (e) {
+        sendJsonRaw(res, 500, { ok: false, error: e.message });
+      }
+    });
+    return;
+  }
+
+  // POST /api/subjects/delete —— 删除学科 {id}（只删配置项，不删笔记/数据）
+  if (url === '/api/subjects/delete' && req.method === 'POST') {
+    readJsonBody(req, (p) => {
+      try {
+        const id = String(p.id || '').trim();
+        const conf = readSubjectsConf();
+        if (!conf || !conf.subjects.some(x => x.id === id)) {
+          sendJsonRaw(res, 404, { ok: false, error: '学科不存在：' + id }); return;
+        }
+        conf.subjects = conf.subjects.filter(x => x.id !== id);
+        writeConf(conf);
+        sendJsonRaw(res, 200, { ok: true });
+      } catch (e) {
+        sendJsonRaw(res, 500, { ok: false, error: e.message });
+      }
+    });
+    return;
+  }
+
+  // POST /api/bootstrap/create —— 建库动作
+  // body: { subjects: [ {template?: 'kaoyan-408', custom?: {...}} ] }
+  // 动作：① 无配置则建空配置；② 逐科落库（模板展开或自定义）；③ 建笔记目录；
+  //       ④ 确保 progress.json；⑤ 确保 question_bank.db（schema.sql + migrate.js）。
+  if (url === '/api/bootstrap/create' && req.method === 'POST') {
+    readJsonBody(req, (p) => {
+      try {
+        const want = Array.isArray(p.subjects) ? p.subjects : [];
+        if (!want.length) { sendJsonRaw(res, 400, { ok: false, error: '至少选择一门学科' }); return; }
+        const conf = ensureConfWritable();
+        const templates = confTemplates();
+        const tplById = {};
+        for (const t of templates) {
+          tplById[t.id] = t;
+          if (t.template) tplById[t.template] = t;   // id 与 template 字段都能命中
+        }
+        const added = [];
+        const skipped = [];
+        for (const item of want) {
+          let rec = null;
+          if (item.template && tplById[item.template]) {
+            rec = JSON.parse(JSON.stringify(tplById[item.template]));
+            if (item.custom) Object.assign(rec, item.custom);   // custom 可覆盖模板字段
+          } else if (item.custom && (item.custom.id || item.custom.short || item.custom.name)) {
+            rec = item.custom;
+          }
+          if (!rec || (!rec.id && !rec.short && !rec.name)) continue;
+          const id = String(rec.id || rec.short || rec.name).trim();
+          if (!id) continue;
+          rec.id = id;
+          if (conf.subjects.some(x => x.id === id)) { skipped.push(id); continue; }
+          rec.graph_key = rec.graph_key || id;
+          rec.progress_key = rec.progress_key || id;
+          rec.color = rec.color || '#888888';
+          rec.enabled = rec.enabled !== false;
+          rec.books = Array.isArray(rec.books) ? rec.books : [];
+          rec.subs = Array.isArray(rec.subs) ? rec.subs : [];
+          rec.total_score = rec.total_score || 100;
+          conf.subjects.push(rec);
+          added.push(id);
+          if (rec.notes_dir) fs.mkdirSync(path.join(ROOT_DIR, rec.notes_dir), { recursive: true });
+        }
+        writeConf(conf);
+        // ④ progress.json：不存在就建空结构（gap_analysis / daily_planner 才有基线）
+        let progressCreated = false;
+        if (!fs.existsSync(path.join(__dirname, 'progress.json'))) {
+          const prog = { updated: new Date().toISOString().slice(0, 10), method: [], subjects: {} };
+          for (const s of conf.subjects) {
+            prog.subjects[s.progress_key || s.id] = { phase: '', resource: '', overall_progress: 0, subs: {} };
+          }
+          fs.writeFileSync(path.join(__dirname, 'progress.json'), JSON.stringify(prog, null, 2), 'utf-8');
+          progressCreated = true;
+        }
+        // ⑤ question_bank.db：schema.sql 建表 + migrate.js 灌 Anki 默认参数。
+        //    用「cards 表是否存在」判断而不是文件存在——migrate.js 打开不存在的
+        //    DB 会先建出空文件再跳过，只查文件会把「空库」误判成「已有库」。
+        let dbCreated = false;
+        let dbNeedsSchema = true;
+        try {
+          const chk = new DatabaseSync(DB_PATH, { readOnly: true });
+          const hasCards = !!chk.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cards'").get();
+          chk.close();
+          dbNeedsSchema = !hasCards;
+        } catch (e) { dbNeedsSchema = true; }
+        if (dbNeedsSchema) {
+          try {
+            const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
+            const ndb = new DatabaseSync(DB_PATH);
+            ndb.exec(schema);
+            ndb.close();
+            dbCreated = true;
+          } catch (e) {
+            console.warn('[Bootstrap] 初始化数据库失败: ' + e.message);
+          }
+        }
+        try { require('./migrate').run(DB_PATH); } catch (e) { console.warn('[Bootstrap] migrate 失败: ' + e.message); }
+        sendJsonRaw(res, 200, {
+          ok: true, added: added, skipped: skipped,
+          progress_created: progressCreated, db_created: dbCreated,
+          subjects: confSubjects(conf).map(subjectSummary),
+        });
+      } catch (e) {
+        sendJsonRaw(res, 500, { ok: false, error: e.message });
+      }
+    });
+    return;
+  }
 
   // 代理火山 TTS API
   if (url === '/api/volcano/tts' && req.method === 'POST') {
@@ -2195,7 +2482,6 @@ const server = http.createServer((req, res) => {
   // 只用 GET/POST：文件上方的 CORS 头只声明了 GET/POST/OPTIONS，
   // 用 PUT/DELETE 会被浏览器预检直接挡下。
   // ==========================================================================
-  const TASK_SUBJECTS = ['408', '政治', '数学一', '英语一'];
   const TASK_TEXT_MAX = 200;
   const TASK_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -2274,7 +2560,7 @@ const server = http.createServer((req, res) => {
         const rawSubj = p.subject == null ? '' : String(p.subject).trim();
         const subject = rawSubj === '' ? null : rawSubj;
         if (subject !== null && TASK_SUBJECTS.indexOf(subject) < 0) {
-          sendJson(400, { ok: false, error: '科目只能是 408 / 政治 / 数学一 / 英语一' });
+          sendJson(400, { ok: false, error: '科目只能是：' + TASK_SUBJECTS.join(' / ') });
           return;
         }
         const db = new DatabaseSync(DB_PATH);

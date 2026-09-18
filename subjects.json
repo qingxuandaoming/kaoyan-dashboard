@@ -1,0 +1,386 @@
+{
+  "version": 1,
+  "notes_extra": [
+    {
+      "key": "复试",
+      "label": "复试",
+      "dir": "Re-examination"
+    }
+  ],
+  "subjects": [
+    {
+      "id": "408",
+      "name": "408 计算机学科专业基础",
+      "short": "408",
+      "aliases": [
+        "408",
+        "计算机",
+        "408计算机"
+      ],
+      "progress_key": "408",
+      "graph_key": "408",
+      "graph_file": "408_graph.json",
+      "notes_dir": "408",
+      "total_score": 150,
+      "max_ratio": 0.35,
+      "color": "#5B7C99",
+      "enabled": true,
+      "template": "kaoyan-408",
+      "method": "王道四本书一轮复习 → 强化（DS强化中）",
+      "subs": [
+        {
+          "key": "DS",
+          "name": "数据结构",
+          "dir": "DS",
+          "prefix": "408-DS",
+          "chapters": [
+            "绪论",
+            "线性表",
+            "栈、队列和数组",
+            "串",
+            "树与二叉树",
+            "图",
+            "查找",
+            "排序"
+          ]
+        },
+        {
+          "key": "CO",
+          "name": "计算机组成原理",
+          "dir": "CO",
+          "prefix": "408-CO",
+          "chapters": [
+            "计算机系统概述",
+            "数据的表示和运算",
+            "存储系统",
+            "指令系统",
+            "中央处理器",
+            "总线与输入输出系统"
+          ]
+        },
+        {
+          "key": "OS",
+          "name": "操作系统",
+          "dir": "OS",
+          "prefix": "408-OS",
+          "chapters": [
+            "操作系统概述",
+            "进程与线程",
+            "内存管理",
+            "文件管理",
+            "输入输出管理"
+          ]
+        },
+        {
+          "key": "CN",
+          "name": "计算机网络",
+          "dir": "CN",
+          "prefix": "408-CN",
+          "chapters": [
+            "计算机网络体系结构",
+            "物理层",
+            "数据链路层",
+            "网络层",
+            "传输层",
+            "应用层"
+          ]
+        }
+      ],
+      "books": [
+        {
+          "title": "王道计算机考研复习指导（四本）",
+          "author": "王道论坛",
+          "phase": "基础",
+          "note": "数据结构/计组/操作系统/计网四册"
+        },
+        {
+          "title": "王道强化讲义 + 单科书二刷",
+          "author": "王道论坛",
+          "phase": "强化",
+          "note": "当前：数据结构"
+        },
+        {
+          "title": "408历年真题（2009-2026）",
+          "author": "",
+          "phase": "真题",
+          "note": ""
+        },
+        {
+          "title": "王道模拟卷",
+          "author": "王道论坛",
+          "phase": "模拟",
+          "note": ""
+        }
+      ],
+      "note_layout": "按子科目录（DS/CO/OS/CN）分章建 md，文件名「第N章_标题.md」，由 build_index.py 生成 笔记索引.yaml"
+    },
+    {
+      "id": "数学一",
+      "name": "数学一",
+      "short": "数学",
+      "aliases": [
+        "数学",
+        "数学一",
+        "数一"
+      ],
+      "progress_key": "数学",
+      "graph_key": "数学一",
+      "graph_file": "math_graph.json",
+      "notes_dir": "Math",
+      "total_score": 150,
+      "max_ratio": 0.4,
+      "color": "#7FA8D9",
+      "enabled": true,
+      "template": "kaoyan-math",
+      "method": "张宇30讲一轮复习 → 强化（线代强化中）",
+      "subs": [
+        {
+          "key": "高等数学",
+          "name": "高等数学",
+          "dir": "高数",
+          "prefix": "MATH-GS",
+          "display": "高数",
+          "chapters": [
+            "函数与极限",
+            "一元函数微分学",
+            "一元函数积分学",
+            "微分方程",
+            "多元函数微分学",
+            "二重积分",
+            "无穷级数",
+            "空间解析几何"
+          ]
+        },
+        {
+          "key": "线性代数",
+          "name": "线性代数",
+          "dir": "线代",
+          "prefix": "MATH-XD",
+          "display": "线代",
+          "chapters": [
+            "行列式",
+            "矩阵",
+            "向量",
+            "线性方程组",
+            "特征值与特征向量",
+            "二次型"
+          ]
+        },
+        {
+          "key": "概率论与数理统计",
+          "name": "概率论与数理统计",
+          "dir": "概率论",
+          "prefix": "MATH-GL",
+          "display": "概率",
+          "chapters": [
+            "随机事件与概率",
+            "一维随机变量",
+            "多维随机变量",
+            "数字特征",
+            "大数定律与中心极限定理",
+            "数理统计"
+          ]
+        }
+      ],
+      "books": [
+        {
+          "title": "张宇基础30讲",
+          "author": "张宇",
+          "phase": "基础",
+          "note": "高数18讲 + 线代6讲 + 概率6讲"
+        },
+        {
+          "title": "武忠祥17堂课 / 张宇18讲 + 李永乐线代辅导讲义",
+          "author": "武忠祥/张宇/李永乐",
+          "phase": "强化",
+          "note": ""
+        },
+        {
+          "title": "李林880题",
+          "author": "李林",
+          "phase": "强化习题",
+          "note": ""
+        },
+        {
+          "title": "近15年真题（2010-2024）",
+          "author": "",
+          "phase": "真题",
+          "note": ""
+        },
+        {
+          "title": "李林6+4套卷 + 张宇8+4套卷",
+          "author": "李林/张宇",
+          "phase": "模拟",
+          "note": ""
+        }
+      ],
+      "note_layout": "按子科目录（高数/线代/概率论）分章建 md，文件名「第N章_标题.md」"
+    },
+    {
+      "id": "政治",
+      "name": "政治",
+      "short": "政治",
+      "aliases": [
+        "政治"
+      ],
+      "progress_key": "政治",
+      "graph_key": "政治",
+      "graph_file": "politics_graph.json",
+      "notes_dir": "Politics",
+      "total_score": 100,
+      "max_ratio": 0.3,
+      "color": "#C89B4A",
+      "enabled": true,
+      "template": "kaoyan-politics",
+      "method": "徐涛强化课 + 优题库基础篇 + 背诵手册",
+      "subs": [
+        {
+          "key": "马原",
+          "name": "马克思主义基本原理",
+          "dir": "马原",
+          "prefix": "POL-MY",
+          "display": "马原",
+          "chapters": []
+        },
+        {
+          "key": "毛中特",
+          "name": "毛泽东思想和中国特色社会主义理论体系概论",
+          "dir": "毛中特",
+          "prefix": "POL-MZ",
+          "display": "毛中特",
+          "chapters": []
+        },
+        {
+          "key": "史纲",
+          "name": "中国近现代史纲要",
+          "dir": "史纲",
+          "prefix": "POL-SG",
+          "display": "史纲",
+          "chapters": []
+        },
+        {
+          "key": "思修",
+          "name": "思想道德与法治",
+          "dir": "思修",
+          "prefix": "POL-SX",
+          "display": "思修",
+          "chapters": []
+        },
+        {
+          "key": "习思想",
+          "name": "习近平新时代中国特色社会主义思想概论",
+          "dir": "习思想",
+          "prefix": "POL-XX",
+          "display": "习思想",
+          "chapters": []
+        }
+      ],
+      "books": [
+        {
+          "title": "徐涛强化课 + 优题库基础篇",
+          "author": "徐涛",
+          "phase": "基础",
+          "note": ""
+        },
+        {
+          "title": "背诵手册",
+          "author": "",
+          "phase": "背诵",
+          "note": "已启动"
+        },
+        {
+          "title": "肖1000题 / 肖八 / 肖四 + 腿姐技巧班",
+          "author": "肖秀荣/腿姐",
+          "phase": "冲刺",
+          "note": ""
+        }
+      ],
+      "note_layout": "一科一个 md（马原.md / 史纲.md …），由笔记工作流维护"
+    },
+    {
+      "id": "英语一",
+      "name": "英语一",
+      "short": "英语",
+      "aliases": [
+        "英语",
+        "英语一"
+      ],
+      "progress_key": "英语",
+      "graph_key": "英语一",
+      "graph_file": "english_graph.json",
+      "notes_dir": "English",
+      "total_score": 100,
+      "max_ratio": 0.2,
+      "color": "#9A8FB8",
+      "enabled": true,
+      "template": "kaoyan-english",
+      "method": "不背单词APP + 红宝书正序版 + 真题阅读",
+      "subs": [
+        {
+          "key": "词汇",
+          "name": "词汇",
+          "dir": "word&phrase",
+          "prefix": "ENG-VOC",
+          "chapters": []
+        },
+        {
+          "key": "语法",
+          "name": "语法与长难句",
+          "dir": "grammar",
+          "prefix": "ENG-GRAM",
+          "chapters": []
+        },
+        {
+          "key": "完形",
+          "name": "完形填空",
+          "dir": "past-papers",
+          "prefix": "ENG-CLOZE",
+          "chapters": []
+        },
+        {
+          "key": "翻译",
+          "name": "翻译",
+          "dir": "translation&writing",
+          "prefix": "ENG-TRAN",
+          "chapters": []
+        },
+        {
+          "key": "阅读",
+          "name": "阅读理解",
+          "dir": "reading&magazines",
+          "prefix": "ENG-READ",
+          "chapters": []
+        },
+        {
+          "key": "写作",
+          "name": "写作",
+          "dir": "translation&writing",
+          "prefix": "ENG-WRITE",
+          "chapters": []
+        }
+      ],
+      "books": [
+        {
+          "title": "不背单词APP + 红宝书正序版",
+          "author": "",
+          "phase": "基础",
+          "note": "目标 5500 词"
+        },
+        {
+          "title": "真题阅读（近15年）",
+          "author": "",
+          "phase": "强化",
+          "note": "阅读一轮进行中"
+        },
+        {
+          "title": "真题 + 作文范文",
+          "author": "",
+          "phase": "冲刺",
+          "note": ""
+        }
+      ],
+      "note_layout": "按能力模块建目录（word&phrase/grammar/reading&magazines/…），写作与翻译共用 translation&writing 目录"
+    }
+  ],
+  "updated_at": "2026-09-18T20:16:40.170Z"
+}

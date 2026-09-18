@@ -42,49 +42,18 @@ PROGRESS_PATH = os.path.join(_KAOYAN, r"src\progress.json")
 DB_PATH = os.path.join(_KAOYAN, "src", "question_bank.db")
 
 # Map graph subject keys -> progress.json subject keys
-PROGRESS_SUBJECT_MAP = {
-    "408":   "408",
-    "数学一": "数学",
-    "政治":  "政治",
-    "英语一": "英语",
-}
-
-GRAPH_FILES = {
-    "408":   "408_graph.json",
-    "数学一": "math_graph.json",
-    "政治":  "politics_graph.json",
-    "英语一": "english_graph.json",
-}
+# 2026-09-19 起科目映射由 subjects.json 派生（subjects_conf.py），
+# 与 serve.js / generate_dashboard.py 同口径，改学科只动配置文件。
+import subjects_conf  # noqa: E402
+PROGRESS_SUBJECT_MAP = subjects_conf.progress_map()          # graph_key -> progress_key
+GRAPH_FILES = subjects_conf.graph_files()                    # graph_key -> 图谱文件名
 
 # Map graph subject -> human label used in the section header
-SUBJECT_HEADERS = {
-    "408":   "408 计算机综合 (总分 150)",
-    "数学一": "数学一 (总分 150)",
-    "政治":  "政治 (总分 100)",
-    "英语一": "英语一 (总分 100)",
-}
+SUBJECT_HEADERS = subjects_conf.graph_headers()              # graph_key -> "名称 (总分 N)"
 
 # Map short sub keys (used in 408 graph) to display names
-SUB_DISPLAY = {
-    # 408
-    "DS": "数据结构",
-    "CO": "计算机组成原理",
-    "OS": "操作系统",
-    "CN": "计算机网络",
-    # 数学一
-    "高等数学": "高数",
-    "线性代数": "线代",
-    "概率论与数理统计": "概率",
-    # 政治
-    "马克思主义基本原理": "马原",
-    "毛泽东思想和中国特色社会主义理论体系概论": "毛中特",
-    "中国近现代史纲要": "史纲",
-    "思想道德与法治": "思修",
-    # 图谱该 sub 的 key 原先误写成「形势与政策以及当代世界经济与政治」，
-    # 但它下面 9 个考点全是习思想内容（populate_questions.py 也标注为习思想），
-    # 2026-09-17 把图谱 key 更名为「习近平新时代中国特色社会主义思想概论」。
-    "习近平新时代中国特色社会主义思想概论": "习思想",
-}
+# 子科缩略显示名（「高数」「马原」）与 key 都在 subjects.json 的 subs 里。
+SUB_DISPLAY = subjects_conf.sub_display()
 
 # ---------------------------------------------------------------------------
 # YAML loading (with fallback)

@@ -536,29 +536,12 @@ KEYS_JS = '''
 # 活动页的「各科正确率」要**固定**按这个顺序输出四个，缺的补 0——
 # 早先用 GROUP BY t.subject 直接从答题记录取，没练过的科目干脆不出现，
 # 用户看到的是「缺失」而不是「0%」，会以为数据坏了。
-ALL_SUBJECTS = ["408", "政治", "数学一", "英语一"]
-
-# 笔记目录 → 闪卡知识点前缀映射（用于“近日笔记→针对性闪卡”的选题加权）
-NOTE_PREFIX_MAP = {
-    "408/DS": "408-DS", "408/CO": "408-CO", "408/OS": "408-OS", "408/CN": "408-CN",
-    "Math/高数": "MATH-GS", "Math/线代": "MATH-XD", "Math/概率论": "MATH-GL",
-    "Politics/马原": "POL-MY", "Politics/史纲": "POL-SG", "Politics/毛中特": "POL-MZ",
-    "Politics/思修": "POL-SX", "Politics/习思想": "POL-XX",
-    # 英语前缀必须和图谱/题库的 ENG-WRITE 对齐：写成 ENG-WRIT 时
-    # load_card_linkage() 的 key（由 topics.id 前两段得出）永远匹配不上，
-    # 英语写作笔记的闪卡联动因此长期为 0（2026-09-14 修正）。
-    "English/word&phrase": "ENG-VOC", "English/grammar": "ENG-GRAM",
-    "English/reading&magazines": "ENG-READ", "English/translation&write": "ENG-WRITE",
-    # past-papers 是混合目录（完形填空方法论.md + 真题笔记.md），按其中的
-    # 题型专属材料归到完形；ENG-TRN 这个前缀已随「翻译与完形」拆分取消（2026-09-17）。
-    "English/past-papers": "ENG-CLOZE",
-}
-SUBJECT_ALL_PREFIXES = {
-    "408": ["408-DS", "408-CO", "408-OS", "408-CN"],
-    "数学": ["MATH-GS", "MATH-XD", "MATH-GL"],
-    "政治": ["POL-MY", "POL-SG", "POL-MZ", "POL-SX", "POL-XX"],
-    "英语": ["ENG-VOC", "ENG-GRAM", "ENG-READ", "ENG-WRITE", "ENG-CLOZE", "ENG-TRAN"],
-}
+# 2026-09-19 起科目清单由 subjects.json 派生（subjects_conf.py），
+# 与 serve.js 的 NOTE_SUBJECTS / QUOTA_SUBJECTS 同口径，改学科只动配置文件。
+import subjects_conf  # noqa: E402
+ALL_SUBJECTS = subjects_conf.task_subjects()                  # graph_key 列表
+NOTE_PREFIX_MAP = subjects_conf.note_prefix_map()             # 笔记目录 → 知识点前缀
+SUBJECT_ALL_PREFIXES = subjects_conf.subject_prefixes()       # 短名 → 前缀列表
 
 # 政治笔记的短编号（MY-001 / 思修-001 / ZT-001）与图谱前缀（POL-MY）不是一套体系，
 # 映射表抽到 note_prefix.py 与 gap_analysis.py 共用——两个脚本各存一份正是
@@ -587,12 +570,10 @@ def note_files_for(rel: str) -> list:
     return []
 
 
-GRAPH_FILES = {
-    "408":  "408_graph.json",
-    "数学": "math_graph.json",
-    "政治": "politics_graph.json",
-    "英语": "english_graph.json",
-}
+# 图谱文件名：key 用**短名**（与 load_graphs 的 graphs key、coverage_by_subject
+# 的 key 一致，前端直接拿它当科目名显示）。学科/图谱文件名来自 subjects.json。
+GRAPH_FILES = {s.get("short", s["id"]): s["graph_file"]
+               for s in subjects_conf.load_subjects() if s.get("graph_file")}
 
 
 # ---------------------------------------------------------------------------
@@ -4892,7 +4873,7 @@ def generate_html(data: dict) -> str:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="{FAVICON_HREF}">
-    <title>考研学习仪表盘</title>
+    <title>改造我们的学习</title>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <style>
         /* ============================================================
@@ -5512,15 +5493,16 @@ def generate_html(data: dict) -> str:
         /* __SHELL_CSS__ */
         /* __MR_CSS__ */
         /* __RV_CSS__ */
+        /* __BOOT_CSS__ */
     </style>
 </head>
 <body>
 <!-- 自定义背景图的承载层。独立一层而不是设到 body 上：这样它能用 z-index:-1
      落在内容之下、body 背景之上，同时 ::after 那层遮罩可以单独调透明度。 -->
 <div id="bg-layer"></div>
-<!-- 鼠标粒子光效的画布（2026-09-21）：整页铺满、不吃指针事件。
-     压在内容之上但用混合模式当「光」用，所以不会糊住文字；
-     关掉开关或系统开了「减弱动效」时整段不跑（见 SHELL_JS）。 -->
+<!-- 鼠标粒子光效的画布（2026-09-21，升级为「离子消散」）：整页铺满、不吃指针事件，
+     每个子页都生效（不再只做总览）。压在内容之上但用混合模式当「光」用，所以不会
+     糊住文字；关掉开关或系统开了「减弱动效」时整段不跑（见 SHELL_JS mouseFx）。 -->
 <canvas id="mouse-fx" aria-hidden="true"></canvas>
 <!-- 整页全屏（右上角常驻，2026-09-21）：就是 F11 那种整页模式，在任何子页都能按。
      与模块自己的全屏是两码事——番茄钟 / 闪卡练习各自的「⛶ 全屏」只让那一个模块
@@ -5530,7 +5512,7 @@ def generate_html(data: dict) -> str:
     <!-- 左侧导航：点一项切一页，不再是一条道滚到底 -->
     <aside class="sidenav" id="sidenav">
         <div class="sidenav-brand">
-            <span class="sidenav-brand-text">考研大盘</span>
+            <span class="sidenav-brand-text">改造我们的学习</span>
             <button class="sidenav-toggle" id="sidenav-toggle"
                     title="收起侧边栏" aria-label="收起侧边栏" aria-expanded="true">◀</button>
         </div>
@@ -5547,7 +5529,7 @@ def generate_html(data: dict) -> str:
 
     <main class="dash-main">
     <header>
-        <h1>考研学习仪表盘</h1>
+        <h1>改造我们的学习</h1>
         <div class="subtitle" id="header-subtitle"></div>
     </header>
 
@@ -6731,6 +6713,7 @@ function openCapFloat(items, title) {{
 // __MR_JS__
 // __RV_JS__
 // __NAV_JS__
+// __BOOT_JS__
 </script>
 </body>
 </html>'''
@@ -7553,6 +7536,15 @@ FX_CSS = '''
            此前反馈是散的——有的元素有过渡、有的一按下去毫无动静，
            这里集中补齐，省得以后每个模块再各写各的。
            ============================================================ */
+        /* --- 子页入场（2026-09-22）---
+           之前切子页是「点一下立刻硬切」。NAV_JS 靠 toggling .page[hidden] 换页，
+           display 一重建（none→block）挂在上面的 animation 就会重头跑，所以只要给
+           可见页挂一条淡入即可，所有子页统一有进场动效，不再只有总览那几张图在动。
+           只动画 opacity、不碰 transform：transform 会给页面建新的包含块，把设置页里
+           position:fixed 的浮窗（快捷键 / 闪卡筛选）锚到页面而非视口，浮窗会铺不满。 */
+        @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+        .page:not([hidden]) { animation: pageIn .26s ease-out; }
+
         .metric-card, .weak-item, .gap-list li, .deck-card,
         .fs-opt, .fs-btn, .heatmap-cell, .range-btn, .sidenav-item {
             transition: transform .16s ease, border-color .16s ease,
@@ -7590,6 +7582,7 @@ FX_CSS = '''
 
         /* 对动效敏感的人：位移/缩放全关，只保留颜色变化 */
         @media (prefers-reduced-motion: reduce) {
+            .page:not([hidden]) { animation: none !important; }
             .metric-card, .weak-item, .gap-list li, .deck-card, .fs-opt,
             .fs-btn, .heatmap-cell, .range-btn, .sidenav-item, .sidenav,
             .section.is-full, .fs-full-toggle {
@@ -7956,6 +7949,25 @@ SETTINGS_CSS = '''
         .set-group:last-child { margin-bottom: 0; }
         .set-title { font-size: 0.86rem; color: var(--text-primary); margin-bottom: 4px;
             display: flex; align-items: center; gap: 8px; }
+        /* --- 设置分组手风琴（2026-09-22）---
+           设置项太多、全平铺会拖成一屏长卷。把每组收成一张卡片：平时全折叠只留
+           标题行，一眼扫完有哪些分组，点到哪组再展开。foldGroups() 在渲染后统一包
+           .set-body 并把标题变成可点表头，模板那一大段不用跟着改。 */
+        .set-group.acc { border: 1px solid var(--border-color); border-radius: 10px;
+            background: var(--bg-card); margin-bottom: 10px; overflow: hidden; }
+        .set-group.acc:last-child { margin-bottom: 0; }
+        .set-group.acc > .set-title { cursor: pointer; padding: 11px 14px; margin-bottom: 0;
+            user-select: none; display: flex; align-items: center; gap: 8px;
+            transition: background .14s ease; }
+        .set-group.acc > .set-title:hover { background: var(--bg-card-hover); }
+        .set-group.acc > .set-title::after { content: "▾"; margin-left: auto; flex: none;
+            font-size: 0.8em; color: var(--text-muted); transition: transform .2s ease; }
+        .set-group.acc.collapsed > .set-title::after { transform: rotate(-90deg); }
+        .set-body { overflow: hidden; max-height: 2600px; opacity: 1; padding: 0 14px 14px;
+            transition: max-height .3s ease, opacity .22s ease, padding .3s ease; }
+        .set-group.acc.collapsed .set-body { max-height: 0; opacity: 0;
+            padding-top: 0; padding-bottom: 0; }
+        @media (prefers-reduced-motion: reduce) { .set-body { transition: none !important; } }
         .set-label { font-size: 0.76rem; color: var(--text-muted); display: block; margin: 10px 0 5px; }
         .set-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .set-input { flex: 1; min-width: 190px; box-sizing: border-box; font-family: inherit;
@@ -8078,6 +8090,154 @@ SETTINGS_CSS = '''
         .sk-count.has { color: var(--xiang-lt); }
 '''
 
+# ---------------------------------------------------------------------------
+# 建库引导（BOOT_CSS / BOOT_JS，2026-09-19）
+#
+# 触发：首次无 subjects.json（/api/bootstrap/status → need_bootstrap）时全屏引导，
+#       把「任意学科」的建库流程走完：欢迎 → 选模板/自定义 → 配参考书+子科体系+
+#       笔记布局 → 确认建库（POST /api/bootstrap/create）。设置页「学科管理」浮窗
+#       复用同一套学科表单组件（见 BOOT_JS 的 subjectForm），可随时新增/编辑/删除
+#       学科、扩充某科的知识体系。
+#
+# 前缀：boot-（引导页）/ bf-（学科表单字段）。z-index 9999 全屏盖过一切。
+# ---------------------------------------------------------------------------
+BOOT_CSS = '''
+        /* ---- 建库引导全屏层 ---- */
+        .boot-overlay { position: fixed; inset: 0; z-index: 9999;
+            background: rgba(var(--mo-rgb), .92);
+            -webkit-backdrop-filter: blur(18px) saturate(.8); backdrop-filter: blur(18px) saturate(.8);
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px; overflow-y: auto; }
+        .boot-overlay[hidden] { display: none; }
+        .boot-card { width: min(920px, 96vw); max-height: 94vh; display: flex;
+            flex-direction: column; background: var(--bg-card);
+            border: 1px solid var(--border-color); border-radius: 16px; overflow: hidden;
+            box-shadow: 0 24px 64px rgba(0,0,0,.55); }
+        .boot-head { padding: 18px 22px 14px; border-bottom: var(--rule);
+            display: flex; align-items: center; gap: 12px; flex: none; }
+        .boot-title { flex: 1; font-family: var(--font-serif); font-size: 1.25rem;
+            font-weight: 700; letter-spacing: .04em; }
+        .boot-steps { display: flex; gap: 6px; align-items: center; }
+        .boot-step-dot { width: 8px; height: 8px; border-radius: 50%;
+            background: var(--border-color); transition: all .25s ease; }
+        .boot-step-dot.on { background: var(--zhuqing); transform: scale(1.25); }
+        .boot-step-dot.done { background: var(--zhuqing-lt); }
+        .boot-body { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 22px 6px;
+            scroll-behavior: smooth; }
+        .boot-foot { padding: 12px 22px 18px; border-top: var(--rule); flex: none;
+            display: flex; align-items: center; gap: 10px; }
+        .boot-foot .spacer { flex: 1; }
+        .boot-hint { color: var(--text-muted); font-size: .82rem; line-height: 1.7; }
+        .boot-hint code { background: rgba(var(--zhuqing-rgb), .12); color: var(--zhuqing-lt);
+            padding: 1px 6px; border-radius: 5px; font-size: .78rem; }
+        .boot-welcome { text-align: center; padding: 28px 12px 18px; }
+        .boot-welcome .boot-logo { font-size: 3.2rem; line-height: 1; margin-bottom: 14px; }
+        .boot-welcome h3 { font-family: var(--font-serif); font-size: 1.5rem;
+            margin: 0 0 10px; letter-spacing: .05em; }
+        .boot-welcome p { color: var(--text-secondary); max-width: 620px;
+            margin: 0 auto 20px; line-height: 1.85; }
+        .boot-welcome .boot-tag { display: inline-block; margin: 4px 6px;
+            padding: 4px 14px; border-radius: 20px; font-size: .82rem;
+            background: rgba(var(--zhuqing-rgb), .14); color: var(--zhuqing-lt);
+            border: 1px solid rgba(var(--zhuqing-rgb), .35); }
+
+        /* ---- 方式选择：模板卡片 / 自定义 ---- */
+        .boot-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+            margin-bottom: 16px; }
+        .boot-mode { padding: 18px; border-radius: 12px; cursor: pointer;
+            border: 1px solid var(--border-color); background: var(--bg-secondary);
+            transition: border-color .2s, transform .15s; }
+        .boot-mode:hover { transform: translateY(-2px); }
+        .boot-mode.on { border-color: var(--zhuqing); background: rgba(var(--zhuqing-rgb), .08); }
+        .boot-mode .boot-mode-ico { font-size: 1.6rem; }
+        .boot-mode h4 { margin: 8px 0 4px; font-family: var(--font-serif); }
+        .boot-mode p { margin: 0; color: var(--text-muted); font-size: .8rem; line-height: 1.6; }
+        .boot-tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 12px; margin-top: 4px; }
+        .boot-tpl { position: relative; padding: 14px 14px 12px; border-radius: 12px;
+            border: 1px solid var(--border-color); background: var(--bg-secondary);
+            cursor: pointer; transition: border-color .2s; }
+        .boot-tpl:hover { border-color: var(--xiang-lt); }
+        .boot-tpl.on { border-color: var(--zhuqing); background: rgba(var(--zhuqing-rgb), .08); }
+        .boot-tpl .boot-tpl-name { font-weight: 600; font-size: .95rem;
+            display: flex; align-items: center; gap: 8px; }
+        .boot-tpl .boot-tpl-color { width: 10px; height: 10px; border-radius: 50%;
+            flex: none; }
+        .boot-tpl .boot-tpl-meta { margin-top: 6px; font-size: .74rem;
+            color: var(--text-muted); line-height: 1.55; }
+
+        /* ---- 学科表单（引导配置 + 学科管理共用） ---- */
+        .bf-card { border: 1px solid var(--border-color); border-radius: 12px;
+            padding: 14px 16px; margin-bottom: 14px; background: var(--bg-secondary); }
+        .bf-card-head { display: flex; align-items: center; gap: 10px;
+            font-weight: 600; font-family: var(--font-serif); font-size: .95rem;
+            margin-bottom: 12px; }
+        .bf-card-head .bf-tpl-tag { font-size: .68rem; font-weight: 400;
+            color: var(--text-muted); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 1px 8px; }
+        .bf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px 12px; }
+        .bf-field { display: flex; flex-direction: column; gap: 4px; }
+        .bf-field label { font-size: .74rem; color: var(--text-muted); }
+        .bf-field input, .bf-field textarea, .bf-field select {
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-primary); padding: 7px 10px;
+            font-size: .85rem; font-family: inherit; width: 100%; box-sizing: border-box; }
+        .bf-field textarea { resize: vertical; min-height: 64px; line-height: 1.65; }
+        .bf-field.wide { grid-column: 1 / -1; }
+        .bf-swatches { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
+        .bf-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+            border: 2px solid transparent; transition: transform .12s; }
+        .bf-swatch:hover { transform: scale(1.15); }
+        .bf-swatch.on { border-color: var(--xuan); box-shadow: 0 0 0 2px var(--mo); }
+
+        /* 参考书行 */
+        .bf-books { margin-top: 4px; }
+        .bf-book { display: grid; grid-template-columns: 2.2fr 1fr 0.9fr 2fr auto;
+            gap: 8px; margin-bottom: 8px; align-items: center; }
+        .bf-book input { background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-primary); padding: 6px 9px; font-size: .82rem; }
+        .bf-del { background: none; border: none; color: var(--zhusha-lt); cursor: pointer;
+            font-size: 1rem; padding: 4px 6px; border-radius: 6px; }
+        .bf-del:hover { background: rgba(var(--zhusha-rgb), .14); }
+        .bf-add { background: rgba(var(--zhuqing-rgb), .12); color: var(--zhuqing-lt);
+            border: 1px dashed rgba(var(--zhuqing-rgb), .5); border-radius: 8px;
+            padding: 5px 12px; font-size: .8rem; cursor: pointer; }
+        .bf-add:hover { background: rgba(var(--zhuqing-rgb), .2); }
+
+        /* 子科卡 */
+        .bf-subs { margin-top: 6px; display: flex; flex-direction: column; gap: 10px; }
+        .bf-sub { border: 1px solid var(--border-color); border-radius: 10px;
+            padding: 12px 14px; background: var(--bg-card); }
+        .bf-sub-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .bf-sub-head input { background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-primary); padding: 5px 9px; font-size: .8rem; }
+        .bf-sub-head .bf-sub-key { width: 70px; }
+        .bf-sub-head .bf-sub-dir { width: 110px; }
+        .bf-sub-head .bf-sub-prefix { width: 110px; }
+        .bf-sub-head .bf-del { margin-left: auto; }
+        .bf-chapters { width: 100%; background: var(--bg-primary);
+            border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);
+            padding: 7px 10px; font-size: .8rem; resize: vertical; min-height: 56px;
+            line-height: 1.6; box-sizing: border-box; }
+        .bf-sub-hint { font-size: .7rem; color: var(--text-muted); margin-top: 3px; }
+
+        /* 确认页摘要 */
+        .boot-summary { display: flex; flex-direction: column; gap: 10px; }
+        .boot-sum-item { display: flex; align-items: center; gap: 12px;
+            border: 1px solid var(--border-color); border-radius: 10px;
+            padding: 12px 16px; background: var(--bg-secondary); }
+        .boot-sum-item .boot-tpl-color { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+        .boot-sum-item .boot-sum-name { font-weight: 600; }
+        .boot-sum-item .boot-sum-meta { font-size: .78rem; color: var(--text-muted); }
+        .boot-sum-extra { margin-top: 8px; }
+        .boot-progress { position: absolute; inset: 0; background: rgba(var(--mo-rgb), .7);
+            display: flex; align-items: center; justify-content: center; z-index: 5;
+            border-radius: 16px; font-family: var(--font-serif); }
+        .boot-progress[hidden] { display: none; }
+        .boot-card { position: relative; }
+'''
+
 SETTINGS_JS = '''
 // ============================================================
 // 设置页（2026-09-14）
@@ -8148,6 +8308,34 @@ SETTINGS_JS = '''
         .then(d => { if (d && d.ok) syncAppearance(d); })
         .catch(() => {});
 
+    // ---- 设置分组手风琴（2026-09-22）----
+    // 把每组「标题以外的内容」统一包进一个 .set-body，标题变成可点表头：
+    // 平时全折叠只留标题行，点标题展开该组。放在渲染后统一处理，
+    // 模板那一大段 innerHTML 字符串不用跟着逐个改。
+    function foldGroups(container) {
+        container.querySelectorAll(".set-group").forEach(g => {
+            const title = g.querySelector(":scope > .set-title");
+            if (!title) return;
+            const body = document.createElement("div");
+            body.className = "set-body";
+            Array.from(g.childNodes)
+                .filter(n => n.nodeType === Node.ELEMENT_NODE && n !== title)
+                .forEach(k => body.appendChild(k));
+            g.appendChild(body);
+            g.classList.add("acc", "collapsed");
+            title.setAttribute("role", "button");
+            title.setAttribute("tabindex", "0");
+            const toggleGroup = function (ev) {
+                ev.preventDefault();
+                g.classList.toggle("collapsed");
+            };
+            title.addEventListener("click", toggleGroup);
+            title.addEventListener("keydown", function (ev) {
+                if (ev.key === "Enter" || ev.key === " ") toggleGroup(ev);
+            });
+        });
+    }
+
     // ---- 设置页 UI（懒加载：切到该页才渲染）----
     function render(container) {
         container.innerHTML =
@@ -8206,6 +8394,7 @@ SETTINGS_JS = '''
           + '    <div class="set-hint">读笔记时问的多半是你不会的点，这里写你希望它怎么讲。'
           + '读笔记提问<b>始终深度思考</b>（不受上面思考强度默认值影响）。</div>'
           + '  </div>'
+          + '  <div class="set-group"><div class="set-title">🃏 每日闪卡额度</div>'
           + '    <div class="set-row">'
           + '      <span class="set-label" style="margin:0;">新卡</span>'
           + '      <input class="set-input set-num" id="set-new" type="number" min="0" max="500">'
@@ -8258,13 +8447,13 @@ SETTINGS_JS = '''
           + '    <div class="set-hint" id="set-bg-status"></div>'
           + '    <div class="set-hint">图片存在服务端 <code>src/assets/</code>，'
           + '上传前会先在浏览器里压缩，手机原图也不会撑爆。</div>'
-          + '    <span class="set-label">鼠标光效（首页，粒子拖尾）</span>'
+          + '    <span class="set-label">鼠标粒子拖尾（全页面）</span>'
           + '    <div class="set-seg" id="set-fx">'
           + '      <button data-fx="on">开</button><button data-fx="off">关</button>'
           + '    </div>'
           + '    <div class="set-hint" id="set-fx-status"></div>'
-          + '    <div class="set-hint">跟着鼠标画一条会消散的光点轨迹（只在「总览」页、'
-          + '且只在鼠标/触控笔上生效）。系统开了「减弱动效」时会自动不出现。</div>'
+          + '    <div class="set-hint">鼠标走过后留下一串细腻的细尘粒子，轻轻飘一小段就化没，'
+          + '每个子页都生效（不只首页）。只在鼠标/触控笔上出；系统开了「减弱动效」时会自动不出现。</div>'
           + '  </div>'
           + '  <div class="set-group"><div class="set-title">🍅 番茄钟</div>'
           + '    <span class="set-label">轮播背景图（最多 12 张，按添加顺序轮换）</span>'
@@ -8301,7 +8490,19 @@ SETTINGS_JS = '''
           + '在浮窗里点按键就能改：点一下 → 按下新键，Esc 取消。</div>'
           + '    <button class="fs-btn" id="sk-open" type="button">⌨ 打开快捷键设置</button>'
           + '  </div>'
+          + '  <div class="set-group" id="set-subj-group"><div class="set-title">📚 学科管理'
+          + '      <span class="sk-count" id="set-subj-count"></span></div>'
+          + '    <div class="set-hint" id="set-subj-summary">正在读取学科…</div>'
+          + '    <div class="set-row">'
+          + '      <button class="fs-btn" id="set-subj-open" type="button">📚 打开学科管理</button>'
+          + '      <button class="fs-btn" id="set-subj-add" type="button">＋ 新增学科</button>'
+          + '    </div>'
+          + '    <div class="set-hint">学科 = 一套独立的「笔记目录 + 参考书 + 子科体系 + 闪卡前缀」。'
+          + '这里可以随时新增、编辑、扩充（比如给数学加一本参考书、给 408 加一个子科），'
+          + '也可以删除不学的学科（只删配置，不碰笔记与数据）。</div>'
+          + '  </div>'
           + '</div>';
+        foldGroups(container);   // 先把手风琴结构包好，再 bind/load（by id 查找不受打包影响）
         bind(container);
         bindPomo(container);
         initKeysModal(container);      // 先建好浮窗（含 #set-keys），再让 KEYS_JS 往里填表
@@ -8830,6 +9031,33 @@ SETTINGS_JS = '''
         $("#set-bg-op").onchange = async (ev) => {
             try { await api("/api/settings", "POST", { bg_opacity: ev.target.value }); } catch (e) {}
         };
+        // 📚 学科管理：入口按钮 + 摘要。实际列表/编辑/新增/删除全在 BOOT_JS 的
+        // globalThis.__bootManager（注入顺序在 NAV_JS 之后，点击时必然已就绪）。
+        const refreshSubjSummary = () => {
+            const box = $("#set-subj-summary");
+            const cnt = $("#set-subj-count");
+            if (!box) return;
+            fetch(API + "/api/subjects").then(r => r.json()).then((d) => {
+                const list = (d && d.payload && d.payload.subjects) || [];
+                box.textContent = list.length
+                    ? list.map(s => (s.name || s.id) + "（" + ((s.subs || []).length) + " 子科）").join(" · ")
+                    : "尚未建库，点「＋ 新增学科」开始第一门。";
+                if (cnt) { cnt.textContent = list.length ? (list.length + " 门") : ""; }
+            }).catch(() => {
+                box.textContent = "读取学科失败";
+            });
+        };
+        const subjOpen = $("#set-subj-open");
+        if (subjOpen) subjOpen.onclick = () => {
+            if (globalThis.__bootManager) globalThis.__bootManager.open(container);
+            else toast("学科管理组件尚未就绪，稍后再试");
+        };
+        const subjAdd = $("#set-subj-add");
+        if (subjAdd) subjAdd.onclick = () => {
+            if (globalThis.__bootManager) globalThis.__bootManager.edit(null, container);
+            else toast("学科管理组件尚未就绪，稍后再试");
+        };
+        refreshSubjSummary();
     }
 
     (window.__pageRenderers = window.__pageRenderers || {});
@@ -8839,6 +9067,566 @@ SETTINGS_JS = '''
     });
 })();
 '''
+
+
+# ---------------------------------------------------------------------------
+# 建库引导 + 学科管理（BOOT_JS）
+#
+# 启动时查 /api/bootstrap/status：首次无 subjects.json（need_bootstrap=true）
+# 就全屏引导建库。引导分四步：欢迎 → 选方式（模板多选 / 自定义学科）→
+# 逐科配置（参考书、子科体系、笔记布局）→ 确认建库。确认后 POST
+# /api/bootstrap/create，成功即刷新页面进入大盘。
+#
+# 学科管理浮窗（globalThis.__bootManager.open()）供设置页「📚 学科管理」
+# 分组调用：列出现有学科，可新增（走 /api/subjects/add）、编辑（update，
+# 也用于扩充某科的知识体系）、删除（delete，只删配置不动笔记/数据）。
+# 两者共用 subjectForm() 渲染同一套学科编辑表单，保证口径一致。
+# ============================================================
+BOOT_JS = '''
+// ============================================================
+// 建库引导 + 学科管理（2026-09-19 泛化「任意学科」）
+//
+// 启动时查 /api/bootstrap/status：首次无 subjects.json 就全屏引导建库。
+// 设置页的「📚 学科管理」分组通过 globalThis.__bootManager.open() 打开浮窗。
+// ============================================================
+(function () {
+    const API = location.protocol.startsWith('http') ? location.origin : "http://localhost:8080";
+
+    // ---- 基础工具 ----
+    function esc(s) {
+        const d = document.createElement("div");
+        d.textContent = s == null ? "" : String(s);
+        return d.innerHTML;
+    }
+    function num(v, def) {
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? n : (def || 100);
+    }
+    function parts(s) {
+        return String(s || "").split(/[\\r\\n]+/).map(x => x.trim()).filter(Boolean);
+    }
+    const SWATCHES = ["#5B7C99", "#7FA8D9", "#C89B4A", "#B84A42", "#6F9A8D", "#8A6FA8", "#9A8FB8", "#66726F"];
+
+    // ---- 学科表单组件 ----
+    // subjectForm(host, subj, opts) → { get(), setEnabled(e) }
+    // subj: {id?, name, short, color, total_score, notes_dir, method, note_layout, books[], subs[]}
+    // opts: { tplName?: 模板角标文案, removable?: 可删除（引导/管理列表用） }
+    // 返回 get() 读取当前表单内容；表单数据在 DOM 里（data-f / data-b / data-s）。
+    function subjectForm(host, subj, opts) {
+        opts = opts || {};
+        const s = subj || {};
+        const books = Array.isArray(s.books) ? s.books : [];
+        const subs = Array.isArray(s.subs) ? s.subs : [];
+
+        host.innerHTML = ''
+            + '<div class="bf-card" data-role="form">'
+            + '  <div class="bf-card-head">'
+            + '    <span>📚 ' + (s.name || '新学科') + '</span>'
+            + (opts.tplName ? '<span class="bf-tpl-tag">' + esc(opts.tplName) + '</span>' : '')
+            + (opts.removable ? '<button class="bf-del" data-act="remove" title="移除" style="margin-left:auto;">✕</button>' : '')
+            + '  </div>'
+            + '  <div class="bf-grid">'
+            + '    <div class="bf-field"><label>学科名称</label><input data-f="name" value="' + esc(s.name || '') + '" placeholder="如：数据结构"></div>'
+            + '    <div class="bf-field"><label>简称（图表/侧边栏用）</label><input data-f="short" value="' + esc(s.short || '') + '" placeholder="如：408"></div>'
+            + '    <div class="bf-field"><label>总分（规划每日占比用）</label><input data-f="total_score" type="number" min="1" max="500" value="' + (s.total_score || 100) + '"></div>'
+            + '    <div class="bf-field"><label>笔记根目录（知识库下的文件夹）</label><input data-f="notes_dir" value="' + esc(s.notes_dir || '') + '" placeholder="如：Math"></div>'
+            + '    <div class="bf-field wide"><label>配色</label><div class="bf-swatches" data-role="swatches"></div></div>'
+            + '    <div class="bf-field wide"><label>学习方法 / 当前进度（给自己看的一句话）</label>'
+            + '      <input data-f="method" value="' + esc(s.method || '') + '" placeholder="如：一轮复习 → 强化"></div>'
+            + '    <div class="bf-field wide"><label>笔记布局说明（每科笔记怎么组织）</label>'
+            + '      <textarea data-f="note_layout" placeholder="如：按子科目录分章建 md，文件名「第N章_标题.md」">' + esc(s.note_layout || '') + '</textarea></div>'
+            + '  </div>'
+            + '  <div class="bf-books">'
+            + '    <div class="bf-card-head" style="font-size:.85rem;margin-top:4px;">📖 参考书'
+            + '      <button class="bf-add" data-act="add-book" type="button">＋ 添加参考书</button></div>'
+            + '    <div data-role="books"></div>'
+            + '  </div>'
+            + '  <div class="bf-subs">'
+            + '    <div class="bf-card-head" style="font-size:.85rem;">🧩 子科 / 知识体系'
+            + '      <button class="bf-add" data-act="add-sub" type="button">＋ 添加子科</button></div>'
+            + '    <div class="boot-hint" style="margin:0 0 8px;">子科是学科内部的划分（如数学下的高数/线代）；'
+            + '每个子科一个笔记目录、一个闪卡前缀，章节填它下面的知识点章节。建完随时可以在设置页扩充。</div>'
+            + '    <div data-role="subs"></div>'
+            + '  </div>'
+            + '</div>';
+
+        // 配色 swatch
+        const swatchBox = host.querySelector('[data-role="swatches"]');
+        let curColor = s.color || "#5B7C99";
+        SWATCHES.forEach(function (c) {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "bf-swatch" + (c === curColor ? " on" : "");
+            b.style.background = c;
+            b.title = c;
+            b.dataset.color = c;
+            b.addEventListener("click", function () {
+                curColor = c;
+                swatchBox.querySelectorAll(".bf-swatch").forEach(x => x.classList.remove("on"));
+                b.classList.add("on");
+            });
+            swatchBox.appendChild(b);
+        });
+
+        // 参考书行
+        const bookBox = host.querySelector('[data-role="books"]');
+        function addBook(b) {
+            b = b || {};
+            const row = document.createElement("div");
+            row.className = "bf-book";
+            row.innerHTML = ''
+                + '<input placeholder="书名" data-b="title" value="' + esc(b.title || '') + '">'
+                + '<input placeholder="作者" data-b="author" value="' + esc(b.author || '') + '">'
+                + '<input placeholder="阶段" data-b="phase" value="' + esc(b.phase || '') + '" title="基础 / 强化 / 真题…">'
+                + '<input placeholder="备注" data-b="note" value="' + esc(b.note || '') + '">'
+                + '<button class="bf-del" data-act="del-book" type="button" title="删除此行">✕</button>';
+            bookBox.appendChild(row);
+        }
+        books.forEach(addBook);
+
+        // 子科卡
+        const subBox = host.querySelector('[data-role="subs"]');
+        function addSub(su) {
+            su = su || {};
+            const card = document.createElement("div");
+            card.className = "bf-sub";
+            card.innerHTML = ''
+                + '<div class="bf-sub-head">'
+                + '  <input class="bf-sub-key" placeholder="key" data-s="key" value="' + esc(su.key || '') + '" title="子科标识（如 DS）">'
+                + '  <input placeholder="名称" data-s="name" value="' + esc(su.name || '') + '" style="flex:1;">'
+                + '  <input class="bf-sub-dir" placeholder="笔记目录" data-s="dir" value="' + esc(su.dir || '') + '">'
+                + '  <input class="bf-sub-prefix" placeholder="闪卡前缀" data-s="prefix" value="' + esc(su.prefix || '') + '">'
+                + '  <button class="bf-del" data-act="del-sub" type="button" title="删除子科">✕</button>'
+                + '</div>'
+                + '<textarea class="bf-chapters" data-s="chapters" placeholder="每行一个章节，如：&#10;绪论&#10;线性表">' + esc((su.chapters || []).join("\\n")) + '</textarea>'
+                + '<div class="bf-sub-hint">章节每行一个；闪卡前缀格式建议「科号-子科」，如 408-DS</div>';
+            subBox.appendChild(card);
+        }
+        subs.forEach(addSub);
+
+        host.addEventListener("click", function (ev) {
+            const t = ev.target.closest("button[data-act]");
+            if (!t) return;
+            if (t.dataset.act === "add-book") { addBook({}); }
+            else if (t.dataset.act === "add-sub") { addSub({}); }
+            else if (t.dataset.act === "del-book") { t.closest(".bf-book").remove(); }
+            else if (t.dataset.act === "del-sub") { t.closest(".bf-sub").remove(); }
+            else if (t.dataset.act === "remove" && opts.onRemove) { opts.onRemove(); }
+        });
+
+        // 读取表单
+        function get() {
+            const data = {
+                name: (host.querySelector('[data-f="name"]') || {}).value || "",
+                short: (host.querySelector('[data-f="short"]') || {}).value || "",
+                total_score: num((host.querySelector('[data-f="total_score"]') || {}).value),
+                notes_dir: (host.querySelector('[data-f="notes_dir"]') || {}).value || "",
+                color: curColor,
+                method: (host.querySelector('[data-f="method"]') || {}).value || "",
+                note_layout: (host.querySelector('[data-f="note_layout"]') || {}).value || "",
+                books: [],
+                subs: [],
+            };
+            host.querySelectorAll(".bf-book").forEach(function (r) {
+                const g = (k) => (r.querySelector('[data-b="' + k + '"]') || {}).value || "";
+                data.books.push({ title: g("title"), author: g("author"), phase: g("phase"), note: g("note") });
+            });
+            host.querySelectorAll(".bf-sub").forEach(function (c) {
+                const g = (k) => (c.querySelector('[data-s="' + k + '"]') || {}).value || "";
+                data.subs.push({
+                    key: g("key"), name: g("name"), dir: g("dir"), prefix: g("prefix"),
+                    chapters: parts(g("chapters")),
+                });
+            });
+            return data;
+        }
+        return { get: get };
+    }
+
+    // ---- 建库引导 ----
+    // 状态：step 0 欢迎 / 1 选方式 / 2 逐科配置 / 3 确认建库
+    let bootOv = null;
+    let bootState = null;
+
+    function bootStepDots(total, cur) {
+        let h = "";
+        for (let i = 0; i < total; i++) {
+            const cls = i === cur ? "on" : (i < cur ? "done" : "");
+            h += '<span class="boot-step-dot ' + cls + '"></span>';
+        }
+        return h;
+    }
+
+    function showBootstrap(status) {
+        if (bootOv) return;
+        const ov = document.createElement("div");
+        ov.className = "boot-overlay";
+        ov.innerHTML = '<div class="boot-card">'
+            + '<div class="boot-head"><span class="boot-title">🚀 建库引导</span>'
+            + '<div class="boot-steps" data-role="steps"></div></div>'
+            + '<div class="boot-body" data-role="body"></div>'
+            + '<div class="boot-foot"><button class="fs-btn" data-act="back" type="button">← 上一步</button>'
+            + '<span class="boot-hint" data-role="tip"></span>'
+            + '<span class="spacer"></span>'
+            + '<button class="fs-btn" data-act="next" type="button">下一步 →</button></div>'
+            + '<div class="boot-progress" data-role="progress" hidden>正在建库…</div></div>';
+        document.body.appendChild(ov);
+
+        bootState = {
+            step: 0,
+            mode: null,          // 'tpl' | 'custom'
+            selectedTpl: [],     // 选中的模板
+            subjects: [],        // [{tplId?, data, form?}]
+            status: status || { templates: [], subjects: [] },
+        };
+        bootOv = ov;
+
+        ov.addEventListener("click", function (ev) {
+            const t = ev.target.closest("button[data-act]");
+            if (!t) return;
+            if (t.dataset.act === "next") bootNext();
+            else if (t.dataset.act === "back") bootBack();
+        });
+
+        renderStep();
+    }
+
+    function bootTips(step) {
+        return [
+            "这个大盘不只属于考研——任何学科都能建库：参考书、子科体系、笔记、闪卡、每日计划全都能配。",
+            "模板带好了参考书与章节体系，选完还能改；也可以从零自定义一门自己的学科。",
+            "参考书、子科、章节都能增减；模板只是起点，改成你自己要的形态。",
+            "建库会生成学科配置（subjects.json）、笔记目录与进度文件；完成后刷新进入大盘。",
+        ][step] || "";
+    }
+
+    function renderStep() {
+        const st = bootState;
+        const steps = bootOv.querySelector('[data-role="steps"]');
+        const body = bootOv.querySelector('[data-role="body"]');
+        const tip = bootOv.querySelector('[data-role="tip"]');
+        const backBtn = bootOv.querySelector('[data-act="back"]');
+        const nextBtn = bootOv.querySelector('[data-act="next"]');
+        steps.innerHTML = bootStepDots(4, st.step);
+        tip.textContent = bootTips(st.step);
+        backBtn.style.visibility = st.step === 0 ? "hidden" : "visible";
+        nextBtn.style.visibility = st.step === 3 ? "hidden" : "visible";
+        nextBtn.textContent = "下一步 →";
+
+        if (st.step === 0) {
+            body.innerHTML = ''
+                + '<div class="boot-welcome">'
+                + '  <div class="boot-logo">🏛️</div>'
+                + '  <h3>欢迎使用「学习大盘」</h3>'
+                + '  <p>一个把 <b>笔记 · 闪卡 · 知识图谱 · 每日计划 · 错题复盘</b> 串在一起的本地学习系统。'
+                + '不只服务考研：任何学科都能在这里建库、记笔记、刷题、复盘。<br>'
+                + '第一次使用需要先建库——告诉我们你学什么，剩下的体系我们来搭。</p>'
+                + '  <div>'
+                + '    <span class="boot-tag">📝 双链笔记</span>'
+                + '    <span class="boot-tag">🧠 间隔重复闪卡</span>'
+                + '    <span class="boot-tag">🗺️ 知识图谱</span>'
+                + '    <span class="boot-tag">📅 每日计划</span>'
+                + '    <span class="boot-tag">🔁 错题复盘</span>'
+                + '  </div>'
+                + '</div>';
+            return;
+        }
+
+        if (st.step === 1) {
+            const tpls = (st.status && st.status.templates) || [];
+            let tplHtml = '';
+            if (tpls.length) {
+                tplHtml = '<div class="boot-modes" style="margin-bottom:10px;">'
+                    + '<div class="boot-mode' + (st.mode === "tpl" ? " on" : "") + '" data-mode="tpl">'
+                    + '  <div class="boot-mode-ico">📐</div><h4>从模板创建</h4>'
+                    + '  <p>内置完整参考书与章节体系，选完即用，可再微调</p></div>'
+                    + '<div class="boot-mode' + (st.mode === "custom" ? " on" : "") + '" data-mode="custom">'
+                    + '  <div class="boot-mode-ico">🛠️</div><h4>从零自定义</h4>'
+                    + '  <p>不依赖模板，完全按自己的学科形态搭建</p></div></div>'
+                    + (st.mode === "tpl" ? '<div class="boot-hint" style="margin-bottom:8px;">选中的模板（可多选）：</div>'
+                        + '<div class="boot-tpl-grid">'
+                        + tpls.map(function (t, i) {
+                            const on = st.selectedTpl.indexOf(t.id) >= 0;
+                            const nSub = (t.subs || []).length;
+                            const nBook = (t.books || []).length;
+                            return '<div class="boot-tpl' + (on ? " on" : "") + '" data-tpl="' + esc(t.id) + '">'
+                                + '<div class="boot-tpl-name"><span class="boot-tpl-color" style="background:' + esc(t.color || "#888") + ';"></span>'
+                                + esc(t.name || t.id) + '</div>'
+                                + '<div class="boot-tpl-meta">' + nSub + ' 个子科 · ' + nBook + ' 本参考书'
+                                + (t.method ? '<br>' + esc(t.method) : '') + '</div></div>';
+                        }).join('')
+                        + '</div>' : '')
+                    + (st.mode === "custom"
+                        ? '<div class="boot-hint">下一步直接填写你的学科信息：名称、参考书、子科体系、笔记布局。<br>'
+                        + '如果模板里有接近的，推荐选模板再改，比自己从零搭快很多。</div>' : '');
+            } else {
+                tplHtml = '<div class="boot-modes">'
+                    + '<div class="boot-mode on" data-mode="custom">'
+                    + '  <div class="boot-mode-ico">🛠️</div><h4>从零自定义</h4>'
+                    + '  <p>服务端暂未提供模板，直接按自己的学科形态搭建</p></div></div>';
+            }
+            body.innerHTML = tplHtml;
+            body.querySelectorAll(".boot-mode").forEach(function (m) {
+                m.addEventListener("click", function () {
+                    st.mode = m.dataset.mode;
+                    if (st.mode === "tpl" && !st.selectedTpl.length && (st.status.templates || []).length) {
+                        st.selectedTpl = [st.status.templates[0].id];
+                    }
+                    renderStep();
+                });
+            });
+            body.querySelectorAll(".boot-tpl").forEach(function (c) {
+                c.addEventListener("click", function () {
+                    const id = c.dataset.tpl;
+                    const i = st.selectedTpl.indexOf(id);
+                    if (i >= 0) st.selectedTpl.splice(i, 1);
+                    else st.selectedTpl.push(id);
+                    c.classList.toggle("on", st.selectedTpl.indexOf(id) >= 0);
+                });
+            });
+            return;
+        }
+
+        if (st.step === 2) {
+            // 组装 subjects 列表（模板选中 → 展开；custom 模式 → 空表单）
+            const rebuild = st.subjects.length === 0;
+            if (rebuild) {
+                st.subjects = [];
+                if (st.mode === "tpl") {
+                    const tpls = (st.status.templates) || [];
+                    st.selectedTpl.forEach(function (id) {
+                        const t = tpls.find(x => x.id === id || x.template === id);
+                        if (t) {
+                            st.subjects.push({
+                                tplId: id,
+                                data: JSON.parse(JSON.stringify(t)),
+                            });
+                        }
+                    });
+                }
+                if (st.mode === "custom" || !st.subjects.length) {
+                    st.subjects.push({ tplId: null, data: {} });
+                }
+            }
+            body.innerHTML = '';
+            st.subjects.forEach(function (item, idx) {
+                const card = document.createElement("div");
+                card.dataset.idx = idx;
+                body.appendChild(card);
+                const tpl = item.tplId
+                    ? ((st.status.templates || []).find(x => x.id === item.tplId || x.template === item.tplId) || {})
+                    : null;
+                const form = subjectForm(card, item.data, {
+                    tplName: tpl ? ("模板 · " + (tpl.name || item.tplId)) : "自定义学科",
+                    removable: true,
+                    onRemove: function () {
+                        st.subjects.splice(idx, 1);
+                        renderStep();
+                    },
+                });
+                item.form = form;
+            });
+            return;
+        }
+
+        if (st.step === 3) {
+            // 读取表单 → 摘要
+            const items = st.subjects.map(function (item) {
+                const d = item.form.get();
+                return { tplId: item.tplId, d: d };
+            });
+            const ok = items.every(function (it) {
+                return (it.d.name || it.d.short) && (it.d.notes_dir || it.tplId);
+            });
+            body.innerHTML = ''
+                + '<div class="boot-hint" style="margin-bottom:10px;">确认建库内容。将创建以下学科的配置、笔记目录与进度文件：</div>'
+                + '<div class="boot-summary">'
+                + items.map(function (it, i) {
+                    return '<div class="boot-sum-item">'
+                        + '<span class="boot-tpl-color" style="background:' + esc(it.d.color || "#888") + ';"></span>'
+                        + '<div style="flex:1;">'
+                        + '  <div class="boot-sum-name">' + esc(it.d.name || it.d.short || ("学科" + (i + 1))) + '</div>'
+                        + '  <div class="boot-sum-meta">目录 <code>' + esc(it.d.notes_dir || "（未填）") + '</code>'
+                        + ' · ' + it.d.subs.length + ' 个子科 · ' + it.d.books.length + ' 本参考书 · 总分 ' + it.d.total_score + '</div>'
+                        + '</div></div>';
+                }).join('')
+                + '</div>'
+                + (ok ? '' : '<div class="boot-hint" style="margin-top:10px;color:var(--zhusha-lt);">⚠ 有学科缺名称或笔记目录，'
+                    + '请返回上一步补全（模板学科可留空目录，会自动使用模板目录）。</div>');
+            if (ok) {
+                nextBtn.style.visibility = "visible";
+                nextBtn.textContent = "🚀 完成建库";
+                nextBtn.onclick = function () { doBootstrap(items); };
+            } else {
+                nextBtn.style.visibility = "visible";
+                nextBtn.textContent = "返回修改";
+                nextBtn.onclick = function () { bootState.step = 2; renderStep(); };
+            }
+            return;
+        }
+    }
+
+    function bootNext() {
+        const st = bootState;
+        if (st.step === 1) {
+            if (st.mode === "tpl" && !st.selectedTpl.length) { toast("至少选一个模板，或改选「从零自定义」"); return; }
+        }
+        st.step += 1;
+        renderStep();
+    }
+
+    function bootBack() {
+        if (bootState.step === 0) return;
+        bootState.step -= 1;
+        renderStep();
+    }
+
+    // 建库动作
+    function doBootstrap(items) {
+        const ov = bootOv;
+        const prog = ov.querySelector('[data-role="progress"]');
+        prog.hidden = false;
+        const payload = {
+            subjects: items.map(function (it) {
+                if (it.tplId) return { template: it.tplId, custom: it.d };
+                return { custom: it.d };
+            }),
+        };
+        fetch(API + "/api/bootstrap/create", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.ok) { prog.hidden = true; toast("建库失败：" + (d.error || "")); return; }
+            toast("✅ 建库成功：" + d.added.join("、") + (d.skipped.length ? "；已存在跳过：" + d.skipped.join("、") : ""));
+            setTimeout(function () { location.reload(); }, 1200);
+        }).catch(function (e) {
+            prog.hidden = true;
+            toast("建库失败：" + e.message);
+        });
+    }
+
+    // ---- 学科管理浮窗（设置页「📚 学科管理」分组调用）----
+    const manager = {
+        open: function (anchorContainer) {
+            const pageEl = anchorContainer && anchorContainer.closest
+                ? (anchorContainer.closest('.page[data-page="settings"]') || document.body)
+                : document.body;
+            let ov = document.getElementById("subj-overlay");
+            if (!ov) {
+                ov = document.createElement("div");
+                ov.id = "subj-overlay";
+                ov.className = "sk-overlay";
+                ov.innerHTML = '<div class="sk-box">'
+                    + '<div class="sk-head"><span class="sk-title">📚 学科管理</span>'
+                    + '<button class="rev-modal-close" data-act="close" type="button" title="关闭（Esc）">✕</button></div>'
+                    + '<div class="sk-body subj-body"></div></div>';
+                ov.addEventListener("click", function (ev) {
+                    const t = ev.target.closest("[data-act]");
+                    if (t && t.dataset.act === "close") ov.hidden = true;
+                    else if (ev.target === ov) ov.hidden = true;
+                    else if (t && t.dataset.act === "add") manager.edit(null, pageEl);
+                    else if (t && t.dataset.act === "edit") manager.edit(t.dataset.id, pageEl);
+                    else if (t && t.dataset.act === "del") manager.del(t.dataset.id);
+                });
+                document.addEventListener("keydown", function esc(e) {
+                    if (e.key === "Escape" && ov.isConnected && !ov.hidden) { ov.hidden = true; }
+                }, true);
+            }
+            if (ov.parentNode !== pageEl) pageEl.appendChild(ov);
+            ov.hidden = false;
+            manager.reload();
+        },
+
+        reload: function () {
+            const ov = document.getElementById("subj-overlay");
+            if (!ov || ov.hidden) return;
+            const body = ov.querySelector(".subj-body");
+            body.innerHTML = '<div class="boot-hint">正在读取学科…</div>';
+            fetch(API + "/api/subjects").then(function (r) { return r.json(); }).then(function (d) {
+                if (!d.ok || !d.payload) { body.innerHTML = '<div class="boot-hint">读取失败</div>'; return; }
+                const list = d.payload.subjects || [];
+                body.innerHTML = ''
+                    + '<div class="boot-hint" style="margin-bottom:10px;">共 ' + list.length + ' 门学科。'
+                    + '新增学科会在知识库下建笔记目录；删除只删配置，不碰笔记与数据。</div>'
+                    + '<div class="boot-summary">'
+                    + list.map(function (s) {
+                        return '<div class="boot-sum-item">'
+                            + '<span class="boot-tpl-color" style="background:' + esc(s.color || "#888") + ';"></span>'
+                            + '<div style="flex:1;">'
+                            + '  <div class="boot-sum-name">' + esc(s.name) + ' <span class="boot-hint">(' + esc(s.short) + ')</span></div>'
+                            + '  <div class="boot-sum-meta">目录 <code>' + esc(s.notes_dir || "—") + '</code>'
+                            + ' · ' + (s.subs || []).length + ' 个子科 · ' + (s.books || []).length + ' 本参考书</div>'
+                            + '</div>'
+                            + '<button class="fs-btn" data-act="edit" data-id="' + esc(s.id) + '" type="button">编辑 / 扩充</button>'
+                            + '<button class="fs-btn" data-act="del" data-id="' + esc(s.id) + '" type="button" style="color:var(--zhusha-lt);">删除</button>'
+                            + '</div>';
+                    }).join('')
+                    + '</div>'
+                    + '<div style="margin-top:14px;"><button class="fs-btn" data-act="add" type="button">＋ 新增学科</button></div>';
+            }).catch(function (e) {
+                body.innerHTML = '<div class="boot-hint">读取失败：' + esc(e.message) + '</div>';
+            });
+        },
+
+        // 编辑（id 为空 = 新增）。表单浮层挂同一 overlay 内。
+        edit: function (id, pageEl) {
+            const ov = document.getElementById("subj-overlay");
+            const body = ov.querySelector(".subj-body");
+            body.innerHTML = '<div class="boot-hint">正在加载…</div>';
+            const done = function (subject) {
+                body.innerHTML = '';
+                const card = document.createElement("div");
+                body.appendChild(card);
+                const form = subjectForm(card, subject || {}, {
+                    tplName: id ? "编辑学科 · 可扩充知识体系" : "新增学科",
+                });
+                body.insertAdjacentHTML("beforeend",
+                    '<div style="margin-top:14px;display:flex;gap:10px;">'
+                    + '<button class="fs-btn" data-act="save" type="button">' + (id ? "保存修改" : "创建学科") + '</button>'
+                    + '<button class="fs-btn" data-act="cancel" type="button">取消</button></div>');
+                body.querySelector('[data-act="save"]').onclick = function () {
+                    const d = form.get();
+                    if (!(d.name || d.short)) { toast("请填写学科名称"); return; }
+                    const p = id ? { id: id, patch: d } : { subject: d };
+                    fetch(API + (id ? "/api/subjects/update" : "/api/subjects/add"), {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(p),
+                    }).then(function (r) { return r.json(); }).then(function (r2) {
+                        if (!r2.ok) { toast("保存失败：" + (r2.error || "")); return; }
+                        toast(id ? "✅ 已保存修改" : "✅ 学科已创建");
+                        manager.reload();
+                    }).catch(function (e) { toast("保存失败：" + e.message); });
+                };
+                body.querySelector('[data-act="cancel"]').onclick = function () { manager.reload(); };
+            };
+            if (!id) { done(null); return; }
+            fetch(API + "/api/subjects").then(function (r) { return r.json(); }).then(function (d) {
+                const s = (d.payload.subjects || []).find(function (x) { return x.id === id; });
+                done(s || null);
+            }).catch(function () { done(null); });
+        },
+
+        del: function (id) {
+            if (!confirm("删除学科「" + id + "」的配置？笔记与数据不会删除。")) return;
+            fetch(API + "/api/subjects/delete", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: id }),
+            }).then(function (r) { return r.json(); }).then(function (d) {
+                if (!d.ok) { toast("删除失败：" + (d.error || "")); return; }
+                toast("已删除（笔记与数据保留）");
+                manager.reload();
+            }).catch(function (e) { toast("删除失败：" + e.message); });
+        },
+    };
+    globalThis.__bootManager = manager;
+
+    // ---- 启动检查：无库则全屏引导 ----
+    fetch(API + "/api/bootstrap/status").then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.ok && d.need_bootstrap) showBootstrap(d);
+    }).catch(function () { /* 服务端未就绪时不打扰 */ });
+})();
+'''
+
 
 
 # ---------------------------------------------------------------------------
@@ -10131,7 +10919,7 @@ POMO_JS = '''
                     title: seg ? (phaseName(seg) + " " + fmtMs(left)) : "番茄钟已完成",
                     artist: "第 " + (seg ? seg.round : plan.rounds) + "/" + plan.rounds + " 轮 · "
                         + (running ? "计时中" : (seg ? "已暂停" : "结束")),
-                    album: "考研大盘 · 番茄钟",
+                    album: "改造我们的学习 · 番茄钟",
                 });
             }
             if (seg && MS.setPositionState && dur > 0) {
@@ -10400,9 +11188,11 @@ SHELL_JS = '''
         syncFs();
     }
 
-    // ---------- ③ 鼠标粒子光效（首页，2026-09-21）----------
-    // 跟着鼠标画一条会消散的光点轨迹。几条自我约束：
-    //   · 只在「总览」页生效（切到别的子页立刻停笔 + 清干净，别到处刷存在感）
+    // ---------- ③ 鼠标粒子拖尾（2026-09-22，改为「细尘」）----------
+    // 鼠标走过后留一串细腻的小点：没有大亮点、不闪、不炸——像扫过一层薄灰，
+    // 细细地飘一小段就化没了。此前那版「离子星火」太亮太闪（布灵布灵的），
+    // 用户明确要改成低调的粒子。几条自我约束：
+    //   · **每个子页都生效**，切页不中断
     //   · 只有鼠标 / 触控笔触发（手指拖动不出，免得平板上满屏光点还费电）
     //   · 粒子放完就**停掉 rAF**（省电；下一次 pointermove 再启）
     //   · 设置里关掉、或系统开了「减弱动效」→ 整段不跑
@@ -10412,8 +11202,9 @@ SHELL_JS = '''
         const REDUCED = !!(window.matchMedia
             && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
         const ctx = cv.getContext("2d");
-        const MAXP = 150;                 // 粒子上限：再多也看不出差别，只是白烧 CPU
-        let W = 0, H = 0, dpr = 1, on = true, raf = 0, parts = [], lastX = null, lastY = null;
+        const MAXP = 260;                 // 粒子上限：再密也只是白烧 CPU，260 够走完整条拖尾
+        let W = 0, H = 0, dpr = 1, on = true, raf = 0, parts = [];
+        let lastX = null, lastY = null;
 
         function resize() {
             dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -10421,7 +11212,8 @@ SHELL_JS = '''
             cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
-        // 颜色跟主题走：深色主题用提亮版（在暗底上当光），浅色主题用原色
+        // 颜色跟主题走：深色主题用提亮版，浅色主题用原色。
+        // 统一降到中低亮度——细尘要的是「看得见但压得住」，不是发光。
         function palette() {
             const cs = getComputedStyle(document.documentElement);
             const g = (k, dflt) => (cs.getPropertyValue(k) || "").trim() || dflt;
@@ -10429,77 +11221,83 @@ SHELL_JS = '''
                 ? [g("--zhuqing", "#6F9A8D"), g("--dianqing", "#5B7C99"), g("--xiang", "#C89B4A")]
                 : [g("--zhuqing-lt", "#9CC4B6"), g("--dianqing-lt", "#92B4D0"), g("--xiang-lt", "#E0C07E")];
         }
-        function onOverview() {
-            const p = document.querySelector('.page[data-page="overview"]');
-            return !p || !p.hidden;       // 拿不到就当作在总览页（别把功能整没了）
+        // 回退安全的角度换算（atan2 对 0/0 会返回 NaN，得兜一手）
+        function angleOf(dx, dy) {
+            const t = Math.atan2(dy, dx);
+            return Number.isFinite(t) ? t : 0;
         }
-        function push(x, y, head) {
+        // 撒一粒细尘。没有「头/尾」之分：所有粒子同一种脾性，大小随机但都偏小，
+        // 沿轨迹撒下、带一点点朝鼠标行进方向的漂移，缓缓消散。
+        // 上一版压到 0.42 透明度、速度又轻，快看不见了（用户反馈「直接没有了」），
+        // 这里提到约 0.8 却仍是最小的小圆点、普通混合、不发光不闪烁——看得见但很干净。
+        function push(x, y, angle, speed) {
             const pal = palette();
             parts.push({
-                x: x + (Math.random() - 0.5) * 6,
-                y: y + (Math.random() - 0.5) * 6,
-                vx: (Math.random() - 0.5) * 0.22,
-                vy: -0.08 - Math.random() * 0.32,     // 微微上飘，像余烬
-                r: (head ? 2.3 : 1.2) + Math.random() * (head ? 1.3 : 1.0),
+                x: x + (Math.random() - 0.5) * 2.5,
+                y: y + (Math.random() - 0.5) * 2.5,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 0.05,
+                r: 0.9 + Math.random() * 1.8,         // 0.9 ~ 2.7px，细但清晰
                 life: 1,
                 decay: 0.012 + Math.random() * 0.02,
-                c: pal[(Math.random() * pal.length) | 0],
+                c: pal[(Math.random() * pal.length) | 0]
             });
             if (parts.length > MAXP) parts.splice(0, parts.length - MAXP);
         }
         function frame() {
             raf = 0;
             ctx.clearRect(0, 0, W, H);
-            // 加色混合 + 两层圆（芯 + 大而淡的晕）＝ 便宜的光晕；
-            // 不用 shadowBlur —— 那玩意儿每帧几十次会明显掉帧。
-            ctx.globalCompositeOperation = "lighter";
+            // 普通混合：粒子只是「干净的点」，不发光、不闪烁、不叠出光晕。
+            // 每帧单层小圆 + 透明度随寿命线性收掉。
             for (let i = parts.length - 1; i >= 0; i--) {
                 const p = parts[i];
-                p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+                p.x += p.vx; p.y += p.vy;
+                p.vx *= 0.96; p.vy *= 0.96;           // 轻阻尼：尘埃滑一小段就停住化掉
+                p.life -= p.decay;
                 if (p.life <= 0) { parts.splice(i, 1); continue; }
-                const a = p.life * p.life;            // 尾段收得更快，像余光散掉
+                ctx.globalAlpha = p.life * 0.8;
                 ctx.fillStyle = p.c;
-                ctx.globalAlpha = a * 0.85;
-                ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.2, p.r * p.life), 0, Math.PI * 2); ctx.fill();
-                ctx.globalAlpha = a * 0.2;
-                ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.4, p.r * p.life * 3.2), 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, Math.max(0.2, p.r * p.life), 0, Math.PI * 2);
+                ctx.fill();
             }
             ctx.globalAlpha = 1;
-            ctx.globalCompositeOperation = "source-over";
             if (parts.length) raf = requestAnimationFrame(frame);
         }
         function tick() { if (!raf && parts.length) raf = requestAnimationFrame(frame); }
         function clearAll() {
-            parts.length = 0;
+            parts.length = 0; lastX = lastY = null;
             if (raf) { cancelAnimationFrame(raf); raf = 0; }
             ctx.clearRect(0, 0, W, H);
         }
         function apply() {
             const show = on && !REDUCED;
-            if (!show || !onOverview()) { clearAll(); cv.hidden = true; return; }
+            if (!show) { clearAll(); cv.hidden = true; return; }
             cv.hidden = false;
         }
         function move(e) {
             if (!on || REDUCED) return;
             if (e.pointerType && e.pointerType !== "mouse" && e.pointerType !== "pen") return;
-            if (!onOverview()) return;
             const x = e.clientX, y = e.clientY;
-            if (lastX == null) {
-                // 第一下移动只用来定起点，但也要给个「头」——不然鼠标慢慢进场时
-                // 要等到第二次移动才看得见任何东西，像坏了一样
-                lastX = x; lastY = y;
-                push(x, y, true); tick();
-                return;
-            }
-            // 沿轨迹补点：鼠标快的时候两点能差几十像素，只画端点会断成一串虚线
+            if (lastX == null) { lastX = x; lastY = y; }
             const dx = x - lastX, dy = y - lastY;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            const steps = Math.min(6, Math.round(dist / 7));
+            // 沿轨迹均匀撒点：快移时两点间距大，用插值补点保证拖尾连续。
+            // 每点朝移动的反方向轻轻带一点速度，粒子自然落在轨迹上而不是糊在光标上。
+            // dist/6 比上一版密一些，不然快速一扫就稀疏得看不见。
+            const back = angleOf(-dx, -dy);
+            const steps = Math.min(8, Math.round(dist / 6));
             for (let i = 1; i <= steps; i++) {
-                const t = i / steps;
-                push(lastX + dx * t, lastY + dy * t, i === steps);
+                push(lastX + dx * (i / steps), lastY + dy * (i / steps),
+                     back + (Math.random() - 0.5) * 1.2, 0.5 + Math.random() * 1.0);
+                if (!(i % 3)) {   // 每隔两个补点多撒一粒，轨迹更绵密而不糊成一条线
+                    push(lastX + dx * (i / steps), lastY + dy * (i / steps),
+                         back + Math.PI + (Math.random() - 0.5) * 1.6, 0.25 + Math.random() * 0.5);
+                }
             }
-            if (!steps && dist > 1.5) push(x, y, true);   // 慢慢挪也要有个「头」
+            if (!steps && dist > 1.0) {
+                push(x, y, back + (Math.random() - 0.5) * 1.2, 0.5 + Math.random() * 0.8);
+            }
             lastX = x; lastY = y;
             tick();
         }
@@ -10515,12 +11313,8 @@ SHELL_JS = '''
         if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
             window.addEventListener("resize", function () { resize(); apply(); });
             window.addEventListener("pointermove", move, { passive: true });
-            // 切子页后延后一拍再判断：NAV_JS 的 hashchange 监听比这里晚注册，
-            // 立刻读 page.hidden 拿到的还是旧状态
-            window.addEventListener("hashchange", function () {
-                lastX = lastY = null;
-                setTimeout(apply, 0);
-            });
+            // 切子页时清掉上一页残留的粒子，每页重新起笔
+            window.addEventListener("hashchange", function () { lastX = lastY = null; });
         }
         document.addEventListener("visibilitychange", function () {
             if (document.hidden) clearAll(); else apply();
@@ -10529,7 +11323,7 @@ SHELL_JS = '''
             window.addEventListener("blur", function () { lastX = lastY = null; clearAll(); });
         }
         loadPref();
-        setTimeout(apply, 0);   // 首屏若停在别的子页，等 NAV_JS 摆好页面再收起来
+        setTimeout(apply, 0);
     })();
 
     // ---------- ④ 首页「专注与打卡」数据条 ----------
@@ -13118,6 +13912,12 @@ def main():
     # RV_JS 同样必须在 NAV_JS 之前：它要先把 mistakes/study/overview 的渲染器注册好，
     # 才赶得上 NAV_JS 末尾那次 activate()。
     html = html.replace("// __RV_JS__", RV_JS)
+    # BOOT_CSS 排在 RV_CSS 之后：建库引导全屏层要覆盖所有模块（z-index 9999），
+    # 同时复用 .fs-btn / .sk-overlay 等既有控件皮肤，后写才盖得住。
+    html = html.replace("/* __BOOT_CSS__ */", BOOT_CSS)
+    # BOOT_JS 注入在 NAV_JS 之后（脚本最末尾）：引导层在页面渲染完成后才弹，
+    # 此时所有渲染器已注册、DOM 已就绪，遮罩盖在最上面不会被任何子页重绘顶掉。
+    html = html.replace("// __BOOT_JS__", BOOT_JS)
     # SETTINGS_JS 也要在 NAV_JS 之前：它在加载时立刻应用主题/背景（不能等切到设置页），
     # 同时把设置页渲染器注册好，赶得上 NAV_JS 末尾那次 activate()。
     html = html.replace("// __SETTINGS_JS__", SETTINGS_JS)

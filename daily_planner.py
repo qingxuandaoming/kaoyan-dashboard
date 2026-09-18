@@ -52,52 +52,27 @@ SYNC_STATE_PATH = "C:/Users/92534/Desktop/考研/src/sync_state.json"
 PROGRESS_PATH = "C:/Users/92534/Desktop/考研/src/progress.json"
 FLASHCARD_SYNC_PATH = "C:/Users/92534/Desktop/考研/src/flashcard_session_export.json"
 
-GRAPH_FILES = {
-    "408":   os.path.join(KNOWLEDGE_GRAPH_DIR, "408_graph.json"),
-    "数学一": os.path.join(KNOWLEDGE_GRAPH_DIR, "math_graph.json"),
-    "政治":  os.path.join(KNOWLEDGE_GRAPH_DIR, "politics_graph.json"),
-    "英语一": os.path.join(KNOWLEDGE_GRAPH_DIR, "english_graph.json"),
-}
+# 2026-09-19 起科目映射由 subjects.json 派生（subjects_conf.py），
+# 与 serve.js / generate_dashboard.py / gap_analysis.py 同口径，改学科只动配置文件。
+import subjects_conf  # noqa: E402
+
+GRAPH_FILES = {k: os.path.join(KNOWLEDGE_GRAPH_DIR, v)
+               for k, v in subjects_conf.graph_files().items()}
 
 # Display names used in output
-SUBJECT_DISPLAY = {
-    "408":   "408",
-    "数学一": "数学",
-    "政治":  "政治",
-    "英语一": "英语",
-}
+SUBJECT_DISPLAY = subjects_conf.plan_display()
 
 # Map notes-index subject labels -> graph subject keys
-NOTES_SUBJECT_MAP = {
-    "408":  "408",
-    "数学": "数学一",
-    "政治": "政治",
-    "英语": "英语一",
-}
+NOTES_SUBJECT_MAP = subjects_conf.notes_subject_map()
 
 # Map graph subject keys -> progress.json subject keys
-PROGRESS_SUBJECT_MAP = {
-    "408":   "408",
-    "数学一": "数学",
-    "政治":  "政治",
-    "英语一": "英语",
-}
+PROGRESS_SUBJECT_MAP = subjects_conf.progress_map()
 
 # Exam weight per subject (total score)
-SUBJECT_TOTAL_SCORE = {
-    "408": 150,
-    "数学一": 150,
-    "政治": 100,
-    "英语一": 100,
-}
+SUBJECT_TOTAL_SCORE = subjects_conf.total_scores()
 
 # Maximum allocation ratio per subject (prevents over-concentration)
-SUBJECT_MAX_RATIO = {
-    "数学一": 0.40,
-    "408":   0.35,
-    "英语一": 0.20,
-    "政治":  0.30,
-}
+SUBJECT_MAX_RATIO = subjects_conf.subject_max_ratio()
 
 # ---------------------------------------------------------------------------
 # Phase Definitions (Periodization)
