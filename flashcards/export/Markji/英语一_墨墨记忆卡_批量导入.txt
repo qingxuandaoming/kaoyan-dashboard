@@ -1,0 +1,1076 @@
+[T#B#完形填空]
+完形填空中，选择最佳答案的第一步应该是：
+[Choice#fixed#
+- 看四个选项的区别
+* 通读全文了解大意
+- 直接根据语法选择
+- 从第一个空开始逐个填
+]
+---
+答案：B. 通读全文了解大意
+完形填空的正确做题步骤：①先通读全文（跳过空格），把握文章主旨和逻辑脉络；②再逐空分析，结合上下文语境选择；③最后通读检查。不看全文直接填空容易选错，因为很多空需要上下文线索。
+===
+[T#B#语法 · 核心语法]
+选出对下句主干（主语 + 主句谓语）判断正确的一项：The scientist who discovered the structure of DNA, together with his colleagues, was awarded the Nobel Prize.
+[Choice#fixed#
+* 主语是 The scientist，主句谓语是 was awarded
+- 主语是 The scientist 和 his colleagues（并列主语），主句谓语是 was awarded
+- 主语是 the structure of DNA，主句谓语是 was awarded
+- 主语是 The scientist，主句谓语是 discovered
+]
+---
+答案：A. 主语是 The scientist，主句谓语是 was awarded
+找主干＝找能独立成句的「谁做什么」：The scientist … was awarded the Nobel Prize。①who discovered the structure of DNA 是定语从句，修饰 The scientist，属于要剥掉的修饰成分；②together with his colleagues 是插入语，不作主语也不算并列，主语仍是单数 The scientist，所以谓语只能是 was，不能是 were；③discovered 是定语从句里的谓语，先出现的动词不一定是主句谓语（D 错）；④the structure of DNA 是从句的宾语，不能当主语（C 错）。
+===
+[T#B#语法 · 核心语法]
+在定语从句中，that既可以引导限制性定语从句，也可以引导非限制性定语从句。（对/错？）
+[Choice#fixed#
+- 正确
+* 错误
+]
+---
+答案：错误
+错误。that只能引导限制性定语从句，不能引导非限制性定语从句（逗号后面不能用that）。非限制性定语从句用which/who/whom/whose等引导。这是考研英语语法的高频考点。
+===
+[T#B#语法 · 核心语法]
+在定语从句中，[F#1#that]只能引导限制性定语从句，不能引导非限制性定语从句（逗号后不能用）。
+---
+that不能引导非限制性定语从句是考研英语语法的高频考点。非限制性定语从句用which/who/whom/whose引导。
+===
+[T#B#语法 · 核心语法]
+主谓一致：Bread and butter ___ my favorite breakfast. 填 is 还是 are，判据是什么？
+[Choice#fixed#
+- 只要句中出现了 and，谓语一律用复数
+- 只要句中出现了 and，谓语一律用单数
+- A and B 指两个独立个体时，谓语也用单数
+* A and B 指同一整体概念（同一人/同一物）时，谓语用单数
+]
+---
+答案：D. A and B 指同一整体概念（同一人/同一物）时，谓语用单数
+A and B 视为一个不可分割的复合概念时用单数谓语：Bread and butter is my favorite breakfast.（面包抹黄油＝一种食物）。第二项前重复冠词则表两个独立个体，用复数：The secretary and treasurer is coming.（同一人，无第二个 the）／ The secretary and the treasurer are coming.（两个人）。
+===
+[T#B#语法 · 核心语法]
+主谓一致：主语是分数或百分数时，谓语的单复数取决于什么？
+[Choice#fixed#
+* of 后面的名词：不可数用单数，可数名词复数用复数
+- of 前面的分数本身：分母的大小决定单复数
+- 分数或百分数的分子：分子大于 1 就用复数谓语
+- 句子的时态：现在时用单数，过去时用复数谓语
+]
+---
+答案：A. of 后面的名词：不可数用单数，可数名词复数用复数
+分数/百分数作主语时，谓语单复数由 of 后的名词决定：Two thirds of the work is done.（work 不可数 → 单数）／ Two thirds of the students are present.（students 复数 → 复数）；50% of the water is polluted. ／ 50% of residents are satisfied.
+===
+[T#B#语法 · 核心语法]
+主谓一致：关于 a number of 与 the number of，下列判断正确的是？
+[Choice#fixed#
+- a number of + 单数谓语；the number of + 复数谓语
+- 两者都接单数谓语，people 也按单数处理
+- 两者都接复数谓语，people 按复数处理
+* a number of + 复数谓语；the number of + 单数谓语
+]
+---
+答案：D. a number of + 复数谓语；the number of + 单数谓语
+a number of = 许多（后接复数谓语）：A number of students are absent.；the number of = ……的数量（后接单数谓语）：The number of students is rising.。另外 people / police / cattle 永远作复数：The police are investigating.
+===
+[T#B#语法 · 时态与语态]
+By the time I see you, I ___ my degree. 表达「到我见你时，我已经拿到学位了」，空白处应填？
+[Choice#fixed#
+- will graduate
+* will have graduated
+- had graduated
+- would graduate
+]
+---
+答案：B. will have graduated
+by + 时间点是完成时标志词：主句要表达「到那时已经完成」，用将来完成时 will have graduated。同时注意从句：时间/条件状语从句用一般现在时表将来（主将从现），所以是 By the time I see you，不是 By the time I will see you。整体平移到过去则从句用一般过去、主句用过去完成：By the time I saw you, I had graduated.
+===
+[T#B#语法 · 时态与语态]
+I lived here for ten years. 与 I have lived here for ten years. 的区别是？
+[Choice#fixed#
+* 前者暗示现在已不住这里，后者暗示现在仍住着
+- 两者完全同义，只是英式与美式的用词差异
+- 前者是错的，for + 时间段只能配现在完成时
+- 前者暗示现在仍住这里，后者暗示现已搬走
+]
+---
+答案：A. 前者暗示现在已不住这里，后者暗示现在仍住着
+动作在过去已封闭、与当下切断 → 一般过去时（I lived here for ten years. 现已不住）；过去开始、延续到当下 → 现在完成时（I have lived here for ten years. 大概率还住着）。for + 时间段本身没有方向，落点全由时态锚定。另注意 the last week（截止此刻的 7 天，配现在完成）与 last week（上一个自然周，配过去）的区别。
+===
+[T#B#语法 · 时态与语态]
+had been 有四种面孔，下列哪种搭配才构成被动语态？
+[Choice#fixed#
+- been + to + 地点（had been to Paris）
+- been + 形容词或名词（had been ill）
+- been + doing（had been waiting）
+* been + 及物动词过去分词（had been locked）
+]
+---
+答案：D. been + 及物动词过去分词（had been locked）
+had been 本身不等于被动，关键看 been 后面接什么：been + 过去分词 → 被动（The door had been locked.）；been + 形容词/名词 → 系表结构，主动（He had been ill. / He had been a teacher.）；been + to + 地点 → 去过，主动（She had been to Paris.）；been + doing → 过去完成进行时，主动（They had been waiting.）。
+===
+[T#B#语法 · 时态与语态]
+虚拟语气与过去事实相反：从句用 [F#1#had done]，主句用 [F#1#would have done]。
+---
+与现在事实相反：从句 did/were、主句 would do；与过去事实相反：从句 had done、主句 would have done；与将来事实相反：从句 were to do/should do、主句 would do。
+===
+[T#B#语法 · 时态与语态]
+主将从现：By the time 引导的时间状语从句用 [F#1#一般现在时] 表将来，主句表达「到那时已完成」用 [F#2#将来完成时]。
+---
+By the time I see you, I will have graduated.；平移到过去则从句用一般过去、主句用过去完成：By the time I saw you, I had graduated.
+===
+[T#B#语法 · 时态与语态]
+现在完成进行时的结构是 [F#1#have/has been doing]；短暂动词（come/go/arrive）用这个时态表示 [F#2#反复多次]，而不是持续。
+---
+I have been coming to Beijing for 14 years. = 14 年间反复来京；表持续居住要用 I have been in Beijing for 14 years.
+===
+[T#B#语法 · 时态与语态]
+had been 只有后接 [F#1#及物动词的过去分词] 时才构成被动语态；had been + 形容词/名词是 [F#2#系表结构]（主动）。
+---
+被动：The door had been locked.；系表（主动）：He had been ill. / He had been a teacher.；去过（主动）：She had been to Paris.；过去完成进行（主动）：They had been waiting.
+===
+[T#B#语法 · 三大从句（名词性/定语/状语）]
+the assumption that economic growth will reduce inequality 与 the assumption that he made，两个 that 从句类型不同，判据是？
+[Choice#fixed#
+- that 前的名词是否抽象：抽象名词 → 定语从句，具体名词 → 同位语从句
+* 从句成分是否齐全：齐全（不缺主宾）→ 同位语从句；缺宾语 → 定语从句
+- 从句谓语的时态：现在时 → 同位语从句；过去时 → 定语从句
+- that 能否省略：能省略 → 同位语从句；不能省略 → 定语从句
+]
+---
+答案：B. 从句成分是否齐全：齐全（不缺主宾）→ 同位语从句；缺宾语 → 定语从句
+两者都是「名词 + that + 句子」，唯一可靠判据是从句本身是否完整：that 在定语从句中必须充当成分（the assumption that he made 缺宾语 → 定语从句）；在同位语从句中不充当成分、只起连接作用（economic growth will reduce inequality 主谓宾齐全 → 同位语从句）。同位语从句的 that 不可省略，且常跟在 fact / assumption / belief / notion / evidence / idea 等抽象名词后。
+===
+[T#B#语法 · 三大从句（名词性/定语/状语）]
+下列哪种情况只能用 whether、不能用 if？
+[Choice#fixed#
+* 介词后作宾语从句时（It depends on whether he agrees.）
+- 口语中作动词的宾语从句时（I wonder if he is coming.）
+- 从句谓语是现在进行时时（I wonder if he is coming.）
+- 宾语从句表示「是否」且位于句中时（I wonder if…）
+]
+---
+答案：A. 介词后作宾语从句时（It depends on whether he agrees.）
+whether 更正式、更通用，以下四种情况只能用 whether：① 介词后（It depends on whether he agrees.）；② 不定式前（whether to stay）；③ 与 or not 直接连用（whether or not he agrees）；④ 句首主语从句（Whether he will come is uncertain.）。if 口语化，不可用于介词后、不可与 or not 直接连用。
+===
+[T#B#语法 · 三大从句（名词性/定语/状语）]
+下列哪一组情况只能用 that 引导定语从句？
+[Choice#fixed#
+- 非限制性定语从句（逗号后），或关系词前有介词时
+* 先行词被最高级/序数词/only 修饰，或先行词是不定代词时
+- 关系词指代前面整个主句时（which surprised everyone）
+- 先行词是专有名词且从句用逗号与主句隔开时
+]
+---
+答案：B. 先行词被最高级/序数词/only 修饰，或先行词是不定代词时
+只用 that：先行词被最高级/序数词/only/very/same 修饰（the best film that I've ever seen）、先行词是不定代词（All that glitters is not gold.）、先行词既有人又有物（the men and books that interested him）。只用 which：逗号后的非限制性从句（The house, which was built in 1750, is now a museum.）、介词后（the house in which he lives）、指代整个主句（He passed the exam, which surprised everyone.）。
+===
+[T#B#语法 · 三大从句（名词性/定语/状语）]
+I don't think he is right. 的准确含义是？
+[Choice#fixed#
+- 我认为他是对的（两个否定相互抵消）
+- 我不持有「他对」这个观点，对他对错不作判断
+* 我认为他不对（否定从句，not 只是形式上留在主句）
+- 我不认为他对，但也不确定他错
+]
+---
+答案：C. 我认为他不对（否定从句，not 只是形式上留在主句）
+think / believe / suppose / expect / imagine / seem / appear 带宾语从句时，从句的否定习惯移到主句，这叫否定转移，语义仍在从句：I don't think he is right. = 我认为他不对。简略回应用 I don't think so.。注意 hope 不发生否定转移：只能说 I hope not.（❌ I don't hope so.）
+===
+[T#B#语法 · 三大从句（名词性/定语/状语）]
+名词性从句只能用 whether 的四种情况：[F#1#介词后]、[F#2#不定式前]、与 or not 直接连用、以及句首主语从句。
+---
+It depends on whether he agrees.；I don't know whether to stay.；Whether he will come is uncertain.。if 只用于口语化的动词宾语从句。
+===
+[T#B#语法 · 三大从句（名词性/定语/状语）]
+名词性从句中，介词后面只能用 whether 引导，不能用 if。（对/错？）
+[Choice#fixed#
+* 正确
+- 错误
+]
+---
+答案：正确
+正确。It depends on whether he agrees. ✓ / It depends on if he agrees. ✗。同理「与 or not 直接连用」「不定式前」「句首主语从句」三种情况也只能用 whether。
+===
+[T#B#语法 · 虚拟语气]
+虚拟语气中，与过去事实相反的条件句，从句和主句分别用什么形式？
+[Choice#fixed#
+- 从句 did/were；主句 would do
+* 从句 had done；主句 would have done
+- 从句 had done；主句 would do
+- 从句 were to do/should do；主句 would do
+]
+---
+答案：B. 从句 had done；主句 would have done
+与过去事实相反：从句用过去完成时（had done），主句用 would/should/could/might + have done。对照另两种：与现在事实相反 → 从句一般过去时（be 用 were）、主句 would do；与将来事实相反 → 从句过去时/were to do/should do、主句 would do。
+===
+[T#B#语法 · 非谓语动词]
+把 He made me do it. 变成被动语态，正确的是？
+[Choice#fixed#
+- I was made doing it.（被动改用 doing）
+- I was made do it.（被动仍省略 to）
+* I was made to do it.（被动须还原 to）
+- I was made done it.（被动用过去分词）
+]
+---
+答案：C. I was made to do it.（被动须还原 to）
+使役动词（let / make / have）和感官动词（see / hear / watch / feel / notice）主动语态后接裸不定式（省略 to），被动语态必须把 to 还原：He made me do it. → I was made to do it.；I saw him run. → He was seen to run.
+===
+[T#B#语法 · 非谓语动词]
+I saw him leave. 与 I saw him leaving. 的区别是？
+[Choice#fixed#
+- 前者是看见正在离开，后者是看见离开的全过程
+- 前者表示命令他离开，后者表示目送他离开
+- 两者完全同义，只是英式与美式的用词差异
+* 前者是看见离开的全过程，后者是看见正在离开
+]
+---
+答案：D. 前者是看见离开的全过程，后者是看见正在离开
+感官动词后接裸不定式表动作的**全过程**，接现在分词表动作**正在进行**：I saw him leave.（看见他离开的全过程）／ I saw him leaving.（看见他正在离开）；I heard her sing.（听见她唱完）／ I heard her singing.（听见她正在唱）。
+===
+[T#B#语法 · 非谓语动词]
+look forward to ___ from you. 与 be used to ___ early. 中 to 后的动词形式是？
+[Choice#fixed#
+* 两处都用 doing：这两个 to 都是介词
+- 前者用 doing，后者用 do
+- 前者用 do，后者用 doing
+- 两处都用 do：两个 to 都是不定式标记
+]
+---
+答案：A. 两处都用 doing：这两个 to 都是介词
+to 有两种身份：不定式标记（后接动词原形，want to do）与介词（后接名词/动名词）。介词 to 的常见搭配：look forward to doing、object to doing、be used to doing（习惯于）、devote oneself to doing、prefer doing A to doing B。区分技巧：介词 to 可换成 toward，不定式 to 不能。⚠️ be used to doing（习惯于）≠ be used to do（被用来做，to 是不定式标记）。
+===
+[T#B#语法 · 非谓语动词]
+使役动词与感官动词（make/let/have/see/hear/watch）主动语态后接 [F#1#省略 to 的裸不定式]，变成被动语态后必须 [F#2#把 to 还原]。
+---
+He made me do it. → I was made to do it.；I saw him run. → He was seen to run.
+===
+[T#B#语法 · 非谓语动词]
+insist 后面既可以接 insist on doing sth，也可以接 insist to do sth。（对/错？）
+[Choice#fixed#
+- 正确
+* 错误
+]
+---
+答案：错误
+错误。insist 只接 on doing 或 that 从句（insist that sb (should) do），没有 insist to do 的用法。同类高频搭配还有：object to doing、look forward to doing、be used to doing。
+===
+[T#B#语法 · 倒装句]
+把 I have never seen it. 改写成 Never 开头的倒装句，正确的是？
+[Choice#fixed#
+- Never I have seen it.
+- Never have seen I it.
+* Never have I seen it.
+- Never do I have seen it.
+]
+---
+答案：C. Never have I seen it.
+否定/半否定词（never / hardly / scarcely / barely / seldom / rarely / little / nowhere / not only / not until / no sooner / by no means / in no case / on no account）置于句首表强调时，用部分倒装：把助动词提到主语前。Never have I seen it.／Not only did he come, but he also spoke.（还原：He not only came…）
+===
+[T#B#语法 · 长难句分析]
+虚拟语气中，与现在事实相反的条件句，主句和从句分别用什么时态？
+[Choice#fixed#
+* 主句：would+动词原形；从句：一般过去时（be用were）
+- 主句：would have+过去分词；从句：过去完成时
+- 主句：will+动词原形；从句：一般现在时
+- 主句：would+动词原形；从句：现在进行时
+]
+---
+答案：A. 主句：would+动词原形；从句：一般过去时（be用were）
+与现在事实相反：从句用一般过去时（If I were...），主句用would/should/could/might+动词原形。与过去事实相反：从句用过去完成时，主句用would have done。与将来事实相反：从句用过去时/were to/should+动词原形。
+===
+[T#B#语法 · 嵌套从句]
+However, whether such a sense of fairness evolved independently in capuchins and humans, or whether it stems from the common ancestor that the species had 35 million years ago, is, as yet, an unanswered question. 该句共有几个分句？
+[Choice#fixed#
+- 2 个：只有两个 whether 从句，其余都是修饰成分
+* 4 个：evolved、stems、had 各领一个从句，is 是主句谓语
+- 5 个：还要加上 as yet 构成的插入分句
+- 3 个：evolved、stems 各领一个从句，is 是主句谓语
+]
+---
+答案：B. 4 个：evolved、stems、had 各领一个从句，is 是主句谓语
+方法：数谓语定分句——有几个谓语就有几个分句。evolved（主语从句①，主语 such a sense of fairness）、stems（主语从句②，主语 it）、had（定语从句，修饰 the common ancestor，主语 the species、宾语 35 million years）、is（主句系动词）。主干：whether… or whether… is an unanswered question。两个并列主语从句整体作主语，视为一个整体，谓语用单数 is。
+===
+[T#B#语法 · 嵌套从句]
+分析下面这句话：有几个分句？主干是什么？逐个数出每个谓语动词及其所属分句。
+However, whether such a sense of fairness evolved independently in capuchins and humans, or whether it stems from the common ancestor that the species had 35 million years ago, is, as yet, an unanswered question.
+---
+要点：分句数为 4（或点数出 4 个谓语动词 evolved / stems / had / is）；主干：whether… or whether… is an unanswered question；指出 had 属于定语从句（修饰 the common ancestor），不是主句谓语；指出两个并列主语从句整体作主语，谓语用单数 is
+参考答案：
+共 4 个分句，4 个谓语动词：① evolved——第一个主语从句的谓语，主语是 such a sense of fairness；② stems (from)——第二个主语从句的谓语，主语是 it；③ had——定语从句的谓语，修饰 the common ancestor，主语是 the species，宾语是 35 million years；④ is——主句的系动词。主干是：whether… or whether… is an unanswered question（两个并列的主语从句整体作主语，故谓语用单数 is），as yet 是插入状语。
+方法：数谓语定分句——有几个谓语就有几个分句；非谓语（to do / doing / done）不算谓语。
+===
+[T#B#语法 · 分隔结构（插入语/破折号）]
+The company, a major energy supplier in New England, provoked justified outrage in Vermont last week. 该句的谓语是？
+[Choice#fixed#
+- supplier（把同位语的中心词当成了谓语）
+* provoked（主语是 The company，同位语被一对逗号括起）
+- provoked 与 is 并列作谓语
+- is（把 a major energy supplier 当成了主语）
+]
+---
+答案：B. provoked（主语是 The company，同位语被一对逗号括起）
+主语后紧跟「逗号 + 名词短语」时，先判断该名词短语是否与主语同指（同位语）。a major energy supplier in New England 与 The company 同指，可改写为「也就是……」，整体括起跳过后，谓语是 provoked。主语与谓语之间隔了 8 个词，这是分隔结构的典型形态。
+===
+[T#B#语法 · 省略与还原]
+…may, if left unchecked, be sowing the seeds of social fragmentation… 中 if left unchecked 还原后是？
+[Choice#fixed#
+- if the seeds are unchecked（主语是 the seeds）
+- if leaving unchecked（left 在这里是现在分词）
+- if it was left unchecked（主语指代前一句的内容）
+* if they are left unchecked（省略了与主句相同的主语 + be）
+]
+---
+答案：D. if they are left unchecked（省略了与主句相同的主语 + be）
+条件/时间/比较状语从句中，若从句主语与主句主语一致且含 be，可省略「主语 + be」：if left unchecked = if they are left unchecked（they 指前面的 the very innovations）。同理比较从句：a technology that evolves faster than the laws (evolve) —— than 后没有谓语时，要补出与前文对应的谓语。
+===
+[T#B#语法 · 多重后置定语]
+the practical imperatives driving legislative action are becoming increasingly difficult to ignore 中，driving legislative action 的成分是？
+[Choice#fixed#
+- 宾语补足语，补充说明 action
+- 谓语动词，与 are becoming 并列作谓语
+* 现在分词作后置定语修饰 imperatives；谓语是 are becoming
+- 动名词，与 the practical imperatives 一起作主语
+]
+---
+答案：C. 现在分词作后置定语修饰 imperatives；谓语是 are becoming
+名词后紧跟 doing / done / 形容词短语 / 介词短语 / 不定式时，先把这些后置定语整体括起，再向后找谓语。driving legislative action 修饰 imperatives（= which drive legislative action），真正的谓语是 are becoming，表语是 difficult to ignore。还原技巧：后置定语补回 which is / that is。
+===
+[T#B#语法 · 同位语与独立主格]
+…has intensified, with proponents arguing that its straightforward implementation outweighs the prohibitive hardware costs. 中 arguing 的逻辑主语是？
+[Choice#fixed#
+- its straightforward implementation：that 从句里的主语
+- has intensified：主句谓语所对应的施动者
+- The debate：主句的主语，也就是全句谈论的对象
+* proponents：with + 名词 + doing，这个名词不是主句主语
+]
+---
+答案：D. proponents：with + 名词 + doing，这个名词不是主句主语
+with + 名词/代词 + doing / done / 形容词 / 介词短语 构成独立主格（with 复合结构），整体作状语；名词与该成分构成主动（doing）或被动（done）关系，且这个逻辑主语**不是**主句主语。此处 proponents 是 arguing 的逻辑主语。leave + 宾语 + doing / in + 名词 同理表「使宾语处于某状态」，不是「离开」。
+===
+[T#B#语法 · 长难句拆分方法论]
+he did not accept as well founded the charge made by some of his critics that… 该句中 accept 的宾语是？
+[Choice#fixed#
+- some of his critics（介词 by 的宾语）
+- as well founded（介词短语作宾语）
+- 句末 that 从句整体作 accept 的宾语
+* the charge（宾补 as well founded 被提到了宾语之前）
+]
+---
+答案：D. the charge（宾补 as well founded 被提到了宾语之前）
+这是宾语后置（heavy NP shift）：动词后先出现宾补、再出现长宾语，结构为「动词 + 宾补(as/for/to be + 形容词) + 长宾语」。accept as well founded the charge = accept the charge as well founded。触发词：accept / regard / consider / dismiss / treat / deem / declare。同类：Most economists dismiss as unfounded the fear, voiced by several critics, that…
+===
+[T#B#语法 · 长难句拆分方法论]
+He is no more diligent than his brother. 的含义是？
+[Choice#fixed#
+- 他和他哥哥一样勤奋（两人程度相同）
+- 他不比他哥哥更勤奋（两者都勤奋，只是程度有别）
+* 他和他哥哥都不勤奋（两者都不）
+- 他比他哥哥更不勤奋（哥哥勤奋，他不勤奋）
+]
+---
+答案：C. 他和他哥哥都不勤奋（两者都不）
+no 表全盘否定，not 表程度比较：not more A than B = 不比 B 更 A（两者都 A，程度有别）；no more A than B = 两者都不 A（= neither）。同理 not less A than B（不比 B 差，两者都好）／ no less A than B（两者都 A，≈ as much as）。
+===
+[T#B#语法 · 长难句拆分方法论]
+He is no more diligent than his brother. 的意思是「他不比他哥哥更勤奋」（两人都勤奋）。（对/错？）
+[Choice#fixed#
+- 正确
+* 错误
+]
+---
+答案：错误
+错误。no 表全盘否定：no more A than B = 两者都不 A，本句意为「他和他哥哥都不勤奋」。「不比……更」（两者都 A，程度有别）要用 not more A than B。
+===
+[T#B#语法 · 长难句拆分方法论]
+用词根词缀法拆解单词 unmistakable，写出拆解过程、词义，并说明 -able 在这里的语法含义。
+---
+要点：拆成 un- + mistake + -able 三部分；指出 -able 表「能被……的」，含被动义；给出词义：明确无误的 / 不可能被弄错的；举出同族例词（reliable、visible 等任一同类词）
+参考答案：
+unmistakable = un- + mistak(e) + -able。un- 是否定前缀；mistake 意为「弄错」（mis- 错误 + take 拿）；-able/-ible 是形容词后缀，核心含义是「能被……的」，含**被动**义。所以字面是「不可能被弄错的」，引申为「明确无误的、不会弄错的」。同类：reliable = 能被依靠的 → 可靠的；visible = 能被看见的 → 可见的。
+把 -able 当主动解会得出「能弄错的」，与词义正好相反——这是 -able 最高频的误读。
+===
+[T#B#语法 · 长难句拆分方法论]
+举例说明 no more A than B 与 not more A than B 的区别，并各举一个句子。
+---
+要点：指出 no 表全盘否定、not 表程度比较；not more A than B = 不比……更（两者都 A）；no more A than B = 两者都不 A（neither）；各举一个正确例句
+参考答案：
+区别在 no 表全盘否定、not 表程度比较。not more A than B = 不比 B 更 A，两者都 A，只是程度有别；no more A than B = 两者都不 A（= neither）。例：He is not more diligent than his brother.（他不比哥哥更勤奋，两人都勤奋）／ He is no more diligent than his brother.（他和他哥哥都不勤奋）。同理 not less A than B（不比 B 差，两者都好）／ no less A than B（两者都 A，≈ as much as）。
+这类结构常在阅读里反向设问，先分清「两者都」还是「两者都不」，再看程度。
+===
+[T#B#阅读理解 · 阅读策略与题型]
+考研英语阅读中，作者态度题的解题关键是？
+[Choice#fixed#
+- 选表述最中立、最不绝对的那个选项
+- 根据自己对文章主题的好恶来判断
+* 抓形容词、副词、语气词等态度线索词
+- 只看文章最后一段的结论句
+]
+---
+答案：C. 抓形容词、副词、语气词等态度线索词
+作者态度题的解题线索：①形容词/副词（positive/negative/critical/objective）；②语气词（unfortunately/surprisingly）；③转折词后的内容（but/however 后往往是真实态度）；④举例的倾向性。注意区分作者态度与文中引用他人的观点。
+===
+[T#B#阅读理解 · 阅读策略与题型]
+考研阅读中最常见的干扰选项类型是？
+[Choice#fixed#
+- 直接矛盾：选项表述与原文完全相反，容易排除
+- 表述绝对：选项中出现 must、never 等绝对词
+* 偷换概念：用原文关键词，但改变其含义或逻辑关系
+- 完全无关：选项内容在原文中找不到任何对应
+]
+---
+答案：C. 偷换概念：用原文关键词，但改变其含义或逻辑关系
+偷换概念是考研阅读最常见的干扰方式：选项使用原文中的关键词，但改变了含义、范围、程度或逻辑关系，因此“看着眼熟”不等于正确。其他常见干扰类型：以偏概全、无中生有、过度推断、张冠李戴。直接矛盾或完全无关的选项通常一读就能排除。
+===
+[T#B#阅读理解 · 阅读策略与题型]
+考研英语阅读中，文章的主旨大意通常可以在首段和每段首句中找到。（对/错？）
+[Choice#fixed#
+* 正确
+- 错误
+]
+---
+答案：正确
+正确。西方学术文章的典型结构是'总—分'或'总—分—总'。主旨通常在首段（特别是转折后）提出，每段首句往往是该段的主题句。但注意：有时主旨也可能在末段总结，或者通过反问句隐含表达。
+===
+[T#B#阅读理解 · 阅读真题精练]
+阅读中推理判断题与细节理解题的核心区别是？
+[Choice#fixed#
+- 推理题答案能在原文中直接找到，只是换了说法
+- 推理题考生词猜测，细节题考长难句分析
+* 推理题答案不直接出现，需在原文信息上做合理推断
+- 推理题只看段落首尾句，细节题需通读全段
+]
+---
+答案：C. 推理题答案不直接出现，需在原文信息上做合理推断
+细节题：答案可以在原文中直接找到（同义替换）。推理题：答案不在原文中直接出现，需要根据原文信息进行合理推断，但不得过度推断，必须有原文依据支撑。
+===
+[T#B#翻译 · 翻译（英译汉）]
+英语长句翻译成中文时，最常用的方法是？
+[Choice#fixed#
+- 逐词直译，保持英文原句的语序
+* 断句拆分，按中文逻辑重新排列语序
+- 省略全部修饰成分，只译句子主干
+- 先译所有从句，主句一律提到句首
+]
+---
+答案：B. 断句拆分，按中文逻辑重新排列语序
+英语重形合（靠连接词），中文重意合（短句流水排列）。长句翻译三步：①断句拆分（在从句、分词短语处断开）；②调整语序（定语后置→前置，状语提前）；③增词减词（补充隐含主语，省略冗余连接词）。
+===
+[T#B#翻译 · 翻译（英译汉）]
+英语被动句翻译成中文时，通常应转换为主动句式。（对/错？）
+[Choice#fixed#
+* 正确
+- 错误
+]
+---
+答案：正确
+正确。中文习惯用主动句式。英语被动句翻译常用方法：①添加泛指主语（人们/大家/有人）；②用'被/受/遭/得到'等保留被动；③转换为主动（The book was written by him → 他写了这本书）。大多数情况下转为主动更自然。
+===
+[T#B#词汇 · 考研核心词汇]
+考研英语词汇学习中，“词根+词缀”方法的核心优势是？
+[Choice#fixed#
+- 一次性掌握每个单词的全部义项和固定搭配
+- 脱离上下文也能准确确定单词在句中的含义
+- 记住更多单词的字母拼写顺序，减少拼写错误
+* 按词根理解词义本质、按词缀判断词性，批量拓展同族词
+]
+---
+答案：D. 按词根理解词义本质、按词缀判断词性，批量拓展同族词
+词根词缀法的核心：①词根决定词义核心（spect=看）；②前缀改变含义方向（re-=再次）；③后缀决定词性（-tion=名词）。掌握常见词根词缀后可批量理解和记忆同族词，效率远高于死记硬背。
+===
+[T#B#词汇 · 考研核心词汇]
+在考研英语阅读中，遇到不认识的单词时最佳策略是？
+[Choice#fixed#
+- 立即查词典确认词义后再继续读
+- 跳过该词，只抓句子的主干大意
+* 根据上下文语境和词根词缀推测词义
+- 标记该词，考后统一查词典处理
+]
+---
+答案：C. 根据上下文语境和词根词缀推测词义
+考研英语阅读考查的重要能力之一就是通过上下文推测生词含义。最佳策略：①看上下文的解释、举例、对比关系；②分析词根词缀判断词性与感情色彩；③回到句子验证。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "pre-" 的核心含义是？
+[Choice#fixed#
+- 向外/离开
+* 在前/预先
+- 共同/一起
+- 在后/之后
+]
+---
+答案：B. 在前/预先
+pre- = 在前、预先（时间上先）。拆词：predict = pre(在前) + dict(说) → 事先说出 → 预言；preview = pre + view(看) → 预览；prepare = pre + pare(准备) → 准备。辨析：pre-（在前）↔ post-（在后）；别与 pro-（向前/支持）混。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "anti-" 的核心含义是？
+[Choice#fixed#
+- 共同/一起
+- 支持/赞成
+* 反对/对抗
+- 在...之前
+]
+---
+答案：C. 反对/对抗
+anti- = 反对、对抗。拆词：antibiotic = anti(抗) + bio(生命) + -tic → 抗生的 → 抗生素；antidote = anti + dot(给) → 解毒剂；antisocial = anti + social(社会的) → 反社会的。辨析：anti-（反对）↔ pro-（支持），考研写作表达立场时常用这对前缀。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "sub-" 的核心含义是？
+[Choice#fixed#
+* 在...下面/次级
+- 在...上面/超越
+- 在...之间/相互
+- 跨越/转变
+]
+---
+答案：A. 在...下面/次级
+sub- = 在下方、次级。拆词：submarine = sub(下) + marine(海的) → 潜水艇；subordinate = sub(下) + ordin(顺序) + -ate → 顺序在下的 → 下属、下级的；subway = sub + way(路) → 地下的路 → 地铁。辨析：sub-（下）↔ super-（上）。
+===
+[T#B#词汇 · 词根词缀记忆法]
+后缀 "-able/-ible" 的核心含义是？
+[Choice#fixed#
+- 充满...的
+- 使...化
+- 没有/缺少...的
+* 能被...的（含被动义）
+]
+---
+答案：D. 能被...的（含被动义）
+-able/-ible 是形容词后缀，核心是“能被……的”，含**被动**义。reliable = rely + able → 能被依靠的 → 可靠的；visible = vis(看) + ible → 能被看见的；unmistakable = un + mistake + able → 不可能被弄错的 → 明确无误的。辨析：-able（能被…的）↔ -ful（充满…的）↔ -less（没有…的）。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "re-" 的核心含义是？
+[Choice#fixed#
+- 向前/支持
+* 回/再/重新
+- 向外/离开
+- 向下/去除
+]
+---
+答案：B. 回/再/重新
+re- = 回、再、重新（方向上是“往回”或“再一次”）。拆词：return = re + turn(转) → 转回来 → 返回；review = re + view(看) → 再看一遍 → 复习；reject = re + ject(扔) → 扔回去 → 拒绝。注意：re- 不总是“再一次”，reject/recede 里是“往回”。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "inter-" 的核心含义是？
+[Choice#fixed#
+* 在...之间/相互
+- 在...下面/次级
+- 在...外部/额外
+- 在...内部/在内
+]
+---
+答案：A. 在...之间/相互
+inter- = 在……之间、相互。拆词：international = inter + national(国家的) → 国家之间的 → 国际的；interact = inter + act(行动) → 相互作用 → 互动；internet = inter + net → 互联网络。辨析：inter-（之间）↔ intra-（内部）——intranet 是“内部网”，internet 是“互联网”。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "trans-" 的核心含义是？
+[Choice#fixed#
+- 反对/相反
+* 跨越/穿过/转变
+- 共同/一起
+- 环绕/周围
+]
+---
+答案：B. 跨越/穿过/转变
+trans- = 穿过、跨越、转变。拆词：transport = trans(跨越) + port(搬运) → 搬运过去 → 运输；translate = trans + lat(带) + e → 带过去 → 翻译；transform = trans + form(形状) → 变形 → 转变。
+===
+[T#B#词汇 · 词根词缀记忆法]
+后缀 "-tion/-sion" 的核心含义是？
+[Choice#fixed#
+- 形容词后缀（...的）
+- 动词后缀（使...）
+* 名词后缀（行为/过程/结果）
+- 副词后缀（...地）
+]
+---
+答案：C. 名词后缀（行为/过程/结果）
+-tion/-sion 把动词变名词，表示行为、过程或结果。decide → decision（决定）；educate → education（教育）；expand → expansion（扩展）。心法：后缀定词性——看到 -tion/-sion 就按名词处理。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "dis-" 的核心含义是？
+[Choice#fixed#
+* 否定/相反/分离
+- 向前/预先
+- 共同/一起
+- 回/再/重新
+]
+---
+答案：A. 否定/相反/分离
+dis- = 否定、相反、分离（两个义项要看具体词）。disagree = dis + agree(同意) → 不同意（否定）；discover = dis + cover(覆盖) → 揭开覆盖 → 发现（分离）；disconnect = dis + connect(连接) → 断开（分离）。辨析：dis-（否定/分离）↔ de-（向下/去除），decline 是“下降/拒绝”，不是“否定”。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "con-/com-" 的核心含义是？
+[Choice#fixed#
+- 否定/分离
+* 共同/一起
+- 分开/离开
+- 向下/去除
+]
+---
+答案：B. 共同/一起
+con-/com- = 共同、一起（com- 用在 b/m/p 前，是 con- 的语音变体）。connect = con + nect(绑) → 绑在一起 → 连接；combine = com + bine → 结合；confer = con + fer(带来) → 带到一起 → 商议。辨析：con-（一起）↔ se-（分开）。
+===
+[T#B#词汇 · 词根词缀记忆法]
+后缀 "-ment" 的核心含义是？
+[Choice#fixed#
+- 动词后缀（使...化）
+- 副词后缀（...地）
+- 形容词后缀（具有...性质的）
+* 名词后缀（行为/结果）
+]
+---
+答案：D. 名词后缀（行为/结果）
+-ment 把动词变名词，表示行为或结果。develop → development（发展）；manage → management（管理）；argue → argument（论点、争论）。辨析：同样表名词，-ment 侧重“行为/结果”，-tion 侧重“动作/状态”，-ness/-ity 侧重“性质”。
+===
+[T#B#词汇 · 词根词缀记忆法]
+否定前缀 "in-" 在下列哪种情况下会发生语音同化，写成 "im-"？
+[Choice#fixed#
+- 后接 l 开头的词根（如 legal）
+- 后接元音开头的词根（如 audible）
+- 后接 r 开头的词根（如 regular）
+* 后接 b/m/p 开头的词根（如 possible）
+]
+---
+答案：D. 后接 b/m/p 开头的词根（如 possible）
+in- 是“最通用”的否定前缀，但会随词根首字母同化：接 b/m/p → im-（impossible, impartial）；接 l → il-（illegal）；接 r → ir-（irregular, irreversible）。例词：impossible(不可能的)、illegal(非法的)、irreversible(不可逆的)。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "over-" 的核心含义是？
+[Choice#fixed#
+* 过度/超过
+- 不足/低于
+- 反对/对抗
+- 在...之间/相互
+]
+---
+答案：A. 过度/超过
+over- = 过度、超过（也有“在……上方”的空间义）。overload = over + load(负载) → 超载；overcome = over + come → 从上面过来 → 克服；overlook = over + look → 从上往下看 → 俯瞰/忽视。辨析：over-（过度）↔ under-（不足）：overestimate / underestimate。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词缀 "mis-" 的核心含义是？
+[Choice#fixed#
+- 否定/相反
+* 错误/误
+- 共同/一起
+- 回/再/重新
+]
+---
+答案：B. 错误/误
+mis- = 错误地、坏。mistake = mis + take(拿) → 拿错 → 错误；misunderstand = mis + understand(理解) → 误解；mislead = mis + lead(引导) → 误导。辨析：mis- 表“错误”，dis- 表“否定/分离”，de- 表“向下/去除”——三个都像否定，含义各不同。
+===
+[T#B#词汇 · 词根词缀记忆法]
+后缀 "-ful" 与 "-less" 的关系是？
+[Choice#fixed#
+- 二者含义相同，都表“充满...的”
+- -ful 是名词后缀，-less 是动词后缀
+- 二者都是副词后缀，表“...地”
+* -ful 表“充满...的”，-less 表“缺少...的”，二者互为反义
+]
+---
+答案：D. -ful 表“充满...的”，-less 表“缺少...的”，二者互为反义
+-ful 与 -less 是一对反义后缀：-ful = 充满……的（useful 有用的）；-less = 没有……的（useless 无用的）。同根对比：careful(小心的)/careless(粗心的)、hopeful(有希望的)/hopeless(绝望的)、groundless(毫无根据的)。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根词缀法的核心心法是“词根定意思，前缀定方向，后缀定词性”。据此，判断生词的词性应看？
+[Choice#fixed#
+- 词根
+* 后缀
+- 前缀 + 词根
+- 前缀
+]
+---
+答案：B. 后缀
+三步拆词：①切后缀定词性；②切前缀定方向；③找词根定意思。示范：unmistakable → 切出 -able（形容词）→ un-（否定）→ mistak(e)（弄错）→ 不可能被弄错的。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “ced / cess” 的核心含义是？
+[Choice#fixed#
+* 走、让
+- 扔
+- 带来
+- 站
+]
+---
+答案：A. 走、让
+ced/cess = 走、让。proceed = pro(向前) + ceed(走) → 向前走 → 继续进行；concede = con(一起) + cede(让) → 让一步 → 承认；access = ac(朝向) + cess(走) → 走近 → 接近。同族：exceed(超过)、recession(衰退)。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “sist / sta” 的核心含义是？
+[Choice#fixed#
+- 送、派
+* 站
+- 走、让
+- 引导
+]
+---
+答案：B. 站
+sist/sta = 站。insist = in(加强) + sist(站) → 站上去不动摇 → 坚称；resist = re(反/回) + sist → 站着顶回去 → 抵抗；consist = con(一起) + sist → 站在一起 → 组成。同源：stable(稳定的)、status(地位)。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “fer” 的核心含义是？
+[Choice#fixed#
+- 拿、抓
+- 说
+- 看
+* 带来
+]
+---
+答案：D. 带来
+fer = 带来、拿。transfer = trans(跨越) + fer → 带过去 → 转移；confer = con(一起) + fer → 带到一起 → 商议、授予；prefer = pre(在前) + fer → 拿到前面 → 更喜欢；refer = re(回) + fer → 带回到 → 提及、参考。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “ject” 的核心含义是？
+[Choice#fixed#
+* 扔
+- 放
+- 转
+- 关
+]
+---
+答案：A. 扔
+ject = 扔。reject = re(回) + ject → 扔回去 → 拒绝；inject = in(进入) + ject → 扔进去 → 注射；object = ob(朝向/反对) + ject → 扔到面前 → 物体/反对；project = pro(向前) + ject → 向前扔 → 项目、投射。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “mit / miss” 的核心含义是？
+[Choice#fixed#
+- 带来
+- 站
+- 引导
+* 送、派
+]
+---
+答案：D. 送、派
+mit/miss = 送、派。submit = sub(在下) + mit → 送到下面 → 提交、屈服；admit = ad(朝向) + mit → 送进去 → 承认、准许进入；commit = con(一起/加强) + mit → 交付 → 承诺、犯罪；dismiss = dis(离开) + miss → 送走 → 解散、解雇。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “duc / duct” 的核心含义是？
+[Choice#fixed#
+- 关
+* 引导
+- 拿、抓
+- 送、派
+]
+---
+答案：B. 引导
+duc/duct = 引导。conduct = con(一起) + duct → 引导到一起 → 指挥、实施；induce = in(进入) + duce → 引入 → 诱导；deduce = de(向下/离开) + duce → 引导出来 → 推断；produce = pro(向前) + duce → 引出来 → 生产。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “spect / spic” 的核心含义是？
+[Choice#fixed#
+- 说
+* 看
+- 扔
+- 转
+]
+---
+答案：B. 看
+spect/spic = 看。perspective = per(贯穿) + spect → 看穿 → 视角；conspicuous = con(加强) + spic → 人人都看得见 → 显眼的；speculation = spect + -ulation → 看来看去 → 推测。同义词根 vid/vis 也表“看”：visible、evident。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “dict” 的核心含义是？
+[Choice#fixed#
+- 看
+- 引导
+* 说
+- 带来
+]
+---
+答案：C. 说
+dict = 说。predict = pre(在前) + dict → 事先说 → 预言；contradict = contra(相反) + dict → 说相反的话 → 反驳；indicate = in(朝向) + dic + -ate → 指向并说出 → 表明。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “vers / vert” 的核心含义是？
+[Choice#fixed#
+- 来
+* 转
+- 站
+- 关
+]
+---
+答案：B. 转
+vers/vert = 转。reverse = re(回) + vers → 转回去 → 颠倒、逆转；convert = con(完全) + vert → 整个转过来 → 转换；diverse = di(分开) + vers → 转向不同方向 → 多样的。irreversible = ir(否定) + re(回) + vers(转) + ible(能被…的) → 不可被逆转的。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 “clud / clus” 的核心含义是？
+[Choice#fixed#
+- 放
+- 伸
+- 来
+* 关
+]
+---
+答案：D. 关
+clud/clus = 关。conclude = con(一起) + clud → 全关起来 → 结束、得出结论；exclude = ex(向外) + clud → 关在外面 → 排除；include = in(进入) + clud → 关进来 → 包含。同族：preclude(阻止)。
+===
+[T#B#词汇 · 词根词缀记忆法]
+用词根词缀法拆解 “unmistakable”（un- + mistak(e) + -able），其最准确的含义是？
+[Choice#fixed#
+- 能够弄错的 → 情有可原的
+- 容易被弄错的 → 模棱两可的
+* 不可能被弄错的 → 明确无误的
+- 已经被弄错的 → 错误的
+]
+---
+答案：C. 不可能被弄错的 → 明确无误的
+un-（否定）+ mistake（弄错）+ -able（能被……的，含被动）→ 不可能被弄错的 → 明确无误的。这是 -able 含被动义的典型例词，考研阅读中常用来表达“确凿无疑”。
+===
+[T#B#词汇 · 词根词缀记忆法]
+拆解 “concede”（con- 一起/加强 + cede 走/让），其核心含义是？
+[Choice#fixed#
+- 往回走 → 撤回
+- 一起走 → 同行
+* 让一步 → 承认、让步
+- 向前走 → 前进
+]
+---
+答案：C. 让一步 → 承认、让步
+con-（一起/加强）+ cede（走、让）→ 让一步 → 承认、让步。同族对比：concession(让步)、recede(后退)、proceed(前进)、exceed(超过)。
+===
+[T#B#词汇 · 词根词缀记忆法]
+拆解 “insist”（in- 加强 + sist 站），其核心含义是？
+[Choice#fixed#
+- 站着不动 → 停滞
+- 站到最后 → 幸存
+- 站到一边 → 回避
+* 站上去不动摇 → 坚称、坚持
+]
+---
+答案：D. 站上去不动摇 → 坚称、坚持
+in-（加强）+ sist（站）→ 站在上面不动摇 → 坚称、坚持。辨析：resist = re(反) + sist → 站着顶回去 → 抵抗；consist = con(一起) + sist → 站在一起 → 组成。
+===
+[T#B#词汇 · 词根词缀记忆法]
+拆解 “self-evident”（self 自身 + e- 向外 + vid 看 + -ent …的），其含义是？
+[Choice#fixed#
+- 只看得见自己 → 自负的
+- 需要向外求证 → 有争议的
+- 看不清自身 → 不自知的
+* 一看就看得见 → 不言自明的
+]
+---
+答案：D. 一看就看得见 → 不言自明的
+self（自身）+ e-（向外）+ vid（看）+ -ent（……的）→ 自身向外一看就看得见 → 不言自明的。词根 vid/vis 表“看”：visible、provide、evident 同源。
+===
+[T#B#词汇 · 词根词缀记忆法]
+“economic” 与 “economical” 的词义区别是？
+[Choice#fixed#
+- economic 是“节约的”；economical 是“经济的”
+- 两者完全同义，在任何语境下都可互换使用
+* economic 是“经济的”；economical 是“节约的”
+- economic 形容人节约；economical 形容经济
+]
+---
+答案：C. economic 是“经济的”；economical 是“节约的”
+后缀一变，意思就变：economic = 经济的（economic growth 经济增长）；economical = 节约的、实惠的（an economical car 省油的车）。同类：historic（有历史意义的）/ historical（历史的）。
+===
+[T#B#词汇 · 词根词缀记忆法]
+由 “benefit”（好处、福利）派生的 “beneficial”，其含义是？
+[Choice#fixed#
+* 有益的、有好处的（不含“福利”义）
+- 有资格领取福利的
+- 与福利制度有关的
+- 无益的、有害的
+]
+---
+答案：A. 有益的、有好处的（不含“福利”义）
+后缀一变，意思就变：benefit（好处、福利）→ beneficial（有益的，不含“福利”义）。be beneficial to sth = 对……有益。词根 bene- 表“好”：benefactor(恩人)、benevolent(仁慈的)。
+===
+[T#B#词汇 · 词根词缀记忆法]
+关于 superior / inferior / prior / senior / junior 的用法，正确的是？
+[Choice#fixed#
+* 本身即比较级，后接 to，不加 more、也不用 than
+- 本身即比较级，但后接 than
+- 需加 more 构成比较级，后接 to
+- 需加 more 构成比较级，后接 than
+]
+---
+答案：A. 本身即比较级，后接 to，不加 more、也不用 than
+这组词本身即比较级形式，后接 to：be superior to（优于）、be inferior to（劣于）、be prior to（先于）、be senior to（年长于）。既不能再加 more，也不能用 than。
+===
+[T#B#词汇 · 词根词缀记忆法]
+下列单词中，前缀表示“向前”（而非“在前”）的是？
+[Choice#fixed#
+* proceed（pro- 向前 + ceed 走）
+- prevent（pre- 在前 + vent 来）
+- predict（pre- 在前 + dict 说）
+- prepare（pre- 在前 + pare 准备）
+]
+---
+答案：A. proceed（pro- 向前 + ceed 走）
+pro- 表“向前”（方向），pre- 表“在前”（时间）。proceed = 向前走 → 继续进行；predict / prepare / prevent 都是 pre-，表“事先”。同族：progress(前进)、promote(促进)。
+===
+[T#B#词汇 · 词根词缀记忆法]
+下列单词中，前缀 “sub-” 表示“次级、下属”（而非单纯空间“下面”）的是？
+[Choice#fixed#
+- subway（sub- 在下 + way 路 → 地铁）
+- submarine（sub- 在下 + marine 海 → 潜水艇）
+* subordinate（sub- 在下 + ordin 顺序 → 下级的、下属）
+- submerge（sub- 在下 + merge 沉 → 浸没）
+]
+---
+答案：C. subordinate（sub- 在下 + ordin 顺序 → 下级的、下属）
+sub- 有两个义项：空间“在……下面”（subway、submarine、submerge）与等级“次级、下属”（subordinate、subsidiary）。本题问等级义，四个选项里只有 subordinate 表“下级的、下属”。
+===
+[T#B#词汇 · 词根词缀记忆法]
+三步拆词法的顺序：切后缀定 [F#1#词性] → 切前缀定 [F#2#方向] → 找词根定 [F#3#意思]。
+---
+心法：词根定意思，前缀定方向，后缀定词性。示范：unmistakable → -able（形容词）→ un-（否定）→ mistak(e)（弄错）。
+===
+[T#B#词汇 · 词根词缀记忆法]
+后缀 -able/-ible 的核心含义是「[F#1#能被……的]」，含 [F#2#被动] 义。
+---
+unmistakable = un + mistake + able → 不可能被弄错的 → 明确无误的；reliable = 能被依靠的 → 可靠的。
+===
+[T#B#词汇 · 词根词缀记忆法]
+否定前缀 in- 的语音同化：接 b/m/p → [F#1#im-]；接 l → [F#2#il-]；接 r → [F#3#ir-]。
+---
+impossible、impartial；illegal；irregular、irreversible。
+===
+[T#B#词汇 · 词根词缀记忆法]
+词根 spect/spic 表「[F#1#看]」；词根 ced/cess 表「[F#2#走、让]」。
+---
+perspective（看穿→视角）、conspicuous（显眼的）；proceed（向前走）、concede（让一步→承认）。
+===
+[T#B#词汇 · 词根词缀记忆法]
+后缀 -ful 与 -less 是一对反义后缀：-ful 表「充满……的」，-less 表「没有……的」。（对/错？）
+[Choice#fixed#
+* 正确
+- 错误
+]
+---
+答案：正确
+正确。careful（小心的）/ careless（粗心的）；hopeful / hopeless；groundless = 毫无根据的。
+===
+[T#B#词汇 · 固定搭配与短语]
+以下哪组词汇在考研英语中常被混淆？'complement'和'compliment'的区别是：
+[Choice#fixed#
+- 前者只能作名词，后者只能作动词
+- 前者是“赞美、恭维”，后者是“补充、补足物”
+* 前者是“补充、补足物”，后者是“赞美、恭维”
+- 两者含义相同，都表示“使完整”
+]
+---
+答案：C. 前者是“补充、补足物”，后者是“赞美、恭维”
+complement（补充、补足物）——The wine complements the meal. compliment（赞美、恭维）——He paid her a compliment. 这类形近义异词是考研高频考点。类似：affect/effect, assure/ensure/insure。
+===
+[T#B#写作 · 小作文]
+考研英语大作文（图画/图表作文）的标准结构是：
+[Choice#fixed#
+- 四段式：引言→正面论述→反面论述→结论
+- 一段式：直接论述，不分层次
+- 两段式：先描述图画，再作评论
+* 三段式：描述图画→分析原因→给出建议或总结
+]
+---
+答案：D. 三段式：描述图画→分析原因→给出建议或总结
+考研英语大作文标准三段式：①首段：描述图画/图表内容（what）；②中段：分析原因/深层含义（why）；③末段：提出建议/展望未来/总结观点（how）。每段约5-7句，总字数160-200词。
+===
+[T#B#写作 · 小作文]
+考研英语写作中使用复杂句式一定能获得高分。（对/错？）
+[Choice#fixed#
+- 正确
+* 错误
+]
+---
+答案：错误
+错误。考研写作评分标准强调：①内容完整切题；②语言准确（语法、拼写正确）；③表达丰富（适当使用多样句式）；④逻辑连贯。盲目使用复杂句式容易出错，反而扣分。应在保证正确的前提下适当使用，准确性优先于复杂性。
+===
+[T#B#写作 · 大作文]
+考研英语小作文（Part A 应用文）最常考的类型是？
+[Choice#fixed#
+- 摘要（abstract）写作
+* 书信类（建议信、申请信、投诉信）
+- 图表描述类说明文
+- 通知与告示类应用文
+]
+---
+答案：B. 书信类（建议信、申请信、投诉信）
+考研英语小作文（Part A）最常考应用文写作，其中书信类占绝大多数：建议信、申请信、投诉信、道歉信、推荐信等；通知与告示次之。格式（称呼、正文、落款）和语域（正式/半正式）是关键评分点，字数约 100 词。
+===
+[T#B#阅读理解 · 阅读Part B]
+在考研英语一新题型“排序题”中，确定文章首段的最有效策略是？
+[Choice#fixed#
+* 引出话题、不含指代前文的代词和逻辑转折词的段落
+- 含 the + 名词等定指回指信息、暗示上文已出现过的段落
+- 以 however、therefore 等强逻辑连接词开头的段落
+- 含 this、these 等指代前文的代词、需要上文支撑的段落
+]
+---
+答案：A. 引出话题、不含指代前文的代词和逻辑转折词的段落
+首段用于引出话题，因此不含指代前文的代词（如 this problem），也不会以强转折词（如 however）开头，通常也不含 the + 名词这类定指回指信息。三个干扰项正是排序题中判断“这段不可能是首段”的三条标准。
+===
+[T#B#写作 · 小作文]
+在考研英语一小作文（书信/通知）中，若题目要求写一封“建议信”，以下哪种语气和表达最为恰当？
+[Choice#fixed#
+* 委婉礼貌：使用建议句型（I would suggest that...）
+- 语气强硬：使用祈使句（You must do this immediately.）
+- 口语随意：使用网络缩写（u should...）
+- 通篇被动：避免提及建议对象（It should be done.）
+]
+---
+答案：A. 委婉礼貌：使用建议句型（I would suggest that...）
+小作文要求语域（register）恰当。建议信应保持礼貌、委婉、得体，使用 "It would be appreciated if..." 或 "I would suggest that..." 等句型。
+===
+[T#B#词汇 · 词根词缀记忆法]
+利用词根词缀分析单词 "circumspect"，其词根 "spect" 意为“看”，前缀 "circum-" 意为“周围”，该词最恰当的中文释义是？
+[Choice#fixed#
+- 环顾四周的
+* 谨慎的，小心的
+- 视野开阔的
+- 投机取巧的
+]
+---
+答案：B. 谨慎的，小心的
+circum（周围）+ spect（看）-> 到处看、四处观察 -> 引申为谨慎的，小心的。
+===
+[T#B#词汇 · 词根词缀记忆法]
+在词根词缀记忆法中，前缀 "ob-" 在单词 "obstruct" 和 "obvious" 中的核心含义分别最接近于？
+[Choice#fixed#
+* 反对/阻挡；在...面前
+- 加强语气；向外
+- 离开；向下
+- 共同；向上
+]
+---
+答案：A. 反对/阻挡；在...面前
+ob- 有“against（反对/阻挡）”之意（如obstruct阻挡），也有“in front of / toward（在...面前/朝向）”之意（如obvious在面前的->明显的）。
+===
+[T#B#写作 · 大作文]
+在考研英语一大作文（图画作文）的写作中，第二段（论证段）最核心的逻辑展开方式通常是？
+[Choice#fixed#
+- 列举三个与图画完全无关的名人名言
+- 详细描述图画的每一个视觉细节
+- 换词重申第一段的图画描述，不再展开
+* 解释图画寓意，并分析其背后的原因或影响
+]
+---
+答案：D. 解释图画寓意，并分析其背后的原因或影响
+大作文第二段的核心是“论证”，即阐释图画寓意（interpret the meaning）并分析原因（causes）或影响（effects），而非单纯描述细节或堆砌无关名言。
+===
+[T#B#词汇 · 词根词缀记忆法]
+在考研英语词汇中，词根'ced/ceed/cess'表示'走、行进'。下列单词中，前缀与词根结合后，字面含义为'向前走、继续进行'且常考其'程序、诉讼'引申义的是？
+[Choice#fixed#
+- access
+- excess
+* process
+- recess
+]
+---
+答案：C. process
+pro-表示向前，cess表示走，process字面意思是向前走，引申为过程、程序、诉讼。access是接近（ac-朝向），excess是超出（ex-向外），recess是退回/休息（re-向后）。
+===
+[T#B#阅读理解 · 阅读Part B]
+考研英语一阅读Part B（新题型）中的“七选五”题型，解题时最关键的线索通常是？
+[Choice#fixed#
+- 选项中与原文重复出现的单词最多的那一段
+- 文章首尾段的中心思想，忽略中间段落
+- 选项句子的语法复杂度和长度
+* 段落间的逻辑连接词、代词指代及上下文的同义替换
+]
+---
+答案：D. 段落间的逻辑连接词、代词指代及上下文的同义替换
+七选五考查篇章结构，核心线索是逻辑连接词（如however, therefore）、代词指代（如this, these）以及上下文的同义替换。
+===
+[T#B#词汇 · 词根词缀记忆法]
+在词根词缀记忆法中，单词 reconcile 的前缀 re- 表“再次/回”，con- 表“共同”，词根 cile 表“呼唤”。结合词源逻辑，该词最核心的中文释义是使[F#1#和解]、调和。（填两字词语）
+---
+re(回/再) + con(共同) + cile(呼唤) -> 把大家再次呼唤到一起 -> 使和解，调和。
