@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "subject": "英语一",
+    "module": "ENG-VOC",
+    "batch": "week-review-2026-09-20",
+    "note": "本周错题复盘补卡·英语词根词缀（12 次错 + 11 次提问）。全部针对「易混词根/词缀的区分」，名词根义项本身库里已有基础卡，这里只补辨析与方向判断。"
+  },
+  "cards": [
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-03",
+      "q": "词根 dict 与 duc/duct 只差一个元音，含义完全不同。下列配对正确的是：",
+      "opts": [
+        "dict = 引导、带领；duc/duct = 说",
+        "dict = 说；duc/duct = 引导、带领",
+        "两者都表「说」，只是语体不同",
+        "两者都表「引导」，dict 用于抽象义"
+      ],
+      "ans": 1,
+      "exp": "dict 来自拉丁 dicere = to say（predict 预言、dictate 口述、contradict 反驳）；duc/duct 来自拉丁 ducere = to lead（conduct 指挥、induce 诱导、introduce 介绍）。只差中间那个元音，但一个管「嘴」一个管「路」，必须绑定例词记：dictate 说 / conduct 引。",
+      "tags": ["词根辨析", "易混词根"],
+      "traps": ["dict / duct 元音混记，看到 -dict 反应成「引导」"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-03",
+      "q": "词根 mit/miss 与 fer 都跟「带、送」有关，区分要点是：",
+      "opts": [
+        "mit/miss 是「送出去、派出去」（方向朝外），fer 是「带来、拿住」（方向朝己）",
+        "mit/miss 是「带来」，fer 是「送走」",
+        "两者都表「送出去」，只在正式程度上不同",
+        "mit/miss 表「看」，fer 表「说」"
+      ],
+      "ans": 0,
+      "exp": "方向才是判据：mit/miss 的动作是「从主体往外送」——submit 提交、transmit 传送、emit 发出、admit 让进来（ad- 向内 + mit 送出 → 送进来）；fer 的动作是「带来、承载」——transfer 转移、refer 提及、prefer 偏爱、offer 提供。「带来」这个中文词自带「朝己」的方向，只有 fer 一族配得上。",
+      "tags": ["词根辨析", "方向判断"],
+      "traps": ["用中文「带来」去对 mit/miss（方向反了）"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-03",
+      "q": "词根 cess/cede 的核心含义是「走、让」。拆解 concede（con- + cede）最准确的是：",
+      "opts": [
+        "一起走 → 同行",
+        "往回走 → 撤回",
+        "彻底让出 → 让步、承认",
+        "向前走 → 前进"
+      ],
+      "ans": 2,
+      "exp": "词根定意思，前缀定方向，但前缀义要按语境取：这里的 con- 是**加强**（不是「共同/一起」），cede 是「让」。con + cede = 完全让出 → 让步、承认（concession 让步）。同族：recede 后退（re- 回 + cede 走）、proceed 前进、exceed 超出、predecessor 前任。",
+      "tags": ["词根辨析", "前缀多义"],
+      "traps": ["把 con- 一律读成「一起」，机械拼出「一起走→同行」"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-03",
+      "q": "排除 exclude（ex- + clude）时，为什么词根 clud/clus 不能理解成「伸」？",
+      "opts": [
+        "因为 ex- 已经表示「向外」，而 clud 本身是「关、闭」，全词是「把门关上、挡在外面」",
+        "因为 clud 表示「关」，ex- 表示「在内」",
+        "因为 ex- 只表示「出」，clud 表示「伸」",
+        "因为 clud 表示「伸」，ex- 表示「向外」"
+      ],
+      "ans": 0,
+      "exp": "前缀给的只是**方向/坐标**，词根给的才是**动作本身**。clud/clus = 关、闭：exclude 关出去 → 排除；include 关进去 → 包括；conclude 全部关上 → 结束、得出结论；seclude 隔开关起来 → 隐居。表「伸」另有其根：tend/tens/tent（extend 伸展、tension 张力）。",
+      "tags": ["词根辨析", "前缀方向"],
+      "traps": ["把前缀表示的方向当成词根的动作（ex- 向外 → 误推词根=伸）"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-03",
+      "q": "「看」系词根与「说」系词根常被混记。下列归类正确的是：",
+      "opts": [
+        "spect/spic = 说；dict = 看",
+        "spect/spic、vid/vis 都表「看」；dict、loqu/log 表「说」",
+        "spect/spic = 看；dict = 看；loqu = 说",
+        "vid/vis = 说；loqu/log = 看"
+      ],
+      "ans": 1,
+      "exp": "「看」一族：spect/spic（inspect 检查、respect 尊重、conspicuous 显眼的）、vid/vis（video、evident 显然的、visible、supervise 监督）、opt（optic）；「说」一族：dict（predict、dictate）、loqu/locut（eloquent 雄辩的、colloquial 口语的）、log/logue（dialogue、monologue）。做题时先定族、再定词，不要凭首字母联想。",
+      "tags": ["词根辨析", "家族归类"],
+      "traps": ["dict 与 spect 互相串门（indicate 的影响）"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-03",
+      "q": "词根 ject 与 pos/pon 都常被译成中文的「放」，区别是：",
+      "opts": [
+        "ject 是「扔、投掷」（有方向和力度）；pos/pon 是「放置」（静态）",
+        "ject 是「放置」；pos/pon 是「扔」",
+        "两者都表「扔」，ject 用于抽象义",
+        "ject 表「转」，pos/pon 表「放」"
+      ],
+      "ans": 0,
+      "exp": "ject 的核心动作是**用力抛出去**：reject 扔回去 → 拒绝、inject 投入 → 注射、eject 喷出、project 向前抛出 → 投射/项目。pos/pon 是静态的**放置**：compose 放在一起 → 组成、postpone 往后放 → 推迟、deposit 放下 → 存放。中文都译「放」，但一个带力度方向、一个不带。",
+      "tags": ["词根辨析", "动作性质"],
+      "traps": ["把 ject 记成「放」，与 pos/pon 混为一谈"]
+    }
+  ]
+}

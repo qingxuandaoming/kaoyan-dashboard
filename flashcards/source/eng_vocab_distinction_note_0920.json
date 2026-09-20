@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "subject": "英语一",
+    "module": "ENG-VOC",
+    "batch": "note-harvest-2026-09-20",
+    "note": "从近日新写的词义辨析笔记出卡（Word&phrase/辨析 第383~390 节 + 词义辨析.md，2026-09-19~20 连续新增，此前没有对应卡）。只取「有明确选择判据」的辨析，不出纯词表。"
+  },
+  "cards": [
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-02-01",
+      "q": "「收养的」一族：修饰**养父母**和修饰**被收养的孩子**，形容词分别用哪个？",
+      "opts": [
+        "adoptive parents / adopted child（-ive 主动修饰收养方，-ed 被动修饰孩子）",
+        "adopted parents / adoptive child",
+        "foster parents / foster child（都可用 foster）",
+        "adopt parents / adopt child"
+      ],
+      "ans": 0,
+      "exp": "判据是 **-ive 主动 / -ed 被动**：adoptive 表「实施收养这一行为的（人）」→ adoptive parents/father/mother/family；adopted 表「被收养的」→ adopted child/son/daughter（也可指「被采纳的」：an adopted policy）。foster 是**寄养**，没有法定收养关系、偏临时（foster home / foster care）。同规律类例：respectful（恭敬的，主动）vs respected（受尊敬的，被动）；imaginative（有想象力的）vs imagined（想象出来的）。另外 adopt 在考研里高频取僻义「采取、采纳」：adopt an approach/a policy。",
+      "tags": ["词义辨析", "-ive/-ed", "熟词僻义"],
+      "traps": ["把 adoptive 与 adopted 混用（方向搞反）"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-02-01",
+      "q": "关于「男性的」这一族词，下列判断正确的是：",
+      "opts": [
+        "manly 褒义（好品质）；masculine 中性（男性特征/语法阳性）；male 纯性别属性；macho 贬义（刻意显摆阳刚）；mannish 贬义，只用于女人像男人",
+        "manly 与 mannish 都是褒义，只是语体不同",
+        "macho 是中性词，指有男子气概",
+        "male 只能指人，不能指动物"
+      ],
+      "ans": 0,
+      "exp": "背这族词的关键是**褒贬 + 适用对象**，不是中文释义：manly（褒，男人的好品质：勇敢担当，a manly handshake）；masculine（中性，男性特征、语法「阳性」，也可形容女性指男性化）；male（中性，客观性别属性，**可指动物**：a male dog）；macho（贬，大男子主义、刻意炫耀，西语来源）；virile（中性偏褒，重体魄力量、正式）；mannish（贬，只用于女性）；effeminate（贬，只用于男性）。成对反义：manly↔womanly（褒）、masculine↔feminine、male↔female、mannish↔effeminate。",
+      "tags": ["词义辨析", "褒贬色彩", "易混词组"],
+      "traps": ["只看中文「男人的」就混用，忽略褒贬与适用对象"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-02-01",
+      "q": "「失业」一族词中，哪一个特指**英式**的裁员（岗位撤销，make sb redundant）？",
+      "opts": [
+        "unemployment",
+        "joblessness",
+        "layoff",
+        "redundancy"
+      ],
+      "ans": 3,
+      "exp": "先分**状态 vs 事件**：unemployment（状态/数字/救济，正式经济学术语，unemployment rate/benefit）、joblessness（状态，新闻体、同义替换用）是状态；layoff（批量/临时解雇事件，美式通用，mass layoffs）、redundancy（**英式**裁员，因岗位过剩而非个人过错，voluntary redundancy）是事件。另有 the dole（英式口语，失业救济，be on the dole）、unemployment line（美式，领救济的队伍）；英式对应说法是 dole queue。经济类文章里 layoff 与 redundancy 的地域色彩常是考点。",
+      "tags": ["词义辨析", "英美差异", "经济类"],
+      "traps": ["把 redundancy 只记成「冗余」，读不出英式「裁员」义"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-02-02",
+      "q": "温度单位 Celsius / centigrade / Fahrenheit / Kelvin，下列判断正确的是：",
+      "opts": [
+        "Celsius 与 centigrade 是同一温标（可互换），差别只在语域：Celsius 是官方标准名、centigrade 是英式日常旧称",
+        "Celsius 与 centigrade 是两个不同的温标",
+        "Kelvin 写作 °K，符号里要加度数符号",
+        "Fahrenheit 的冰点是 0°F"
+      ],
+      "ans": 0,
+      "exp": "Celsius（1948 年定名，源自人名**永远大写**，符号 °C）与 centigrade（本义「百分度」，冰点 0°、沸点 100°；曾是旧称兼作角度单位，为消歧义才改名）**指同一温标**，区别只是语域：正式/科技用 Celsius，英式日常用 centigrade。Kelvin 是绝对温标，符号 **K 不加 °**（0 K = −273.15 °C）。Fahrenheit 冰点 32°F、沸点 212°F。换算 °F = °C × 9/5 + 32。",
+      "tags": ["词义辨析", "科技类", "易混词组"],
+      "traps": ["把 centigrade 当成另一套温标；给 Kelvin 加 °"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-04",
+      "q": "下列「-ive 主动 / -ed 被动」配对中，判断**错误**的是：",
+      "opts": [
+        "imaginative = 有想象力的（主动）↔ imagined = 想象出来的（被动）",
+        "respectful = 恭敬的（主动）↔ respected = 受尊敬的（被动）",
+        "adoptive parents = 养父母（主动）↔ adopted child = 养子（被动）",
+        "economical = 经济的（主动）↔ economic = 被节约的（被动）"
+      ],
+      "ans": 3,
+      "exp": "D 错在方向：**economic = 经济（领域）的**（economic growth 经济增长，描述领域/性质）；**economical = 节约的、省钱的**（an economical car 省油的车，描述省钱这一性状）。两者不是「主动/被动」关系，而是**领域 vs 性质**。而 A/B/C 三组是「-ive 主动 / -ed 被动」的典型：动作发出者用 -ive，动作承受者用 -ed。记忆抓手：先判断主语是「做这个动作的人」还是「承受这个动作的人」。",
+      "tags": ["词义辨析", "-ive/-ed", "形近词"],
+      "traps": ["把 economic / economical 当成主动被动配对；凭 -al 后缀猜义"]
+    }
+  ]
+}

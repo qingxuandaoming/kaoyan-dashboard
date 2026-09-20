@@ -1,0 +1,115 @@
+{
+  "meta": {
+    "subject": "英语一",
+    "module": "ENG-READ",
+    "batch": "note-harvest-2026-09-20",
+    "note": "从近日整理的阅读专题笔记出卡（2026-09-20 新增/改写约 230KB，此前 0 张卡）。优先取跨专题复用的部分：3.4 英美同词异义（★ 高频陷阱）、第六部分 文化语境熟词僻义（★ 出题密集区）、第四部分中文里没有的概念。题目全部考「这个字在他们社会里到底是什么」，不考英译中。"
+  },
+  "cards": [
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-04-01",
+      "q": "在英式报刊（尤其 The Economist）语境里 liberal 对英国人/欧洲人而言往往指什么？在美国又指什么？",
+      "opts": [
+        "英美含义完全一致，都指左翼、主张大政府",
+        "英式 = 古典自由主义（小政府 + 自由市场），美式 = 左翼（大政府 + 社会自由），含义近乎相反",
+        "英式 = 保守派，美式 = 左翼",
+        "英式 = 自由市场，美式 = 自由市场，只是语体不同"
+      ],
+      "ans": 1,
+      "exp": "这是英一阅读里最容易把人读反的一个词。美式 liberal = 左翼（支持大政府、社会福利、社会文化议题上的自由）；而 The Economist 这类英式语境里的 liberal 指**古典自由主义**：小政府、自由市场、个人自由 —— 与美式含义近乎相反。判断办法：看作者的对照物 —— 若把 liberal 与 free market / deregulation 并列，就是古典自由主义；与 welfare / social justice 并列，才是美式左翼。",
+      "tags": ["熟词僻义", "英美差异", "阅读文化"],
+      "traps": ["一律按美式左翼理解，把作者立场读反"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-04-01",
+      "q": "英国语境中的 public school 指的是：",
+      "opts": [
+        "公立学校（政府出资、免费）",
+        "私立精英公学（如 Eton、Harrow，收费高昂）",
+        "公立大学",
+        "社区学院"
+      ],
+      "ans": 1,
+      "exp": "英式 public school = **私立精英公学**（如 Eton College、Harrow），「public」指的是「面向公众招生、不受特定教区限制」而非「政府办」。美式 public school 才是公立学校。这个差异在教育类文章里是硬伤：英国文章说 public school 往往在讲**精英特权与阶层复制**，若理解成「公立学校」，整段论证方向就反了。",
+      "tags": ["熟词僻义", "英美差异", "教育类"],
+      "traps": ["按美式理解成公立学校，读反教育公平类文章的立场"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-04-01",
+      "q": "table a motion 在美式与英式议会程序中的含义分别是：",
+      "opts": [
+        "美式 = 提出动议；英式 = 搁置动议",
+        "美式 = 搁置动议；英式 = 提出动议（意思相反）",
+        "两者都表示「提出动议」",
+        "两者都表示「搁置动议」"
+      ],
+      "ans": 1,
+      "exp": "这是英式语境里少见的**双向反义**表达：美式 table a motion = 把它「放上桌子」→ 搁置、暂不讨论；英式 = 正式「提交」动议 → 提出。阅读时若看到 table 后接 motion/bill/amendment，必须先确定作者是美式还是英式（看题源或上下文），否则会把「提交审议」读成「弃置不议」，结论正好相反。",
+      "tags": ["熟词僻义", "英美差异", "政治类"],
+      "traps": ["按美式理解英式文章，把「提出」读成「搁置」"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-04-01",
+      "q": "美式的 affirmative action 对应的英式说法是：",
+      "opts": [
+        "positive discrimination",
+        "reverse racism",
+        "fair hiring",
+        "preferential treatment"
+      ],
+      "ans": 0,
+      "exp": "英式的 positive discrimination 就是美式的 affirmative action（对弱势群体给予倾斜性待遇）。注意两点：①「positive」在这里不是褒贬评价，而是「主动给予倾斜」；② 同一件事换一个国家的说法，是英一阅读的常见障碍。相关：美式的 whistleblower（吹哨人）、filibuster（冗长议事）、gerrymander（不公正划分选区）在中文里也没有精确对应词 —— 这类「中文里没有的概念」是文化背景题的核心。",
+      "tags": ["熟词僻义", "英美差异", "文化概念"],
+      "traps": ["按中文「积极歧视」字面去理解，误判作者立场"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-04",
+      "q": "His industry was eventually rewarded. 句中 industry 的含义是：",
+      "opts": [
+        "工业",
+        "勤勉、勤奋",
+        "行业",
+        "产业工人"
+      ],
+      "ans": 1,
+      "exp": "industry 在文化/人物评论语境里常取僻义「**勤勉、勤奋**」（对应 industrious = 勤奋的），His industry was rewarded = 他的勤奋终获回报。这与 school = 学派（a school of thought）、capital = 资本、economy = 节约（fuel economy）、virtue = 优点（by virtue of = 凭借）属于同一类：**认识的字换了意思**，是英一词汇考点的核心，也是「以 4000 词汇量读外刊」的真正障碍。",
+      "tags": ["熟词僻义", "文化语境"],
+      "traps": ["按「工业」直译，句子不通却硬凑"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-04",
+      "q": "下列哪一组「熟词僻义」解释正确？",
+      "opts": [
+        "hesitation = 异端；orthodoxy = 正统教义",
+        "heresy = 离经叛道之论（引申为「异端观点」）；orthodoxy = 主流共识；catholic = 广泛的、包容的",
+        "catholic = 天主教的；establishment = 建立",
+        "gospel = 福音书；puritan = 清教徒（仅此一义）"
+      ],
+      "ans": 1,
+      "exp": "这一组词在英一里几乎都取**引申义**，而且常成对出现：heresy（异端）→ 挑战主流的经济学观点叫 economic heresy；orthodoxy（正统教义）→ challenge the orthodoxy 挑战主流共识；catholic（天主教的）→ **catholic tastes 广泛的兴趣**（小写、无宗教义）；gospel → take sth as gospel = 对某事物深信不疑；establishment → the literary establishment 文学界当权派。它们的共同规律是：**宗教词 → 搬进世俗话语指「主流/异端/包容」**。",
+      "tags": ["熟词僻义", "宗教文化词", "出题密集区"],
+      "traps": ["只记宗教本义，读不出引申义；把 catholic 一律译成「天主教的」"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-04-01",
+      "q": "美国政治文章中 the City（首字母大写）指的是：",
+      "opts": [
+        "泛指任何一座大城市",
+        "伦敦金融城及其金融利益集团",
+        "纽约市",
+        "华盛顿特区"
+      ],
+      "ans": 1,
+      "exp": "在英式报刊里 the City 特指**伦敦金融城**（金融业利益的代称），相当于美式语境里的 Wall Street。同类机构代称：the White House（行政当局）、Capitol Hill / the Hill（国会）、Downing Street（英国首相府）、Westminster（英国议会）。看到这类大写专名，要立刻反应出**它代表哪一股利益**，态度题往往就建立在这个立场上。",
+      "tags": ["文化专名", "机构代称", "英美差异"],
+      "traps": ["把 the City 当普通名词译成「这座城市」"]
+    }
+  ]
+}

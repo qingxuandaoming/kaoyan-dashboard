@@ -13,6 +13,8 @@
 *.pem
 *.key
 *.p12
+# 墨墨记忆卡（Markji）API key —— tools/markji_client.py 读取，44 字节明文
+.markji_api_key
 
 # ---------- Python ----------
 __pycache__/

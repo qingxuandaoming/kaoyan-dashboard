@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "subject": "英语一",
+    "module": "ENG-GRAM",
+    "batch": "week-review-2026-09-20",
+    "note": "本周错题复盘补卡·英语语法（同位语/定语从句判据 1 错、非谓语搭配 1 错、主谓一致 1 错）。库里已有同考点卡，这里只补三个角度：省略规则、唯一判据、平行结构。"
+  },
+  "cards": [
+    {
+      "type": "choice",
+      "topic_id": "ENG-GRAM-01-02",
+      "q": "关于同位语从句与定语从句里 that 的省略，正确的是：",
+      "opts": [
+        "同位语从句的 that 不可省略；定语从句的 that 作宾语时可省略",
+        "同位语从句的 that 可省略；定语从句的 that 不可省略",
+        "两类从句的 that 都可以省略",
+        "能否省略是判断从句类型的可靠判据"
+      ],
+      "ans": 0,
+      "exp": "同位语从句里的 that 是**连接词**，只起引导作用、不充当任何成分 —— 去掉句子就残缺，所以不可省略（the fact that he lied）。定语从句里的 that 是**关系代词**，要充当主语或宾语 —— 作宾语时可以省略（the assumption (that) he made）。要注意：**省略与否是判据的结果，不是判据本身**；判断类型的唯一可靠依据是从句成分是否齐全（缺宾语=定语从句，成分齐全=同位语从句），拿「能否省略」反推类型容易记反、逻辑也倒置。",
+      "tags": ["语法", "从句", "省略规则"],
+      "traps": ["用「能否省略」当判据（方向容易记反）"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-GRAM-01-04",
+      "q": "关于分词作状语时「逻辑主语」的判定，下列正确的是：",
+      "opts": [
+        "分词短语的逻辑主语必须与主句主语一致；不一致即应为悬垂修饰语，需改写成状语从句或补明主语",
+        "分词的逻辑主语可以是句中的任意名词，不必是主句主语",
+        "只要分词前加了 not 或 never，就不受逻辑主语一致的限制",
+        "分词作状语时其动作发生的时间一定与主句谓语动作同时"
+      ],
+      "ans": 0,
+      "exp": "分词作状语本质是状语从句的缩略，被省略的主语**就是主句主语**：Looking out of the window, I saw a bird.（= When I looked out…，I 看见）. 若主句主语不可能是分词的动作发出者，就成了悬垂修饰语：*Walking down the street, the trees were beautiful. ✗（树不会走）。改法：换成状语从句 When I walked down the street…，或补出逻辑主语 The trees being beautiful…。时间关系上，现在分词多表同时/主动，完成式 having done 表先于谓语发生 —— 并非一律同时。",
+      "tags": ["语法", "非谓语", "悬垂修饰"],
+      "traps": ["忽略逻辑主语一致，被动或物称主句配主动分词"]
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-GRAM-01",
+      "q": "关于主谓一致，下列判断正确的是：",
+      "opts": [
+        "A and B 若被看作一个整体概念或指同一人/同一物，谓语用单数；若指两个独立个体，用复数",
+        "只要出现了 and，谓语一律用复数",
+        "主语后跟 with / as well as / together with 时，谓语与这些短语里的名词保持一致",
+        "either…or / neither…nor 连接两个主语时，谓语一律用复数"
+      ],
+      "ans": 0,
+      "exp": "主谓一致的核心是**语义是否为一个整体**，形式线索（冠词是否重复）只是辅助：bread and butter 指「面包抹黄油」这种食物 → 一个整体 → is；the bread and the butter 指两样东西 → are；the secretary and treasurer 若指同一人身兼二职 → is。另外两条常考规则：① with / as well as / together with / along with 不改变主语数（The teacher, together with the students, is…）；② either…or / neither…nor / not only…but also 遵循**就近原则**，谓语与最近的主语一致。",
+      "tags": ["语法", "主谓一致", "易错点"],
+      "traps": [
+        "把「and ⇒ 复数」当绝对规则",
+        "把 with / as well as 当成并列连词去改谓语数"
+      ]
+    }
+  ]
+}
