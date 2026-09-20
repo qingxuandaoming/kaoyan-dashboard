@@ -62,6 +62,11 @@ tools/408/tmp_*.py
 # ---------- Obsidian Bases（属于笔记库，不属于本工程）----------
 *.base
 
+# ---------- 临时探针脚本 / 输出（我的工作目录，不入库）----------
+tools/_wk_*.py
+tools/_wk_out/
+__pycache__/
+
 # ---------- 系统 / 编辑器垃圾 ----------
 Thumbs.db
 ehthumbs.db

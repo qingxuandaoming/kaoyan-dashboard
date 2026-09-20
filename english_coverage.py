@@ -129,18 +129,27 @@ def english_type_coverage(kaoyan_root, progress_data, review_counts=None):
     partb = _scan(eng, PARTB_KEYS)
 
     # --- 写作：批改记录按题型分开数 ---
+    # ⚠️ 2026-09-20 修：原来用 os.listdir(write_dir) **只看根目录**，而批改记录现在按体裁
+    #    归在 作文/图画作文/ 与 作文/应用文/ 两个子目录里（见 metrics_spec.json 的
+    #    note.layout.rules）→ 大作文/小作文批改数双双变成 0，「写作」覆盖从 3/3 掉到 1/3。
+    #    目录层级是使用习惯、会变；**文件名即判据**才是稳的，所以这里改成递归扫。
+    #    与 gen_english_index.py 的 RULES 保持一致：那三条规则（积累.md / 作文/**/ / *批改记录.md）
+    #    与本段共同定义「写作笔记长什么样」。
     small_essay, big_essay = [], []
     if os.path.isdir(write_dir):
         try:
-            for fn in os.listdir(write_dir):
-                if "批改记录" not in fn or not fn.endswith(".md"):
-                    continue
-                if "应用文" in fn or "小作文" in fn:
-                    small_essay.append(fn)
-                elif any(k in fn for k in ("图画", "大作文", "图表")):
-                    big_essay.append(fn)
-                else:
-                    big_essay.append(fn)   # 未标题型的按大作文计，宁可少判小作文
+            for dirpath, dn, fns in os.walk(write_dir):
+                # 跳过素材目录（图片、附件），只认手写的 md
+                dn[:] = [d for d in dn if d.lower() not in ("assets", "_files", "附图")]
+                for fn in fns:
+                    if "批改记录" not in fn or not fn.endswith(".md"):
+                        continue
+                    if "应用文" in fn or "小作文" in fn:
+                        small_essay.append(fn)
+                    elif any(k in fn for k in ("图画", "大作文", "图表")):
+                        big_essay.append(fn)
+                    else:
+                        big_essay.append(fn)   # 未标题型的按大作文计，宁可少判小作文
         except Exception as exc:
             warn.append(f"写作目录读取失败：{exc}")
     write_accum = os.path.exists(os.path.join(write_dir, "积累.md"))

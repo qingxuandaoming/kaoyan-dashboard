@@ -1,0 +1,815 @@
+{
+  "version": 1,
+  "title": "考研大盘 · 口径注册表",
+  "_doc": [
+    "这是全系统「口径」的单一事实源：什么算一条笔记、什么算覆盖、什么算掌握、",
+    "各类时间窗与阈值、以及哪些值可以在设置页直接改。",
+    "",
+    "消费方（都必须从这里取数，不得各写一份常量）：",
+    "  src/metrics_conf.py            Python 侧的读取层（本文件 + config 表覆盖）",
+    "  generate_dashboard.py          大盘：阈值与时间窗",
+    "  gap_analysis.py                覆盖率与缺口",
+    "  daily_brief.py / daily_planner.py / weekly_flashcard_report.py / daily_tasks.py",
+    "  serve.js / card_policy.js      JS 侧：组题策略与闪卡口径",
+    "  tools/check_metrics_drift.py   自检：把本文件与源码里的实际取值对拍",
+    "",
+    "scope 的三种值：",
+    "  runtime —— 可在「设置 → 📐 口径」当场改，写入 config 表，立即生效（服务端每次请求读）",
+    "  fixed   —— 要改必须改代码；设置页只读展示并显示改哪里（防止误以为能在 UI 改）",
+    "  convention —— 约定/语义，永远不要改（改了会让历史数据失去意义）",
+    "",
+    "editable=true 的项必须同时给出 key（config 表键名）、type 与 range/options，",
+    "serve.js 的 /api/settings 会据此校验；新增可改项时两边一起改（自检脚本会报不一致）。"
+  ],
+  "metrics": [
+    {
+      "id": "review.rating_scale",
+      "title": "闪卡自评语义（1-4）",
+      "scope": "convention",
+      "editable": false,
+      "value": {
+        "1": "忘记(Again)",
+        "2": "模糊(Hard)",
+        "3": "记得(Good)",
+        "4": "简单(Easy)"
+      },
+      "unit": "档",
+      "desc": "rating ≤ 2 视为「这次没答对」。全系统判「会不会」一律以此为准；explain_log 的提问次数**不能**当判据（提问可能只是确认）。",
+      "source": "serve.js /api/flashcards/review；fsrs_core.js",
+      "used_by": [
+        "daily_brief",
+        "generate_dashboard",
+        "card_policy",
+        "weekly_flashcard_report"
+      ],
+      "checks": []
+    },
+    {
+      "id": "review.mature_interval_days",
+      "title": "「已掌握」的间隔阈值",
+      "scope": "fixed",
+      "editable": false,
+      "value": 21,
+      "unit": "天",
+      "desc": "interval_days ≥ 21 且 state=2（复习态）记入「已掌握」桶。闪卡库筛选页与服务端 /facets 桶同源。",
+      "source": "serve.js BUCKETS（约 1505 行）；generate_dashboard.py 第 4910 行注释同口径",
+      "used_by": [
+        "serve.js",
+        "generate_dashboard"
+      ],
+      "checks": [
+        {
+          "file": "serve.js",
+          "regex": "COALESCE\\(c\\.interval_days,\\s*0\\)\\s*>=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int"
+        }
+      ]
+    },
+    {
+      "id": "window.recent_days",
+      "title": "「最近」证据窗（错因/薄弱/隐患）",
+      "scope": "fixed",
+      "editable": false,
+      "value": 14,
+      "unit": "天",
+      "desc": "判「这个考点是不是还在漏分」的窗口。daily_brief 的证据分层、大盘薄弱提醒、缺口三态认定都用它。",
+      "source": "daily_brief.py RECENT_DAYS(86)；generate_dashboard.py(655/799)",
+      "used_by": [
+        "daily_brief",
+        "generate_dashboard",
+        "gap_analysis"
+      ],
+      "checks": [
+        {
+          "file": "daily_brief.py",
+          "regex": "^RECENT_DAYS\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int"
+        }
+      ]
+    },
+    {
+      "id": "window.task_history_days",
+      "title": "任务历史回溯窗",
+      "scope": "fixed",
+      "editable": false,
+      "value": 7,
+      "unit": "天",
+      "desc": "判断「这条线最近被排过几次、是不是已删过」的窗口。daily_brief 的 dont_reissue / warn_repeat 都用它。",
+      "source": "daily_brief.py task_history(days=7)(428)；daily_tasks.py cmd_context --days 默认 7",
+      "used_by": [
+        "daily_brief",
+        "daily_tasks"
+      ],
+      "checks": [
+        {
+          "file": "daily_brief.py",
+          "regex": "def\\s+task_history\\(\\s*conn\\s*,\\s*d\\s*(?::\\s*\\w+)?\\s*,\\s*days\\s*(?::\\s*\\w+)?\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int"
+        }
+      ]
+    },
+    {
+      "id": "window.weekly_report_days",
+      "title": "每周复盘默认窗口",
+      "scope": "runtime",
+      "editable": false,
+      "value": 7,
+      "unit": "天",
+      "desc": "weekly_flashcard_report.py 与 daily_tasks.py explain 的默认 --days。每周任务固定用 7，与 14 天证据窗**刻意不同**：周报看「这一周」，证据窗看「还漏不漏」。",
+      "source": "weekly_flashcard_report.py main()；daily_tasks.py explain --days",
+      "used_by": [
+        "weekly_flashcard_report",
+        "daily_tasks"
+      ]
+    },
+    {
+      "id": "threshold.weak_low_sample",
+      "title": "正确率最小样本量",
+      "scope": "fixed",
+      "editable": false,
+      "value": 5,
+      "unit": "题",
+      "desc": "练习次数少于它时，正确率只当参考并标 low_sample=true，不据此下结论（避免「0/1 = 0% 荒废」那种误判）。",
+      "source": "daily_brief.py WEAK_LOW_SAMPLE(85)；generate_dashboard.py WEAK_LOW_SAMPLE(674)",
+      "used_by": [
+        "daily_brief",
+        "generate_dashboard"
+      ],
+      "checks": [
+        {
+          "file": "daily_brief.py",
+          "regex": "^WEAK_LOW_SAMPLE\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int"
+        },
+        {
+          "file": "generate_dashboard.py",
+          "regex": "^WEAK_LOW_SAMPLE\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int"
+        }
+      ]
+    },
+    {
+      "id": "threshold.err_tier_strong",
+      "title": "P1「已证明会丢分」的入档条件",
+      "scope": "fixed",
+      "editable": false,
+      "value": {
+        "wrong": 2,
+        "again": 1,
+        "asks": 2
+      },
+      "unit": "次（窗口内）",
+      "desc": "近 14 天：错 ≥2 次，或 Again（rating=1）≥1 次，或提问 ≥2 次 —— 满足任一且该考点有载体（有卡或有笔记）即入 P1。",
+      "source": "daily_brief.py build_candidates(790)",
+      "used_by": [
+        "daily_brief"
+      ]
+    },
+    {
+      "id": "threshold.tier_weight_min",
+      "title": "「高权重」门槛",
+      "scope": "fixed",
+      "editable": false,
+      "value": 2,
+      "unit": "exam_weight",
+      "desc": "exam_weight ≥ 2 才算高频考点。P2（零覆盖）与「高权重未出卡」名单都用它；weekly_flashcard_report 第 2 节同理。",
+      "source": "daily_brief.py(792/794/799)；generate_dashboard.py(749)；weekly_flashcard_report.py",
+      "used_by": [
+        "daily_brief",
+        "generate_dashboard",
+        "weekly_flashcard_report",
+        "generate_targeted_cards"
+      ],
+      "checks": []
+    },
+    {
+      "id": "threshold.tier_note_stale",
+      "title": "「笔记陈旧」判定",
+      "scope": "fixed",
+      "editable": false,
+      "value": 5,
+      "unit": "天",
+      "desc": "高权重且笔记 ≥5 天没动 → 列 P3（笔记陈旧的高权重章节）。",
+      "source": "daily_brief.py build_candidates(794)",
+      "used_by": [
+        "daily_brief"
+      ]
+    },
+    {
+      "id": "threshold.repeat_name_similarity",
+      "title": "任务重复检测相似度",
+      "scope": "fixed",
+      "editable": false,
+      "value": 0.62,
+      "unit": "覆盖率（0~1）",
+      "desc": "用「考点名被任务文本覆盖的比例 + 名字头尾都要出现」判重，**不用对称 Dice**（长任务文本会把 Dice 稀释到阈值以下，正是 #33→#58 漏重复的机制）。",
+      "source": "daily_brief.py repeats_for(threshold=0.62)(454)",
+      "used_by": [
+        "daily_brief"
+      ],
+      "checks": [
+        {
+          "file": "daily_brief.py",
+          "regex": "def repeats_for\\(.*?threshold=([\\d.]+)",
+          "capture": 1,
+          "kind": "float"
+        }
+      ]
+    },
+    {
+      "id": "threshold.dont_reissue_min",
+      "title": "禁止重排的触发次数",
+      "scope": "fixed",
+      "editable": false,
+      "value": 2,
+      "unit": "次",
+      "desc": "近 7 天同一条线「未完成 ≥2 次」→ dont_reissue（不许原样重排）；「重复出现 ≥2 次」→ warn_repeat。",
+      "source": "daily_brief.py build_candidates(819/820)",
+      "used_by": [
+        "daily_brief"
+      ]
+    },
+    {
+      "id": "note.layout.rules",
+      "title": "笔记目录 → 考点前缀映射表（英语）",
+      "scope": "fixed",
+      "editable": false,
+      "value": "见 tools/gen_english_index.py 的 RULES 表（顺序敏感，先匹配到的规则胜出）",
+      "unit": "",
+      "desc": "决定哪些 md 算「系统性笔记」。刻意不收 595 篇自动生成的辨析小卡/词图——否则英语词汇 4 格直接跳满 100%，掩盖还没背完的事实。⚠️ ①目录名必须与磁盘逐字一致（曾有 translation&write vs translation&writing，导致写作恒为 0 篇）；②章号必须落在图谱真有的章上（英语写作只有 01 小作文/02 大作文/03 积累与批改，翻译只有 ENG-TRAN-01 一个）。两条都由 tools/check_metrics_drift.py 的 path_prefix 自检守着。",
+      "source": "tools/gen_english_index.py RULES(54~76)",
+      "used_by": [
+        "gen_english_index"
+      ],
+      "checks": [
+        {
+          "file": "tools/gen_english_index.py",
+          "regex": "\\(\\\"(translation&[^\\\"]+?|reading&[^\\\"]+?|word&phrase/[^\\\"]+?|grammar/[^\\\"]+?|past-papers/[^\\\"]+?)\\\"",
+          "capture": 1,
+          "kind": "path_prefix"
+        }
+      ],
+      "known_bug": "2026-09-20 体检发现两处：目录名 translation&write 失配（写作恒 0 篇）；翻译/写作的章号指向图谱不存在的章（WARN: ENG-TRAN 第[2]章越界）。均已修。"
+    },
+    {
+      "id": "note.assets_rule",
+      "title": "笔记图片的相对路径规则",
+      "scope": "convention",
+      "editable": false,
+      "value": "md 里的 ![](assets/xxx.png) 一律按「md 所在目录」解析 → 挪动 md 必须把它的 assets/ 一起挪到同一层",
+      "unit": "",
+      "desc": "大盘笔记阅读器与 PDF 导出同此规则（embed_images.resolve_image_path / generate_pdf）。2026-09-20 把批改记录归入 作文/图画作文/ 与 作文/应用文/ 时忘了搬图，test_note_render 第 7 节（全库扫图）立刻报出 12 张断图 —— 那一条用例就是守这个的。新建带图的笔记时，把 md 与 assets/ 放在同一层。",
+      "source": "embed_images.py resolve_image_path(48)；tools/test_note_render.js 第 7 节",
+      "used_by": ["generate_dashboard", "generate_pdf", "embed_images"]
+    },
+    {
+      "id": "note.chapter_matching",
+      "title": "笔记章号 ↔ 考点章号的对齐规则",
+      "scope": "convention",
+      "editable": false,
+      "value": "优先用考点上的 note_chapter；没有该键则回退到 chapter。显式 note_chapter: null 表示该考点没有对应笔记（永不匹配、一直显示为缺口）。",
+      "unit": "",
+      "desc": "数学考点按张宇「讲」建（高数18/线代9/概率9），笔记按「章」写（8/6/6），一章对多讲，所以必须走这个桥。408/政治/英语的 chapter 本身就是教材章号，直接可用。",
+      "source": "note_prefix.py topic_note_chapter(76)",
+      "used_by": [
+        "gap_analysis",
+        "generate_dashboard",
+        "daily_planner"
+      ]
+    },
+    {
+      "id": "note.prefix_alias",
+      "title": "笔记条目 ID → 图谱前缀（别名表）",
+      "scope": "convention",
+      "editable": false,
+      "value": {
+        "政治短编号": {
+          "MY": "POL-MY",
+          "MZT": "POL-MZ",
+          "SG": "POL-SG",
+          "XSX": "POL-XX",
+          "思修": "POL-SX"
+        },
+        "英语历史前缀": {
+          "ENG-TRN": "ENG-TRAN"
+        },
+        "跨科目专题（不计入任何章节）": [
+          "ZT",
+          "QT"
+        ]
+      },
+      "unit": "",
+      "desc": "政治一个科三套编号（拼音缩写/中文），必须查表。曾经两个脚本各存一份表 → 习思想 7 篇被挂到思修名下。",
+      "source": "note_prefix.py NOTE_PREFIX_ALIAS(27) / EN_PREFIX_ALIAS(38) / CROSS_SUBJECT_PREFIXES(44)",
+      "used_by": [
+        "gap_analysis",
+        "generate_dashboard",
+        "daily_brief",
+        "daily_planner"
+      ]
+    },
+    {
+      "id": "note.level_rules",
+      "title": "笔记级别 L1/L2/L3 判定",
+      "scope": "convention",
+      "editable": false,
+      "value": {
+        "L3": "错题 / 真题 / 证明题 / 综合题",
+        "L2": "概念辨析 / 题型通法 / 易混淆点",
+        "L1": "单一公式 / 简单技巧 / 基础概念"
+      },
+      "unit": "",
+      "desc": "在 notes_index.json 里手写 level，build_index.py 只做统计不推断。英语条目由脚本统一写成 L2。",
+      "source": "各科 notes_index.json 的 level 字段；build_index.py compute_stats(321)",
+      "used_by": [
+        "build_index",
+        "generate_dashboard"
+      ]
+    },
+    {
+      "id": "note.organized_rule",
+      "title": "「已整理」与笔记覆盖率",
+      "scope": "convention",
+      "editable": false,
+      "value": "status == '已整理' 计入 organized；笔记覆盖率 = organized / total（各科各自算）",
+      "unit": "%",
+      "desc": "⚠️ 这是「笔记整理度」，**不是**「考点覆盖率」。后者看 gap_analysis 的覆盖率口径。两个数都叫「覆盖率」是历史遗留，展示时必须带前缀。",
+      "source": "build_index.py compute_stats(321~357)",
+      "used_by": [
+        "build_index",
+        "generate_dashboard"
+      ]
+    },
+    {
+      "id": "coverage.topic_rule",
+      "title": "考点覆盖率（笔记层）",
+      "scope": "convention",
+      "editable": false,
+      "value": "考点的匹配章号在该前缀的笔记章号集合里 → covered（note_count = 该章笔记数）",
+      "unit": "",
+      "desc": "只做前缀 + 章号匹配，不看笔记内容强弱。跨科目专题（ZT/QT）不参与统计。",
+      "source": "gap_analysis.py analyze_graph(287) + build_note_lookup(258)",
+      "used_by": [
+        "gap_analysis",
+        "daily_planner"
+      ]
+    },
+    {
+      "id": "coverage.overlay_order",
+      "title": "覆盖率的叠加层与优先级",
+      "scope": "convention",
+      "editable": false,
+      "value": [
+        "1. 笔记层：前缀 + 章号匹配（coverage_source 缺省）",
+        "2. 进度层：progress.json 的 course/exercises = 100% → 该子科全部标 covered（source='progress'，仅政治/英语）",
+        "3. 题型证据层：english_coverage.py 按题型证据文件判定（英语专用）"
+      ],
+      "unit": "",
+      "desc": "三层叠加后才得到大盘/报告里那个「覆盖率」。报数时必须说明是第几层，否则「写作 3/3」与「[WRITE] 0 entries」会看起来互相打架。",
+      "source": "gap_analysis.py apply_politics_overlay(381) / apply_english_overlay(474)",
+      "used_by": [
+        "gap_analysis",
+        "generate_dashboard",
+        "daily_planner"
+      ]
+    },
+    {
+      "id": "coverage.gap_priority",
+      "title": "缺口优先级公式",
+      "scope": "convention",
+      "editable": false,
+      "value": "priority = exam_weight × prereq_multiplier × freq_boost；prereq_multiplier = 前置全满足 ? 1.0 : 0.5；freq_boost = 1 + min(真题次数 × 0.1, 0.5)",
+      "unit": "",
+      "desc": "越靠前的缺口越该先补。前置未满足的会被打折，所以「树和二叉树 16.5」排在「图 6.0」前面。",
+      "source": "gap_analysis.py compute_gap_priority(339~359)",
+      "used_by": [
+        "gap_analysis",
+        "daily_planner"
+      ]
+    },
+    {
+      "id": "mastery.three_state",
+      "title": "缺口三态（是否算「已掌握」）",
+      "scope": "convention",
+      "editable": false,
+      "value": [
+        "有笔记 → 正常",
+        "无笔记但有闪卡答对过且近 14 天无错 → 已验证掌握，不再提醒",
+        "其余 → 真缺口"
+      ],
+      "unit": "",
+      "desc": "避免把「内容简单、他答对了所以没写笔记」的考点误报成缺口。",
+      "source": "generate_dashboard.py(1169 附近) + WEAK_LOW_SAMPLE",
+      "used_by": [
+        "generate_dashboard",
+        "gap_analysis"
+      ]
+    },
+    {
+      "id": "mastery.brief_deck_rule",
+      "title": "简报里的「今日真实到期张数」",
+      "scope": "convention",
+      "editable": false,
+      "value": "镜像 card_policy 的退役/降权/豁免规则：钉住永远进、问过不降权、连对达阈值退役；问过之后又连对 ask_exit_streak 次 → 身份作废",
+      "unit": "",
+      "desc": "⚠️ 改 card_policy 的阈值时必须同时改 daily_brief，否则简报写「今日到期 448」而他打开只看到 430，会以为卡丢了。",
+      "source": "daily_brief.py deck_due(591)；card_policy.js",
+      "used_by": [
+        "daily_brief",
+        "card_policy"
+      ]
+    },
+    {
+      "id": "note.revival_thresholds",
+      "title": "笔记新鲜度分档（盘活用）",
+      "scope": "fixed",
+      "editable": false,
+      "value": {
+        "hot": 7,
+        "warm": 21,
+        "cold": 60
+      },
+      "unit": "天",
+      "desc": "≤7 天=热（活跃）、≤21=温、≤60=冷（需盘活）、>60=冻结。",
+      "source": "generate_dashboard.py FRESH_HOT/FRESH_WARM/FRESH_COLD(872~874)",
+      "used_by": [
+        "generate_dashboard",
+        "daily_brief"
+      ],
+      "checks": [
+        {
+          "file": "generate_dashboard.py",
+          "regex": "^FRESH_HOT\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int",
+          "at": "hot"
+        },
+        {
+          "file": "generate_dashboard.py",
+          "regex": "^FRESH_WARM\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int",
+          "at": "warm"
+        },
+        {
+          "file": "generate_dashboard.py",
+          "regex": "^FRESH_COLD\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int",
+          "at": "cold"
+        }
+      ]
+    },
+    {
+      "id": "srs.retire_streak",
+      "title": "连对退役阈值（组题策略 R-streak）",
+      "scope": "runtime",
+      "editable": true,
+      "key": "smart_retire_streak",
+      "type": "int",
+      "range": [
+        0,
+        20
+      ],
+      "default": 3,
+      "unit": "次",
+      "desc": "连续答对且**没有提问过**的卡，连对达到它就移出智能组（筛选页仍可见）。0 = 关掉该档。只作用于智能组/extra，browse 与点名组不受影响。",
+      "source": "card_policy.js DEFAULT_RETIRE_STREAK(45)；serve.js(1607)",
+      "used_by": [
+        "card_policy",
+        "serve.js",
+        "daily_brief"
+      ],
+      "checks": [
+        {
+          "file": "card_policy.js",
+          "regex": "DEFAULT_RETIRE_STREAK\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int"
+        }
+      ]
+    },
+    {
+      "id": "srs.demote_streak",
+      "title": "连对降权阈值（R-streak）",
+      "scope": "runtime",
+      "editable": true,
+      "key": "smart_demote_streak",
+      "type": "int",
+      "range": [
+        0,
+        20
+      ],
+      "default": 2,
+      "unit": "次",
+      "desc": "连对达到它 → 降权（仍留在智能组，排后面）。⚠️ 降权档必须排在 due 之前判定，否则「连对两次就降」永远不生效。",
+      "source": "card_policy.js DEFAULT_DEMOTE_STREAK(46)；serve.js(1608)",
+      "used_by": [
+        "card_policy",
+        "serve.js"
+      ],
+      "checks": [
+        {
+          "file": "card_policy.js",
+          "regex": "DEFAULT_DEMOTE_STREAK\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int"
+        }
+      ]
+    },
+    {
+      "id": "srs.ask_exit_streak",
+      "title": "「问过」身份的出口阈值（R-ask-exit）",
+      "scope": "runtime",
+      "editable": true,
+      "key": "smart_ask_exit_streak",
+      "type": "int",
+      "range": [
+        0,
+        20
+      ],
+      "default": 3,
+      "unit": "次",
+      "desc": "对 AI 提过问的卡不降权、不退役；但**提问之后**又连续答对这么多次，就按普通卡走连对规则。必须限定「提问之后」——提问之前的连对不算。0 = 退回「永久豁免」的旧行为。",
+      "source": "card_policy.js DEFAULT_ASK_EXIT_STREAK(47)；serve.js(1611)",
+      "used_by": [
+        "card_policy",
+        "serve.js",
+        "daily_brief"
+      ],
+      "checks": [
+        {
+          "file": "card_policy.js",
+          "regex": "DEFAULT_ASK_EXIT_STREAK\\s*=\\s*(\\d+)",
+          "capture": 1,
+          "kind": "int"
+        }
+      ]
+    },
+    {
+      "id": "quota.new_per_day",
+      "title": "每日新卡额度",
+      "scope": "runtime",
+      "editable": true,
+      "key": "new_per_day",
+      "type": "int",
+      "range": [
+        0,
+        500
+      ],
+      "default": 30,
+      "unit": "张",
+      "desc": "智能组每天最多推的新卡数。0 是合法需求（今天不想被推新卡）。",
+      "source": "serve.js RANGES(4319)",
+      "used_by": [
+        "serve.js",
+        "generate_dashboard"
+      ],
+      "checks": [
+        {
+          "file": "serve.js",
+          "regex": "new_per_day:\\s*\\[0,\\s*(\\d+)\\]",
+          "capture": 1,
+          "kind": "int",
+          "at": "range_hi"
+        }
+      ]
+    },
+    {
+      "id": "quota.reviews_per_day",
+      "title": "每日复习额度",
+      "scope": "runtime",
+      "editable": true,
+      "key": "reviews_per_day",
+      "type": "int",
+      "range": [
+        0,
+        2000
+      ],
+      "default": 50,
+      "unit": "张",
+      "desc": "智能组每天最多推的到期复习卡数。",
+      "source": "serve.js RANGES(4319)",
+      "used_by": [
+        "serve.js",
+        "generate_dashboard"
+      ],
+      "checks": [
+        {
+          "file": "serve.js",
+          "regex": "reviews_per_day:\\s*\\[0,\\s*(\\d+)\\]",
+          "capture": 1,
+          "kind": "int",
+          "at": "range_hi"
+        }
+      ]
+    },
+    {
+      "id": "quota.flash_extra_count",
+      "title": "「再来 N 张」的张数",
+      "scope": "runtime",
+      "editable": true,
+      "key": "flash_extra_count",
+      "type": "int",
+      "range": [
+        1,
+        100
+      ],
+      "default": 10,
+      "unit": "张",
+      "desc": "今日额度刷完后点「🔁 再来 N 张」时的张数（mode=extra，不受每日额度限制，但仍按薄弱>到期>学习>新卡排序）。",
+      "source": "serve.js(1578/4246)；card_policy.js",
+      "used_by": [
+        "serve.js",
+        "generate_dashboard"
+      ],
+      "checks": [
+        {
+          "file": "serve.js",
+          "regex": "flash_extra_count:\\s*\\[1,\\s*(\\d+)\\]",
+          "capture": 1,
+          "kind": "int",
+          "at": "range_hi"
+        }
+      ]
+    },
+    {
+      "id": "srs.desired_retention",
+      "title": "FSRS 目标记忆保持率",
+      "scope": "runtime",
+      "editable": false,
+      "key": "desired_retention",
+      "default": "0.85",
+      "unit": "",
+      "desc": "FSRS 调度参数。值在 config 表里，目前**没有设置页入口**；要调直接在「设置 → 📐 口径」改（本项 editable=false 只是表示暂无专用控件）。",
+      "source": "config 表；fsrs_core.js",
+      "used_by": [
+        "fsrs_core",
+        "fsrs_scheduler"
+      ]
+    },
+    {
+      "id": "plan.phases",
+      "title": "备考阶段与时长",
+      "scope": "fixed",
+      "editable": false,
+      "value": {
+        "基础期": {
+          "start": "2026-07-11",
+          "end": "2026-09-19",
+          "hours": [
+            8,
+            10
+          ],
+          "new_review": [
+            80,
+            20
+          ]
+        },
+        "强化期": {
+          "start": "2026-09-20",
+          "end": "2026-11-19",
+          "hours": [
+            10,
+            12
+          ],
+          "new_review": [
+            50,
+            50
+          ]
+        },
+        "冲刺期": {
+          "start": "2026-11-20",
+          "end": "2026-12-12",
+          "hours": [
+            10,
+            12
+          ],
+          "new_review": [
+            20,
+            80
+          ]
+        },
+        "减量期": {
+          "start": "2026-12-13",
+          "end": "2026-12-18",
+          "hours": [
+            8,
+            3
+          ],
+          "new_review": [
+            10,
+            90
+          ]
+        }
+      },
+      "unit": "小时/天",
+      "desc": "hours = (下限, 上限)；new_review = 新学/复习的时间配比。计划器按当前日期落段。",
+      "source": "daily_planner.py PHASES(80~85)",
+      "used_by": [
+        "daily_planner",
+        "daily_brief"
+      ]
+    },
+    {
+      "id": "plan.exam_date",
+      "title": "考试日期",
+      "scope": "fixed",
+      "editable": false,
+      "value": "2026-12-19",
+      "unit": "",
+      "desc": "倒计时与阶段判定的基准。",
+      "source": "daily_planner.py EXAM_DATE",
+      "used_by": [
+        "daily_planner",
+        "generate_dashboard"
+      ],
+      "checks": [
+        {
+          "file": "daily_planner.py",
+          "regex": "^EXAM_DATE\\s*=\\s*date\\((\\d+),\\s*(\\d+),\\s*(\\d+)\\)",
+          "capture_group": "date",
+          "kind": "iso_date"
+        }
+      ]
+    },
+    {
+      "id": "plan.max_ratio",
+      "title": "各科时间上限占比",
+      "scope": "runtime",
+      "editable": false,
+      "value": {
+        "408": 0.35,
+        "数学一": 0.4,
+        "政治": 0.3,
+        "英语一": 0.2
+      },
+      "unit": "占比",
+      "desc": "防止某一科吃掉整天。实际取自 subjects.json 每科的 max_ratio（改学科配置就改了这里）。",
+      "source": "subjects.json → subjects_conf.subject_max_ratio()",
+      "used_by": [
+        "daily_planner"
+      ]
+    },
+    {
+      "id": "progress.json_semantics",
+      "title": "progress.json 的字段语义（同步进度的唯一入口）",
+      "scope": "convention",
+      "editable": false,
+      "value": {
+        "updated": "最后同步日期（>3 天未更新 → 管道警告，计划与大盘会失真）",
+        "subjects.<科>.subs.<子科>.progress": "0~1，一轮/强化完成度",
+        "subjects.<科>.subs.<子科>.chapters_completed": "已完成章号数组（408 用）",
+        "subjects.数学.subs.<子科>.lectures_completed": "已完成讲数（数学用，分母 total_lectures_est）",
+        "subjects.政治.course / .exercises": "各模块 0~1，两者都到 1.0 才叠满覆盖层",
+        "subjects.英语.*": "vocabulary_size / phrases_learned / zhenti_phase 等，供 english_coverage 参考"
+      },
+      "unit": "",
+      "desc": "⚠️ 这是**你自报的进度**，与「笔记覆盖」「闪卡正确率」是三条独立证据，谁都不替代谁。同步进度走 kaoyan-progress-sync（改这个文件后重跑 gap_analysis / daily_planner / generate_dashboard）。",
+      "source": "src/progress.json；gap_analysis.apply_politics_overlay / apply_english_overlay",
+      "used_by": [
+        "gap_analysis",
+        "daily_planner",
+        "generate_dashboard"
+      ]
+    },
+    {
+      "id": "task.status_semantics",
+      "title": "每日任务的状态语义",
+      "scope": "convention",
+      "editable": false,
+      "value": {
+        "done=1": "已完成",
+        "deleted=1": "用户删除 → 记为「明确拒绝过」，进 dont_reissue 判定",
+        "source=agent": "AI 生成（可被下次生成覆盖）",
+        "source=user": "用户自己写"
+      },
+      "unit": "",
+      "desc": "「被删掉」比「没完成」更强的否定信号：连续被删的线不许原样重排。",
+      "source": "daily_tasks.py recent_actions(114) / cmd_context(213)",
+      "used_by": [
+        "daily_tasks",
+        "daily_brief",
+        "daily_planner"
+      ]
+    },
+    {
+      "id": "report.section9_source",
+      "title": "周报第 9 节（复盘错因）的数据源",
+      "scope": "fixed",
+      "editable": false,
+      "value": "Review/_patterns.json ← build_review_patterns.py ← Review/<科>/sessions/*/errors.json（**复盘页手写的错因**）",
+      "unit": "",
+      "desc": "⚠️ 不读 explain_log、不读 review_log。所以只要你没在复盘页记错因，周报第 9 节就恒为空、card_suggestions 恒为 0 条。补卡时不要把它当「最高优先级来源」，要改用 daily_tasks.py explain 的 wrong_by_topic/chosen。",
+      "source": "weekly_flashcard_report.py load_collectors；build_review_patterns.py",
+      "used_by": [
+        "weekly_flashcard_report"
+      ]
+    }
+  ]
+}

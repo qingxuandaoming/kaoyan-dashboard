@@ -185,6 +185,10 @@ KEYS_JS = '''
           label: "撤销上一次评分",
           desc: "任何阶段都能按，回到上一张重新作答",
           spec: "u" },
+        { id: "flash.pin", group: "闪卡练习区", scope: "flash",
+          label: "📌 钉住 / 取消钉住这张卡",
+          desc: "这道题我想留着。钉住的卡永远排在智能组前面，也不会因为「连对几次」被收起来",
+          spec: "p" },
         { id: "flash.full", group: "闪卡练习区", scope: "flash",
           label: "全屏练习",
           desc: "练习区铺满屏幕，再按一次退出",
@@ -732,12 +736,20 @@ def load_weak_topics() -> dict:
         pass
 
     # 2) 高分考点但尚未出卡（提醒针对性生成）
+    #    ⚠️ 两个坑都会让这份清单**静默为空**（看着像"全都出过卡了"）：
+    #    ① `t.id NOT IN (SELECT DISTINCT topic_id FROM questions)` 被 13 条 topic_id
+    #       为空的题污染——`x NOT IN (…NULL…)` 是 NULL 不是 true → 结果集清空。
+    #    ② 题目同时打在父考点与子考点上（父级 398 / 叶子 179），只比 t.id 会把
+    #       「树和二叉树」（子考点已有 10 题）误判成零覆盖 → 出卡任务重复造卡。
+    #    改用 NULL 安全且认子考点的 NOT EXISTS，并只取图谱粒度（三段）的考点。
     try:
         rows = c.execute("""
             SELECT t.id, t.name, t.subject, t.exam_weight
             FROM topics t
             WHERE t.exam_weight >= 2
-              AND t.id NOT IN (SELECT DISTINCT topic_id FROM questions)
+              AND (length(t.id) - length(replace(t.id, '-', ''))) = 2
+              AND NOT EXISTS (SELECT 1 FROM questions q
+                              WHERE q.topic_id = t.id OR q.topic_id LIKE t.id || '-%')
             ORDER BY t.exam_weight DESC
             LIMIT 5
         """).fetchall()
@@ -1400,6 +1412,18 @@ FLASH_CSS = '''
         .fs-badge.weak { background: rgba(var(--zhusha-rgb),.15); color: var(--zhusha-lt); border-color: rgba(var(--zhusha-rgb),.4); }
         .fs-badge.due { background: rgba(var(--xiang-rgb),.15); color: var(--xiang-lt); border-color: rgba(var(--xiang-rgb),.4); }
         .fs-badge.recent { background: rgba(var(--zhuqing-rgb),.15); color: var(--zhuqing-lt); border-color: rgba(var(--zhuqing-rgb),.4); }
+        /* 本地卡组（早间回顾）：头部只有一个「出处」徽标，没有额度条 */
+        .fs-badge.local { background: rgba(var(--dianqing-rgb),.15); color: var(--dianqing-lt); border-color: rgba(var(--dianqing-rgb),.4); }
+        .fs-local-title { margin-left: auto; }
+        /* 翻卡后的「原文」：正文是原样插入的 HTML（可能带 <p>/<ul>/<strong>），
+           所以这里只给排版容器，不设字号覆盖（表格/列表要能正常显示）。 */
+        .fs-local-back { border-left-color: var(--dianqing); }
+        .fs-local-back p:first-child { margin-top: 0; }
+        .fs-local-back .mr-concl { margin-top: 10px; }
+        .fs-local-sec { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px; }
+        .fs-local-finish { margin-top: 14px; padding: 10px 13px; border-radius: var(--border-radius);
+            font-size: 0.82rem; line-height: 1.8; color: var(--dianqing-lt);
+            background: rgba(var(--dianqing-rgb),.1); }
         .fs-topic { font-size: 0.75rem; color: var(--text-muted); }
         .fs-topic-btn { font: inherit; font-size: 0.75rem; cursor: pointer; padding: 0 2px; background: none;
                         border: none; border-bottom: 1px dashed var(--border-color); color: var(--text-secondary); }
@@ -1510,6 +1534,26 @@ FLASH_CSS = '''
             line-height: 1.6; }
         .fs-report-item b { color: var(--accent-orange); }
         .fs-report-item .fs-report-stem { color: var(--text-muted); }
+        /* --- 📌 钉住（2026-09-19 用户要求）---
+           「就算我对的那些题，如果我对 AI 有过追问，那可以给我一个 pin 的键，我可以把它钉在
+            那个卡的位置，下次我看到它的时候，我可以再看看它。」
+           与 ⚑（题目有问题，橘）和 🗑（删卡，朱砂）刻意用不同的颜色：金色 = 「留着它」，
+           不是告警也不是否定。 */
+        .fs-pin { font-size: 0.72rem; padding: 5px 12px; opacity: .7;
+            border-color: var(--accent-gold, #c8a24a); color: var(--accent-gold, #c8a24a); }
+        .fs-pin:hover { opacity: 1; background: rgba(200,162,74,.12); }
+        .fs-pin.on { opacity: 1; background: rgba(200,162,74,.16); }
+        .fs-pin-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+            background: rgba(200,162,74,.15); color: var(--accent-gold, #c8a24a);
+            border: 1px solid rgba(200,162,74,.45); }
+        .fs-ask-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+            background: rgba(127,168,217,.15); color: var(--accent-blue-lt, #7fa8d9);
+            border: 1px solid rgba(127,168,217,.4); }
+        .fs-policy-hint { font-size: 0.72rem; color: var(--text-muted); margin: 0 0 10px;
+            line-height: 1.55; }
+        .fs-pin-note { margin: 0 0 12px; padding: 8px 12px; font-size: 0.78rem;
+            border-left: 3px solid var(--accent-gold, #c8a24a); border-radius: 4px;
+            background: rgba(200,162,74,.08); color: var(--text-secondary); line-height: 1.6; }
         .fs-toast { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); background: rgba(var(--mo-rgb),.96); color: var(--xuan); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 8px 18px; font-size: 0.82rem; z-index: 9999; }
         .fs-stats-panel { margin-bottom: 12px; }
         .fs-stats-panel:empty { display: none; }
@@ -1881,6 +1925,32 @@ FLASH_JS = '''
         return !!c && ((c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9"));
     }
     function isDigit(c) { return !!c && c >= "0" && c <= "9"; }
+    /**
+     * 单词式上下标能吃的**单个字符**：字母数字，外加希腊字母。
+     *
+     * ⚠️ 2026-09-22 补希腊字母：早间回顾里的 `(1+x)^α` 因为 α 不是 ASCII 字母数字，
+     *    整个 `^α` 原样漏出，页面上就是「(1+x)^α」带一个裸露的尖号（用户截图）。
+     *    模型/agent 写 α β γ 这类记号很常见，认下来比让它们漏出来强。
+     */
+    function isScriptUnit(c) {
+        if (isAlnum(c)) return true;
+        if (!c) return false;
+        const n = c.charCodeAt(0);
+        return n >= 0x0391 && n <= 0x03c9;      // 希腊字母：Α(0391) … ω(03c9)
+    }
+    /**
+     * Unicode 上下标字符（`²` `ₙ` `ⁿ` 这类）。
+     *
+     * `e^uₙ` 里 `uₙ` 是**一个**上标：只吃 1 个字符会得到 `e^(u)ₙ` —— 下标挂到外面，
+     * 意思直接错了（早间回顾的真实语料里就有这一条）。所以单词式后面若有这些字符，
+     * 一起收进来。
+     */
+    function isUniScript(c) {
+        if (!c) return false;
+        const n = c.charCodeAt(0);
+        return (n >= 0x2070 && n <= 0x209c)                 // 上标区 2070-207F + 下标区 2080-209C
+            || n === 0x00b2 || n === 0x00b3 || n === 0x00b9;   // ² ³ ¹（在 Latin-1 里）
+    }
     function isCJK(c) {
         if (!c) return false;
         const n = c.charCodeAt(0);
@@ -1923,10 +1993,14 @@ FLASH_JS = '''
             if (!body || body.indexOf(AS_BS) >= 0) return null;   // LaTeX 命令残段，不插手
             return { body: body, next: k + 1 };
         }
-        // 单词式：只吃 1 个字符，后面不能还跟着字母数字或下划线
+        // 单词式：只吃 1 个字符，后面不能还跟着字母数字/希腊字母或下划线
         const after = src.charAt(j + 1);
-        if (isAlnum(open) && !isAlnum(after) && after !== "_") {
-            return { body: open, next: j + 1 };
+        if (isScriptUnit(open) && !isScriptUnit(after) && after !== "_") {
+            // 紧跟的 Unicode 上下标一起收：e^uₙ 的 uₙ 是一个整体（只吃 1 个字符会
+            // 变成 e^(u)ₙ，下标挂到外面，意思就错了）
+            let k = j + 1, body = open;
+            while (isUniScript(src.charAt(k))) { body += src.charAt(k); k++; }
+            return { body: body, next: k };
         }
         return null;
     }
@@ -1950,6 +2024,36 @@ FLASH_JS = '''
             i++;
         }
         return out;
+    }
+
+    /**
+     * 只对 **HTML 标签之外**的文本段做上下标，标签原样保留。
+     *
+     * 【为什么单独一版】早间回顾（`morning_review.json`）的正文本来就是 HTML 片段
+     * （`<strong>` / `<code>` / `<span class="hl-red">`），整段丢给 `richText` 会先转义、
+     * 把标签变成可见源码；可它的字段里又确实有 `2^n`、`(−1)^{n−1}`、`(1+x)^α`
+     * 这类写法（数据自己的习惯是 Unicode 上下标，写漏了就漏出来了）。
+     * 于是：按标签切开，只把中间的文本交给 asciiMath。
+     *
+     * ⚠️ 标签**不参与**替换，所以属性里出现 `_` / `^` 也不会被啃（`class="hl-red"` 之类）。
+     * ⚠️ `<code>` / `<pre>` 的**内容**也跳过：与笔记/闪卡那边「代码里的 _ ^ 不当上下标」
+     *    同一条规矩（否则 `lim_{x→0}` 这种写在代码里的记号会被啃一半，两边不一致）。
+     */
+    function asciiMathHtml(html) {
+        const s = html == null ? "" : String(html);
+        if (s.indexOf("_") < 0 && s.indexOf("^") < 0) return s;   // 绝大多数条目直接跳过
+        let codeDepth = 0;
+        return s.split(/(<[^>]*>)/).map(function (seg, i) {
+            if (i % 2 === 1) {                                    // 奇数项是标签本身
+                const t = seg.toLowerCase();
+                if (t.slice(0, 5) === "<code" || t.slice(0, 4) === "<pre") codeDepth++;
+                else if (t.slice(0, 7) === "</code>" || t.slice(0, 6) === "</pre>") {
+                    codeDepth = Math.max(0, codeDepth - 1);
+                }
+                return seg;
+            }
+            return codeDepth ? seg : asciiMath(seg);
+        }).join("");
     }
 
     function richText(s) {
@@ -2041,10 +2145,16 @@ FLASH_JS = '''
     // 到正则手里变成 [sS]（只匹配 s/S），`$$..$$` 就再也匹配不上了。
     const TEX_ANY = "[" + TEX_BS + "s" + TEX_BS + "S]";
     const TEX_OP_TXT = TEX_BS + "(";
+    // ⚠️ 行内 `\(..\)` 的内容**不能**写成 `[^)]*?`（那是「除右括号外的任意字符」）：
+    //    模型写的 `\(P(x)Q(y)\)`、`\(F(x,y)\)` 里本来就有圆括号，于是整个匹配失败，
+    //    定界符连同 `\frac` 一起原样摊在正文里（2026-09-22 用 explain_log 全量语料
+    //    跑真浏览器探针抓出来：51 条回复里 10 条中招）。
+    //    改成「本行内任意字符、惰性到第一个 `\)`」：里面有多少括号都无所谓，
+    //    真正的收尾符是两字符的 `\)`，不会跟内容里的 `)` 混。
     const TEX_DELIM = new RegExp("(" + TEX_D + TEX_D + TEX_ANY + "+?" + TEX_D + TEX_D
         + "|" + TEX_OB + TEX_ANY + "+?" + TEX_CB
         + "|" + TEX_D + "[^$" + TEX_NL + "]+?" + TEX_D
-        + "|" + TEX_OP + "[^)]*?" + TEX_CP + ")", "g");
+        + "|" + TEX_OP + "[^" + TEX_NL + "]*?" + TEX_CP + ")", "g");
     /**
      * 把原文里的公式**换成占位符**，其余原样返回（笔记渲染器用：先把公式抠出来，
      * 免得后面按行处理 Markdown 时把 `$$...$$` 拆坏）。
@@ -2090,6 +2200,18 @@ FLASH_JS = '''
     // 登记待渲染元素：texWrap 返回带 data-texid 的容器，KaTeX 就绪后原地重渲染
     let texSeq = 0;
     const texStore = new Map();
+    /**
+     * 登记一个「KaTeX 就绪后原地重渲染」的容器，返回要写进 data-texid 的编号。
+     *
+     * texWrap 登记的是**原文**（重渲染时再切一次公式，走 richText）；
+     * AI 回复（mdTex）登记的是**函数** —— 它得连 Markdown 一起重渲染，
+     * 退回 richText 会把标题/表格/粗体全丢掉。两种值 flushMath 都认。
+     */
+    function registerTex(rerender) {
+        const id = ++texSeq;
+        texStore.set(id, rerender);
+        return id;
+    }
     function texWrap(raw) {
         const id = ++texSeq;
         texStore.set(id, raw == null ? "" : String(raw));
@@ -2101,7 +2223,9 @@ FLASH_JS = '''
         if (!window.katex) return;
         document.querySelectorAll("[data-texid]").forEach(el => {
             const raw = texStore.get(+el.getAttribute("data-texid"));
-            if (raw != null) el.innerHTML = richText(raw);
+            if (raw == null) return;
+            // 登记值可能是字符串（richText 那条路）或函数（mdTex：整块连 Markdown 一起重渲染）
+            el.innerHTML = typeof raw === "function" ? raw() : richText(raw);
         });
     }
 
@@ -2111,6 +2235,8 @@ FLASH_JS = '''
     window.texWrap = texWrap;
     window.resetTexStore = resetTexStore;
     window.flushMath = flushMath;
+    // mdTex（AI 回复渲染器，在另一个 IIFE 里）要把整块登记进来，供 KaTeX 就绪后重渲染
+    window.registerTex = registerTex;
     // escHtml 也要导出：闪卡区新增的 mdTex（Markdown+LaTeX 子集渲染）在另一个
     // IIFE 里，需要它做转义。原先只导出了 richText/texWrap，escHtml 是私有的。
     window.escHtml = escHtml;
@@ -2123,6 +2249,8 @@ FLASH_JS = '''
     // 代码/表格/图片处理链，不经过 mdInline），但 ASCII 上下标是同一类问题，
     // 必须共用同一套规则，否则笔记和闪卡会呈现出两种结果。
     window.asciiMath = asciiMath;
+    // 带 HTML 标签的字段（早间回顾那种）用这一版：只转标签外的文本
+    window.asciiMathHtml = asciiMathHtml;
     // splitMath 也要过桥：mdTex 在后面那个 IIFE 里，且它同样需要认「裸 LaTeX」
     window.splitMath = splitMath;
 })();
@@ -2260,7 +2388,12 @@ const SFX = (function () {
                     stats: {1: 0, 2: 0, 3: 0, 4: 0}, reviewedToday: 0,
                     limits: null, counts: null, lastRating: null,
                     lastRatedIdx: null, autoWrong: false, saveFailed: false,
-                    filter: null };
+                    // groupMode：这一组从哪条通道来的（smart / browse / extra / local）。
+                    // extra＝「今日刷完后再来 N 张」那一组，local＝早间回顾的本地卡组。
+                    filter: null, groupMode: null,
+                    // local：本地卡组（早间回顾）的现场。非 null 时本模块只翻卡自评，
+                    // 不碰主闪卡库（见「本地卡组」那一段）。
+                    local: null };
     // 自动判错的提交句柄：翻页前要等它落地，否则本地推进了而服务端没记账
     let pendingSubmit = null;
     const LS_KEY = "kaoyan_flash_session_v1";
@@ -2289,6 +2422,8 @@ const SFX = (function () {
     })();
     let pushPosTimer = 0, pushedOnce = false;
     function pushPosition() {
+        // 本地卡组（早间回顾）不进主闪卡库的当日进度：那一位是他的闪卡库进度
+        if (state.local) return;
         // 轻量：只报「刷到第几张」。每翻一张调一次也无所谓；失败就算了（本地缓存还在）。
         clearTimeout(pushPosTimer);
         pushPosTimer = setTimeout(function () {
@@ -2301,6 +2436,9 @@ const SFX = (function () {
         }, 400);
     }
     function pushSessionNow() {
+        // ⚠️ 本地卡组（早间回顾）绝对不能推给服务端：服务端的 flash_session 是
+        //    「主闪卡库当日这一组」，被早间回顾的卡顶掉，他回闪卡页就会接着刷回顾内容。
+        if (state.local) return;
         // 整份存服务端：新开一组 / 页面隐藏离开时用
         try {
             fetch(API + "/api/flashcards/session", {
@@ -2311,10 +2449,12 @@ const SFX = (function () {
         } catch (e) {}
     }
     function saveSession() {
+        // 本地卡组只落自己的那份（不进主闪卡库的 localStorage，也不推服务端）
+        if (state.local) return saveLocalSession();
         try {
             localStorage.setItem(LS_KEY, JSON.stringify({
                 date: todayStr(), cards: state.cards, idx: state.idx, stats: state.stats,
-                lastRatedIdx: state.lastRatedIdx, filter: state.filter
+                lastRatedIdx: state.lastRatedIdx, filter: state.filter, mode: state.groupMode
             }));
         } catch (e) {}   // 本地写失败不再等于进度丢失（服务端有）
         if (!pushedOnce) { pushedOnce = true; pushSessionNow(); }
@@ -2343,6 +2483,8 @@ const SFX = (function () {
         // 于是每日新卡/复习额度整个失效（服务端 browse 是豁免额度的）。
         state.filter = (s.filter && typeof s.filter === "object")
             ? normalizeFilter(s.filter) : readFilter();
+        // 这一组是哪条通道来的（「再来一组」的说明文字靠它）
+        state.groupMode = s.mode || null;
         return true;
     }
     function fetchToday() {
@@ -2350,9 +2492,131 @@ const SFX = (function () {
             if (!d.ok) return;
             state.reviewedToday = d.reviewed_today;
             state.todayInfo = d;
-            // 闸门上的「待复习 N 张」要等这个回来才有数；回来了就补画一次
+            // 闸门上的「待复习 N 张」也要等这个回来才有数；回来了就补画一次
             if (gateShowing) renderGate();
         }).catch(() => {});
+    }
+
+    // ============================================================
+    // 本地卡组（2026-09-20）：早间回顾把**当天的回顾内容**翻成卡，就在这套练习区里刷。
+    //
+    // 用户原话：「早间的这个闪卡的作用，不是再去学一学闪卡库里的闪卡，而就是用来学
+    // 早间回顾的。就是把早间回顾的内容变成翻转的闪卡。这样正好我把这个闪卡读完之后，
+    // 就自动打卡，早间回顾就可以了。」
+    //
+    // 所以这条通道与智能组/自选组的根本区别是：**完全不碰主闪卡库** ——
+    //   · 不向服务端组题（不查 session，也就不受每日额度、待修卡、退役策略影响）
+    //   · 不写 review_log、不动 FSRS、不推服务端进度（不会顶掉主库「当日这一组」）
+    //   · 卡片内容由调用方（早间回顾页）用已有数据拼好，这里只负责翻卡与自评
+    // 进度只存本机 localStorage —— 早间回顾是「当天一次」的事，不需要多端续刷。
+    // ============================================================
+    const LOCAL_KEY = "kaoyan_mr_flash_v1";        // 没刷完的那一组（可「继续本组」）
+    const LOCAL_DONE_KEY = "kaoyan_mr_flash_done_v1";  // 哪几天已经整组刷完过
+    // 练习区里现在停着的是不是「早间回顾那一组」的总结屏：切回闪卡页时要把它换回闸门，
+    // 否则闪卡页看起来像还停在早间回顾里（2026-09-20）。
+    let localSummary = false;
+    // 自评四档的本地口径（不显示 FSRS 的「下次间隔」——这些卡不进调度）
+    const LOCAL_LABELS = { 1: "没想起来", 2: "有点糊", 3: "想起来了", 4: "很熟" };
+
+    /** 卡片正文是**已经拼好的 HTML**（数据里自带 <strong>/<br>/<span>），不能转义。 */
+    function rawHtml(s) {
+        const f = (typeof window !== "undefined" && window.asciiMathHtml) || null;
+        const t = s == null ? "" : String(s);
+        return f ? f(t) : t;
+    }
+    /** 调用方给的卡：{id, front, back, sec, secLabel} → 本模块认的卡形状。 */
+    function normalizeLocalCards(cards) {
+        const out = [];
+        (Array.isArray(cards) ? cards : []).forEach(function (c, i) {
+            if (!c) return;
+            const front = String(c.front == null ? "" : c.front);
+            const back = String(c.back == null ? "" : c.back);
+            if (!front && !back) return;
+            out.push({
+                card_id: String(c.id || ("local-" + (i + 1))).slice(0, 60),
+                type: "fill",
+                raw: true,                    // front/back 是 HTML，渲染时别再转义
+                sec: String(c.sec || ""),
+                sec_label: String(c.secLabel || ""),
+                content: { stem: front, answer: back },
+            });
+        });
+        return out.slice(0, 80);              // 一组最多 80 张（防误传一个巨大的数组进来）
+    }
+    function saveLocalSession() {
+        if (!state.local) return;
+        try {
+            localStorage.setItem(LOCAL_KEY, JSON.stringify({
+                date: state.local.date, kind: state.local.kind, title: state.local.title,
+                idx: state.idx, stats: state.stats, cards: state.cards,
+            }));
+        } catch (e) {}
+    }
+    function readLocalSession(date, kind) {
+        try {
+            const s = JSON.parse(localStorage.getItem(LOCAL_KEY) || "null");
+            if (!s || !Array.isArray(s.cards) || !s.cards.length) return null;
+            if (date && s.date !== date) return null;
+            if (kind && s.kind !== kind) return null;
+            if (s.idx >= s.cards.length) return null;      // 已经刷完
+            return s;
+        } catch (e) { return null; }
+    }
+    function clearLocalSession() { try { localStorage.removeItem(LOCAL_KEY); } catch (e) {} }
+    function markLocalDone(date) {
+        if (!date) return;
+        try {
+            const arr = JSON.parse(localStorage.getItem(LOCAL_DONE_KEY) || "[]");
+            if (arr.indexOf(date) < 0) arr.push(date);
+            localStorage.setItem(LOCAL_DONE_KEY, JSON.stringify(arr.slice(-40)));
+        } catch (e) {}
+    }
+    function isLocalDone(date) {
+        try { return (JSON.parse(localStorage.getItem(LOCAL_DONE_KEY) || "[]")).indexOf(date) >= 0; }
+        catch (e) { return false; }
+    }
+    // 早间回顾页要这两件事：还有几张没刷完、这个日期是不是已经整组刷完过
+    globalThis.__mrFlashState = function (date) {
+        const s = readLocalSession(date, "mr-day");
+        return { left: s ? Math.max(0, s.cards.length - s.idx) : 0, done: isLocalDone(date) };
+    };
+    // 浮窗收起（练习区要回闪卡页）时调：把留在里面的早间回顾总结屏换回闪卡页的闸门。
+    globalThis.__flashResetLocalView = function () {
+        if (!localSummary) return;
+        localSummary = false;
+        state.cards = []; state.idx = 0;
+        state.revealed = false; state.answered = false; state.autoWrong = false;
+        gateShowing = true;
+        renderGate();
+    };
+
+    /**
+     * 开一组本地卡（走练习区本身，所以翻转/键盘/音效/计时/撤销全都照旧）。
+     * opts: {kind, date, title, record:'mr-sr'|'', onFinish:fn, resume, idx, stats}
+     */
+    function startLocalGroup(list, title, opts) {
+        opts = opts || {};
+        state.local = {
+            kind: opts.kind || "local",
+            date: opts.date || "",
+            title: title || opts.title || "本地卡组",
+            record: opts.record || "",     // "mr-sr" → 自评回写早间回顾自己的间隔重复
+            onFinish: typeof opts.onFinish === "function" ? opts.onFinish : null,
+        };
+        state.cards = list;
+        state.idx = Math.max(0, Math.min(parseInt(opts.idx, 10) || 0, list.length - 1));
+        state.stats = opts.stats || { 1: 0, 2: 0, 3: 0, 4: 0 };
+        state.limits = null; state.counts = null; state.policy = null;
+        state.filter = null;                  // 本地组不参与任何筛选（更不该带点名）
+        state.groupMode = "local";
+        state.revealed = false; state.answered = false;
+        state.autoWrong = false; state.saveFailed = false;
+        state.lastRating = null; state.lastRatedIdx = null;
+        pendingSubmit = null; state.short = null; state.chosen = null;
+        gateShowing = false;
+        startStudy();                         // 明确点了「开始」= 同时开始计时
+        saveLocalSession();
+        renderCard();
     }
 
     // ============================================================
@@ -2450,12 +2714,31 @@ const SFX = (function () {
     // flagged = 「这道题有问题」的待修卡（2026-09-17）。它跟 leech/suspended 一样是
     // **叠加标签**，不参与智能组的互斥分桶；智能组还会主动把待修卡排除掉，
     // 唯一能看到它们的地方就是这里（服务端 bucket=flagged 走的也是自选通道）。
-    const BUCKETS = ["", "new", "learning", "review", "mature", "leech", "suspended", "flagged"];
+    const BUCKETS = ["", "new", "learning", "review", "mature", "leech", "suspended", "flagged", "pinned"];
     function readFilter() {
         try {
             const f = JSON.parse(localStorage.getItem(LS_FILTER) || "null");
             if (!f || typeof f !== "object") return null;
-            return normalizeFilter(f);
+            // ⚠️ 旧版本把「点名的那几张」（ids）也写进了 localStorage。这里**直接丢掉**：
+            //    ids 是「这一次就练这几张」的一次性意图，一旦落盘，之后每次打开闪卡页
+            //    都变成再刷那几张——2026-09-20 用户报的「点开还是昨天刷的那组、
+            //    重开一组还是那 9 张」就是这么来的。写在读的地方，旧脏值自己也好了。
+            const hadIds = Array.isArray(f.ids) && f.ids.length > 0;
+            delete f.ids;
+            const clean = normalizeFilter(f);
+            // 顺手把清理结果写回去：他不用去清浏览器缓存，下次读到的就是干净的。
+            if (hadIds) {
+                try {
+                    if (clean && (clean.subject || clean.bucket || clean.topic)) {
+                        localStorage.setItem(LS_FILTER, JSON.stringify({
+                            subject: clean.subject, bucket: clean.bucket, topic: clean.topic,
+                        }));
+                    } else {
+                        localStorage.removeItem(LS_FILTER);
+                    }
+                } catch (e) {}
+            }
+            return clean;
         } catch (e) { return null; }
     }
     function normalizeFilter(f) {
@@ -2477,13 +2760,41 @@ const SFX = (function () {
         return (subject || bucket || topic || ids.length)
             ? { subject: subject, bucket: bucket, topic: topic, ids: ids } : null;
     }
+    // 只有「范围型」条件（科目 / 状态桶 / 考点）值得跨组、跨天保留。
+    // ids 是点名，**不落盘** —— 理由见 readFilter 里那段。
+    function persistFilter() {
+        try {
+            const f = state.filter;
+            if (f && (f.subject || f.bucket || f.topic)) {
+                localStorage.setItem(LS_FILTER, JSON.stringify({
+                    subject: f.subject, bucket: f.bucket, topic: f.topic,
+                }));
+            } else {
+                localStorage.removeItem(LS_FILTER);
+            }
+        } catch (e) {}
+    }
     function applyFilter(f) {
         state.filter = f ? normalizeFilter(f) : null;
-        try {
-            if (state.filter) localStorage.setItem(LS_FILTER, JSON.stringify(state.filter));
-            else localStorage.removeItem(LS_FILTER);
-        } catch (e) {}
+        persistFilter();
         renderFilterBar();
+    }
+    /**
+     * 把「就练这几张」的点名（ids）从当前筛选里摘掉，其余范围条件留着。
+     *
+     * 「新开一组」的语义是**真的新挑一组**，不是把上一次点名的那几张再端回来。
+     * 不摘的话，昨天点名的 10 张会一直挂在 state.filter 上：之后每次
+     * 「开始学习 / 重开一组 / 再来一组」都是同一批卡——既不出新卡，
+     * 设置里那个「今日刷完后再来 N 张」也永远轮不到它管（用户 2026-09-20 报的 bug）。
+     */
+    function dropIdFilter() {
+        if (!state.filter || !state.filter.ids || !state.filter.ids.length) return false;
+        state.filter = normalizeFilter({
+            subject: state.filter.subject, bucket: state.filter.bucket, topic: state.filter.topic,
+        });
+        persistFilter();
+        renderFilterBar();
+        return true;
     }
     // 筛选页点「开始」走这里；也供卡片头部的科目快捷入口复用
     function startWithFilter(f) {
@@ -2493,6 +2804,29 @@ const SFX = (function () {
         startStudy();          // 明确点了「开始刷题」= 同时开始计时
         loadSession(true);
     }
+    // ---- 「再来一组」的张数（设置 → 每日闪卡额度 → 今日刷完后再来 N 张）----
+    // 头部 🔁 按钮上直接把这个数写出来：不然「我改了设置到底生效没有」只能靠猜。
+    let extraCount = 0;
+    // 标签要短：卡片头部本来就挤（统计 / 重开一组），窄窗口下多两个字就换行了。
+    function extraBtnLabel() {
+        return extraCount > 0 ? ("🔁 再来 " + extraCount + " 张") : "🔁 再来一组";
+    }
+    function syncExtraLabel() {
+        const b = document.getElementById("fs-extra-now");
+        if (b) b.textContent = extraBtnLabel();
+    }
+    function loadExtraCount() {
+        fetch(API + "/api/settings").then(r => r.json()).then(function (d) {
+            const n = parseInt((d && d.review && d.review.flash_extra_count) || 0, 10);
+            if (n > 0) { extraCount = n; syncExtraLabel(); }
+        }).catch(function () {});
+    }
+    // 设置页保存后立刻跟着改口径（跨 IIFE 走自定义事件，与 keys-changed 一个套路）：
+    // 他在设置里把 10 改成 20，回到闪卡页不用刷新，头部按钮就该写 20 张。
+    document.addEventListener("kaoyan:extra-count", function (ev) {
+        const n = parseInt(ev && ev.detail, 10);
+        if (n > 0) { extraCount = n; syncExtraLabel(); }
+    });
     // 暴露到 globalThis 而不是 window：test_flash_keyboard.js 用
     // new Function("document","localStorage","fetch", js) 注入执行，
     // 那个作用域里没有 window，写 window.xxx 会让 47 项测试全炸。
@@ -2536,7 +2870,8 @@ const SFX = (function () {
         const why = bits.length ? ('（' + bits.join('；') + '）') : '';
         return '<div class="fs-empty">今日计划已完成 ' + why
             + '<br><span style="font-size:0.75rem;color:var(--text-muted);line-height:1.8;">'
-            + '想接着练就点下面的「再来一组」：数量在「设置 → 每日闪卡数量」里调（默认 10 张），'
+            + '想接着练就点下面的「再来一组」：数量在「设置 → 每日闪卡额度 → 今日刷完后再来」里调'
+            + '（默认 10 张，现在设的是 ' + (extraCount > 0 ? extraCount + ' 张' : '10 张') + '），'
             + '<b>优先级还是薄弱/到期/学习中的卡，所以有没复习完的会先复习</b>；'
             + '也可以去「闪卡库」按科目/状态自选。</span>'
             + '<div style="margin-top:12px;"><button class="fs-btn primary" id="fs-extra">'
@@ -2603,7 +2938,7 @@ const SFX = (function () {
         const st = document.getElementById("fs-gate-start");
         const nw = document.getElementById("fs-gate-new");
         const goOn = () => { gateShowing = false; startStudy(); renderCard(); };
-        const goNew = () => { gateShowing = false; startStudy(); loadSession(true); };
+        const goNew = () => startNewGroup();
         if (rs) rs.onclick = () => {
             SFX.unlock();
             // 服务端那份优先：它剔掉了「今天已经答过」的卡（别的设备答的也算）
@@ -2614,6 +2949,7 @@ const SFX = (function () {
             });
         };
         if (st) st.onclick = () => { SFX.unlock(); goNew(); };
+        // 「放弃，重新挑一组」也要摘掉点名：不然「重新挑」挑回来的还是刚才那几张
         if (nw) nw.onclick = () => { SFX.unlock(); clearSession(); goNew(); };
         paintStudy();
     }
@@ -2630,6 +2966,7 @@ const SFX = (function () {
             state.lastRatedIdx = null;
             state.autoWrong = false; state.saveFailed = false; pendingSubmit = null;
             state.filter = (d.filter && typeof d.filter === "object") ? normalizeFilter(d.filter) : readFilter();
+            state.groupMode = (d.filter && d.filter.mode) || null;
             pushedOnce = false;        // 这一组重新提交一次，服务端与本地保持一致
             saveSession();
             return true;
@@ -2645,8 +2982,39 @@ const SFX = (function () {
         if (b) b.onclick = renderGate;
     }
 
-    async function loadSession(fresh, mode) {
+    /**
+     * 「新开一组」：先摘掉点名（ids），再真的新挑一组。
+     *
+     * 三个入口共用同一条：闸门的「开始学习 / 放弃·重新挑一组」、卡片头的「重开一组」、
+     * 组末总结的「再来一组」。以前它们各自调 loadSession(true)，而 loadSession 会照着
+     * state.filter 组题——点名还在，于是「新」开出来的还是那几张。
+     *
+     * autoExtra：智能组因为今日额度用完而空时，直接接上「再来一组」（设置里那个张数）。
+     * 这是他**自己点了**「重开一组 / 再来一组」的动作，不该停在一个空屏上让他再点第二次；
+     * 首次「开始学习」不带这个开关，还会照旧把「今日计划已完成」说清楚。
+     */
+    function startNewGroup(opts) {
+        dropIdFilter();
+        gateShowing = false;
+        startStudy();
+        loadSession(true, null, opts);
+    }
+    /** 「再来一组」：走 extra 通道，张数由服务端按设置里的 flash_extra_count 发。 */
+    function startExtra() {
+        SFX.unlock();
+        gateShowing = false;
+        startStudy();
+        loadSession(true, "extra");
+    }
+
+    async function loadSession(fresh, mode, opts) {
         if (fresh) clearSession();
+        // 走主闪卡库这条路 = 退出本地卡组身份（早间回顾那一组没刷完的话仍在
+        // localStorage 里，回「早」页还能「继续本组」）。
+        state.local = null;
+        // 「再来一组」是今日额度之外的一组，点名的那几张更不该跟过来
+        // （否则这一组会被推给服务端当 filter 存下来，下次「继续本组」又把它捞回来）
+        if (mode === "extra") dropIdFilter();
         box.innerHTML = '<div class="fs-loading">正在为你挑选针对性闪卡…</div>';
          // 防御性 normalize：任何入口残留的异常 filter（空对象/残缺值）都在此收敛为 null，
         // 避免误触发 browse 模式导致每日额度完全不生效。
@@ -2682,16 +3050,26 @@ const SFX = (function () {
                 return;
             }
             if (!data.cards || data.cards.length === 0) {
+                // 今日额度用完时智能组必然为空。用户点的若是「重开一组 / 再来一组」，
+                // 他要的就是「再来一组」那一组（张数＝设置里那个数）——直接接上，
+                // 别再让他对着一个空屏点第二次（见 startNewGroup 的 autoExtra）。
+                if (opts && opts.autoExtra && mode !== "extra") { loadSession(true, "extra"); return; }
                 renderBlocked(emptySessionHtml(data));
                 // 「再来一组」：走 extra 模式（不受每日额度限制，数量取设置里的 flash_extra_count）
                 const ex = document.getElementById("fs-extra");
-                if (ex) ex.onclick = () => { SFX.unlock(); startStudy(); loadSession(true, "extra"); };
+                if (ex) ex.onclick = startExtra;
                 return;
             }
             state.cards = data.cards; state.idx = 0;
+            // 这一组是哪条通道来的（服务端会回显）：extra 组要在卡片上写明来路——
+            // 他设了 20 张，得让他看得见「就是 20 张」。
+            state.groupMode = (data.filter && data.filter.mode) || (effectiveFilter ? "browse" : "smart");
             state.stats = {1: 0, 2: 0, 3: 0, 4: 0};
             state.limits = data.limits || null;
             state.counts = data.counts || null;
+            // 组题策略回执（2026-09-19）：今天因「连对够多」被收起来几张。
+            // 用户问过「那张卡怎么不见了」，答案就在这儿——不报出来他就会以为卡丢了。
+            state.policy = data.policy || null;
             state.lastRating = null;
             state.lastRatedIdx = null;
             state.autoWrong = false; state.saveFailed = false; pendingSubmit = null;
@@ -2752,7 +3130,10 @@ const SFX = (function () {
         const UD = KS.keysOf("flash.undo");        // U
         const FS = KS.keysOf("flash.full");        // F
         if (!state.revealed) {
-            if (c.type === "short") {
+            if (state.local) {
+                // 本地卡组（早间回顾）：只有「翻卡看原文 → 自评」两步
+                el.textContent = "快捷键：" + SP + " 翻卡看原文 · " + UD + " 撤销 · " + FS + " 全屏";
+            } else if (c.type === "short") {
                 el.textContent = "快捷键：Ctrl+Enter 提交批改 · " + SP + " 先看参考答案 · "
                     + UD + " 撤销 · " + FS + " 全屏";
             } else if (!opts.length) {
@@ -2787,7 +3168,17 @@ const SFX = (function () {
         state.short = null;   // 简答作答/批改结果随卡走
         state.chosen = null;  // 本卡学生选的那一项，评分时随 review_log 落库
 
-        let html = '<div class="fs-head">'
+        let html = '';
+        if (state.local) {
+            // 本地卡组（早间回顾）：头部只留「第几张 + 出处」，其余全是主闪卡库的东西
+            // （额度条 / 统计 / 重开一组 / 再来 N 张 / 待修与问过徽标）——这里一个都不该有。
+            html = '<div class="fs-head">'
+                + '<span class="fs-progress">第 ' + (state.idx + 1) + ' / ' + state.cards.length + ' 张</span>'
+                + '<span class="fs-badge local">' + esc(c.sec_label || "早间回顾") + '</span>'
+                + '<span class="fs-topic fs-local-title">' + esc(state.local.title || "") + '</span>'
+                + '</div>';
+        } else {
+            html = '<div class="fs-head">'
             + '<span class="fs-progress">第 ' + (state.idx + 1) + ' / ' + state.cards.length + ' 张</span>'
             + '<span class="fs-badge due">今日已复习 ' + (state.reviewedToday || 0) + '</span>'
             + badge(c)
@@ -2803,13 +3194,61 @@ const SFX = (function () {
                       + (c.report.note ? '（' + c.report.note + '）' : '')
                       + '｜AI 会在每日任务里核对修复')
                 + '">⚑ 待修 · ' + esc(c.report.kind_label) + '</span>' : '')
+            // 📌 钉住徽标（2026-09-19 用户要求）：钉住的卡会一直排在智能组前面，
+            // 所以这个徽标同时也是「为什么这张卡我答对了还老是见到它」的答案。
+            + (c.pin ? '<span class="fs-pin-badge" title="'
+                + esc('你钉住了这张卡｜它会一直排在智能组前面，也不会因为连对几次被收起来'
+                      + (c.pin.note ? '（' + c.pin.note + '）' : ''))
+                + '">📌 已钉住</span>' : '')
+            // 追问过 AI 的卡：标出来（这类卡不会因连对被收起来）。
+            // ⚠️ 但它**有出口**：提问之后又连对够多次，「问过」的身份就作废
+            // （用户 2026-09-19：「如果没有退出机制，我问过的就永远优先级都高了」）。
+            // 所以徽标副标题把进度写出来，让他看得见「再连对一次它就退出」。
+            + ((c.ask_count || 0) > 0 && !c.pin ? '<span class="fs-ask-badge" title="'
+                + esc('你对这张卡向 AI 追问过 ' + c.ask_count + ' 次｜这类卡不会因为连对几次被收起来，'
+                      + '但提问之后只要又连对 ' + ((state.policy && state.policy.ask_exit_streak) || 3)
+                      + ' 次就会退出这个待遇（当前已连对 ' + (c.ask_after_correct || 0) + ' 次）')
+                + '">💬 问过 ' + c.ask_count
+                + ((c.ask_after_correct || 0) > 0
+                   ? ' · 已连对 ' + c.ask_after_correct + '/'
+                     + ((state.policy && state.policy.ask_exit_streak) || 3) : '')
+                + '</span>' : '')
             + '<button class="fs-btn" id="fs-stats-btn" style="margin-left:auto;padding:2px 10px;font-size:0.7rem;">📊 统计</button>'
-            + '<button class="fs-btn" id="fs-restart" style="padding:2px 10px;font-size:0.7rem;">重开一组</button>'
+            // 🔁 再来一组：把设置里那个张数直接写在按钮上（2026-09-20）。
+            // 以前只有「今日额度用完」的空状态里才有这个按钮，他设了 20 张也看不到、
+            // 点不到，只能怀疑「设置没用」。现在随时可点，张数一目了然。
+            + '<button class="fs-btn" id="fs-extra-now" title="'
+                + esc('「今日刷完后再来 N 张」那一组（设置 → 每日闪卡额度）。'
+                      + '不受每日额度限制，排序不变——薄弱 / 到期 / 学习中的卡先来。')
+                + '" style="padding:2px 10px;font-size:0.7rem;">' + esc(extraBtnLabel()) + '</button>'
+            + '<button class="fs-btn" id="fs-restart" title="'
+                + esc('按当前范围、在今日额度内再挑一组（点名的卡不会跟过来）。'
+                      + '今日额度用完了，它会自动接上左边的「🔁 再来 N 张」。')
+                + '" style="padding:2px 10px;font-size:0.7rem;">重开一组</button>'
             + '</div>'
-            + '<div id="fs-stats-panel" class="fs-stats-panel" data-open="0"></div>';
+            // 「这一组是哪来的」：extra 组要说清楚，否则他只会觉得「我设了 20，
+            // 怎么还是这么几张」——设置生效了，得让他看得见。
+            + (state.groupMode === "extra"
+                ? '<div class="fs-policy-hint">🔁 这一组是「今日刷完后再来'
+                  + (extraCount > 0 ? " " + extraCount + " 张" : "一组")
+                  + '」（设置 → 每日闪卡额度）：<b>不受每日额度限制</b>，'
+                  + '优先级不变——薄弱 / 到期 / 学习中的卡先来。</div>'
+                : '')
+            + '<div id="fs-stats-panel" class="fs-stats-panel" data-open="0"></div>'
+            // 组题策略说明：让他知道「本组为什么是这些卡」。只有真的收起了卡才显示，
+            // 且计数为 0 时一个字都不提（不喊狼来了）。
+            + ((state.policy && state.policy.applied && state.policy.retired_count > 0)
+                ? '<div class="fs-policy-hint">本组已收起 '
+                  + state.policy.retired_count + ' 张「连对 ' + state.policy.retire_streak
+                  + ' 次以上、又没问过我」的卡（📌 钉住的和 💬 问过的不收）；'
+                  + '想看它们去「闪卡库 → 📌 钉住 / 已掌握」。</div>'
+                : '');
+        }
         // 填空题挖空（未揭晓时 {{c1::X}} → ______），揭晓后由 showFeedback 填回
         const stemShown = hasCloze(ct.stem) ? clozeText(ct.stem, false) : (ct.stem || ct.question || "");
-        html += '<div class="fs-stem">' + texWrap(stemShown) + '</div>';
+        // 本地卡组（早间回顾）的正面是**数据里自带的 HTML 片段**（含 <strong>/<br>），
+        // 只能原样插入 + 只做 ASCII 上下标；texWrap 会把它转义成源码。
+        html += '<div class="fs-stem">' + (c.raw ? rawHtml(stemShown) : texWrap(stemShown)) + '</div>';
         // 已标记的卡：把「为什么标它」摆在题面下面。用户标记的初衷就是「别再让我按错的
         // 答案作答」，所以这里要说清三件事：标记了什么原因、AI 会处理、本组之后不再考它。
         if (c.report) {
@@ -2822,7 +3261,10 @@ const SFX = (function () {
         html += '<div id="fs-body"></div><div id="fs-feedback"></div>';
         box.innerHTML = html;
         const rs = document.getElementById("fs-restart");
-        if (rs) rs.onclick = () => loadSession(true);
+        // 「重开一组」= 摘掉点名再新挑（智能组空了会自动接上「再来一组」）
+        if (rs) rs.onclick = () => startNewGroup({ autoExtra: true });
+        const exb = document.getElementById("fs-extra-now");
+        if (exb) exb.onclick = startExtra;
         const sb = document.getElementById("fs-stats-btn");
         if (sb) sb.onclick = () => showStats();
         // 点头部的科目名 = 只看这一科（单科复习的快捷入口）
@@ -2857,7 +3299,8 @@ const SFX = (function () {
         } else {
             const btn = document.createElement("button");
             btn.className = "fs-btn";
-            btn.textContent = "显示答案（空格）";
+            // 本地卡组是「翻转卡」：说「翻卡」比「显示答案」贴切
+            btn.textContent = c.raw ? "翻卡看原文（空格）" : "显示答案（空格）";
             btn.onclick = reveal;
             body.appendChild(btn);
         }
@@ -3291,11 +3734,93 @@ const SFX = (function () {
     // 直接塞进去会把 ## 和 ** 原样显示。这里补一个够用的子集渲染器：
     // 代码块 / 标题 / 列表 / 引用 / 分隔线 / 粗体 / 行内代码 / 公式。
     // 只服务这一个用途，不追求完整 CommonMark。
+    //
+    // ⚠️ 本块所有反斜杠都写成双写形式（这段代码在普通 Python 字符串里）。单写的转义
+    //    序列会被 Python 先解释成真实控制字符，写进 JS 就成了残句（注释里也一样）。
+    //    要拿「一个反斜杠」这个字符本身，用 String.fromCharCode(92) 拼 —— 别写字符串
+    //    字面量，写不对就是语法错（同文件上面 TEX_BS 那段也是这个道理）。
+    const MD_BS = String.fromCharCode(92);
+    const MD_OB = MD_BS + "[";    // 反斜杠 + [
+    const MD_CB = MD_BS + "]";    // 反斜杠 + ]
+
+    /** AI 回复里有没有公式？（决定要不要为它加载 KaTeX、要不要登记重渲染） */
+    function hasTex(s) {
+        if (typeof splitMath !== "function") return false;
+        try { return splitMath(s).some(p => p.tex); } catch (e) { return false; }
+    }
+
+    /**
+     * 独立成行的显示公式：$$…$$ 或 \[…\]，返回里面那截 LaTeX（不是就返回 null）。
+     */
+    function displayTexLine(s) {
+        const t = String(s == null ? "" : s).trim();
+        const op = t.slice(0, 2);
+        if (op !== "$$" && op !== MD_OB) return null;
+        const cl = op === "$$" ? "$$" : MD_CB;
+        const inner = t.slice(2);
+        if (t.length > 4 && t.slice(-2) === cl && inner.slice(0, -2).indexOf(cl) < 0) {
+            return inner.slice(0, -2).trim();
+        }
+        // 收尾定界符压根没写（多半是 AI 输出被 maxTokens 截断在公式中间）：
+        // 剩下的也照样当公式渲染 —— 半截公式总比 `$$…\to…` 的源码摊在正文里好看。
+        if (inner && inner.indexOf(cl) < 0 && inner.indexOf(op) < 0) return inner.trim();
+        return null;
+    }
+
+    /**
+     * 把**跨行**的独立公式并回一行。
+     *
+     * ⚠️ 模型写独立公式几乎总是三行（`\[` / 公式 / `\]`），而下面是**逐行**渲染的：
+     *    不先并起来，那三行就各自成段 —— 定界符裸露成正文，公式只能按「裸 LaTeX」
+     *    降级成行内源码，于是解析区里躺着 `\[`、一段 LaTeX 源码、`\]`（用户
+     *    2026-09-22 截图反馈的就是这个；用 explain_log 里那段真实解析跑真浏览器
+     *    复现过，见 tools/e2e_math_render.py）。
+     * 找不到闭合定界符时**原样返回**：宁可少并，也不能把后面的正文吞进公式。
+     */
+    function foldDisplayLines(lines) {
+        const out = [];
+        for (let i = 0; i < lines.length; i++) {
+            const t = lines[i].trim();
+            const op = t.slice(0, 2);
+            if (op !== "$$" && op !== MD_OB) { out.push(lines[i]); continue; }
+            const cl = op === "$$" ? "$$" : MD_CB;
+            if (t.slice(2).indexOf(cl) >= 0) { out.push(t); continue; }   // 同一行就闭合了
+            const buf = [t];
+            let j = i + 1, closed = false;
+            for (; j < lines.length; j++) {
+                buf.push(lines[j].trim());
+                if (lines[j].indexOf(cl) >= 0) { closed = true; break; }
+            }
+            if (!closed) { out.push(lines[i]); continue; }
+            out.push(buf.join(" "));
+            i = j;
+        }
+        return out;
+    }
+
+    /**
+     * Markdown + LaTeX 子集渲染（AI 回复用）。
+     *
+     * ⚠️ 它常常是**页面上第一处带公式的地方**：题面/选项里没有公式时 richText 就不会
+     *    触发 KaTeX 懒加载，AI 解析里的公式于是永远停在源码兜底上（2026-09-22
+     *    用户截图：整段 LaTeX 源码摊在解析区）。所以这里自己喊一声 ensureKatex()。
+     * ⚠️ 刚喊完的那一刻 window.katex 还没到，只喊不登记的话这一屏就定格在源码了
+     *    —— 所以把整块登记进 texStore，KaTeX 就绪后 flushMath 会调回来重渲染。
+     */
     function mdTex(raw) {
-        // 本函数所有反斜杠都写成双写形式。FLASH_JS 是普通 Python 字符串，
-        // 单写的转义序列会被 Python 先解释成真实控制字符，写进 JS 就成了残句
-        // （注释里也一样，所以这里刻意不写出那些序列）。
         const src = String(raw == null ? "" : raw).replace(/\\r\\n/g, "\\n");
+        if (!window.katex && typeof window.ensureKatex === "function") {
+            window.ensureKatex();
+            if (hasTex(src) && typeof window.registerTex === "function") {
+                const id = window.registerTex(() => mdTex(src));
+                return '<div class="md-tex-host" data-texid="' + id + '">'
+                    + mdTexBlock(src) + "</div>";
+            }
+        }
+        return mdTexBlock(src);
+    }
+
+    function mdTexBlock(src) {
         // 行内：先转义，再认标记（标记都是 ASCII，转义不影响），最后把 $..$ 交给 KaTeX
         const inline = (t) => {
             // 行内标记统一走 mdInline（与卡片正文同一套，由前一个 IIFE 挂在 window 上）。
@@ -3361,12 +3886,12 @@ const SFX = (function () {
                     listBuf = [];
                 }
             };
-            const lines = blk.split("\\n");
+            const lines = foldDisplayLines(blk.split("\\n"));
             for (let li = 0; li < lines.length; li++) {
                 const line = lines[li];
                 const t = line.trim();
                 if (!t) { flushList(); continue; }
-                let m;
+                let m, dt;
                 // 表格：本行含 |，且下一行是 |---|---| 分隔行
                 if (t.indexOf("|") >= 0 && li + 1 < lines.length && isTableSep(lines[li + 1])) {
                     flushList();
@@ -3391,10 +3916,10 @@ const SFX = (function () {
                     flushList(); out.push('<blockquote class="md-quote">' + inline(m[1]) + "</blockquote>");
                 } else if ((m = t.match(/^\\s*(?:[-*+]|\\d+\\.)\\s+(.*)$/))) {
                     listBuf.push(inline(m[1]));
-                } else if (t.indexOf("$$") === 0 && t.lastIndexOf("$$") > 0) {
+                } else if ((dt = displayTexLine(t)) != null) {
+                    // 独立成行的显示公式：$$…$$ 或 \[…\]（后者可能刚被 foldDisplayLines 并起来）
                     flushList();
-                    const tex = t.slice(2, t.lastIndexOf("$$"));
-                    out.push('<div class="md-tex">' + katexHtml(tex, true) + "</div>");
+                    out.push('<div class="md-tex">' + katexHtml(dt, true) + "</div>");
                 } else {
                     flushList(); out.push('<p class="md-p">' + inline(t) + "</p>");
                 }
@@ -3670,7 +4195,39 @@ const SFX = (function () {
         if (seq === explainSeq) generate();
     }
 
+    // 本地卡组（早间回顾）翻卡后的反馈：只给「原文」+ 自评四档。
+    // 不挂 AI 追问框、不给 📌 钉住 / ⚑ 报卡 / 🗑 删卡——那些动作都是针对**主闪卡库**的卡，
+    // 早间回顾的卡不在库里（钉住了它也不会再出现，标了也没人复核）。
+    function showLocalFeedback(ct) {
+        const fb = document.getElementById("fs-feedback");
+        if (!fb) return;
+        const card = state.cards[state.idx] || {};
+        fb.innerHTML = '<div class="fs-explain fs-local-back">'
+            + (card.sec_label ? '<div class="fs-local-sec">' + esc(card.sec_label) + '</div>' : '')
+            + rawHtml(ct.answer) + '</div>'
+            + '<div class="fs-actions">'
+            + [1, 2, 3, 4].map(r => '<button class="fs-btn fs-rate' + r + '" data-rate="' + r + '">'
+                + '<span class="fs-rate-label">' + r + ' ' + LOCAL_LABELS[r] + '</span>'
+                + '</button>').join("")
+            + '</div>'
+            + '<div class="fs-undo-row">'
+            + '<button class="fs-btn fs-undo" id="fs-undo">↶ 撤销上一次评分（U）</button>'
+            + '<button class="fs-btn" id="fs-local-close">✕ 收起练习区</button>'
+            + '</div>';
+        fb.querySelectorAll("[data-rate]").forEach(b => {
+            b.onclick = () => rate(parseInt(b.dataset.rate, 10));
+        });
+        const ub = document.getElementById("fs-undo");
+        if (ub) ub.onclick = () => undo();
+        const cb = document.getElementById("fs-local-close");
+        if (cb) cb.onclick = () => {
+            const api = globalThis.__flashFloat;
+            if (api && typeof api.close === "function") api.close();
+        };
+    }
+
     function showFeedback(ct) {
+        if (state.local) return showLocalFeedback(ct);
         const fb = document.getElementById("fs-feedback");
         const card = state.cards[state.idx] || {};
         let html = "";
@@ -3735,6 +4292,12 @@ const SFX = (function () {
         html += '<div class="fs-undo-row"><button class="fs-btn fs-undo" id="fs-undo">'
             + (state.autoWrong ? '↶ 撤销，重新作答（U）' : '↶ 撤销上一次评分（U）')
             + '</button>'
+            // 📌 钉住（2026-09-19 用户要求）：与⚑标记、🗑删卡是三件事——
+            // 「题目没问题、我也答对了，但我想留着它，下次再看看」。
+            + '<button class="fs-btn fs-pin' + (card.pin ? ' on' : '') + '" id="fs-pin" title="'
+            + esc('把这张卡钉住：它会一直排在智能组前面，而且不会因为「连对几次」被收起来'
+                  + '（快捷键 ' + __keys.pretty(__keys.specOf("flash.pin")) + '）')
+            + '">' + (card.pin ? '📌 已钉住' : '📌 钉住这张卡') + '</button>'
             // 标记「这题本身有问题」（与🗑删卡是两件事：删掉是当场判死刑，标记是等 AI 复核）
             + '<button class="fs-btn fs-flag' + (card.report ? ' on' : '') + '" id="fs-flag" title="'
             + esc('题目本身有问题（多个选项都对 / 答案有误 / 题干有误…）→ 记下来，每日任务里由 AI 核对修复')
@@ -3752,6 +4315,9 @@ const SFX = (function () {
         if (nb) nb.onclick = () => goNext();
         const ub = document.getElementById("fs-undo");
         if (ub) ub.onclick = () => undo();
+        // 📌 钉住按钮：与报卡一样**不重绘整张卡**（重绘会冲掉已挂的解析与追问框）。
+        const pinBtn = document.getElementById("fs-pin");
+        if (pinBtn) pinBtn.onclick = () => togglePin(card);
         // 答对 / 直接看答案：不生成任何东西，直接给一个**空的追问框**（有想问的再问）。
         // 把正确项当作「学生选的」带过去，模型才知道他在纠结哪一项。
         if (!state.autoWrong) {
@@ -3933,6 +4499,87 @@ const SFX = (function () {
         } catch (e) { console.warn("[flash] 标记状态补画失败", e); }
     }
 
+    // 📌 钉住 / 取消钉住（2026-09-19）。与报卡的纪律一致：**只就地改这一小块 DOM**，
+    // 不重绘整张卡——重绘会把已经挂上的 AI 解析与追问框冲掉（他刚问的话就没了）。
+    // 服务端语义见 src/card_policy.js 的 R-pin：钉住 = 智能组置顶 + 不受连对退役影响。
+    function paintPinMarks(card) {
+        try {
+            const head = box.querySelector(".fs-head");
+            if (head) {
+                const old = head.querySelector(".fs-pin-badge");
+                if (old && old.parentNode) old.parentNode.removeChild(old);
+                if (card.pin) {
+                    const span = document.createElement("span");
+                    span.className = "fs-pin-badge";
+                    span.title = "你钉住了这张卡｜它会一直排在智能组前面，也不会因为连对几次被收起来";
+                    span.textContent = "📌 已钉住";
+                    const anchor = head.querySelector("#fs-stats-btn");
+                    if (anchor) head.insertBefore(span, anchor); else head.appendChild(span);
+                }
+            }
+            const stem = box.querySelector(".fs-stem");
+            if (stem) {
+                const oldN = box.querySelector(".fs-pin-note");
+                if (oldN && oldN.parentNode) oldN.parentNode.removeChild(oldN);
+                if (card.pin) {
+                    const div = document.createElement("div");
+                    div.className = "fs-pin-note";
+                    div.textContent = "📌 这张卡你钉住了——它会一直在智能组前面出现，"
+                        + "就算连续答对也不会被收起来；不想要了再按一次取消。";
+                    if (stem.parentNode) stem.parentNode.insertBefore(div, stem.nextSibling);
+                }
+            }
+        } catch (e) { console.warn("[flash] 钉住状态补画失败", e); }
+    }
+
+    async function submitPin(card, want) {
+        const btn = document.getElementById("fs-pin");
+        const restore = () => {
+            if (!btn) return;
+            btn.disabled = false;
+            btn.className = "fs-btn fs-pin" + (card.pin ? " on" : "");
+            btn.textContent = card.pin ? "📌 已钉住" : "📌 钉住这张卡";
+        };
+        if (btn) { btn.disabled = true; btn.textContent = want ? "钉住中…" : "取消中…"; }
+        try {
+            const r0 = await fetch(API + "/api/flashcards/pin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ card_id: card.card_id, pinned: want }),
+            });
+            let d = null;
+            try { d = await r0.json(); } catch (e) { d = null; }
+            // ⚠️ 旧版服务（改了 serve.js 没重启）会对这个 POST 回 404、body 不是 JSON。
+            //    必须**明说**「重启大盘后生效」，不能含混成「无法连接本地服务」——
+            //    报卡那边上线当天就踩过，人会去反复刷新。
+            if (!r0.ok || !d || !d.ok) {
+                restore();
+                toast(r0.status === 404
+                    ? "本地服务还是旧版，重启大盘后钉住才能用"
+                    : ("钉住失败：" + ((d && d.error) || r0.status)));
+                return;
+            }
+            card.pin = d.pinned ? { note: "", created_at: "" } : null;
+            if (btn) {
+                btn.disabled = false;
+                btn.className = "fs-btn fs-pin" + (card.pin ? " on" : "");
+                btn.textContent = card.pin ? "📌 已钉住" : "📌 钉住这张卡";
+            }
+            paintPinMarks(card);
+            toast(card.pin ? "已钉住：这张卡会一直排在前面" : "已取消钉住");
+        } catch (e) {
+            restore();
+            toast("钉住失败：无法连接本地服务");
+        }
+    }
+
+    function togglePin(card) {
+        // 本地卡组（早间回顾）的卡不在主闪卡库里，钉住没有意义（它本来就不会再出现）
+        if (state.local) { toast("早间回顾的卡不在闪卡库里，不用钉"); return; }
+        if (!card || !card.card_id) return;
+        submitPin(card, !card.pin);
+    }
+
     // 提交标记。**只就地改这一小块 DOM**（按钮 + 面板 + 徽标/提示条），不重绘整张卡——
     // 重绘会把已经挂上的 AI 解析与追问框冲掉，用户刚问的话就没了。
     async function submitReport(card, ct, kind, note) {
@@ -3993,10 +4640,63 @@ const SFX = (function () {
         }
     }
 
+    /**
+     * 本地卡组（早间回顾）的自评：**不写主闪卡库**。
+     *
+     * 唯一可能的回写是早间回顾自己的间隔重复（record === "mr-sr"，目前只有固卡组用），
+     * 走 /api/morning-review/sr —— 那是它自己那张表（mr_sr），与 FSRS / review_log 无关。
+     * 「没想起来 / 有点糊」的卡会**在本组末尾再问一遍**（只回炉一次，免得刷不完）。
+     */
+    async function submitLocalRating(r, c) {
+        state.sending = true;
+        let ok = true, resp = null;
+        const L = state.local || {};
+        if (L.record === "mr-sr") {
+            try {
+                const r0 = await fetch(API + "/api/morning-review/sr", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ card_id: c.card_id, mark: r >= 3 ? "ok" : "no", date: L.date || "" }),
+                });
+                resp = await r0.json();
+                ok = !!(resp && resp.ok);
+            } catch (e) { ok = false; }
+        }
+        state.sending = false;
+        if (!ok) {
+            toast("评分未保存：" + ((resp && resp.error) || "无法连接本地服务"));
+            return false;
+        }
+        state.lastRating = r;
+        state.stats[r] = (state.stats[r] || 0) + 1;
+        state.lastRatedIdx = state.idx;
+        state.saveFailed = false;
+        if (r <= 2 && !c._requeued) {
+            c._requeued = true;
+            state.cards.push(c);        // 本组末尾再来一遍（答案他已经看过了）
+        }
+        return true;
+    }
+
+    /** 本地卡组的撤销：只回退本地指针与计数，没有服务端要还原的东西。 */
+    function undoLocal() {
+        const ti = (typeof state.lastRatedIdx === "number") ? state.lastRatedIdx : state.idx - 1;
+        const c = state.cards[ti];
+        if (!c) { toast("没有可撤销的评分"); return; }
+        if (state.stats[state.lastRating]) state.stats[state.lastRating] -= 1;
+        state.idx = ti;
+        state.lastRatedIdx = null; state.lastRating = null;
+        state.autoWrong = false; state.saveFailed = false;
+        saveLocalSession();
+        renderCard();
+        toast("已撤销");
+    }
+
     // 撤销上一次评分：服务端按 review_log 快照还原卡片，本地回到那张卡重新作答。
     // 目标卡由 lastRatedIdx 决定（不是 idx-1）：「选错即判」时 idx 还没翻页。
     async function undo() {
         if (state.sending) return;
+        if (state.local) return undoLocal();
         const ti = (typeof state.lastRatedIdx === "number") ? state.lastRatedIdx : state.idx - 1;
         const c = state.cards[ti];
         if (!c) { toast("没有可撤销的评分"); return; }
@@ -4040,6 +4740,7 @@ const SFX = (function () {
         if (state.sending) return false;
         const c = state.cards[state.idx];
         if (!c) return false;
+        if (state.local) return submitLocalRating(r, c);
         state.sending = true;
         let ok = false, resp = null;
         try {
@@ -4082,12 +4783,59 @@ const SFX = (function () {
         if (await submitRating(r)) goNext();
     }
 
+    /**
+     * 本地卡组（早间回顾）刷完：报成绩 + **自动打卡**（早间回顾页给的回调）。
+     * 「刷完这一组 = 今天的早间回顾做完了」——这正是用户要的那条链。
+     */
+    function renderLocalSummary(total) {
+        const L = state.local || {};
+        const s = state.stats;
+        const cards = state.cards.slice();
+        clearLocalSession();          // 这一组已经做完，不再提供「继续本组」
+        markLocalDone(L.date);        // 哪几天整组刷完过（早间回顾页据此写「已刷完」）
+        state.local = null;           // 身份立刻退掉：否则下一组普通闪卡会被当成本地卡组
+        localSummary = true;          // 练习区里现在留的是「早间回顾那一组」的总结屏
+        box.innerHTML = '<div class="fs-summary"><h3>'
+            + esc(L.title || "本组") + ' 完成 🎉</h3>'
+            + '<p>共 ' + total + ' 张 · 没想起来 ' + (s[1] || 0) + ' · 有点糊 ' + (s[2] || 0)
+            + ' · 想起来了 ' + (s[3] || 0) + ' · 很熟 ' + (s[4] || 0) + '</p>'
+            + '<p class="fs-summary-time">本组用时 <b>' + fmtClock(STUDY.ms) + '</b></p>'
+            + (L.onFinish ? '<div class="fs-local-finish" id="fs-local-finish">正在打卡…</div>' : '')
+            + '<div class="fs-actions">'
+            + '<button class="fs-btn" id="fs-local-again">↺ 再刷一遍</button>'
+            + '<button class="fs-btn" id="fs-local-close">✕ 收起练习区</button>'
+            + '</div></div>';
+        const again = document.getElementById("fs-local-again");
+        if (again) again.onclick = () => {
+            clearLocalSession();
+            startLocalGroup(cards, L.title, {
+                kind: L.kind, date: L.date, record: L.record, onFinish: L.onFinish,
+            });
+        };
+        const cb = document.getElementById("fs-local-close");
+        if (cb) cb.onclick = () => {
+            const api = globalThis.__flashFloat;
+            if (api && typeof api.close === "function") api.close();
+        };
+        if (L.onFinish) {
+            // 打卡是网络活，不阻塞总结屏；回来把结果写在那一行上。
+            Promise.resolve().then(L.onFinish).then(function (msg) {
+                const el = document.getElementById("fs-local-finish");
+                if (el) el.textContent = String(msg || "");
+            }).catch(function (e) {
+                const el = document.getElementById("fs-local-finish");
+                if (el) el.textContent = "⚠ 打卡失败：" + ((e && e.message) || e);
+            });
+        }
+    }
+
     function renderSummary() {
-        clearSession();
-        endStudy();            // 本组刷完 = 这一段的表停下来，用时留在 summary 上
-        SFX.play("done");
         const s = state.stats;
         const total = s[1] + s[2] + s[3] + s[4];
+        endStudy();            // 本组刷完 = 这一段的表停下来，用时留在 summary 上
+        SFX.play("done");
+        if (state.local) return renderLocalSummary(total);
+        clearSession();
         box.innerHTML = '<div class="fs-summary"><h3>本组完成 🎉</h3>'
             + '<p>共 ' + total + ' 张 · 忘记 ' + s[1] + ' · 模糊 ' + s[2] + ' · 记得 ' + s[3] + ' · 简单 ' + s[4] + '</p>'
             + '<p class="fs-summary-time">本组用时 <b>' + fmtClock(STUDY.ms) + '</b>'
@@ -4096,7 +4844,9 @@ const SFX = (function () {
             + '<p style="font-size:0.75rem;color:var(--text-muted);">今日累计已复习 ' + (state.reviewedToday || 0) + ' 张</p>'
             + '<button class="fs-btn" id="fs-again">再来一组</button></div>';
         const again = document.getElementById("fs-again");
-        if (again) again.onclick = () => { gateShowing = false; startStudy(); loadSession(true); };
+        // 组末「再来一组」：同样先摘点名；智能组空了（今日额度用完）直接接上
+        // 「今日刷完后再来 N 张」那一组——省掉「空屏上再点一次」这一步。
+        if (again) again.onclick = () => startNewGroup({ autoExtra: true });
     }
 
     // ---- 统计面板：30 天到期预测 + 成熟度分布 + 正确率（数据来自服务端聚合）----
@@ -4167,6 +4917,9 @@ const SFX = (function () {
         { key: "learning", label: "学习中" }, { key: "review", label: "复习中" },
         { key: "mature", label: "已掌握" }, { key: "leech", label: "水蛭" },
         { key: "suspended", label: "已暂停" }, { key: "flagged", label: "⚑ 待修" },
+        // 📌 钉住（2026-09-19）：他自己钉的卡。智能组里它们永远排最前，
+        // 这里给他一个「我钉过哪些」的总览入口。
+        { key: "pinned", label: "📌 钉住" },
     ];
     let facets = null;
 
@@ -4387,6 +5140,15 @@ const SFX = (function () {
 
         // 撤销在哪个阶段都管用，先拦下来。选项键只占 A–I / 1–9，不会和它撞。
         if (__keys.matches("flash.undo", e)) { e.preventDefault(); undo(); return; }
+        // 📌 钉住也任何阶段都能按（对错都能钉，这正是用户要的：「就算我对的那些题」）。
+        // 默认键 P，不与选项键 A–I / 数字键 / 空格冲突；在输入框里打字不受影响
+        // （上面那段 INPUT/TEXTAREA 守卫已经先 return 了）。
+        // 注意：**按钮**在反馈区（要揭晓后才出现），快捷键不受这个限制——它是文档层的。
+        if (__keys.matches("flash.pin", e)) {
+            e.preventDefault();
+            togglePin(state.cards[state.idx] || {});
+            return;
+        }
 
         // ① 选选项
         const opts = optionButtons();
@@ -4507,6 +5269,10 @@ const SFX = (function () {
         if (practiceHome) practiceHome.insertBefore(practiceEl, practiceHomeNext);
         floatBox.hidden = true;
         floatShowing = false;
+        // 练习区回闪卡页了：要是它里面停着「早间回顾那一组」的总结屏，就换回闪卡页的闸门
+        if (typeof globalThis.__flashResetLocalView === "function") {
+            try { globalThis.__flashResetLocalView(); } catch (e) {}
+        }
     }
     globalThis.__flashFloat = {
         open: openFloat,
@@ -4523,6 +5289,27 @@ const SFX = (function () {
             if (!list.length) return false;
             openFloat(title);
             startWithFilter({ ids: list });
+            return true;
+        },
+        // 本地卡组（2026-09-20，早间回顾用）：把调用方拼好的 {id, front, back, secLabel}
+        // 直接翻卡自评，**不碰主闪卡库**（不组题、不写 review_log、不占额度、不推进度）。
+        // opts: {kind, date, title, record:'mr-sr'|'', onFinish:fn, resume}
+        //   resume=true → 接着这个 date+kind 没刷完的那一组（从 localStorage 取回）。
+        local: function (cards, title, opts) {
+            opts = opts || {};
+            if (opts.resume) {
+                const saved = readLocalSession(opts.date, opts.kind);
+                if (saved) {
+                    openFloat(title);
+                    startLocalGroup(saved.cards, saved.title || title,
+                        Object.assign({}, opts, { idx: saved.idx, stats: saved.stats }));
+                    return true;
+                }
+            }
+            const list = normalizeLocalCards(cards);
+            if (!list.length) return false;
+            openFloat(title);
+            startLocalGroup(list, title, opts);
             return true;
         },
     };
@@ -4605,9 +5392,11 @@ const SFX = (function () {
         // 场上必须清空：闸门态下若还留着上一组的 cards，键盘评分与空格翻页会
         // 打到已经看不见的卡上去（LS 里那份才是留给「继续本组」的）。
         state.cards = []; state.idx = 0; state.revealed = false; state.answered = false;
+        state.local = null;    // 本地卡组（早间回顾）身份也一起退掉
         renderGate();
     };
     fetchToday();
+    loadExtraCount();      // 「再来一组」的张数（头部按钮上写出来）
     loadFacets();
     // 2026-09-21：不再一加载就自动组题。以前脚本一跑就拉一整组卡并渲染第一张，
     // 于是「还没打算刷」也被算进学习时长，人走开表照转。现在一律先停在闸门。
@@ -8088,6 +8877,35 @@ SETTINGS_CSS = '''
         .sk-count { margin-left: 8px; font-weight: 400; font-size: 0.72rem;
             color: var(--text-muted); }
         .sk-count.has { color: var(--xiang-lt); }
+        /* --- 📐 口径注册表（2026-09-20）--- */
+        .mtr-wrap { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .mtr-item { border: 1px solid var(--border-color); border-radius: 8px;
+            padding: 9px 12px; background: var(--bg-card); }
+        .mtr-item.editable { border-left: 3px solid var(--xiang-lt); }
+        .mtr-item.convention { border-left: 3px solid var(--text-muted); opacity: .92; }
+        .mtr-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+        .mtr-badge { flex: none; font-size: 0.66rem; padding: 1px 6px; border-radius: 4px;
+            border: 1px solid var(--border-color); color: var(--text-secondary); }
+        .mtr-badge.runtime { color: var(--xiang-lt); border-color: var(--xiang-lt); }
+        .mtr-badge.convention { opacity: .75; }
+        .mtr-title { font-weight: 600; font-size: 0.86rem; }
+        .mtr-id { font-size: 0.68rem; color: var(--text-muted); font-family: Consolas, monospace; }
+        .mtr-cur { margin-left: auto; font-family: Consolas, monospace; font-size: 0.82rem;
+            color: var(--xiang-lt); }
+        .mtr-unit { font-style: normal; font-size: 0.68rem; color: var(--text-muted); }
+        .mtr-ov { font-style: normal; font-size: 0.62rem; padding: 0 4px; border-radius: 3px;
+            background: var(--xiang-lt); color: #1a1a1a; }
+        .mtr-meta { margin-top: 4px; font-size: 0.68rem; color: var(--text-muted);
+            word-break: break-all; }
+        .mtr-desc { margin-top: 5px; font-size: 0.76rem; line-height: 1.7;
+            color: var(--text-secondary); }
+        .mtr-ctrl { margin-top: 7px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .mtr-ctrl .set-num { width: 92px; }
+        .mtr-range { font-size: 0.68rem; color: var(--text-muted); }
+        .mtr-reset { opacity: .8; }
+        .mtr-msg { font-size: 0.72rem; }
+        .mtr-msg.ok { color: var(--xiang-lt); }
+        .mtr-msg.err { color: var(--zhuqing); }
 '''
 
 # ---------------------------------------------------------------------------
@@ -8412,9 +9230,10 @@ SETTINGS_JS = '''
           + '      <button class="fs-btn" id="set-extra-save">保存</button>'
           + '      <span class="set-hint" id="set-extra-status" style="margin:0;"></span>'
           + '    </div>'
-          + '    <div class="set-hint">今日额度用完时，练习区会给一个「再来一组」按钮：'
-          + '张数就是这里设的（默认 10）。它<b>不受每日额度限制</b>，'
-          + '而且优先级排序不变——<b>有到期/学习中的卡就会先复习它们</b>，不会只塞新卡。</div>'
+          + '    <div class="set-hint">练习区卡片头部的「🔁 再来 N 张」就是这里设的张数'
+          + '（今日额度用完时的空状态也会给一个按钮）。它<b>不受每日额度限制</b>，'
+          + '而且优先级排序不变——<b>有到期/学习中的卡就会先复习它们</b>，不会只塞新卡。'
+          + '「重开一组」还是走每日额度；额度用完了它会自动接上这一组。</div>'
           + '  </div>'
           + '  <div class="set-group"><div class="set-title">📱 平板 / 手机连接</div>'
           + '    <div class="set-lan">'
@@ -8473,6 +9292,10 @@ SETTINGS_JS = '''
           + '      <input class="set-range" id="set-pomo-dim" type="range" min="0" max="0.9" step="0.05">'
           + '      <span class="set-status" id="set-pomo-dim-val"></span>'
           + '    </div>'
+          + '    <div class="set-hint">卡片上的字会跟着当前这张图自动配色：图偏亮就换成深字，'
+          + '偏暗就用白字，不用手调。要是某张图一半亮一半暗（亮天空压着暗地面那种），'
+          + '两种字色都有半边糊，这时会在这档浓度之上再自动补一点遮罩——所以偶尔'
+          + '看着比滑杆标的更暗，是正常的。</div>'
           + '    <span class="set-label">轮播显示在</span>'
           + '    <div class="set-seg" id="set-pomo-show">'
           + '      <button data-show="both">卡片 + 全屏</button>'
@@ -8501,12 +9324,22 @@ SETTINGS_JS = '''
           + '这里可以随时新增、编辑、扩充（比如给数学加一本参考书、给 408 加一个子科），'
           + '也可以删除不学的学科（只删配置，不碰笔记与数据）。</div>'
           + '  </div>'
+          + '  <div class="set-group" id="set-metrics-group"><div class="set-title">📐 口径'
+          + '      <span class="sk-count" id="set-metrics-count"></span></div>'
+          + '    <div class="set-hint" id="set-metrics-summary">正在读取口径注册表…</div>'
+          + '    <div class="set-hint">这是全系统「什么算一条笔记 / 什么算覆盖 / 什么算掌握 / '
+          + '各类时间窗与阈值」的唯一事实源（<code>src/metrics_spec.json</code>）。'
+          + '标了「可改」的项改完<b>立刻生效</b>（写进 config 表，服务端每次请求都读）；'
+          + '标「固定」的要改代码；标「约定」的是语义，永远不要改（改了历史数据就没意义了）。</div>'
+          + '    <div class="mtr-wrap" id="set-metrics-body"></div>'
+          + '  </div>'
           + '</div>';
         foldGroups(container);   // 先把手风琴结构包好，再 bind/load（by id 查找不受打包影响）
         bind(container);
         bindPomo(container);
         initKeysModal(container);      // 先建好浮窗（含 #set-keys），再让 KEYS_JS 往里填表
         renderKeys(container);
+        renderMetrics(container);      // 📐 口径：从 /api/metrics 拉注册表快照渲染
         load(container);
     }
 
@@ -8594,6 +9427,128 @@ SETTINGS_JS = '''
     function renderKeys(container) {
         try { globalThis.__keys.renderUI(); }
         catch (e) { console.error("[settings] 快捷键分组渲染失败:", e); }
+    }
+
+    // ---- 📐 口径（2026-09-20）------------------------------------------------
+    // 数据来自 GET /api/metrics（服务端读 src/metrics_spec.json）。
+    // 页面**不抄任何口径文案**：标题、说明、来源、可改范围全由注册表下发，
+    // 所以以后改口径只需要动 metrics_spec.json，这一页跟着变。
+    // 三类 scope 的展示区别：
+    //   runtime + editable → 可直接改（写 config 表，服务端每次请求读 → 立刻生效）
+    //   fixed              → 只读，但要告诉用户「改哪里」
+    //   convention         → 只读语义，标「不要改」
+    const MTR_SCOPE_LABEL = { runtime: "可改", fixed: "固定", convention: "约定" };
+
+    function mtrValText(v) {
+        if (v == null || v === "") return "—";
+        if (typeof v === "object") return JSON.stringify(v, null, 0);
+        return String(v);
+    }
+
+    function renderMetrics(container) {
+        const host = container.querySelector("#set-metrics-body");
+        const sumEl = container.querySelector("#set-metrics-summary");
+        const cntEl = container.querySelector("#set-metrics-count");
+        if (!host) return;
+
+        async function paint() {
+            let d;
+            try { d = await api("/api/metrics"); }
+            catch (e) {
+                if (sumEl) sumEl.textContent = "⚠ 读取口径注册表失败：" + e.message
+                    + "（若本地服务是旧版，重启「启动考研大盘」后生效）";
+                return;
+            }
+            const items = d.items || [];
+            const c = d.counts || {};
+            if (cntEl) {
+                cntEl.textContent = "共 " + items.length + " 项 · 可改 " + (c.runtime || 0)
+                    + " · 固定 " + (c.fixed || 0) + " · 约定 " + (c.convention || 0) + " · ";
+                cntEl.classList.toggle("has", (c.runtime || 0) > 0);
+            }
+            if (sumEl) {
+                sumEl.textContent = "注册表 v" + (d.version || 0)
+                    + "  ·  " + (d.spec_path || "src/metrics_spec.json")
+                    + (d.spec_mtime ? "（" + d.spec_mtime.slice(0, 16).replace("T", " ") + "）" : "");
+            }
+
+            host.innerHTML = items.map(function (it) {
+                const editable = it.editable && it.key;
+                const rid = "mtr-" + it.id.replace(/[^\w]/g, "-");
+                let head = '<div class="mtr-head">'
+                    + '<span class="mtr-badge ' + it.scope + '">' + (MTR_SCOPE_LABEL[it.scope] || it.scope) + "</span>"
+                    + '<span class="mtr-title">' + esc(it.title) + "</span>"
+                    + '<span class="mtr-id">' + esc(it.id) + "</span>"
+                    + (editable
+                        ? '<span class="mtr-cur" id="' + rid + '-cur">' + esc(mtrValText(it.value))
+                          + (it.overridden ? ' <em class="mtr-ov">已改</em>' : "") + "</span>"
+                        : '<span class="mtr-cur">' + esc(mtrValText(it.value))
+                          + (it.unit ? ' <em class="mtr-unit">' + esc(it.unit) + "</em>" : "") + "</span>")
+                    + "</div>";
+
+                let ctrl = "";
+                if (editable) {
+                    const r = it.range || [];
+                    ctrl = '<div class="mtr-ctrl">'
+                        + '<input class="set-input set-num" id="' + rid + '" type="number"'
+                        + ' value="' + esc(it.value) + '"'
+                        + (r.length === 2 ? ' min="' + r[0] + '" max="' + r[1] + '"' : "")
+                        + (it.unit ? ' title="' + esc(it.unit) + '"' : "") + ">"
+                        + (r.length === 2 ? '<span class="mtr-range">' + r[0] + " ~ " + r[1] + "</span>" : "")
+                        + '<button class="fs-btn" data-mtr-save="' + esc(it.key) + '" data-mtr-el="' + rid + '">保存</button>'
+                        + (it.overridden
+                            ? '<button class="fs-btn mtr-reset" data-mtr-reset="' + esc(it.key)
+                              + '" data-mtr-el="' + rid + '" data-mtr-def="' + esc(it.default) + '">恢复默认(' + esc(it.default) + ")</button>"
+                            : '<span class="mtr-range">默认 ' + esc(it.default) + "</span>")
+                        + '<span class="mtr-msg" id="' + rid + '-msg"></span>'
+                        + "</div>";
+                }
+
+                const meta = []
+                    .concat(it.unit && !editable ? [] : [])
+                    .concat(it.source ? ["来源：" + it.source] : [])
+                    .concat((it.used_by || []).length ? ["被谁用：" + it.used_by.join("、")] : [])
+                    .join("　·　");
+
+                return '<div class="mtr-item ' + it.scope + (editable ? " editable" : "") + '">'
+                    + head + ctrl
+                    + (meta ? '<div class="mtr-meta">' + esc(meta) + "</div>" : "")
+                    + (it.desc ? '<div class="mtr-desc">' + esc(it.desc) + "</div>" : "")
+                    + "</div>";
+            }).join("");
+
+            host.onclick = async function (ev) {
+                const sv = ev.target.closest("[data-mtr-save]");
+                const rs = ev.target.closest("[data-mtr-reset]");
+                try {
+                    if (sv) {
+                        const key = sv.dataset.mtrSave;
+                        const el = document.getElementById(sv.dataset.mtrEl);
+                        const msg = document.getElementById(sv.dataset.mtrEl + "-msg");
+                        const body = {};
+                        body[key] = el.value;
+                        sv.disabled = true;
+                        try {
+                            await api("/api/settings", "POST", body);
+                            if (msg) { msg.textContent = "已保存 ✓ 立刻生效"; msg.className = "mtr-msg ok"; }
+                        } catch (e2) {
+                            if (msg) { msg.textContent = "✗ " + e2.message; msg.className = "mtr-msg err"; }
+                        }
+                        sv.disabled = false;
+                    } else if (rs) {
+                        const key = rs.dataset.mtrReset;
+                        const el = document.getElementById(rs.dataset.mtrEl);
+                        const msg = document.getElementById(rs.dataset.mtrEl + "-msg");
+                        el.value = rs.dataset.mtrDef;
+                        await api("/api/settings", "POST", (function () { const b = {}; b[key] = el.value; return b; })());
+                        paint();          // 改了「是否覆盖」的状态，整体重画一次
+                    }
+                } catch (e3) {
+                    console.error("[metrics] 保存失败:", e3);
+                }
+            };
+        }
+        paint();
     }
 
     let cur = null;
@@ -8928,6 +9883,9 @@ SETTINGS_JS = '''
             try {
                 await api("/api/settings", "POST", { flash_extra_count: v });
                 status($("#set-extra-status"), "✅ 已保存", "ok");
+                // 闪卡页头部那个「🔁 再来一组（N 张）」立刻跟着改口径（跨 IIFE 走事件，
+                // 与 keys-changed 一个套路）——他刚改的数，回去就该看见
+                try { document.dispatchEvent(new CustomEvent("kaoyan:extra-count", { detail: v })); } catch (e) {}
             } catch (e) { status($("#set-extra-status"), "保存失败：" + e.message, "warn"); }
         };
         $("#set-theme").onclick = async (ev) => {
@@ -9646,29 +10604,69 @@ POMO_CSS = '''
            ============================================================ */
         .pm-card { position: relative; overflow: hidden; margin-bottom: 20px;
             background: var(--bg-card); border: 1px solid var(--border-color);
-            border-radius: var(--border-radius); padding: 18px 20px 20px; }
+            border-radius: var(--border-radius); padding: 18px 20px 20px;
+            /* 压在照片上的那几行字走这一套变量，不直接用 --text-*：那三级灰是按
+               纯色卡片调的（--hui 在卡片上够用），铺到照片上就等于隐形。
+               取哪一套由 POMO_JS 按当前这张图的实测亮度挑，见「文字配色」段。 */
+            --pm-fg:   var(--text-primary);
+            --pm-fg2:  var(--text-secondary);
+            --pm-fg3:  var(--text-muted);
+            --pm-acc:  var(--xiang-lt);
+            --pm-line: var(--border-color);
+            --pm-halo: rgba(var(--mo-rgb), .6); }
         /* 轮播背景：两层叠着交叉淡入淡出，避免出现「换图时先黑一下」 */
         .pm-bg { position: absolute; inset: 0; z-index: 0; background-size: cover;
             background-position: center; background-repeat: no-repeat;
             opacity: 0; transition: opacity 1.6s ease; }
         .pm-bg.on { opacity: 1; }
         .pm-card:not(.pm-hasbg) .pm-bg { display: none; }
-        /* 遮罩层：图再好看，也不能让 45:00 变成看不清的字。浓度由设置里的 --pm-dim 控 */
+        /* 遮罩层：图再好看，也不能让 45:00 变成看不清的字。浓度由设置里的 --pm-dim 控；
+           --pm-scrim 是「这张图一半亮一半暗、换哪种字色都有半边糊」时 POMO_JS 自己
+           补的那一档（见 applyMood），平时是 0。 */
         .pm-dim { position: absolute; inset: 0; z-index: 1;
-            background: linear-gradient(rgba(var(--mo-rgb), calc(var(--pm-dim, .35) + .1)),
-                                        rgba(var(--mo-rgb), var(--pm-dim, .35)));
+            background: linear-gradient(rgba(var(--mo-rgb), calc(var(--pm-dim, .35) + var(--pm-scrim, 0) + .1)),
+                                        rgba(var(--mo-rgb), calc(var(--pm-dim, .35) + var(--pm-scrim, 0))));
             pointer-events: none; }
         .pm-card:not(.pm-hasbg) .pm-dim { display: none; }
         .pm-inner { position: relative; z-index: 2; }
-        .pm-hasbg .pm-inner { text-shadow: 0 1px 12px rgba(var(--mo-rgb), .55); }
+        /* 有图时弱文字整体提一档：照片的细节会把灰字吃掉，--tao / --hui 那两级
+           是按纯色底定的，压在图上就是看不清（2026-09-21 用户反馈）。
+           这一档写死色值、不跟主题走——判断依据是「这张照片暗不暗」，跟大盘
+           当前是深色还是浅色主题没关系：暗照片就得配亮字。 */
+        .pm-hasbg { --pm-fg: #EDF1EF; --pm-fg2: #C7D0CD; --pm-fg3: #A7B3B0;
+            --pm-acc: #E0C07E; --pm-line: rgba(229, 233, 231, .32);
+            --pm-halo: rgba(8, 12, 12, .8); }
+        /* 实测这张图亮部够亮 → 整套换成深字。同样写死：亮照片就得配深字。 */
+        .pm-hasbg.pm-on-lit { --pm-fg: #121817; --pm-fg2: rgba(18, 24, 23, .87);
+            --pm-fg3: rgba(18, 24, 23, .72); --pm-acc: #8A6414;
+            --pm-line: rgba(18, 24, 23, .34); --pm-halo: rgba(255, 255, 255, .78); }
+        /* 光晕只发给「直接压在图上」的那几个文本节点。挂在 .pm-inner 上一路继承，
+           会连按钮和输入框一起描边——那些自己有实底，再套一圈白光反而脏。
+           单靠一层 12px 柔光在照片上不够（字缘和底糊在一起），加一道 2px 硬影
+           把字勾出来，缩到小窗大小也还立得住。 */
+        .pm-hasbg .pm-h, .pm-hasbg .pm-day, .pm-hasbg .pm-remain,
+        .pm-hasbg .pm-phase, .pm-hasbg .pm-plan, .pm-hasbg .pm-next,
+        .pm-hasbg .pm-custom, .pm-hasbg .pm-esc, .pm-hasbg .pm-hint,
+        .pm-hasbg .fs-full-toggle {
+            text-shadow: 0 1px 2px var(--pm-halo), 0 0 16px var(--pm-halo);
+            transition: color 1.2s ease; }
+        /* 工具按钮本来有自己的 hover 过渡，别被上面那条 1.2s 拖慢 */
+        .pm-hasbg .fs-full-toggle { transition: all .15s; }
+        .pm-hasbg .pm-cnum { text-shadow: none; }   /* 输入框自己有实底 */
 
         .pm-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
         .pm-h { font-size: 1.1rem; font-weight: 600; font-family: var(--font-serif);
             letter-spacing: .04em; border-left: 3px solid var(--zhusha); padding-left: 10px;
-            color: var(--text-primary); margin: 0; }
-        .pm-day { font-size: 0.76rem; color: var(--text-secondary); }
-        .pm-day b { color: var(--xiang-lt); }
+            color: var(--pm-fg); margin: 0; }
+        .pm-day { font-size: 0.76rem; color: var(--pm-fg2); }
+        .pm-day b { color: var(--pm-acc); }
         .pm-tools { margin-left: auto; display: flex; gap: 8px; flex: none; }
+        /* 工具按钮压在图上：底色透明、边框又只有 --bian 那么暗，照片一亮就整排
+           消失。hover 也换成半透明底——原来那块 --bg-secondary 是实心深色，
+           深色主题下会在浅照片上砸出一块黑砖。 */
+        .pm-card .fs-full-toggle { color: var(--pm-fg2); border-color: var(--pm-line); }
+        .pm-hasbg .fs-full-toggle:hover { color: var(--pm-fg); border-color: var(--pm-fg2);
+            background: rgba(var(--mo-rgb), .45); }
 
         .pm-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
         .pm-chip { font: inherit; font-size: 0.8rem; cursor: pointer; padding: 6px 14px;
@@ -9679,6 +10677,10 @@ POMO_CSS = '''
             background: rgba(var(--zhusha-rgb), .18); }
         .pm-chip .pm-chip-n { font-size: 0.68rem; color: var(--text-muted); margin-left: 6px; }
         .pm-chip.on .pm-chip-n { color: var(--tao); }
+        /* 选中那颗是半透明朱砂底，照片会透上来——浅照片上白字就浮掉了。
+           没选中的 chip 有实底（--bg-primary），不用管。 */
+        .pm-hasbg.pm-on-lit .pm-chip.on { color: #121817; background: rgba(var(--zhusha-rgb), .34); }
+        .pm-hasbg.pm-on-lit .pm-chip.on .pm-chip-n { color: rgba(18, 24, 23, .72); }
         /* 自己存的预设：chip 右边接一小截 ✕ 用来删。内置那五个不给这个口子
            ——删了没法恢复，不如不给。 */
         .pm-chipw { display: inline-flex; }
@@ -9699,6 +10701,7 @@ POMO_CSS = '''
         .pm-dial { position: relative; width: 216px; height: 216px; flex: none; }
         .pm-svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
         .pm-ring-bg { fill: none; stroke: var(--border-color); stroke-width: 9; }
+        .pm-hasbg .pm-ring-bg { stroke: var(--pm-line); }   /* 没跑完的那半圈也得看得见 */
         .pm-ring-fg { fill: none; stroke: var(--zhusha); stroke-width: 9; stroke-linecap: round;
             transition: stroke-dashoffset .35s linear, stroke .3s; }
         .pm-card.pm-brk .pm-ring-fg { stroke: var(--zhuqing); }
@@ -9706,10 +10709,11 @@ POMO_CSS = '''
         .pm-dial-mid { position: absolute; inset: 0; display: flex; flex-direction: column;
             align-items: center; justify-content: center; gap: 4px; text-align: center; }
         .pm-remain { font-size: 2.5rem; font-weight: 700; line-height: 1.1;
-            font-variant-numeric: tabular-nums; letter-spacing: .01em; }
-        .pm-phase { font-size: 0.76rem; color: var(--text-secondary); }
+            font-variant-numeric: tabular-nums; letter-spacing: .01em; color: var(--pm-fg); }
+        .pm-phase { font-size: 0.76rem; color: var(--pm-fg2); }
         .pm-dots { display: flex; gap: 5px; margin-top: 4px; }
         .pm-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-color); }
+        .pm-hasbg .pm-dot:not(.ok):not(.now) { background: var(--pm-fg3); }
         .pm-dot.ok { background: var(--zhuqing); }
         .pm-dot.now { background: var(--zhusha); box-shadow: 0 0 0 3px rgba(var(--zhusha-rgb), .18); }
         .pm-card.pm-pause .pm-dot.now { opacity: .5; }
@@ -9720,12 +10724,12 @@ POMO_CSS = '''
             font-size: 0.95rem; padding: 9px 26px; }
         .pm-main-btn:hover { border-color: var(--zhusha-lt); background: rgba(var(--zhusha-rgb), .12); }
         .pm-card.pm-brk .pm-main-btn { border-color: var(--zhuqing); color: var(--zhuqing-lt); }
-        .pm-plan { font-size: 0.82rem; color: var(--text-primary); margin-bottom: 4px; }
-        .pm-next { font-size: 0.74rem; color: var(--text-muted); min-height: 1.5em; margin-bottom: 12px; }
+        .pm-plan { font-size: 0.82rem; color: var(--pm-fg); margin-bottom: 4px; }
+        .pm-next { font-size: 0.74rem; color: var(--pm-fg3); min-height: 1.5em; margin-bottom: 12px; }
         .pm-custom { display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
-            font-size: 0.74rem; color: var(--text-muted); margin-bottom: 10px; }
-        .pm-clabel { font-size: 0.72rem; color: var(--text-muted); margin-right: 2px; }
-        .pm-cu { font-size: 0.7rem; color: var(--text-muted); }
+            font-size: 0.74rem; color: var(--pm-fg3); margin-bottom: 10px; }
+        .pm-clabel { font-size: 0.72rem; color: var(--pm-fg3); margin-right: 2px; }
+        .pm-cu { font-size: 0.7rem; color: var(--pm-fg3); }
         .pm-cnum { width: 54px; font: inherit; font-size: 0.78rem; padding: 4px 6px; text-align: center;
             background: var(--bg-primary); color: var(--text-primary);
             border: 1px solid var(--border-color); border-radius: 4px; }
@@ -9733,7 +10737,7 @@ POMO_CSS = '''
         /* 自定义那一行里两颗按钮（用这套 / ＋存为预设）收小一号，
            跟「自定义 45 分 专注 10 分 歇 2 轮」那排输入框一样高 */
         .pm-capply, .pm-csave { font-size: 0.74rem; padding: 4px 12px; }
-        .pm-hint { font-size: 0.7rem; color: var(--text-muted); line-height: 1.75; }
+        .pm-hint { font-size: 0.7rem; color: var(--pm-fg3); line-height: 1.75; }
 
         /* ---- 全屏层 ---- */
         body.pm-lock { overflow: hidden; }
@@ -9754,7 +10758,7 @@ POMO_CSS = '''
         .pm-fs .pm-hint { display: none; }
         .pm-fs .pm-h { border-left: 0; padding-left: 0; font-size: 1.3rem; }
         .pm-fs .pm-esc { display: inline; }
-        .pm-esc { display: none; font-size: 0.72rem; color: var(--text-muted); }
+        .pm-esc { display: none; font-size: 0.72rem; color: var(--pm-fg3); }
         /* 浏览器真全屏时（拿到 fullscreenElement）：让节点自己铺满，
            :fullscreen 的默认底色是黑，会盖掉我们的背景图，所以要显式 transparent */
         /* ---- 番茄钟浮动小窗（2026-09-21 晚）----
@@ -10194,11 +11198,88 @@ POMO_JS = '''
     // ---- 背景轮播 --------------------------------------------------------
     let bg = { images: [], interval: 20, dim: 0.35, show: "both", sound: "on" };
     let bgIdx = -1, bgTimer = null, bgLayer = 0;
+    let bgShot = null;          // 最近一张解好的图：改窗口尺寸时要按新尺寸重量一次
     function assetUrl(p) { return API + "/api/notes/asset?path=" + encodeURIComponent(p); }
     function bgWanted() {
         if (bg.show === "off" || !bg.images.length) return false;
         return bg.show === "both" || full;       // full = 只在全屏时铺
     }
+
+    // ---- 文字配色：每换一张图，先量一下它有多亮 --------------------------
+    // 轮播图一换，压在它上面的字就可能糊掉：白字撞上亮天空、黑字撞上夜景，
+    // 毛病是同一个——字色一直按「纯色卡片」定的，照片根本不在考虑范围内
+    // （2026-09-21 用户反馈：亮底上的灰字基本看不见）。所以每换一张就量一次，
+    // 再决定这一轮用哪套字。
+    //
+    // 为什么不是整张图求平均：background-size:cover 会裁掉一大半（4:3 的图铺进
+    // 长条卡里只剩中间一条），被裁掉的部分不该参与判断——先按 cover 的算法反推
+    // 出可见矩形，只采样那一块。量到的亮度还要叠上当前遮罩浓度，因为用户看到的
+    // 是叠完遮罩之后的底。
+    const PM_P_HI = 0.46;      // 亮部超过它，白字就开始糊了
+    const PM_M_LIT = 0.42;     // 整张平均超过它 = 没有暗处可躲，索性整张换深字
+    // 补遮罩的目标：把亮部压回 PM_P_HI 底下一点点。贴着阈值取是有意的——
+    // 取太低的话，p85=.46 不补、.47 就要补一大口，换图时遮罩会一跳一跳。
+    const PM_P_WANT = 0.44;
+    const PM_SCRIM_MAX = 0.45; // 兜底上限：真遇上大片死白的图，再深就成灰板了
+
+    function inkRgb() {
+        // 遮罩颜色跟着主题走（深色主题是青墨、浅色主题是纸白），量的时候得用同一个。
+        // 取不到（DOM 桩 / 旧浏览器）就按深色主题的默认值算。
+        let s = "";
+        try { s = getComputedStyle(document.documentElement).getPropertyValue("--mo-rgb"); } catch (e) {}
+        const m = String(s || "").split(",").map(function (x) { return parseFloat(x); });
+        return m.length === 3 && m.every(function (x) { return isFinite(x); }) ? m : [21, 26, 26];
+    }
+    function lum709(r, g, b) { return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; }
+
+    // → { mean, p85 }，都是「叠完遮罩之后」的亮度（0~1）；量不了就返回 null
+    function measureBg(im) {
+        const cw = host.clientWidth, ch = host.clientHeight;
+        const iw = im.naturalWidth, ih = im.naturalHeight;
+        if (!cw || !ch || !iw || !ih) return null;   // 卡片正被藏着（切在别的子页），先不量
+        const k = Math.max(cw / iw, ch / ih);        // cover：短边先铺满
+        const sw = Math.min(iw, cw / k), sh = Math.min(ih, ch / k);
+        let d;
+        try {
+            const c = document.createElement("canvas");
+            c.width = c.height = 32;                 // 32×32 够用了：要的是明暗，不是细节
+            const g = c.getContext("2d");
+            g.drawImage(im, (iw - sw) / 2, (ih - sh) / 2, sw, sh, 0, 0, 32, 32);
+            d = g.getImageData(0, 0, 32, 32).data;
+        } catch (e) { return null; }                 // 跨域图读不到像素，就当没量过
+        // ⚠️ 这里只用用户设的 --pm-dim，故意不把自动补的 --pm-scrim 算进去：
+        //    算进去就成了闭环（补完更暗 → 下次量出来不用补 → 遮罩归零 → 又变亮），
+        //    换图时遮罩会来回抽。基准始终是「用户设的那一档」。
+        const ink = inkRgb(), dim = Math.max(0, Math.min(1, (Number(bg.dim) || 0) + 0.05));
+        const v = [];                                // 渐变上下差 .1，取中间那一档
+        for (let i = 0; i < d.length; i += 4) {
+            v.push(lum709(d[i] * (1 - dim) + ink[0] * dim,
+                          d[i + 1] * (1 - dim) + ink[1] * dim,
+                          d[i + 2] * (1 - dim) + ink[2] * dim));
+        }
+        v.sort(function (a, b) { return a - b; });
+        let sum = 0;
+        for (let i = 0; i < v.length; i++) sum += v[i];
+        // 判「白字会不会糊」看的是亮部（p85）而不是平均：平均会被大片暗地面稀释，
+        // 而用户指的恰恰是左上角那块亮天空。
+        return { mean: sum / v.length, p85: v[Math.floor(v.length * 0.85)] };
+    }
+
+    function applyMood(m) {
+        // 量不到就维持上一次的判断，别乱清——切一趟子页回来字色不该闪一下
+        if (!m) return;
+        host.classList.remove("pm-on-lit");
+        host.style.setProperty("--pm-scrim", "0");
+        if (m.p85 <= PM_P_HI) return;                // 亮部本来就够暗，白字看得清，不用动
+        if (m.mean >= PM_M_LIT) { host.classList.add("pm-on-lit"); return; }   // 整张都亮 → 换深字
+        // 剩下的是一半亮一半暗（亮天空压着暗地面）：换深字则暗处糊，留白字则亮处糊，
+        // 光换颜色解决不了，只能把遮罩再压深一点。压到亮部落进 PM_P_WANT 为止，
+        // 上限 PM_SCRIM_MAX——再深照片就成灰板了，宁可字难认也别把图毁了。
+        const ink = lum709.apply(null, inkRgb());
+        const need = (m.p85 - PM_P_WANT) / Math.max(0.05, m.p85 - ink);
+        host.style.setProperty("--pm-scrim", Math.min(PM_SCRIM_MAX, need).toFixed(3));
+    }
+
     function stepBg() {
         const list = bg.images;
         if (!list.length) return;
@@ -10214,6 +11295,8 @@ POMO_JS = '''
             show.classList.add("on");
             if (hide) hide.classList.remove("on");
             bgLayer += 1;
+            bgShot = im;
+            applyMood(measureBg(im));        // 换了底就重挑一次字色
         };
         im.onerror = function () { /* 这张坏了就跳过，下一张轮到时再说 */ };
         im.src = assetUrl(list[bgIdx]);
@@ -10224,12 +11307,32 @@ POMO_JS = '''
         host.style.setProperty("--pm-dim", String(bg.dim));
         if (!want) {
             if (bgTimer) { clearInterval(bgTimer); bgTimer = null; }
+            // 图撤了，字色回到纯色卡那一套（不这么做的话，上一次判定留下的
+            // .pm-on-lit 会挂在没图的卡上，把深字配给深底）
+            host.classList.remove("pm-on-lit");
+            host.style.setProperty("--pm-scrim", "0");
             return;
         }
         if (bgIdx < 0 || bgIdx >= bg.images.length) bgIdx = -1;
         stepBg();
         if (bgTimer) clearInterval(bgTimer);
         bgTimer = setInterval(stepBg, Math.max(5, bg.interval | 0) * 1000);
+    }
+    // 窗口一改大小，cover 露出来的那块就跟着变，得按新尺寸重量一次。
+    // 防抖 300ms：拖窗口时每帧重画一次 canvas 是白费。全屏进出走的是 setFull →
+    // syncBg → stepBg，本来就会重量，不用在这儿再管。
+    let bgResizeT = null;
+    function remeasure() {
+        if (bgResizeT) clearTimeout(bgResizeT);
+        bgResizeT = setTimeout(function () { if (bgShot) applyMood(measureBg(bgShot)); }, 300);
+    }
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+        window.addEventListener("resize", remeasure);
+    }
+    // 切回这个标签页时补量一次：在别的标签页里轮播悄悄换过图，那张的亮度
+    // 是没量过的（卡片当时被藏着），不等下一次轮播就把字色跟上来。
+    if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+        document.addEventListener("visibilitychange", function () { if (!document.hidden) remeasure(); });
     }
     function loadCfg(after) {
         fetch(API + "/api/settings").then(function (r) { return r.json(); }).then(function (d) {
@@ -12460,6 +13563,11 @@ MR_CSS = '''
         .mr-fc-infos { display: flex; align-items: center; gap: 7px; font-size: .8rem;
             color: var(--text-secondary); }
         .mr-fc-start .mr-hint { margin-left: auto; }
+        /* 早间回顾闪卡：这一组卡是「当天回顾内容」翻出来的（2026-09-20） */
+        .mr-fc-note { margin-top: 10px; padding: 10px 13px; font-size: .75rem; line-height: 1.85;
+            color: var(--text-secondary); background: rgba(var(--dianqing-rgb), .07);
+            border-left: 3px solid var(--dianqing); border-radius: var(--border-radius); }
+        .mr-fc-note .mr-dim { color: var(--text-muted); font-size: .72rem; }
 
         /* 英语长难句 */
         .mr-sent { padding: 12px 14px; background: var(--bg-secondary);
@@ -12536,12 +13644,8 @@ MR_JS = '''
     const esc = (s) => String(s == null ? "" : s)
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    // 早间回顾的卡号 → 主闪卡库卡号（本地缓存，避免每次打开都重复归卡）。
-    // ⚠️ 只缓存卡号映射，不缓存任何进度 —— 进度由主闪卡库 FSRS 统一管。
-    const CARDMAP_KEY = 'kaoyan_mr_cardmap';
-    const loadCardMap = () => { try { return JSON.parse(localStorage.getItem(CARDMAP_KEY) || '{}'); } catch (e) { return {}; } };
-    const saveCardMap = () => { try { localStorage.setItem(CARDMAP_KEY, JSON.stringify(S.cardMap)); } catch (e) {} };
-    const S = { ov: null, date: null, day: null, q: null, tab: null, idx: 0, flipped: false, busy: false, cardMap: loadCardMap() };
+    // 闪卡面板当前选中的「段」（'' = 全部）。切换只影响这一组卡怎么拼。
+    const S = { ov: null, date: null, day: null, fcSec: '', busy: false };
 
     function toast(msg) {
         const t = document.createElement("div");
@@ -12576,6 +13680,16 @@ MR_JS = '''
             + '<span class="mr-stat mr-today" style="margin-left:auto;">' + esc(S.date || '') + '</span></div>';
     }
 
+    // 条目正文是**原样插入**的 HTML 片段（数据里自带 <strong>/<code>/<span>），所以这里
+    // 不能转义、也不能走 richText。但字段里确实会出现 `2^n`、`(−1)^{n−1}`、`(1+x)^α`
+    // 这类 ASCII 上下标写法 —— 交给共用的 asciiMathHtml：按标签切开，只转标签外的文本。
+    // （2026-09-22 用户截图：数学要点的标题与正文里 `^α`、`^{n−1}` 原样漏出。）
+    const rich = (s) => {
+        const f = (typeof globalThis !== "undefined" && globalThis.asciiMathHtml)
+            || ((x) => x);                       // 桥没搭上就原样输出，本模块要能单独跑
+        return f(s == null ? "" : s);
+    };
+
     function linkHtml(l, loc) {
         if (!l || !l.name) return '';
         // 本地笔记不能用 file:// 直接跳（打不开），改成调大盘的阅读器浮窗渲染。
@@ -12600,12 +13714,12 @@ MR_JS = '''
         const html = items.map(it => {
             const badges = (it.badges || []).map(b => '<span class="mr-badge">' + esc(b) + '</span>').join('');
             const list = (it.list && it.list.length)
-                ? '<ul class="mr-list">' + it.list.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '';
-            const concl = it.conclusion ? '<div class="mr-concl">' + it.conclusion + '</div>' : '';
+                ? '<ul class="mr-list">' + it.list.map(x => '<li>' + rich(x) + '</li>').join('') + '</ul>' : '';
+            const concl = it.conclusion ? '<div class="mr-concl">' + rich(it.conclusion) + '</div>' : '';
             return '<div class="mr-item">'
                 + (badges ? '<div class="mr-badges">' + badges + '</div>' : '')
-                + '<h4>' + (it.title || '') + '</h4>'
-                + '<p>' + (it.body || '') + '</p>' + list + concl
+                + '<h4>' + rich(it.title) + '</h4>'
+                + '<p>' + rich(it.body) + '</p>' + list + concl
                 + linkHtml(it.noteLink, {
                     anchor: it.title,
                     keywords: String(it.body || '').replace(/<[^>]*>/g, ' ')
@@ -12616,75 +13730,187 @@ MR_JS = '''
             + '<div class="mr-sub">' + esc(day.subject || '') + '</div>' + html + '</div>';
     }
 
-    // ---- 闪卡练习（队列由服务端算；练习本身复用大盘闪卡模块）----
-    // 原来是早间回顾自己另写的一张「点卡翻答案 → 标已经/待巩固」的简易卡——
-    // 打分、间隔重复、进度存档都是独立一套，和主闪卡库各算各的。现在把这组题
-    // 归进主闪卡库（/api/study/cards），再调 __flashFloat.practice 精确开练，
-    // 于是翻转 → 看答案 → 评分、FSRS 调度、多端续刷全都在同一个模块里，没有第二套。
-    function fcCard() {
-        const q = S.q;
-        if (!q || !q.tabs || !q.tabs.length) return '';
-        const tabs = q.tabs.map(t =>
-            '<button class="mr-tab' + (t.key === S.tab ? ' on' : '') + '" data-tab="' + t.key + '">'
-            + esc(t.label) + '<span class="mr-cnt">' + t.due + '复+' + t.new + '新</span></button>').join('');
-        const grp = S.tab && q.queues[S.tab];
-        let inner;
-        if (!grp || !grp.all.length) {
-            inner = '<div class="mr-empty">该科目今日没有待练卡片（都已掌握，或还没到复习点）。</div>';
-        } else {
-            const revN = grp.all.filter(c => {
-                const s = q.sr && q.sr[c.id];
-                return s && s.step >= 0 && !s.mastered;
-            }).length;
-            inner = '<div class="mr-fc-start">'
-                + '<div class="mr-fc-infos">本组 <b>' + grp.all.length + '</b> 张'
-                + ' · <span class="mr-kind rev">' + revN + ' 复习</span>'
-                + '<span class="mr-kind new">' + (grp.all.length - revN) + ' 新</span></div>'
-                + '<button class="mr-btn primary" id="mr-fc-start">🎯 开始闪卡练习</button>'
-                + '<span class="mr-hint">提问 → 翻卡看答案 → 评分，进度存电脑、换设备一致</span>'
-                + '</div>';
+    // ============================================================
+    // 早间回顾闪卡（2026-09-20 按用户澄清重做）
+    //
+    // 用户原话：「早间的这个闪卡的作用，不是再去学一学闪卡库里的闪卡，而就是用来学
+    // 早间回顾的。就是把早间回顾的内容变成翻转的闪卡。这样正好我把这个闪卡读完之后，
+    // 就自动打卡，早间回顾就可以了。」
+    //
+    // 所以这一组卡**完全由本页的当天数据拼出来**：知识点回顾 / 今日小测 / 数学要点 / 英语，
+    // 正面是「提示」（标题、问题、单词、原句），反面是那一天原文里对应的内容。
+    //
+    // 走闪卡练习区的**本地卡组**通道（__flashFloat.local）：
+    //   · 不归卡进主闪卡库、不占每日额度、不写 review_log、不动 FSRS
+    //     （旧做法把这一页的题 POST /api/study/cards 归进主库再按卡号组题，等于把早间回顾
+    //      混进了闪卡库：既污染调度，又会把「点名卡号」写进筛选条件）
+    //   · 进度只存本机，不影响主库「当日这一组」
+    // 整组（「全部」那一段，即这一天的所有回顾内容）刷完 → **自动打卡**。
+    // ============================================================
+    const SEC_ICON = { rv: '📚', qz: '❓', mt: '🧮', en: '📝' };
+
+    /** 把某一天的回顾内容拆成几段可翻的卡。front/back 都是**已拼好的 HTML**。 */
+    function daySections(day) {
+        const secs = [];
+        const badgesHtml = (arr) => (arr && arr.length
+            ? '<div class="mr-badges">' + arr.map(b => '<span class="mr-badge">' + esc(b) + '</span>').join('') + '</div>'
+            : '');
+
+        const rv = (day.review || []).map((it, i) => ({
+            id: 'rv' + i,
+            front: rich(it.title),
+            back: badgesHtml(it.badges)
+                + '<p>' + rich(it.body) + '</p>'
+                + (it.list && it.list.length
+                    ? '<ul class="mr-list">' + it.list.map(x => '<li>' + rich(x) + '</li>').join('') + '</ul>' : '')
+                + (it.conclusion ? '<div class="mr-concl">' + rich(it.conclusion) + '</div>' : ''),
+        }));
+        if (rv.length) secs.push({ key: 'rv', label: '📚 知识点回顾', cards: rv });
+
+        const qz = (day.quiz || []).map((it, i) => ({
+            id: 'qz' + i,
+            front: rich(it.question),
+            back: rich(it.answer),
+        }));
+        if (qz.length) secs.push({ key: 'qz', label: '❓ 今日小测', cards: qz });
+
+        const mt = ((day.math || {}).points || []).map((p, i) => ({
+            id: 'mt' + i,
+            front: rich(p.title),
+            back: badgesHtml(p.badges)
+                + '<p>' + rich(p.body) + '</p>'
+                + (p.conclusion ? '<div class="mr-concl">' + rich(p.conclusion) + '</div>' : ''),
+        }));
+        if (mt.length) secs.push({ key: 'mt', label: '🧮 数学要点', cards: mt });
+
+        const e = day.english || {};
+        const en = [];
+        if (e.sentence) {
+            en.push({
+                id: 'en0',
+                front: '先自己翻译、再拆结构：<br>' + rich(e.sentence),
+                back: (e.translation ? '<p><b>参考译文：</b>' + rich(e.translation) + '</p>' : '')
+                    + (e.structure ? '<div class="mr-struct">' + esc(e.structure) + '</div>' : ''),
+            });
         }
-        return '<div class="mr-card"><div class="mr-card-h">🎯 闪卡练习'
-            + '<span class="mr-tag">' + esc(q.date || '') + '</span></div>'
-            + '<div class="mr-tabs">' + tabs + '</div>' + inner + '</div>';
+        (e.words || []).forEach((w, i) => en.push({
+            id: 'wd' + i,
+            front: '「' + esc(w.word) + '」在这句里是什么意思？',
+            back: '<p><b>句中含义：</b>' + esc(w.meaning) + '</p>'
+                + (w.familiar ? '<p><b>常见熟义：</b>' + esc(w.familiar) + '</p>' : ''),
+        }));
+        (e.grammar || []).forEach((g, i) => en.push({
+            id: 'gr' + i,
+            front: rich(g.title),
+            back: '<p>' + rich(g.body) + '</p>',
+        }));
+        (e.decompose || []).forEach((d, i) => en.push({
+            id: 'dc' + i,
+            front: '这句里的成分「' + esc(d.badge || ('第 ' + (i + 1) + ' 处')) + '」是什么？',
+            back: '<p>' + esc(d.content) + '</p>' + (d.note ? '<p>' + esc(d.note) + '</p>' : ''),
+        }));
+        if (en.length) secs.push({ key: 'en', label: '📝 英语一', cards: en });
+        return secs;
     }
 
-    // 把当前科目的题归进主闪卡库，拿到卡号后交给闪卡浮窗精确开练。
-    // 同一题干重复出现（换一天又来）会被主库去重成同一张卡 → FSRS 进度连得上。
-    async function startPractice() {
-        const grp = S.tab && S.q && S.q.queues[S.tab];
-        if (!grp || !grp.all.length || S.busy) return;
-        S.busy = true;
-        try {
-            const todo = grp.all.filter(c => !S.cardMap[c.id]);
-            if (todo.length) {
-                const r = await post('/api/study/cards', {
-                    subject: S.tab,
-                    cards: todo.map(c => ({
-                        type: 'fill',
-                        stem: String(c.q || ''),
-                        answer: String(c.a || ''),
-                        topic: c.topic || '',
-                    })),
-                });
-                if (!r.ok) { toast('归卡失败：' + (r.error || '')); return; }
-                r.card_ids.forEach((cid, i) => { if (i < todo.length) S.cardMap[todo[i].id] = cid; });
-                saveCardMap();
-            }
-            const ids = grp.all.map(c => S.cardMap[c.id]).filter(Boolean);
-            if (!ids.length) { toast('没有可练习的卡片'); return; }
-            if (typeof globalThis.__flashFloat === 'object' && globalThis.__flashFloat
-                && typeof globalThis.__flashFloat.practice === 'function') {
-                globalThis.__flashFloat.practice(ids, '早间回顾 · ' + (grp.label || S.tab || ''));
-            } else {
-                toast('闪卡模块未就绪，稍后再点一次');
-            }
-        } catch (e) {
-            toast('开启失败：' + e.message);
-        } finally {
-            S.busy = false;
+    function dayAllCards(day) {
+        return daySections(day).reduce((a, s) => a.concat(s.cards), []);
+    }
+
+    // ---- 闪卡练习面板：主角是「这一天的回顾内容」，不是闪卡库 ----
+    function fcCard() {
+        const day = S.day;
+        if (!day) return '';
+        const secs = daySections(day);
+        const all = dayAllCards(day);
+        const cur = S.fcSec ? secs.filter(s => s.key === S.fcSec)[0] : null;
+        const group = cur ? cur.cards : all;
+        const st = (typeof globalThis.__mrFlashState === 'function')
+            ? globalThis.__mrFlashState(S.date) : { left: 0, done: false };
+        const checked = !!((S.ov.days.filter(d => d.date === S.date)[0] || {}).checked);
+
+        const chips = ['<button class="mr-tab' + (!S.fcSec ? ' on' : '') + '" data-fc="">全部'
+                + '<span class="mr-cnt">' + all.length + '</span></button>']
+            .concat(secs.map(s => '<button class="mr-tab' + (S.fcSec === s.key ? ' on' : '') + '" data-fc="'
+                + s.key + '">' + s.label + '<span class="mr-cnt">' + s.cards.length + '</span></button>'))
+            .join('');
+
+        let inner;
+        if (!group.length) {
+            inner = '<div class="mr-empty">这一天还没有可翻的回顾内容。'
+                + '「morning-review 工作流」生成知识点 / 小测 / 数学要点 / 英语之后，这里就有卡了。</div>';
+        } else {
+            inner = '<div class="mr-fc-start">'
+                + '<div class="mr-fc-infos">本组 <b>' + group.length + '</b> 张</div>'
+                + '<button class="mr-btn primary" id="mr-fc-start">'
+                + (st.left && !cur ? '▶ 继续本组（还剩 ' + st.left + ' 张）' : '🎯 开始闪卡练习') + '</button>'
+                + (st.left && !cur ? '<button class="mr-btn" id="mr-fc-restart">↺ 从头来</button>' : '')
+                + '<span class="mr-hint">翻卡看原文 → 自评</span>'
+                + '</div>'
+                + '<div class="mr-fc-note">'
+                + (cur
+                    ? '只练这一段（<b>' + cur.label + '</b>），不会自动打卡——打卡要『全部』那段刷完。'
+                    : '这一天的 <b>' + all.length + ' 张</b>全在这一组：'
+                      + secs.map(s => s.label + ' ' + s.cards.length).join(' · ')
+                      + '。<b>整组刷完会自动打卡</b>，早间回顾就算做完了。')
+                + (st.done ? '<br>✅ 这一天的卡今天已经刷完过一遍了，想再练点「↺ 从头来」。' : '')
+                + (checked ? '<br>🔖 这一天已打卡。' : '')
+                + '<br><span class="mr-dim">这些卡不占闪卡库的每日额度，也不进 FSRS 调度。</span>'
+                + '</div>';
+        }
+        return '<div class="mr-card"><div class="mr-card-h">🎯 早间回顾闪卡'
+            + '<span class="mr-tag">' + esc(S.date || '') + '</span></div>'
+            + '<div class="mr-tabs">' + chips + '</div>' + inner + '</div>';
+    }
+
+    /** 开练：把当前这一段（或全部）翻成卡，交给闪卡练习区的本地通道。 */
+    function startDayPractice(fresh) {
+        const day = S.day;
+        if (!day) return;
+        const secs = daySections(day);
+        const cur = S.fcSec ? secs.filter(s => s.key === S.fcSec)[0] : null;
+        const picked = cur ? cur.cards : dayAllCards(day);
+        if (!picked.length) { toast('这一天没有可翻的回顾内容'); return; }
+        const api = globalThis.__flashFloat;
+        if (!api || typeof api.local !== 'function') { toast('闪卡模块未就绪，稍后再点一次'); return; }
+        const cards = picked.map(c => ({
+            id: 'mrd-' + S.date + '-' + c.id,
+            sec: cur ? cur.key : '',
+            secLabel: cur ? cur.label : (SEC_ICON.rv + ' 今日回顾'),
+            front: c.front, back: c.back,
+        }));
+        const st = (typeof globalThis.__mrFlashState === 'function')
+            ? globalThis.__mrFlashState(S.date) : { left: 0, done: false };
+        const resume = !cur && !fresh && st.left > 0;
+        api.local(cards, '早间回顾 · ' + S.date, {
+            kind: 'mr-day',
+            date: S.date,
+            resume: resume,
+            // 只有「全部」那一组刷完才算今天回顾做完了 → 自动打卡
+            onFinish: cur ? null : autoCheckin,
+        });
+        if (typeof globalThis.__webLog === 'function') {
+            globalThis.__webLog({ kind: 'mr-flash', message: '早间回顾闪卡开练 ' + S.date
+                + ' 段=' + (cur ? cur.key : '全部') + ' 张数=' + cards.length + (resume ? '（续刷）' : '') });
         }
     }
+
+    /** 整组刷完 → 自动打卡（早间回顾的完成信号）。返回一句给总结屏显示的话。 */
+    async function autoCheckin() {
+        try {
+            const r = await post('/api/morning-review/checkin', { date: S.date, on: true });
+            if (!r.ok) return '⚠ 打卡失败：' + (r.error || '');
+            if (typeof globalThis.__webLog === 'function') {
+                globalThis.__webLog({ kind: 'checkin', message: '早间回顾闪卡刷完 → 自动打卡 ' + S.date });
+            }
+            await refreshOverview();
+            renderAll();
+            return '✅ 早间回顾已打卡（' + S.date + '）—— 这一天的回顾就算做完了。';
+        } catch (e) {
+            return '⚠ 打卡失败：无法连接本地服务。闪卡练完了，回到「早」页点「🔖 打卡今天」补一下。';
+        }
+    }
+
 
     // ---- 英语长难句 ----
     function engCard(day) {
@@ -12704,9 +13930,9 @@ MR_JS = '''
               + '</tbody></table>' : '';
         return '<div class="mr-card"><div class="mr-card-h">📝 英语一长难句精析'
             + (e.source ? '<span class="mr-tag">' + esc(e.source) + '</span>' : '') + '</div>'
-            + '<div class="mr-sent">' + (e.sentence || '') + '</div>'
+            + '<div class="mr-sent">' + rich(e.sentence) + '</div>'
             + '<div class="mr-acts"><button class="mr-btn" id="mr-trans-btn">🔍 查看参考译文</button></div>'
-            + '<div class="mr-trans" id="mr-trans"><strong>参考译文：</strong>' + (e.translation || '') + '</div>'
+            + '<div class="mr-trans" id="mr-trans"><strong>参考译文：</strong>' + rich(e.translation) + '</div>'
             + (e.structure ? '<div class="mr-h4">🔍 结构拆解</div><div class="mr-struct">'
                 + esc(e.structure) + '</div>' : '')
             + dec
@@ -12724,14 +13950,14 @@ MR_JS = '''
         if (!pts.length) return '';
         const html = pts.map(p => {
             const badges = (p.badges || []).map(b => '<span class="mr-badge">' + esc(b) + '</span>').join('');
-            const concl = p.conclusion ? '<div class="mr-concl">' + p.conclusion + '</div>' : '';
+            const concl = p.conclusion ? '<div class="mr-concl">' + rich(p.conclusion) + '</div>' : '';
             const tag = p.type === 'taylor' ? '<span class="mr-kind rev">泰勒·记忆</span>'
                        : p.type === 'trap' ? '<span class="mr-kind new">陷阱</span>'
                        : '<span class="mr-kind">' + esc(p.type || '要点') + '</span>';
             return '<div class="mr-item">'
                 + '<div class="mr-badges">' + badges + tag + '</div>'
-                + '<h4>' + (p.title || '') + '</h4>'
-                + '<p>' + (p.body || '') + '</p>' + concl + linkHtml(p.noteLink, { anchor: p.title }) + '</div>';
+                + '<h4>' + rich(p.title) + '</h4>'
+                + '<p>' + rich(p.body) + '</p>' + concl + linkHtml(p.noteLink, { anchor: p.title }) + '</div>';
         }).join('');
         return '<div class="mr-card"><div class="mr-card-h">🧮 数学要点'
             + '<span class="mr-time">约 ' + Math.max(pts.length * 3, 4) + ' 分钟</span>'
@@ -12745,7 +13971,8 @@ MR_JS = '''
         if ((d.review || []).length) units.push(['📚 知识点', Math.min(d.review.length * 2, 8)]);
         const mp = (d.math && d.math.points) || [];
         if (mp.length) units.push(['🧮 数学要点', Math.max(mp.length * 3, 4)]);
-        const hasFc = S.q && S.q.tabs && S.q.tabs.reduce((a, t) => a + ((t.due || 0) + (t.total || 0)), 0);
+        // 闪卡那 3 分钟只在「这一天真的有可翻的回顾内容」时才算进预算
+        const hasFc = dayAllCards(d).length;
         if (hasFc) units.push(['🎯 闪卡', 3]);
         if (d.english) units.push(['📝 长难句', 2]);
         const total = Math.min(units.reduce((a, u) => a + u[1], 0), 15);
@@ -12795,24 +14022,15 @@ MR_JS = '''
 
     async function selectDate(d) {
         if (S.busy || !d) return;
-        S.busy = true; S.date = d; S.flipped = false; S.idx = 0;
+        S.busy = true; S.date = d;
         renderAll();
         try {
             const enc = encodeURIComponent(d);
-            const [dd, qq] = await Promise.all([
-                get('/api/morning-review/day?date=' + enc),
-                get('/api/morning-review/queue?date=' + enc),
-            ]);
+            const dd = await get('/api/morning-review/day?date=' + enc);
             S.day = dd.day; S.day.checked = !!dd.checked;
-            S.q = qq;
-            const curTab = S.tab && qq.queues[S.tab];
-            if (!curTab || !curTab.all.length) {
-                const first = (qq.tabs || []).find(t => t.total > 0) || (qq.tabs || [])[0];
-                S.tab = first ? first.key : null;
-            }
             renderAll();
         } catch (e) {
-            S.day = null; S.q = null;
+            S.day = null;
             root.innerHTML = barHtml()
                 + '<div class="mr-empty">⚠ 读取失败：' + esc(e.message) + '</div>';
         } finally {
@@ -12844,10 +14062,12 @@ MR_JS = '''
     root.addEventListener('click', (ev) => {
         const chip = ev.target.closest('[data-date]');
         if (chip) { selectDate(chip.dataset.date); return; }
-        const tab = ev.target.closest('[data-tab]');
-        if (tab) { S.tab = tab.dataset.tab; S.idx = 0; S.flipped = false; renderAll(); return; }
+        // 闪卡面板的「段」切换（'' = 全部）——只改这一组怎么拼，不动别的
+        const fcTab = ev.target.closest('[data-fc]');
+        if (fcTab) { S.fcSec = fcTab.dataset.fc || ''; renderAll(); return; }
         if (ev.target.closest('#mr-check')) { toggleCheckin(); return; }
-        if (ev.target.closest('#mr-fc-start')) { startPractice(); return; }
+        if (ev.target.closest('#mr-fc-start')) { startDayPractice(false); return; }
+        if (ev.target.closest('#mr-fc-restart')) { startDayPractice(true); return; }
         const note = ev.target.closest('[data-note]');
         if (note) {
             const file = note.dataset.note;

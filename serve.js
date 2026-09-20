@@ -529,6 +529,7 @@ const studyAgent = require('./study_agent');
 // 与它共用一份逻辑的还有命令行：node src/card_reports.js list|fix —— 每日任务里
 // agent 不一定要开着网页，那条路走 CLI（见 tools/test_card_reports.js）。
 const cardReports = require('./card_reports');
+const cardPolicy = require('./card_policy');
 
 // ---- 闪卡调度辅助 --------------------------------------------------------
 
@@ -573,6 +574,89 @@ function loadConfig(db) {
   } catch (e) {
     return parseConfig(null);
   }
+}
+
+// ---------------------------------------------------------------------------
+// 口径注册表（src/metrics_spec.json）
+//
+// 「什么算一条笔记 / 什么算覆盖 / 什么算掌握 / 各类时间窗与阈值」的单一事实源。
+// Python 侧由 metrics_conf.py 读同一份文件；这里给 JS 侧与设置页用。
+//
+// ⚠️ 服务端**只读不写**它：设置页改的是 config 表里的值（spec 声明 editable 的项），
+//    spec 本身是代码资产，改动要进 git。tools/check_metrics_drift.py 负责把
+//    spec 的声明与各脚本源码里的实际取值对拍，不一致就报错。
+// ---------------------------------------------------------------------------
+const METRICS_SPEC_PATH = path.join(__dirname, 'metrics_spec.json');
+
+function readMetricsSpec() {
+  try {
+    return JSON.parse(fs.readFileSync(METRICS_SPEC_PATH, 'utf-8'));
+  } catch (e) {
+    console.warn('[Metrics] 读 metrics_spec.json 失败: ' + e.message);
+    return { version: 0, metrics: [] };
+  }
+}
+
+/** 可改项的 { key: [lo, hi] }（POST /api/settings 的校验范围从这里派生）。 */
+function metricsRange() {
+  const out = {};
+  for (const m of (readMetricsSpec().metrics || [])) {
+    if (m.editable && m.key && Array.isArray(m.range) && m.range.length === 2) {
+      out[m.key] = m.range;
+    }
+  }
+  return out;
+}
+
+/** 取一项的生效值：config 表优先，回退 spec 里的 default；越界视为坏值回退。 */
+function metricsValue(db, m) {
+  if (!(m.editable && m.key)) return m.value != null ? m.value : m.default;
+  let raw = null;
+  try {
+    const r = db.prepare('SELECT value FROM config WHERE key = ?').get(m.key);
+    raw = r ? r.value : null;
+  } catch (e) { raw = null; }
+  if (raw == null || raw === '') return m.default;
+  if (m.type === 'int') {
+    const v = parseInt(raw, 10);
+    if (!Number.isFinite(v)) return m.default;
+    if (Array.isArray(m.range) && (v < m.range[0] || v > m.range[1])) return m.default;
+    return v;
+  }
+  if (m.type === 'float') {
+    const v = Number(raw);
+    return Number.isFinite(v) ? v : m.default;
+  }
+  if (m.type === 'bool') return String(raw) === 'on' || String(raw) === 'true';
+  return raw;
+}
+
+/** 设置页「📐 口径」用的整份快照（含每个来源文件的 mtime，便于确认读的是哪一版）。 */
+function metricsSnapshot(db) {
+  const spec = readMetricsSpec();
+  const counts = { runtime: 0, fixed: 0, convention: 0 };
+  const items = (spec.metrics || []).map(m => {
+    counts[m.scope] = (counts[m.scope] || 0) + 1;
+    const it = {
+      id: m.id, title: m.title || '', scope: m.scope || 'fixed',
+      editable: !!m.editable, unit: m.unit || '', desc: m.desc || '',
+      source: m.source || '', used_by: m.used_by || [],
+      value: metricsValue(db, m),
+    };
+    if (m.editable) {
+      it.key = m.key; it.type = m.type || 'string';
+      it.range = m.range || null; it.default = m.default;
+      let cur = null;
+      try {
+        const r = db.prepare('SELECT value FROM config WHERE key = ?').get(m.key);
+        cur = r ? r.value : null;
+      } catch (e) { cur = null; }
+      it.overridden = cur != null && cur !== '';
+      it.raw = cur;
+    }
+    return it;
+  });
+  return { ok: true, version: spec.version || 0, counts, items };
 }
 
 /**
@@ -897,6 +981,8 @@ const SENSITIVE_PATHS = [
   // 标记有问题 / 复核改题（2026-09-17）：会写 questions.content 与 card_reports，
   // 属于「能改学习数据」的那一类，和 /api/study/cards 同待遇（前缀匹配，覆盖 /resolve）。
   '/api/flashcards/reports',
+  '/api/flashcards/pin',
+  '/api/flashcards/pins',
   // 学科管理 / 建库（2026-09-19）：写 subjects.json，能改学习范围，同待遇。
   '/api/subjects', '/api/bootstrap',
 ];
@@ -1509,6 +1595,9 @@ const server = http.createServer((req, res) => {
       // 待修的「这题有问题」（2026-09-17）：唯一能重新看到这些卡的地方——
       // 智能组会主动把它们排除（见下面 where 里那条 NOT EXISTS）。
       flagged: "EXISTS (SELECT 1 FROM card_reports r WHERE r.card_id = c.id AND r.status = 'open')",
+      // 📌 钉住的卡（2026-09-19）：他自己钉的，看它的地方在筛选页。
+      // ⚠️ 智能组**不排除**它们（恰恰相反：置顶），这里只是给他一个总览入口。
+      pinned: "EXISTS (SELECT 1 FROM card_pins p WHERE p.card_id = c.id)",
     };
     const rawBucket = (params.get('bucket') || '').trim();
     const bucket = Object.keys(BUCKETS).includes(rawBucket) ? rawBucket : '';
@@ -1593,11 +1682,24 @@ const server = http.createServer((req, res) => {
         weakTopicIds = new Set(Array.isArray(dd.weak_topic_ids) ? dd.weak_topic_ids : []);
       } catch (e) {}
 
+      // 组题策略的信号（2026-09-19）：连对几次、他对哪张卡向 AI 提过问、钉住了哪些。
+      // 一次捞完（不逐卡发子查询）。阈值可在 config 里改：smart_retire_streak /
+      // smart_demote_streak（0 = 关掉该档）。规则本身在 card_policy.js，服务端只取数。
+      const signals = cardPolicy.loadSignals(db);
+      const policyOpts = {
+        retireStreak: readCfgValue(db, 'smart_retire_streak', String(cardPolicy.DEFAULT_RETIRE_STREAK)),
+        demoteStreak: readCfgValue(db, 'smart_demote_streak', String(cardPolicy.DEFAULT_DEMOTE_STREAK)),
+        // 「问过 AI」的出口：提问之后又连对几次，这张卡就不再享受豁免
+        // （用户 2026-09-19：「如果没有退出机制，我问过的就永远优先级都高了」）
+        askExitStreak: readCfgValue(db, 'smart_ask_exit_streak',
+                                    String(cardPolicy.DEFAULT_ASK_EXIT_STREAK)),
+      };
+
       const rows = db.prepare(`
         SELECT c.id AS card_id, c.state, c.difficulty AS fs_d, c.stability, c.due_date,
                c.due_at, c.reps, c.lapses, c.last_review,
                c.learning_step, c.relearning_step, c.leech, c.suspended, c.interval_days,
-               q.id AS qid, q.type, q.topic_id, q.content,
+               q.id AS qid, q.type, q.topic_id, q.content, q.created_at AS q_created,
                t.name AS topic_name, COALESCE(t.subject, '') AS subject, t.exam_weight,
                cr.id AS rep_id, cr.kind AS rep_kind, cr.note AS rep_note, cr.created_at AS rep_at
         FROM cards c
@@ -1620,18 +1722,35 @@ const server = http.createServer((req, res) => {
       };
       const dueKey = (r) => r.due_at || r.due_date || '';
 
-      const items = rows.map(r => {
+      const items = [];
+      const retired = [];            // 连对够了被移出智能组的（前端只用来报个数）
+      for (const r of rows) {
         const isNew = r.state === 0;
         const learning = r.state === 1 || r.state === 3;
         const due = isDueNow(r);
-        let prio = 0;
-        // 水蛭卡置顶 > 薄弱 > 学习/到期 > 近日笔记新卡 > 其他
-        if (r.leech) prio = 5;
-        else if (weakQids.has(r.qid) || weakTopicIds.has(r.topic_id)) prio = 4;
-        else if (learning && due) prio = 3;
-        else if (!isNew && due) prio = 2;
-        else if (isNew && (recentPrefixes.some(p => (r.topic_id || '').startsWith(p))
-            || coldPrefixes.some(p => (r.topic_id || '').startsWith(p)))) prio = 1;
+        const sig = cardPolicy.signalFor(signals, r.card_id, r.qid);
+
+        // ⚠️ 退役只对**智能组**生效：browse / extra / ids 点名 / 筛选页都是他手选的范围，
+        //    照给（他明确说过「我就想专刷这个范围」）。extra 例外：那是「再来一组」，
+        //    目的是练到有用的卡，已经连对 3 次的没必要再占位置。
+        if (mode !== 'browse' && cardPolicy.isRetired(sig, policyOpts)) {
+          retired.push(r.card_id);
+          continue;
+        }
+
+        const ctx = {
+          weak: weakQids.has(r.qid) || weakTopicIds.has(r.topic_id),
+          weakTopic: weakTopicIds.has(r.topic_id),
+          recentTopic: recentPrefixes.some(p => (r.topic_id || '').startsWith(p)),
+          coldTopic: coldPrefixes.some(p => (r.topic_id || '').startsWith(p)),
+          freshCard: cardPolicy.isFreshCard(r.q_created, nowMs),
+          isNew, learning, due,
+          leech: !!r.leech,
+          opts: policyOpts,      // 降权/退役阈值也传进去（两处口径必须同源）
+        };
+        const pr = cardPolicy.priorityOf(sig, ctx);
+        const prio = pr.prio;
+
         let content = {};
         try { content = JSON.parse(r.content); } catch (e) { content = { stem: r.content }; }
         const cardObj = {
@@ -1652,6 +1771,17 @@ const server = http.createServer((req, res) => {
             id: r.rep_id, kind: r.rep_kind, kind_label: cardReports.kindLabel(r.rep_kind),
             note: r.rep_note || '', created_at: r.rep_at || '',
           } : null,
+          // 📌 钉住（2026-09-19）与「他问过 AI 几次」：前端画徽标用。
+          // ask_count 走 question_id 关联（explain_log.card_id 是空的，按卡号查不到）。
+          pin: sig.pinned ? { note: sig.pinNote || '', created_at: sig.pinAt || '' } : null,
+          ask_count: sig.asks || 0,
+          // 提问之后又连对了几次：到 policy.ask_exit_streak 次「问过」身份就作废。
+          // 下发给前端是为了让出口看得见（徽标副标题写「已连对 2/3」），
+          // 否则用户只会觉得「我明明答对了它还一直来」。
+          ask_after_correct: cardPolicy.afterAskCorrect(sig),
+          ask_exempt: cardPolicy.askExemptionHolds(sig, policyOpts),
+          streak: sig.streak || 0,
+          smart_prio: prio,
         };
         // Anki 风格：每张卡下发四档间隔预览（按钮副标题）
         try {
@@ -1662,8 +1792,8 @@ const server = http.createServer((req, res) => {
             { config: cfg, nowMs }
           );
         } catch (e) { cardObj.previews = null; }
-        return { prio, due, isNew, learning, dueKey: dueKey(r), card: cardObj };
-      });
+        items.push({ prio, due, isNew, learning, dueKey: dueKey(r), card: cardObj });
+      }
 
       // 每日额度：复习卡与学习卡受限额约束；新卡受新卡限额约束。
       // 学习/再学习卡不占额度（Anki 口径），但到期即优先推送。
@@ -1733,6 +1863,15 @@ const server = http.createServer((req, res) => {
         // 等于「按优先级取前 N 张」——而政治/数学一 的卡几乎全是 prio 0 的新卡，
         // 排在 byPrio 末尾，正好被 slice 砍掉，配额形同虚设。
         if (admitted.length >= limit) break;
+        // 📌 钉住的卡**不受"是否到期"约束**（2026-09-19）：用户钉住的多半是他已经答对、
+        // 按 FSRS 排在几周后的卡——正是这种卡会被下面那条 `if (!it.due) continue;` 挡掉，
+        // 于是「钉住」变得毫无作用。他钉住的意思就是「我想再看到它」。
+        // 仍然计入该科的均衡份额（不搞特殊通道，避免几张贴住的卡把别的科挤掉）。
+        if (it.card.pin) {
+          admitted.push(it);
+          perSubj[it.card.subject || ''] = (perSubj[it.card.subject || ''] || 0) + 1;
+          continue;
+        }
         if (quotaExempt) { admitted.push(it); continue; }
         const subj = it.card.subject || '';
         // 学习/再学习卡照 Anki 口径必须出，但**要计入该科的均衡份额**：
@@ -1821,6 +1960,20 @@ const server = http.createServer((req, res) => {
           due: items.filter(x => !x.isNew && !x.learning && x.due).length,
           learning: items.filter(x => x.learning && x.due).length,
           leech: items.filter(x => x.card.leech).length,
+          // 智能组里排在前面的两类（自己钉的 / 问过 AI 的）与被退役的连对卡，
+          // 前端状态条把它们报出来，用户才知道「为什么今天没见到那张卡」。
+          pinned: items.filter(x => x.card.pin).length,
+          asked: items.filter(x => x.card.ask_count > 0).length,
+        },
+        // 组题策略回执：退役了几张（连对够多且没问过、没钉住）、阈值是什么。
+        // 「我今天怎么没刷到那张简单的卡」的答案就在这里。
+        policy: {
+          retire_streak: cardPolicy.thresholds(policyOpts).retireStreak,
+          demote_streak: cardPolicy.thresholds(policyOpts).demoteStreak,
+          ask_exit_streak: cardPolicy.thresholds(policyOpts).askExitStreak,
+          retired_count: retired.length,
+          retired_cards: retired.slice(0, 20),
+          applied: mode !== 'browse',
         },
         cards: picked,
       }));
@@ -2219,9 +2372,68 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // GET /api/flashcards/stats — 统计与预测（Anki 风格面板数据）
-  if (url.startsWith('/api/flashcards/stats')) {
+  //   POST /api/flashcards/pin    {card_id, pinned, note?}   📌 钉住 / 取消钉住（2026-09-19）
+  //   GET  /api/flashcards/pins   ?subject=&limit=            钉住的清单（筛选页「📌 钉住」桶）
+  //
+  // 用户原话：「就算我对的那些题，如果我对 AI 有过追问，那可以给我一个 pin 的键，我可以把它
+  // 钉在那个卡的位置，下次我看到它的时候，我可以再看看它。」
+  // 语义：题目没问题、我也答对了，但**我想留着它**。所以钉住 = 智能组置顶 + 不受「连对 N 次
+  // 就退役」影响（规则在 src/card_policy.js）。与 ⚑（题目有问题）和 🗑（删卡）是三件事。
+  // 写库路径 → 进 SENSITIVE_PATHS，只让内网来源碰。
+  if (url === '/api/flashcards/pin' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      const fail = (code, msg) => {
+        res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, error: msg }));
+      };
+      try {
+        const p = JSON.parse(body || '{}');
+        const db = new DatabaseSync(DB_PATH);
+        // pinned 缺省当 true：前端最常见的就是「点一下钉住」
+        const want = p.pinned === undefined || p.pinned === null ? true : !!p.pinned;
+        const r = cardPolicy.setPin(db, p.card_id, want, p.note);
+        const n = cardPolicy.countPins(db);
+        db.close();
+        if (!r.ok) { fail(400, r.error || '钉住失败'); return; }
+        console.log('[Pin] ' + r.card_id + (r.pinned ? ' 已钉住' : ' 已取消钉住') + '，共 ' + n + ' 张');
+        sendJsonRaw(res, 200, { ok: true, card_id: r.card_id, pinned: r.pinned, count: n });
+      } catch (e) {
+        console.error('[Pin] error:', e.message);
+        fail(500, e.message);
+      }
+    });
+    return;
+  }
+
+  if (url.startsWith('/api/flashcards/pins') && req.method === 'GET') {
     try {
+      // ⚠️ 查询串要自己解析：session 处理函数里那个 `params` 是它内部的 block-scoped
+      // const，这里引用会 ReferenceError（500，实测踩到）。口径照抄 reports 那个端点。
+      const params = new URL('http://x' + url).searchParams;
+      const db = new DatabaseSync(DB_PATH);
+      const raw = (params.get('subject') || '').trim();
+      // ⚠️ 不能借用 session 里那个 SUBJECT_ALIAS：它是 session 处理函数内部的
+      // block-scoped const，在这里引用会直接 ReferenceError（500）。
+      // 两个简写就地兼容，和 /session 的口径保持一致。
+      const alias = { '数学': '数学一', '英语': '英语一' };
+      const subject = Object.prototype.hasOwnProperty.call(alias, raw) ? alias[raw] : raw;
+      const limit = parseInt(params.get('limit') || '100', 10);
+      const pins = cardPolicy.listPins(db, { subject, limit });
+      const count = cardPolicy.countPins(db);
+      db.close();
+      sendJsonRaw(res, 200, { ok: true, count, pins });
+    } catch (e) {
+      console.error('[Pin] list error:', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+
+  // GET /api/flashcards/stats — 统计与预测（Anki 风格面板数据）
+  if (url.startsWith('/api/flashcards/stats')) {    try {
       const db = new DatabaseSync(DB_PATH, { readOnly: true });
       const today = localToday();
       const cfg = loadConfig(db);
@@ -2329,6 +2541,9 @@ const server = http.createServer((req, res) => {
                SUM(CASE WHEN EXISTS (SELECT 1 FROM card_reports r
                                      WHERE r.card_id = c.id AND r.status = 'open')
                         THEN 1 ELSE 0 END) AS flagged,
+               SUM(CASE WHEN EXISTS (SELECT 1 FROM card_pins p
+                                     WHERE p.card_id = c.id)
+                        THEN 1 ELSE 0 END) AS pinned,
                SUM(CASE WHEN COALESCE(c.suspended, 0) = 0
                         AND COALESCE(c.due_at, c.due_date || 'T04:00:00') <= ? THEN 1 ELSE 0 END) AS due
         FROM cards c
@@ -2340,7 +2555,7 @@ const server = http.createServer((req, res) => {
 
       // 合计由服务端算，前端不重复一遍逻辑
       const totals = rows.reduce((a, r) => {
-        for (const k of ['total', 'new', 'learning', 'review', 'mature', 'leech', 'suspended', 'flagged', 'due']) {
+        for (const k of ['total', 'new', 'learning', 'review', 'mature', 'leech', 'suspended', 'flagged', 'pinned', 'due']) {
           a[k] = (a[k] || 0) + (r[k] || 0);
         }
         return a;
@@ -4131,6 +4346,28 @@ const SECRETS_PATH = process.env.SECRETS_PATH
     return;
   }
 
+  // GET /api/metrics —— 口径注册表快照（设置页「📐 口径」用）
+  // 返回值里每一项都带 scope / editable / 生效值 / 来源文件 / 消费方，
+  // 所以设置页不用在前端再抄一份口径说明，改 metrics_spec.json 页面立刻跟着变。
+  if (url === '/api/metrics' && req.method === 'GET') {
+    let db;
+    try {
+      db = new DatabaseSync(DB_PATH);
+      const snap = metricsSnapshot(db);
+      snap.spec_path = METRICS_SPEC_PATH;
+      try {
+        const st = fs.statSync(METRICS_SPEC_PATH);
+        snap.spec_mtime = st.mtime.toISOString();
+      } catch (e) { snap.spec_mtime = ''; }
+      sendJson(200, snap);
+    } catch (e) {
+      sendJson(500, { ok: false, error: e.message });
+    } finally {
+      try { if (db) db.close(); } catch (e) {}
+    }
+    return;
+  }
+
   // POST /api/settings/apikey {api_key?, model?, clear_key?}
   // 密钥**只写不读**：传空串表示不改，clear_key=true 才清除。
   if (url === '/api/settings/apikey' && req.method === 'POST') {
@@ -4184,7 +4421,19 @@ const SECRETS_PATH = process.env.SECRETS_PATH
         const sets = [];
         // 每日额度：各有上下界。给 0 是合法需求（今天不想被推新卡），
         // 但不能为负或大到把库刷爆。
-        const RANGES = { new_per_day: [0, 500], reviews_per_day: [0, 2000], flash_extra_count: [1, 100] };
+        // ⚠️ 这张表要与「设置 → 📐 口径」里标了可改的项一一对应：
+        //    metrics_spec.json 声明 editable+range，这里负责真正落库与校验，
+        //    tools/check_metrics_drift.py 会把两边对拍，少一个键就报错。
+        const RANGES = {
+          new_per_day: [0, 500], reviews_per_day: [0, 2000], flash_extra_count: [1, 100],
+          // 组题策略阈值（card_policy.js 的 DEFAULT_*，0 = 关掉该档）
+          smart_retire_streak: [0, 20], smart_demote_streak: [0, 20], smart_ask_exit_streak: [0, 20],
+        };
+        // 口径注册表里声明为「可改」的项，一律按它的 range 校验：
+        // 这样以后增删可改项只改 metrics_spec.json + 这张 RANGES 表，POST 处理器不用动。
+        for (const [k, rng] of Object.entries(metricsRange())) {
+          if (!RANGES[k]) RANGES[k] = rng;
+        }
         for (const k of Object.keys(RANGES)) {
           if (p[k] == null) continue;
           const v = parseInt(p[k], 10);

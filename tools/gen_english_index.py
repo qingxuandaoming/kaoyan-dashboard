@@ -67,10 +67,19 @@ RULES = [
     ("reading&magazines/阅读专题/**/专题_*.md",                 "READ",  3),
     ("reading&magazines/外刊/**/题源预测与精读书单.md",           "READ",  3),
     # 写作
-    ("translation&write/积累.md",                               "WRITE", 3),
-    ("translation&write/*批改记录.md",                           "WRITE", 3),
+    # ⚠️ 目录名是 translation&**writing**（有 ing）。2026-09-20 前这里写成 translation&write，
+    #    与磁盘不匹配 → 这些规则恒匹配不到文件 →「写作 0 篇」；而大盘那边靠
+    #    english_coverage.py 的题型证据另算一套，于是出现「写作 3/3 已覆盖」与
+    #    「[WRITE] 0 entries」并存的怪象。tools/check_metrics_drift.py 会守住这条。
+    #
+    # 章号必须落在图谱真有的章上（英语写作上图只有 3 个考点：01 小作文 / 02 大作文 /
+    # 03 写作积累与批改；翻译只有 ENG-TRAN-01 一个）。所以按内容分派：
+    ("translation&writing/积累.md",                             "WRITE", 3),
+    ("translation&writing/作文/图画作文/**/*.md",                "WRITE", 2),
+    ("translation&writing/作文/应用文/**/*.md",                  "WRITE", 1),
+    ("translation&writing/*批改记录.md",                        "WRITE", 3),
     # 翻译与完形
-    ("translation&write/翻译/**/*.md",                          "TRN",   2),
+    ("translation&writing/翻译/**/*.md",                        "TRN",   1),
     ("past-papers/完形填空方法论.md",                            "TRN",   1),
     ("past-papers/真题笔记.md",                                 "TRN",   1),
 ]
