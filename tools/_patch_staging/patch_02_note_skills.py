@@ -14,7 +14,7 @@ EDITS = [
             },
             {
                 "old": "## 飞书看板同步\n\n- 每次整理笔记后运行 `build_index.py` 重建索引\n- 用 `lark-cli base +record-upsert` 增量同步到飞书\n- 详细流程见 [exam-note-dashboard Skill]",
-                "new": "## 索引与本地大盘同步\n\n- 每次整理笔记后运行 `python C:\\Users\\92534\\Desktop\\考研\\src\\build_index.py` 重建索引（或一键 `run_pipeline.py`）\n- 本地大盘：`src/dashboard.html`（2026-08-03 起飞书大盘已迁移至本地，无需 lark 同步）\n- 详细流程见 [exam-note-dashboard Skill]",
+                "new": "## 索引与本地大盘同步\n\n- 每次整理笔记后运行 `python E:\\NPEE\\src\\build_index.py` 重建索引（或一键 `run_pipeline.py`）\n- 本地大盘：`src/dashboard.html`（2026-08-03 起飞书大盘已迁移至本地，无需 lark 同步）\n- 详细流程见 [exam-note-dashboard Skill]",
             },
         ],
     },
@@ -25,7 +25,7 @@ EDITS = [
             {"old": "install_method: upload", "new": "version: 1.2.0"},
             {
                 "old": "涵盖：公式速查、推导链记录、计算陷阱库、题型通法、错题归档、跨科综合、双链规则、先答后整机制。",
-                "new": "涵盖：公式速查、推导链记录、计算陷阱库、题型通法、错题归档、跨科综合、双链规则、先答后整机制。当工作目录为 C:\\Users\\92534\\Desktop\\考研\\Math 时自动触发。",
+                "new": "涵盖：公式速查、推导链记录、计算陷阱库、题型通法、错题归档、跨科综合、双链规则、先答后整机制。当工作目录为 E:\\NPEE\\Math 时自动触发。",
             },
             {
                 "old": "> 每次处理数一任务前，必须先调用 SkillManage 读取本 SKILL 完整内容，不可凭历史上下文执行。详细模板见 [reference-templates.md](reference-templates.md)。",
@@ -37,7 +37,7 @@ EDITS = [
             },
             {
                 "old": "### 飞书大盘同步\n\n- 每次整理笔记后运行 `build_index.py` 重建索引\n- 用 `lark-cli base +record-upsert` 增量同步到飞书多维表格\n- 详细流程见 exam-note-dashboard Skill",
-                "new": "### 索引与本地大盘同步\n\n- 每次整理笔记后运行 `python C:\\Users\\92534\\Desktop\\考研\\src\\build_index.py` 重建索引（或一键 `run_pipeline.py`）\n- 本地大盘：`src/dashboard.html`（2026-08-03 起飞书大盘已迁移至本地）\n- 详细流程见 exam-note-dashboard Skill",
+                "new": "### 索引与本地大盘同步\n\n- 每次整理笔记后运行 `python E:\\NPEE\\src\\build_index.py` 重建索引（或一键 `run_pipeline.py`）\n- 本地大盘：`src/dashboard.html`（2026-08-03 起飞书大盘已迁移至本地）\n- 详细流程见 exam-note-dashboard Skill",
             },
         ],
     },
@@ -48,7 +48,7 @@ EDITS = [
             {"old": "version: 1.0.0", "new": "version: 1.1.0"},
             {
                 "old": "## 飞书大盘同步\n\n- 每次整理笔记后运行 `build_index.py` 重建索引\n- 用 `lark-cli base +record-upsert` 增量同步到飞书多维表格\n- 详细流程见 **exam-note-dashboard** Skill",
-                "new": "## 索引与本地大盘同步\n\n- 每次整理笔记后运行 `python C:\\Users\\92534\\Desktop\\考研\\src\\build_index.py` 重建索引（或一键 `run_pipeline.py`）\n- 本地大盘：`src/dashboard.html`（2026-08-03 起飞书大盘已迁移至本地）\n- 详细流程见 **exam-note-dashboard** Skill",
+                "new": "## 索引与本地大盘同步\n\n- 每次整理笔记后运行 `python E:\\NPEE\\src\\build_index.py` 重建索引（或一键 `run_pipeline.py`）\n- 本地大盘：`src/dashboard.html`（2026-08-03 起飞书大盘已迁移至本地）\n- 详细流程见 **exam-note-dashboard** Skill",
             },
         ],
     },
@@ -59,7 +59,7 @@ EDITS = [
             {"old": "install_method: upload", "new": "version: 1.1.0"},
             {
                 "old": "description: 考研英语笔记整理工作流。当用户在英语项目（语法、词汇、词义辨析、作文句式等）中提问任何知识点时，自动回答并整理到对应笔记。涵盖语法笔记结构、词汇辨析格式、作文积累规则、双链规则、分级整理、汇报规范。",
-                "new": "description: 考研英语笔记整理工作流。当用户在英语项目（语法、词汇、词义辨析、作文句式等）中提问任何知识点，或工作目录为C:\\Users\\92534\\Desktop\\考研\\English时，自动回答并整理到对应笔记。涵盖语法笔记结构、词汇辨析格式、作文积累规则、双链规则、分级整理、汇报规范。",
+                "new": "description: 考研英语笔记整理工作流。当用户在英语项目（语法、词汇、词义辨析、作文句式等）中提问任何知识点，或工作目录为E:\\NPEE\\English时，自动回答并整理到对应笔记。涵盖语法笔记结构、词汇辨析格式、作文积累规则、双链规则、分级整理、汇报规范。",
             },
             {
                 "old": "→ 飞书同步：[exam-note-dashboard Skill] — 草稿箱元数据自动汇总至飞书多维表格看板",
@@ -77,11 +77,11 @@ EDITS = [
         "replacements": [
             {
                 "old": "vocab-graph/                      ← 项目根目录（位于用户工作区）",
-                "new": "vocab-graph/                      ← 项目根目录：C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\vocab-graph\\",
+                "new": "vocab-graph/                      ← 项目根目录：E:\\NPEE\\English\\word&phrase\\vocab-graph\\",
             },
             {
                 "old": "```bash\ncd vocab-graph\npython scripts/generate_obsidian.py\n```",
-                "new": "```bash\ncd C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\vocab-graph\npython scripts/generate_obsidian.py\n```",
+                "new": "```bash\ncd E:\\NPEE\\English\\word&phrase\\vocab-graph\npython scripts/generate_obsidian.py\n```",
             },
         ],
     },

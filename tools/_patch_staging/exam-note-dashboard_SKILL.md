@@ -23,7 +23,7 @@ progress.json ──────────┴─▶ gap_analysis.py ──▶ 
                             generate_dashboard.py ──▶ src/dashboard.html（本地大盘）
 ```
 
-一键运行：`python C:\Users\92534\Desktop\考研\src\run_pipeline.py`
+一键运行：`python E:\NPEE\src\run_pipeline.py`
 
 ## 前置条件
 
@@ -78,7 +78,7 @@ tags: [标签1, 标签2, ...]
 ## Step 2：重建索引
 
 ```bash
-python C:\Users\92534\Desktop\考研\src\build_index.py
+python E:\NPEE\src\build_index.py
 ```
 
 聚合三份 JSON 生成 `src/笔记索引.yaml`，含 stats（各科 total/organized/coverage/L1-L3 分布）、timeline、coverage、entries。运行后检查输出统计摘要与预期一致。
@@ -86,12 +86,12 @@ python C:\Users\92534\Desktop\考研\src\build_index.py
 ## Step 3：生成本地大盘
 
 ```bash
-python C:\Users\92534\Desktop\考研\src\gap_analysis.py
-python C:\Users\92534\Desktop\考研\src\generate_dashboard.py
+python E:\NPEE\src\gap_analysis.py
+python E:\NPEE\src\generate_dashboard.py
 ```
 
 - `gap_analysis.py`：知识图谱 + 笔记索引 + progress.json → 各科覆盖率与优先缺口排名
-- `generate_dashboard.py`：生成 `C:\Users\92534\Desktop\考研\src\dashboard.html`，浏览器直接打开
+- `generate_dashboard.py`：生成 `E:\NPEE\src\dashboard.html`，浏览器直接打开
 
 **验证**：dashboard.html 中各科掌握度、笔记统计、缺口排名与 progress.json / 笔记索引.yaml 一致。
 

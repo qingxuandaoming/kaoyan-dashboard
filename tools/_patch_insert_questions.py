@@ -16,7 +16,7 @@ from pathlib import Path
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-SRC = Path(r"C:\Users\92534\Desktop\考研\src\insert_questions.py")
+SRC = Path(r"E:\NPEE\src\insert_questions.py")
 
 NEW_BLOCK = '''eng_data = [
     # ⚠️ 选项必须同形态：meaning 与 distractors 都得是"裸中文释义"。

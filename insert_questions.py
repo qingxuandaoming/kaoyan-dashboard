@@ -7,7 +7,7 @@ import json
 import random
 from datetime import date
 
-DB_PATH = r"C:\Users\92534\Desktop\考研\src\question_bank.db"
+DB_PATH = r"E:\NPEE\src\question_bank.db"
 today = date.today().isoformat()
 
 conn = sqlite3.connect(DB_PATH)

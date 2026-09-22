@@ -364,7 +364,7 @@
             title: "扩展操作码（变长操作码）",
             body: "在定长指令字中，利用地址字段的冗余编码扩展出更多操作码。高频简单指令用短操作码，低频复杂指令用长操作码。",
             conclusion: "关键规则：短码不能是长码的前缀（霍夫曼编码思想），否则译码歧义。",
-            noteLink: { name: "第4章_指令系统.md", path: "C:/Users/92534/Desktop/考研/408/CO/第4章_指令系统.md" }
+            noteLink: { name: "第4章_指令系统.md", path: "E:/NPEE/408/CO/第4章_指令系统.md" }
           },
           {
             id: "sec-interrupt", badges: ["计组", "CPU"],
@@ -372,50 +372,50 @@
             body: "中断响应周期由硬件自动完成，不是软件指令。没有操作码，不属于指令系统。",
             list: ["① 关中断（防止多重中断嵌套）", "② 保存断点（PC值）", "③ 引出中断服务程序"],
             conclusion: "本质区别：隐指令是硬件自动执行的微操作序列，中断服务程序是软件编写的可执行程序。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-calljmp", badges: ["计组", "指令系统"],
             title: "程序控制类指令：CALL vs JMP",
             body: "CALL保存返回地址（能回来），JMP不保存（去了不回来）。RET与CALL配对，从栈顶弹出返回地址。",
             conclusion: "",
-            noteLink: { name: "第4章_指令系统.md", path: "C:/Users/92534/Desktop/考研/408/CO/第4章_指令系统.md" }
+            noteLink: { name: "第4章_指令系统.md", path: "E:/NPEE/408/CO/第4章_指令系统.md" }
           },
           {
             id: "sec-encoding", badges: ["计网", "物理层"],
             title: "编码与调制",
             body: "编码：数字数据→数字信号（曼彻斯特、NRZ）；调制：数字数据→模拟信号（ASK/FSK/PSK）。",
             conclusion: "曼彻斯特编码中点必跳变，自带时钟，效率50%。差分曼彻斯特以开始处跳变表示0。",
-            noteLink: { name: "第2章_物理层.md", path: "C:/Users/92534/Desktop/考研/408/CN/第2章_物理层.md" }
+            noteLink: { name: "第2章_物理层.md", path: "E:/NPEE/408/CN/第2章_物理层.md" }
           },
           {
             id: "sec-hub", badges: ["计网", "物理层"],
             title: "物理层设备：中继器 vs 集线器",
             body: "中继器是信号再生放大，集线器是多口中继器。两者均工作在物理层，不识别帧头，不隔离冲突域。",
             conclusion: "整个集线器是一个单一的冲突域，所有端口共享带宽。",
-            noteLink: { name: "第2章_物理层.md", path: "C:/Users/92534/Desktop/考研/408/CN/第2章_物理层.md" }
+            noteLink: { name: "第2章_物理层.md", path: "E:/NPEE/408/CN/第2章_物理层.md" }
           }
         ],
         quiz: [
           {
             id: "sec-q1", question: "扩展操作码设计中，为什么短操作码不能是长操作码的前缀？违反这一规则会导致什么后果？",
             answer: "短操作码若作为长操作码的前缀，译码器在读取前缀时无法判断该停止译码（短码）还是继续读取后续位（长码），导致<strong>译码歧义</strong>。后果是指令译码不唯一，CPU无法正确识别指令。",
-            noteLink: { name: "第4章_指令系统.md", path: "C:/Users/92534/Desktop/考研/408/CO/第4章_指令系统.md" }
+            noteLink: { name: "第4章_指令系统.md", path: "E:/NPEE/408/CO/第4章_指令系统.md" }
           },
           {
             id: "sec-q2", question: `中断隐指令的"隐"体现在哪里？它和中断服务程序的根本区别是什么？`,
             answer: `"隐"体现在：① 它不是指令系统中的真实指令，<strong>没有操作码</strong>；② 由<strong>硬件自动完成</strong>，不是软件执行。根本区别：中断隐指令是硬件在中断响应周期自动执行的微操作序列（关中断+保存断点+转服务程序），而中断服务程序是软件程序员编写的、存放在内存中的可执行程序。`,
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q3", question: "假设一个 4 口集线器连接了 4 台主机，其中两台主机同时发送数据，会发生什么情况？为什么？",
             answer: "会发生<strong>冲突（collision）</strong>。集线器是物理层设备，本质是多口中继器，收到比特后向<strong>所有其他端口广播</strong>。两台主机同时发送时，电信号在集线器内部叠加，导致冲突域内所有节点检测到冲突。整个集线器是一个<strong>单一的冲突域</strong>。",
-            noteLink: { name: "第2章_物理层.md", path: "C:/Users/92534/Desktop/考研/408/CN/第2章_物理层.md" }
+            noteLink: { name: "第2章_物理层.md", path: "E:/NPEE/408/CN/第2章_物理层.md" }
           },
           {
             id: "sec-q4", question: "曼彻斯特编码相比 NRZ 编码的主要优势是什么？代价又是什么？",
             answer: "优势：曼彻斯特编码每位中点都有跳变，可以<strong>自带时钟信号</strong>，实现收发双方的自同步，无需额外传输时钟线。代价：编码效率只有 <strong>50%</strong>（每位需要两个电平状态），带宽开销加倍。",
-            noteLink: { name: "第2章_物理层.md", path: "C:/Users/92534/Desktop/考研/408/CN/第2章_物理层.md" }
+            noteLink: { name: "第2章_物理层.md", path: "E:/NPEE/408/CN/第2章_物理层.md" }
           }
         ],
         english: {
@@ -446,7 +446,7 @@
             { title: "leave + 宾语 + 宾补", body: "<code>leave sb. doing sth.</code> 使某人处于持续做某事的状态。对比：<code>leave sb. to do sth.</code>（留下某人去做）；<code>leave sth. undone</code>（留下某事未做）。" },
             { title: "破折号分隔的插入语", body: "双破折号之间为插入性同位语，对 measures 进行具体列举，不影响句子主干。阅读时遇到可先跳过，抓住主干后再回读。" }
           ],
-          noteLink: { name: "长难句笔记.md", path: "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md" }
+          noteLink: { name: "长难句笔记.md", path: "E:/NPEE/English/grammar/长难句笔记.md" }
         }
       },
       "2026-06-24": {
@@ -458,62 +458,62 @@
             title: "ALU = AU + LU：运算器的层级结构",
             body: "ALU（算术逻辑单元）由 AU（算术单元）和 LU（逻辑单元）两个子部件组成。AU 负责加减乘除、移位等算术运算；LU 负责与或非异或、比较等逻辑运算。",
             conclusion: "易错点：AU 只是 ALU 的'一半'，不是同一概念；CU 属于控制器，不属于运算器。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-mux", badges: ["计组", "数据通路"],
             title: "MUX vs 译码器：数据通路中的两大基础部件",
             body: "MUX（多路选择器）是多路输入选1路输出的'数据开关'；译码器是将 n 位编码转换为 2^n 路控制信号中'激活一路'的'指挥棒'。两者互补而非替代。",
             conclusion: "MUX 选择'用哪个数据'，译码器决定'该做什么'。MUX 输出数据，译码器输出控制信号（独热码）。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-reg", badges: ["计组", "寄存器"],
             title: "CPU 关键寄存器：PC vs IR 与取指-执行循环",
             body: "PC 保存下一条指令地址（导航仪），IR 保存当前正在执行的指令内容（任务单）。MAR/MDR 是收发窗口，负责与主存交换数据。",
             conclusion: "取指周期：PC → MAR → 内存 → MDR → IR。PC 自动增量，IR 供译码使用。MAR/MDR 用户不可见。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-cache-cap", badges: ["计组", "Cache"],
             title: "Cache-主存系统总容量计算辨析",
             body: "Cache-主存层次结构的总容量按主存容量计算，Cache 容量不计入。Cache 中存放的是主存活跃块的副本，不是独立的新增存储空间。Cache 对 CPU 完全透明，没有独立的地址编码。",
             conclusion: "Cache 扩展的是速度，不是容量。虚拟存储器扩展的才是容量。2016 真题缺失率 = 12.5%（不是 25%）。",
-            noteLink: { name: "CO notes.md", path: "C:/Users/92534/Desktop/考研/408/CO/CO notes.md" }
+            noteLink: { name: "CO notes.md", path: "E:/NPEE/408/CO/CO notes.md" }
           },
           {
             id: "sec-share-mem", badges: ["OS", "内存管理"],
             title: "共享内存时：页号 vs 页框号",
             body: "两个进程共享同一个物理页框时，各自独立的页表将不同的虚拟页号映射到同一个物理页框号。页框号是物理地址空间的概念，页号是虚拟地址空间的概念。",
             conclusion: "页框号必须相同（同一物理页），页号可以不同（各进程独立）。页表是进程私有的，虚拟地址互不干扰。",
-            noteLink: { name: "第3章_内存管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md" }
+            noteLink: { name: "第3章_内存管理.md", path: "E:/NPEE/408/OS/第3章_内存管理.md" }
           }
         ],
         quiz: [
           {
             id: "sec-q1", question: "ALU、AU、LU 三者的层级关系是什么？为什么 AU 和 LU 不是同一层级的概念？CU 属于运算器还是控制器？",
             answer: "<strong>ALU = AU + LU</strong>。AU（算术单元）和 LU（逻辑单元）是 ALU 的<strong>同级并列子部件</strong>，AU 负责算术运算（加减乘除），LU 负责逻辑运算（与或非异或）。CU（Control Unit，控制单元）属于<strong>控制器</strong>，不属于运算器。ALU 和 CU 是 CPU 的两大核心部件。易错点：'AU 就是 ALU' ❌；'ALU 属于控制器' ❌；'CU 是运算器的一部分' ❌。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q2", question: "MUX（多路选择器）和译码器（Decoder）的本质功能分别是什么？两者在 CPU 数据通路中的角色有何不同？",
             answer: "<strong>MUX 是'数据开关'</strong>：多路输入数据中选1路输出，由选择控制信号决定选哪一路（如 ALU 输入来源选择）。<strong>译码器是'指挥棒'</strong>：将 n 位编码转换为 2^n 路控制信号中'激活一路'（独热码），告诉系统接下来该做什么（如指令译码、寄存器选择）。MUX 输出的是<strong>数据</strong>，译码器输出的是<strong>控制信号</strong>。两者互补：译码器决定'该做什么'，MUX 根据控制信号选择'用哪个数据'。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q3", question: "PC 和 IR 分别保存什么内容？取指周期中，PC、MAR、MDR、IR 四者的协作顺序是怎样的？为什么 MAR 和 MDR 是'用户不可见'寄存器？",
             answer: "<strong>PC 保存下一条指令的地址</strong>（Program Counter），<strong>IR 保存当前正在执行的指令内容</strong>（操作码+地址码）。<strong>取指周期：</strong>PC → MAR → 内存 → MDR → IR，PC 自动增量。<strong>MAR/MDR 用户不可见</strong>是因为它们是 CPU 内部数据通路的'收发窗口'，由硬件自动操作，程序员无法通过汇编指令直接访问。用户可见寄存器（PC、SP、PSW、通用寄存器）是 ISA 规定的编程接口。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q4", question: "Cache-主存层次结构的'总容量'按什么计算？Cache 容量是否计入？为什么说 Cache 扩展的是速度而非容量？2016 年真题中 for(k=0;k<1000;k++) a[k]=a[k]+32; 的 Cache 缺失率是多少？（int=4B, 直接映射, Cache 1KB, 块16B, 初始为空）",
             answer: "<strong>总容量 = 主存容量</strong>，Cache 容量<strong>不计入</strong>。Cache 存放的是主存活跃块的<strong>副本</strong>，不是独立新增空间，对 CPU 完全透明，没有独立地址编码。<strong>2016 真题缺失率 = 12.5%</strong>：每块 16B 放 4 个 int，每块 8 次访存（4 元素×读+写），每块仅第一次读缺失，总缺失率 = 250/2000 = 12.5%。错选 25% 的原因：忽略了写操作，误把总访存次数算成 1000 次。",
-            noteLink: { name: "CO notes.md", path: "C:/Users/92534/Desktop/考研/408/CO/CO notes.md" }
+            noteLink: { name: "CO notes.md", path: "E:/NPEE/408/CO/CO notes.md" }
           },
           {
             id: "sec-q5", question: "两个进程通过共享内存共享同一个数据块时，它们的虚拟页号和物理页框号是否必须相同？为什么？请画出映射关系示意图。",
             answer: "<strong>页框号必须相同，页号可以不同。</strong>页号是虚拟地址空间的概念，每个进程有独立的页表，虚拟地址互不干扰；页框号是物理地址空间的概念，共享数据必须指向同一块物理内存。操作系统将不同的虚拟页映射到同一个物理页框，实现共享。例如：进程 A 虚拟页 5 → 页框 100，进程 B 虚拟页 3 → 页框 100。两者指向同一物理页，但虚拟页号不同。",
-            noteLink: { name: "第3章_内存管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md" }
+            noteLink: { name: "第3章_内存管理.md", path: "E:/NPEE/408/OS/第3章_内存管理.md" }
           }
         ],
         english: {
@@ -546,7 +546,7 @@
             { title: "rather than 的并列结构", body: "<code>a calling rather than a profession</code> = '天职而非职业'。rather than 连接并列成分，前后词性/形式应一致。" },
             { title: "that 引导定语从句修饰两个并列名词", body: "<code>a conviction and a learning that was...</code> 中 that 从句修饰 conviction 和 learning 两者，谓语用单数 was（把两者视为一个整体概念）。" }
           ],
-          noteLink: { name: "长难句笔记.md", path: "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md" }
+          noteLink: { name: "长难句笔记.md", path: "E:/NPEE/English/grammar/长难句笔记.md" }
         }
       },
       "2026-06-25": {
@@ -558,62 +558,62 @@
             title: "ALU = AU + LU：运算器的层级结构",
             body: "ALU（算术逻辑单元）由 AU（算术单元）和 LU（逻辑单元）两个子部件组成。AU 负责加减乘除、移位等算术运算；LU 负责与或非异或、比较等逻辑运算。",
             conclusion: "易错点：AU 只是 ALU 的'一半'，不是同一概念；CU 属于控制器，不属于运算器。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-mux", badges: ["计组", "数据通路"],
             title: "MUX vs 译码器：数据通路中的两大基础部件",
             body: "MUX（多路选择器）是多路输入选1路输出的'数据开关'；译码器是将 n 位编码转换为 2^n 路控制信号中'激活一路'的'指挥棒'。两者互补而非替代。",
             conclusion: "MUX 选择'用哪个数据'，译码器决定'该做什么'。MUX 输出数据，译码器输出控制信号（独热码）。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-reg", badges: ["计组", "寄存器"],
             title: "CPU 关键寄存器：PC vs IR 与取指-执行循环",
             body: "PC 保存下一条指令地址（导航仪），IR 保存当前正在执行的指令内容（任务单）。MAR/MDR 是收发窗口，负责与主存交换数据。",
             conclusion: "取指周期：PC → MAR → 内存 → MDR → IR。PC 自动增量，IR 供译码使用。MAR/MDR 用户不可见。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-regcache", badges: ["计组", "寄存器"],
             title: "寄存器 vs Cache：ISA 层 vs 微架构层",
             body: "寄存器和 Cache 都用 SRAM、都在 CPU 芯片上、都比主存快。但寄存器属于 ISA 层面（程序员可见、指令显式读写），Cache 属于微架构层面（对程序员透明、硬件自动管理）。",
             conclusion: "寄存器是'手边工具箱'（主动使用），Cache 是'就近仓库'（被动加速）。访存=访问主存，Cache 命中不算访存。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-cycle", badges: ["计组", "时序"],
             title: "指令周期、机器周期、时钟周期的关系",
             body: "时钟周期是最基本单位（CPU 时钟频率的倒数）。机器周期 = 若干个时钟周期。指令周期 = 若干个机器周期。单条指令周期必为整数个时钟周期。CPI 是平均值，可以<1或非整数。",
             conclusion: "单周期 CPU：指令周期=1个时钟周期。多周期 CPU：CPI>1。流水线 CPU：理想 CPI≈1（平均），单条指令仍需多个时钟周期。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           }
         ],
         quiz: [
           {
             id: "sec-q1", question: "ALU、AU、LU 三者的层级关系是什么？CU 属于运算器还是控制器？为什么'AU 就是 ALU'是错误说法？",
             answer: "<strong>ALU = AU + LU</strong>。AU（算术单元）和 LU（逻辑单元）是 ALU 的<strong>同级并列子部件</strong>，AU 负责算术运算（加减乘除），LU 负责逻辑运算（与或非异或）。<strong>CU（控制单元）属于<strong>控制器</strong>，不属于运算器。错误原因：AU 只是 ALU 的'一半'，ALU 是运算器核心，包含 AU 和 LU 两个子部件。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q2", question: "MUX（多路选择器）和译码器（Decoder）的本质功能分别是什么？两者在 CPU 数据通路中的角色有何不同？",
             answer: "<strong>MUX 是'数据开关'</strong>：多路输入数据中选 1 路输出，由选择控制信号决定选哪一路（如 ALU 输入来源选择）。<strong>译码器是'指挥棒'</strong>：将 n 位编码转换为 2^n 路控制信号中'激活一路'（独热码），告诉系统接下来该做什么。角色不同：MUX 输出的是<strong>数据</strong>，译码器输出的是<strong>控制信号</strong>。两者互补：译码器决定'该做什么'，MUX 根据控制信号选择'用哪个数据'。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q3", question: "PC 和 IR 分别保存什么内容？取指周期中 PC→MAR→MDR→IR 的协作顺序是怎样的？为什么 MAR 和 MDR 是'用户不可见'寄存器？",
             answer: "<strong>PC 保存下一条指令的地址</strong>（Program Counter），<strong>IR 保存当前正在执行的指令内容</strong>（操作码+地址码）。<strong>取指周期：</strong>PC → MAR → 内存 → MDR → IR，PC 自动增量。<strong>MAR/MDR 用户不可见</strong>是因为它们是 CPU 内部数据通路的'收发窗口'，由硬件自动操作，程序员无法通过汇编指令直接访问。用户可见寄存器（PC、SP、PSW、通用寄存器）是 ISA 规定的编程接口。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q4", question: "寄存器和 Cache 都用 SRAM、都在 CPU 芯片上、都比主存快。既然如此，为什么说它们'层级不同'和管理方式完全不同？分别从 ISA 可见性和控制方式两个维度说明。",
             answer: "<strong>ISA 可见性：</strong>寄存器属于 ISA 层面（程序员可见、指令显式读写，如 <code>ADD R1, R2</code>），Cache 属于微架构层面（对程序员完全透明、硬件自动管理）。<strong>控制方式：</strong>寄存器由<strong>软件显式控制</strong>（指令直接指定编号），Cache 由<strong>硬件自动调度</strong>（程序员写代码时根本不知道数据在不在 Cache 中）。虽然都用 SRAM 且都在 CPU 芯片上，但寄存器是'手边工具箱'（主动使用），Cache 是'就近仓库'（被动加速）。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q5", question: "单周期 CPU 和多周期 CPU 的命名直接对应什么特征？为什么单周期 CPU 的硬件成本更高？多周期 CPU 的 CPI 为什么一定大于 1？",
             answer: "命名直接对应<strong>数据通路设计</strong>：单周期 CPU 使用单周期数据通路（所有操作在一个时钟周期内完成），多周期 CPU 使用多周期数据通路（指令拆分为多个机器周期，通过 MUX 复用部件）。<strong>单周期硬件成本更高</strong>是因为不能复用功能部件（取指、执行、访存需同时有独立硬件），而多周期通过 MUX 在不同周期复用 ALU、存储器等部件，硬件总量大幅减少。<strong>多周期 CPI > 1</strong> 是因为指令拆分为多个阶段（取指+译码+执行至少 3 个周期），最短指令也必然大于 1 个时钟周期。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           }
         ],
         english: {
@@ -651,7 +651,7 @@
             { title: "介词短语嵌套", body: "<code>contingent upon the willingness of those who... to prioritize... over...</code> 是典型的'介词 + 名词 + 定语从句 + 不定式'嵌套。阅读时建议先抓主干：contingent upon the willingness，再逐层补充。" },
             { title: "in question 后置定语", body: "<code>the technologies in question</code> = '所讨论/涉及的技术'。in question 是固定搭配，作后置定语表示'正在谈论的'，不是'有疑问的'。" }
           ],
-          noteLink: { name: "长难句笔记.md", path: "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md" }
+          noteLink: { name: "长难句笔记.md", path: "E:/NPEE/English/grammar/长难句笔记.md" }
         }
       },
       "2026-06-27": {
@@ -663,28 +663,28 @@
             title: "内存映射文件（Memory-Mapped Files）",
             body: "将文件内容映射到进程的虚拟地址空间，进程通过普通访存指令（如 mov）读写文件，无需显式 read/write 系统调用。通过页表实现虚拟页到磁盘文件块的映射，访问未调入页时触发缺页中断。",
             conclusion: "映射目标是<strong>虚拟地址空间</strong>（不是物理地址空间）。2025 真题：可实现页到磁盘块的映射，但不能直接归为进程通信方式。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-io-layers", badges: ["OS", "I/O管理"],
             title: "I/O 子系统的四层结构",
             body: "用户层 I/O 软件 → 设备独立性软件 → 设备驱动程序 → 中断处理程序。用户层提供接口；设备独立性软件负责命名/保护/缓冲/错误处理；设备驱动程序将抽象请求转换为具体设备命令；中断处理程序处理 I/O 完成后的中断信号。",
             conclusion: "层次从用户态到内核态递减。设备驱动程序是内核代码（<strong>软件</strong>），不是硬件。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-ctrl-vs-driver", badges: ["OS", "I/O管理"],
             title: "设备控制器 vs 设备驱动程序",
             body: "设备控制器是<strong>硬件</strong>（电路板/芯片），负责物理层协议转换、数据缓冲、速度匹配；设备驱动程序是<strong>软件</strong>（内核代码），将 OS 抽象请求翻译为控制器能理解的命令。I/O 设备不能直接与主板相连，必须通过设备控制器间接相连。",
             conclusion: "控制器 = 硬件翻译官+缓冲器；驱动程序 = 软件指挥官。2021 真题：磁盘驱动器属于 I/O 设备，不是 I/O 接口。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-io-port", badges: ["OS", "I/O管理"],
             title: "I/O 接口 vs I/O 端口",
             body: "I/O 接口 = 硬件电路（物理连接器+信号转换），CPU <strong>不能</strong>直接访问；I/O 端口 = 设备控制器上的寄存器（数据/命令/状态端口），CPU 可通过独立编址或统一编址访问。",
             conclusion: "408 常考：I/O 端口可被 CPU 编址，接口不能。一个设备控制器通常有多个端口（数据/命令/状态）。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-dma", badges: ["OS", "I/O管理"],
@@ -692,34 +692,34 @@
             body: "DMAC 是<strong>硬件</strong>，让 I/O 设备直接与内存交换数据，无需 CPU 逐字节搬运。CPU 只负责初始化（设源地址、目的地址、传输长度）和处理结束中断。传输期间 DMAC 掌握总线，CPU 可执行其他任务。",
             conclusion: "三种 I/O 控制方式对比：程序查询（CPU 全程轮询，无中断）→ 中断驱动（CPU 逐字节搬运，每字节中断一次）→ DMA（DMAC 搬整块，只中断一次）。DMA 结束中断属于<strong>外中断</strong>。",
             list: ["程序查询：CPU 全程轮询，无中断", "中断驱动：CPU 逐字节搬运，每字节中断一次", "DMA：DMAC 搬运整块，只中断一次", "通道：启动后完全不管"],
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           }
         ],
         quiz: [
           {
             id: "sec-q1", question: "内存映射文件（memory-mapped files）机制中，文件被映射到进程的哪个地址空间？该机制通过什么实现虚拟页到磁盘文件块的映射？",
             answer: "<strong>虚拟地址空间</strong>。内存映射文件通过<strong>页表</strong>实现虚拟页到磁盘文件块的映射，访问未调入内存的页时触发缺页中断。注意：不是映射到物理地址空间，也不是映射到系统地址空间。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-q2", question: "I/O 接口和 I/O 端口的本质区别是什么？CPU 能否直接访问 I/O 接口？",
             answer: "<strong>I/O 接口是硬件电路</strong>（物理连接器+信号转换），<strong>I/O 端口是设备控制器上的寄存器</strong>（CPU 可编址的存储单元）。CPU <strong>不能直接访问 I/O 接口</strong>，只能通过 I/O 端口（独立编址或统一编址）读写设备状态和数据。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-q3", question: "DMA 方式与中断驱动方式相比，在数据搬运者和中断频率上有什么区别？DMA 传输期间 CPU 能否执行其他任务？",
             answer: "<table><tr><th>对比项</th><th>中断驱动方式</th><th>DMA 方式</th></tr><tr><td>数据搬运者</td><td>CPU（逐字节/逐字）</td><td>DMAC（直接搬运）</td></tr><tr><td>中断频率</td><td>每传一个数据单位中断一次</td><td>整块传完只中断一次</td></tr><tr><td>CPU 参与度</td><td>高（每次中断都要 CPU 执行 ISR）</td><td>低（只参与初始化和结束处理）</td></tr></table>DMA 传输期间 CPU <strong>可以执行其他任务</strong>（不能访存，因为总线被 DMAC 占用，但可以执行寄存器操作）。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-q4", question: "设备分配的核心数据结构按分配流程顺序有哪些？设备分配是否需要创建新进程？",
             answer: "按流程顺序：<strong>SDT（系统设备表）→ DCT（设备控制表）→ COCT（控制器控制表）→ CHCT（通道控制表）</strong>。设备分配<strong>不需要创建新进程</strong>，由内核通过查表完成，进程请求 I/O 时触发分配。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-q5", question: "Flynn 分类中，超标量流水线处理机属于 SISD、SIMD、MIMD 中的哪一类？为什么不是 MIMD？",
             answer: "<strong>SISD</strong>。超标量流水线只有 <strong>1 个 PC、1 个指令流</strong>，同周期发射的多条指令都来自同一线程。Flynn 分类看的是<strong>指令流数量</strong>，不是每周期发射多少条指令。MIMD 需要多个独立 PC、各自执行不同指令流。超标量、流水线、超流水线都是 SISD。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           }
         ],
         english: {
@@ -748,7 +748,7 @@
             { title: "定语从句", body: "<code>who are unusually informed, persuasive, or well connected</code> 修饰 <code>influentials</code>，关系代词 who 在从句中作主语。informed/persuasive/connected 是三个并列形容词作表语。" },
             { title: "同位语", body: "<code>a tiny minority of special individuals, often called influentials</code> 中，<code>influentials</code> 是 <code>special individuals</code> 的同位语，对其进行重命名/解释说明。" }
           ],
-          noteLink: { name: "长难句笔记.md", path: "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md" }
+          noteLink: { name: "长难句笔记.md", path: "E:/NPEE/English/grammar/长难句笔记.md" }
         }
       },
       "2026-06-28": {
@@ -760,28 +760,28 @@
             title: "数据通路元件分类：组合逻辑 vs 时序逻辑",
             body: "组合逻辑元件（操作元件）无记忆、无时钟依赖：ALU、MUX、译码器、加法器、比较器。时序逻辑元件（状态元件）有记忆、需时钟触发：PC、IR、MAR、MDR、寄存器堆、ACC、SP、PSW。寄存器堆的读操作是组合逻辑（给地址立刻出数据），但写操作是时序逻辑（需时钟边沿），整体归类为时序逻辑。",
             conclusion: "操作元件 = '干活的工具'（组合逻辑），状态元件 = '记忆的仓库'（时序逻辑）。操作命令 = 下令干活，状态命令 = 汇报状态。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-single-multi", badges: ["计组", "CPU"],
             title: "单周期 CPU vs 多周期 CPU：命名与数据通路",
             body: "单周期 CPU 使用单周期数据通路（所有操作在一个时钟周期内完成），多周期 CPU 使用多周期数据通路（指令拆分为多个机器周期，通过 MUX 复用部件）。单周期 CPU 硬件成本更高，因为不能复用功能部件（取指、执行、访存需同时有独立硬件），而多周期通过 MUX 复用 ALU、存储器等部件。",
             conclusion: "单周期 = '所有硬件铺一排，一次跑完'；多周期 = '硬件轮流用，分几步跑完'。多周期 CPU 的 CPI 一定 > 1（取指+译码+执行至少 3 个周期）。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-indirect", badges: ["计组", "CPU"],
             title: "间址周期：间接寻址的额外阶段",
             body: "间址周期是指令周期的一个组成部分。当指令采用间接寻址时，CPU 需要先根据指令中的地址码去内存取一次操作数的真正地址，再用这个地址去取操作数。间址周期中 PC 不变（间址不是取新指令）。",
             conclusion: "间址周期 = '先查地址簿再找人'。取指周期取指令（PC→MAR→MDR→IR），间址周期取地址（IR.地址码→MAR→MDR→真正地址→MAR），执行周期取数据。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-distinguish", badges: ["计组", "CPU"],
             title: "CPU 区分指令和数据：阶段决定身份",
             body: "冯·诺依曼架构中，指令和数据共享同一存储器，都以二进制形式存放。CPU 不'认识'指令或数据，它只认识'取指阶段取出来的就是指令'、'执行阶段取出来的就是数据'。同一串二进制，在取指周期是'指令'，在执行周期是'数据'。",
             conclusion: "身份由阶段赋予，不是由内容决定。总线类型（地址/数据/控制）区分信息载体类型；指令周期阶段（取指/执行）区分内容语义。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-dmac", badges: ["OS", "I/O管理"],
@@ -789,34 +789,34 @@
             body: "DMAC 是硬件，让 I/O 设备直接与内存交换数据，无需 CPU 逐字节搬运。CPU 只负责初始化（设源地址、目的地址、传输长度）和处理结束中断。传输期间 DMAC 掌握总线，CPU 可执行其他任务（寄存器操作）。",
             conclusion: "三种 I/O 控制方式：程序查询（CPU 全程轮询，无中断）→ 中断驱动（CPU 逐字节搬运，每字节中断一次）→ DMA（DMAC 搬整块，只中断一次）。",
             list: ["程序查询：CPU 全程轮询，无中断", "中断驱动：CPU 逐字节搬运，每字节中断一次", "DMA：DMAC 搬运整块，只中断一次", "通道：启动后完全不管"],
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           }
         ],
         quiz: [
           {
             id: "sec-q1", question: "数据通路中，哪些元件属于组合逻辑（操作元件）？哪些属于时序逻辑（状态元件）？为什么寄存器堆整体归类为时序逻辑，尽管其读操作是组合逻辑？",
             answer: "<strong>组合逻辑（操作元件）：</strong>ALU、MUX、译码器、加法器、比较器——无记忆功能，输出仅取决于当前输入，不需要时钟触发。<br><strong>时序逻辑（状态元件）：</strong>PC、IR、MAR、MDR、寄存器堆、ACC、SP、PSW——有记忆功能，输出取决于当前输入 + 之前状态，需要时钟边沿触发。<br><strong>寄存器堆整体归类为时序逻辑</strong>是因为其写操作需要时钟边沿（数据在时钟边沿写入目标寄存器）。虽然读操作是组合逻辑（给地址立刻出数据），但写操作决定了其整体归类。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q2", question: "单周期 CPU 和多周期 CPU 的命名直接对应什么特征？为什么单周期 CPU 的硬件成本更高？多周期 CPU 的 CPI 为什么一定大于 1？",
             answer: "<strong>命名直接对应数据通路设计：</strong>单周期 CPU 使用单周期数据通路（所有操作在一个时钟周期内完成），多周期 CPU 使用多周期数据通路（指令拆分为多个机器周期，通过 MUX 复用部件）。<br><strong>单周期硬件成本更高</strong>是因为不能复用功能部件（取指、执行、访存需同时有独立硬件），而多周期通过 MUX 在不同周期复用 ALU、存储器等部件，硬件总量大幅减少。<br><strong>多周期 CPI > 1</strong> 是因为指令拆分为多个阶段（取指+译码+执行至少 3 个周期），最短指令也必然大于 1 个时钟周期。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q3", question: "间址周期中 PC 是否变化？为什么？间址周期取的是什么内容？间址周期与取指周期的关键区别是什么？",
             answer: "<strong>PC 不变。</strong>间址周期不是取新指令，而是取操作数的真正地址，所以 PC 不需要更新。<br><strong>间址周期取的是'地址'</strong>（操作数的真正地址），送入 MAR 供后续执行周期使用。<br><strong>关键区别：</strong>① 取指周期取的是<strong>指令</strong>（操作码+地址码），送入 IR；间址周期取的是<strong>地址</strong>（操作数的真正地址），送入 MAR。② 取指周期后 PC 自动增量；间址周期 PC 不变。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q4", question: "CPU 如何区分指令和数据？为什么说'同一串二进制既是指令又是数据'？主存能否区分指令和数据？",
             answer: "<strong>CPU 通过指令周期阶段区分：</strong>取指阶段取出的二进制被当作<strong>指令</strong>译码（送入 IR）；执行阶段取出的二进制被当作<strong>数据</strong>运算（送入 ALU/寄存器）。<br><strong>同一串二进制既是指令又是数据：</strong>同一串二进制（如 0x01020304）在取指阶段被译码为指令；若这条指令包含立即数 0x01020304，在执行阶段它就是数据（操作数本身）。<br><strong>主存不能区分：</strong>主存只按地址读写二进制，不识别内容语义。区分指令和数据的是 CPU 的指令周期阶段，不是主存。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q5", question: "DMAC 是硬件还是软件？DMA 方式与中断驱动方式相比，在数据搬运者和中断频率上有什么区别？DMA 传输期间 CPU 能否执行其他任务？",
             answer: "<strong>DMAC 是硬件</strong>（直接存储器访问控制器），不是操作系统的一部分。<table><tr><th>对比项</th><th>中断驱动方式</th><th>DMA 方式</th></tr><tr><td>数据搬运者</td><td>CPU（逐字节/逐字）</td><td>DMAC（直接搬运）</td></tr><tr><td>中断频率</td><td>每传一个数据单位中断一次</td><td>整块传完只中断一次</td></tr><tr><td>CPU 参与度</td><td>高（每次中断都要 CPU 执行 ISR）</td><td>低（只参与初始化和结束处理）</td></tr></table>DMA 传输期间 CPU <strong>可以执行其他任务</strong>（不能访存，因为总线被 DMAC 占用，但可以执行寄存器操作）。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           }
         ],
         english: {
@@ -855,7 +855,7 @@
             { title: "render + 宾语 + 形容词宾补", body: "<code>renders it economically uncompetitive</code> 表示'使得它在经济上缺乏竞争力'。render 后常接宾语 + 形容词/名词作宾补，= make / cause。" },
             { title: "all but 熟词生义", body: "<code>all but the most constrained</code> = '除了最受限制的之外全都'。all but 在考研中常考两种含义：① '几乎'（= almost）；② '除了...之外全都'（= all except）。此处为第二种含义。" }
           ],
-          noteLink: { name: "长难句笔记.md", path: "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md" }
+          noteLink: { name: "长难句笔记.md", path: "E:/NPEE/English/grammar/长难句笔记.md" }
         }
       },
       "2026-06-30": {
@@ -867,62 +867,62 @@
             title: "低级格式化 vs 高级格式化：物理层与逻辑层",
             body: "低级格式化 = 划物理扇区（磁道、扇区、扇区头信息、坏块标记），由厂家出厂时完成；高级格式化 = 建文件系统（FAT/inode、根目录、空闲空间管理），由用户/OS执行。",
             conclusion: "核心区分：低级格式化是物理层，不可逆；高级格式化是逻辑层，可重复。分区与高级格式化是两个独立步骤（切蛋糕 vs 做包装）。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-openfile", badges: ["OS", "文件管理"],
             title: "打开文件表：进程级 vs 系统级",
             body: "进程级打开文件表 = 每个进程的'文件视图'（fd、读写位置、打开标志）；系统级打开文件表 = 文件的'客观状态'（inode、文件大小、物理位置、引用计数）。两个进程打开同一文件，读写位置各自独立；dup后共享偏移量。",
             conclusion: "进程级表存指针，系统级表存FCB。close后只减引用计数，引用计数=0才释放系统级表项。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-link", badges: ["OS", "文件管理"],
             title: "硬链接 vs 符号链接：引用计数变化",
             body: "硬链接共享inode，创建时目标引用计数+1，删除时-1；符号链接新建独立inode，不影响目标文件引用计数。删除原文件后，硬链接仍可访问，软链接变成悬垂链接。",
             conclusion: "硬链接操作的是同一个inode的引用计数；符号链接是两个独立inode，互不影响。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-read", badges: ["OS", "I/O管理"],
             title: "read() 系统调用 vs 缺页中断：进程阻塞场景辨析",
             body: "read()读取文件时数据不在内存 → 进程进入阻塞态（正确），但触发的是I/O请求，不是缺页中断（错误）。缺页中断只发生在虚拟地址访问时，read()是系统调用级别的文件I/O。mmap()访问未加载页时才触发缺页中断。",
             conclusion: "read()走I/O请求路径，不经过MMU地址转换。阻塞原因是等待I/O完成，不是缺页中断。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-ctrl", badges: ["OS", "I/O管理"],
             title: "设备控制器 vs 设备驱动程序",
             body: "设备控制器是硬件（电路板/芯片），负责物理层协议转换、数据缓冲、速度匹配；设备驱动程序是软件（内核代码），将OS抽象请求翻译为控制器能理解的命令。I/O设备不能直接与主板相连，必须通过设备控制器间接相连。",
             conclusion: "2021真题：磁盘驱动器属于I/O设备，不是I/O接口。控制器=硬件翻译官；驱动程序=软件指挥官。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           }
         ],
         quiz: [
           {
             id: "sec-q1", question: "磁盘低级格式化与高级格式化的本质区别是什么？高级格式化是否涉及物理扇区划分？",
             answer: "<strong>低级格式化</strong>是物理层工作，负责划分磁道与扇区、写入扇区头信息、标记坏块，由厂家出厂时完成，不可逆。<strong>高级格式化</strong>是逻辑层工作，负责建立文件系统元数据结构（FAT/inode、根目录、空闲空间管理），不碰物理扇区结构。<strong>高级格式化不涉及物理扇区划分</strong>，那是低级格式化的工作。常见错误：把分区或低级格式化与高级格式化混为一谈。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-q2", question: "进程级打开文件表与系统级打开文件表的核心区别是什么？两个进程打开同一文件时，读写位置是否相同？为什么？",
             answer: "<strong>进程级表</strong>存每个进程的文件视图（fd、读写位置、打开标志），<strong>系统级表</strong>存文件客观状态（inode指针、文件大小、物理位置、引用计数）。<strong>两个进程打开同一文件，读写位置各自独立</strong>，因为读写位置存储在进程级表中。如果只有一级表，进程A读100字节会推进共享偏移量，进程B再读就从100开始了——这违背多进程独立I/O的设计。<strong>dup后两个fd共享读写位置</strong>，因为它们指向同一个系统级表项。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-q3", question: "设文件F1的当前引用计数为1，先建立F1的硬链接F2，再建立F1的符号链接F3，然后删除F2，此时F1和F3的引用计数分别是多少？",
             answer: "<strong>F1引用计数 = 1，F3引用计数 = 1。</strong>步骤分析：① 建立硬链接F2：F1与F2共享inode，F1引用计数 <strong>1→2</strong>；② 建立符号链接F3：F3新建独立inode，存F1路径，<strong>F1引用计数不变</strong>（仍为2），F3自身引用计数=1；③ 删除F2：硬链接删除，F1引用计数 <strong>2→1</strong>。F3是独立inode，其引用计数不受影响，仍为1。常见错误：误以为符号链接也会增加目标引用计数（选B 1,2），或误以为删除F2后F3失效（选C 1,0）。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-q4", question: "read()系统调用读取文件时，如果数据不在内存，触发的是缺页中断还是I/O请求？进程状态如何变化？mmap()读取文件时呢？",
             answer: "<strong>read()触发的是I/O请求，不是缺页中断。</strong>read()是显式系统调用，通过文件系统代码检查缓存，未命中则启动磁盘I/O，进程进入<strong>阻塞态</strong>（睡眠等待DMA完成）。<strong>mmap()访问未加载页时触发缺页中断</strong>，因为mmap通过访存指令访问虚拟地址，MMU发现页表项无效时触发缺页中断。核心区别：read()走文件系统+I/O调度路径，不经过MMU地址转换；mmap()通过页表映射，未命中时走缺页中断路径。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-q5", question: "设备控制器与设备驱动程序的本质区别是什么？2021年真题中，为什么'磁盘驱动器'不属于I/O接口？",
             answer: "<strong>设备控制器是硬件</strong>（电路板/芯片），负责物理层协议转换、数据缓冲、速度匹配；<strong>设备驱动程序是软件</strong>（内核代码），将OS抽象请求翻译为控制器能理解的命令。<strong>磁盘驱动器不属于I/O接口</strong>，因为它是<strong>I/O设备本身</strong>（执行I/O的物理机械/电子装置），而不是连接设备与主机总线的硬件电路。I/O接口/控制器负责数据缓冲、格式转换、命令译码，如打印机适配器、网络控制器、SATA控制器。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           }
         ],
         english: {
@@ -963,7 +963,7 @@
             { title: "the very + 名词", body: "<code>the very algorithms</code> = '正是这些算法'。very 修饰名词时表强调，不是'非常'。常见表达：the very idea（正是这个想法）、the very thing（正是那东西）。" },
             { title: "in fact 插入语", body: "<code>are, in fact, eroding</code> 中 in fact 为插入语，表示'实际上'。阅读时遇到插入语可先跳过，不影响句子主干理解。" }
           ],
-          noteLink: { name: "长难句笔记.md", path: "C:/Users/92534/Desktop/考研/English/语法/长难句笔记.md" }
+          noteLink: { name: "长难句笔记.md", path: "E:/NPEE/English/语法/长难句笔记.md" }
         }
       },
       "2026-07-05": {
@@ -975,62 +975,62 @@
             title: "总线事务分离技术（Split Transaction）",
             body: "将传统的\"请求→等待→响应\"串行过程拆分为请求子事务和响应子事务两段，中间释放总线给其他设备使用。核心目的是提高总线利用率，而非提高单次传输速度。",
             conclusion: "需要从设备具备主动发起总线请求的能力和事务缓冲能力。与突发传输（Burst）本质区别：突发传输连续占线传多数据，分离事务中间释放总线。",
-            noteLink: { name: "第6章_总线和输入输出系统.md", path: "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md" }
+            noteLink: { name: "第6章_总线和输入输出系统.md", path: "E:/NPEE/408/CO/第6章_总线和输入输出系统.md" }
           },
           {
             id: "sec-bus-bandwidth", badges: ["计组", "总线"],
             title: "总线带宽计算：位/字节单位陷阱",
             body: "总线带宽 = 总线宽度 × 总线频率。最安全计算方式：全程统一用\"位\"计算，避免位/字节混淆。位→字节÷8（2³），字节→KB÷1024（2¹⁰），注意区分1000和1024。",
             conclusion: "多体交叉存储器靠轮流启动流水访问提速，转移指令导致地址流断裂时效率退化接近单体。单体多字靠加宽数据总线提速。",
-            noteLink: { name: "第6章_总线和输入输出系统.md", path: "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md" }
+            noteLink: { name: "第6章_总线和输入输出系统.md", path: "E:/NPEE/408/CO/第6章_总线和输入输出系统.md" }
           },
           {
             id: "sec-file-struct", badges: ["OS", "文件管理"],
             title: "文件逻辑结构 vs 物理结构：独立性与限制",
             body: "概念上分层独立，但物理结构必须支持逻辑结构的存取方法。顺序存取可用任意物理结构；随机存取（索引/散列文件）不能用顺序存取设备（磁带）；散列文件不能用链接结构。",
             conclusion: "CD-ROM视频文件因只读、寻道慢，连续分配（1次访存）优于多级索引（N+1次访存）。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-fcb-inode", badges: ["OS", "文件管理"],
             title: "文件系统核心数据结构辨析",
             body: "FCB是抽象概念；inode是UNIX中FCB的磁盘实现（存属性+数据块指针，不存文件名和内容）；系统级打开文件表是FCB的内存工作副本；进程级打开文件表存fd+读写位置+打开标志。",
             conclusion: "open()把FCB/inode读入内存返回fd，不读文件内容（那是read()），不修改权限。两进程打开同一文件时读写位置各自独立，dup()后共享偏移量。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-hard-symlink", badges: ["OS", "文件管理"],
             title: "硬链接 vs 符号链接：引用计数机制",
             body: "硬链接共享inode，创建时目标引用计数+1，删除时-1；符号链接新建独立inode，不影响目标文件引用计数。删除原文件后硬链接仍可访问，软链接变成悬垂链接。",
             conclusion: "硬链接不能跨文件系统（inode号仅在本文件系统内唯一），不能对目录创建硬链接（防止循环引用）；符号链接无此限制。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           }
         ],
         quiz: [
           {
             id: "sec-q1", question: "总线事务分离技术（Split Transaction）的核心目的是什么？它与突发传输（Burst Transfer）的本质区别是什么？",
             answer: "<strong>核心目的：提高总线利用率</strong>，而非提高单次传输速度。将\"请求→等待→响应\"拆分为两个子事务，中间释放总线供其他设备使用。<br><strong>与突发传输的本质区别：</strong>突发传输在一次总线事务中连续传输多个数据，但整个传输期间<strong>持续占用总线</strong>；分离事务在请求和响应之间<strong>释放总线</strong>，允许其他设备使用总线。突发传输减少了寻址次数但不释放总线，分离事务通过允许总线复用提高整体吞吐率。",
-            noteLink: { name: "第6章_总线和输入输出系统.md", path: "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md" }
+            noteLink: { name: "第6章_总线和输入输出系统.md", path: "E:/NPEE/408/CO/第6章_总线和输入输出系统.md" }
           },
           {
             id: "sec-q2", question: "某总线宽度32位，时钟频率100MHz，一个总线事务传输一个数据需要2个时钟周期，求总线带宽（MB/s）。请写出关键计算步骤并说明常见单位陷阱。",
             answer: "<strong>带宽 = 4B × 100MHz ÷ 2 = 200MB/s</strong>。<br>计算步骤：① 总线宽度32位 = 4B；② 每秒传输次数 = 100M ÷ 2 = 50M次/秒；③ 带宽 = 4B × 50M = 200MB/s。<br><strong>常见陷阱：</strong>位和字节直接混算（如直接用32位×100MHz÷2得到1600而忘记÷8）；忘记一个事务需要多个时钟周期；KB/MB/G换算时误用1000而非1024（408中存储容量通常按1024算，频率按1000算）。",
-            noteLink: { name: "第6章_总线和输入输出系统.md", path: "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md" }
+            noteLink: { name: "第6章_总线和输入输出系统.md", path: "E:/NPEE/408/CO/第6章_总线和输入输出系统.md" }
           },
           {
             id: "sec-q3", question: "为什么CD-ROM上的视频文件通常采用连续分配方式，而不是多级索引分配？随机存取的逻辑结构能否使用磁带这种顺序存取设备？为什么？",
             answer: "<strong>CD-ROM视频文件用连续分配的原因：</strong>CD-ROM是只读介质，文件写入后不再修改；连续分配只需<strong>1次访存</strong>即可读取数据块，而多级索引需要N+1次访存（读索引块+读数据块）；视频播放是顺序读取，连续分配寻道时间最少。<br><strong>随机存取逻辑结构不能用磁带：</strong>随机存取（如索引文件、散列文件）要求能够直接定位到任意记录位置，而磁带是<strong>顺序存取设备</strong>，只能从头顺序扫描到目标位置，无法直接跳转，物理上不支持随机存取的需求。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-q4", question: "设文件F的引用计数为1，先创建硬链接H，再创建符号链接S，然后删除原文件F。此时H和S是否仍然有效？为什么？F的inode是否被释放？",
             answer: "<strong>H仍然有效，S失效（悬垂链接）</strong>。<br>分析：① 创建硬链接H：F引用计数1→2，H与F共享同一inode；② 创建符号链接S：S新建独立inode存F路径，F引用计数不变（仍为2），S自身引用计数=1；③ 删除F：F的目录项被删除，引用计数2→1（因为H仍指向该inode），<strong>inode不释放</strong>（引用计数>0）。H通过原inode仍可访问文件数据；S存储的路径已不存在（F目录项被删），访问时找不到文件，变成悬垂链接。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-q5", question: "open()系统调用是否会读取文件内容？read()系统调用如果数据不在内存，触发的是缺页中断还是I/O请求？mmap()访问未映射页时呢？",
             answer: "<strong>open()不读取文件内容</strong>，只做三件事：根据路径找到FCB/inode→将其复制到内存的系统级打开文件表→在进程级打开文件表分配fd并返回。文件内容读取由read()完成。<br><strong>read()数据不在内存时触发I/O请求（阻塞等待DMA）</strong>，不经过MMU地址转换，不是缺页中断。<br><strong>mmap()访问未映射页时触发缺页中断</strong>：mmap将文件映射到虚拟地址空间，通过访存指令访问时MMU发现页表项无效，触发缺页中断，由缺页中断处理程序负责将文件页调入内存。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           }
         ],
         english: {
@@ -1068,7 +1068,7 @@
             { title: "when 引导定语从句修饰时间名词", body: "<code>in the early 1980s, when the Federal Reserve's efforts...</code> 中 when 引导定语从句修饰 the early 1980s（表时间的先行词），在从句中作时间状语。不要误认为是时间状语从句。" },
             { title: "动词熟词生义密集", body: "<code>engineer</code>（v. 策划）、<code>calibrate</code>（v. 精确调节）、<code>tame</code>（v. 抑制）、<code>precipitate</code>（v. 引发坏事）、<code>push</code>（v. 推高至某数值）都是考研阅读经济类文章高频动词，需重点记忆。" }
           ],
-          noteLink: { name: "长难句笔记.md", path: "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md" }
+          noteLink: { name: "长难句笔记.md", path: "E:/NPEE/English/grammar/长难句笔记.md" }
         },
         math: {
           id: "sec-math",
@@ -1079,7 +1079,7 @@
               title: "抽象函数可导性判定：三步法不可跳步",
               body: "题目仅给出 <code>g(x)</code> 在某点可导/二阶可导的条件时，<strong>必须严格走三步</strong>：① 用导数定义写出极限式 <code>lim[f(x)-f(0)]/x</code>；② 确定 <code>f(0)</code> 的值（题目未直接给出时需通过连续性或其他条件推导）；③ 验证极限存在。<br>⚠️ 常见陷阱：两边除以 <code>|x|</code> 夹逼时，默认 <code>f(0)=0</code> 而跳步；连续推不出可导；只给\"一点可导\"条件时在该点邻域不可洛必达也不可直接求导。",
               conclusion: "核心原则：f(x₀)未知时绝不能跳过第二步；\"一点可导\"≠\"邻域可导\"，洛必达要求去心邻域可导，条件不满足时不可使用。",
-              noteLink: { name: "错题归档.md", path: "C:/Users/92534/Desktop/考研/Math/高数/错题归档.md" }
+              noteLink: { name: "错题归档.md", path: "E:/NPEE/Math/高数/错题归档.md" }
             },
             {
               type: "knowledge",
@@ -1087,7 +1087,7 @@
               title: "导函数连续性证明的标准流程",
               body: "证明 <code>f'(x)</code> 在 <code>x=0</code> 处连续，必须严格分两步：<br><strong>第一步</strong>：用导数定义求 <code>f'(0) = lim[f(x)-f(0)]/x</code>（这是在求\"导数值\"）。<br><strong>第二步</strong>：对 <code>x≠0</code> 处的导函数表达式（直接求导得到的）求极限 <code>lim_{x→0}f'(x)</code>。<br><strong>第三步（比较）</strong>：若二者相等，则导函数在该点连续；否则不连续。",
               conclusion: "最优解法：佩亚诺余项泰勒展开法可以一步到位，但必须理解其本质是利用了导数定义与泰勒系数的关系。g(x)仅在x=0处二阶可导时，不可洛必达两次到g''(x)。",
-              noteLink: { name: "错题归档.md", path: "C:/Users/92534/Desktop/考研/Math/高数/错题归档.md" }
+              noteLink: { name: "错题归档.md", path: "E:/NPEE/Math/高数/错题归档.md" }
             },
             {
               type: "method",
@@ -1095,7 +1095,7 @@
               title: "高阶导数求法：泰勒展开 vs 莱布尼茨公式的选择",
               body: "<strong>方法选择原则：</strong><br>① 求 <code>f⁽ⁿ⁾(0)</code> 时，含 <code>ln(1+x)</code>、<code>arctan x</code>、<code>e^x</code>、<code>sin x</code>、<code>cos x</code> 等<strong>单一初等函数</strong>，优先用<strong>泰勒展开法</strong>：<code>f⁽ⁿ⁾(0) = n! · aₙ</code>（aₙ是xⁿ项系数）。<br>② 含<strong>低次多项式乘积</strong>（如 <code>x²·ln(1+x)</code>），可用<strong>莱布尼茨公式</strong>：多项式高阶导为0，求和仅剩有限项。<br>③ 分式/三角函数有理式：先分解为简单分式，再套已知高阶导公式。",
               conclusion: "易错系数：莱布尼茨系数C(n,k)写错；[ln(1+x)]⁽ᵐ⁾ = (-1)^(m-1)·(m-1)!·(1+x)^(-m) 漏乘(m-1)!；泰勒展开时阶数不够导致漏项。",
-              noteLink: { name: "第2章_一元函数微分学.md", path: "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md" }
+              noteLink: { name: "第2章_一元函数微分学.md", path: "E:/NPEE/Math/高数/第2章_一元函数微分学.md" }
             }
           ]
         }
@@ -1109,62 +1109,62 @@
             title: "FCB vs inode vs 系统打开文件表：三层抽象",
             body: "FCB 是文件管理的抽象概念（任何文件系统管理文件的数据结构）；inode 是 FCB 在 UNIX/Linux 中的磁盘实现（存属性+数据块指针，<strong>不存文件名和内容</strong>）；系统级打开文件表是 FCB 的内存工作副本（运行时加速访问，含引用计数）。",
             conclusion: "close() 后系统级表项销毁、引用计数减 1，但 inode 仍在磁盘上。引用计数 = 0 时 inode 才被释放。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-perm-bits", badges: ["OS", "文件管理"],
             title: "文件权限位串计算：乘法不是加法",
             body: "用户类别 4 类 × 访问权限 5 种 = 20 位。每个用户对每种权限独立用 1 位表示'有/无'。位串是<strong>文件所持有</strong>的，必须同时记录不同用户类别对该文件的不同访问权限，因此是乘积关系。",
             conclusion: "类比 Linux rwxrwxrwx = 3 类 × 3 种 = 9 位。2017 真题答案 D（20 位），不是 4+5=9。",
-            noteLink: { name: "OS notes.md", path: "C:/Users/92534/Desktop/考研/408/OS/OS notes.md" }
+            noteLink: { name: "OS notes.md", path: "E:/NPEE/408/OS/OS notes.md" }
           },
           {
             id: "sec-io-layers2", badges: ["OS", "I/O管理"],
             title: "I/O 子系统四层结构与层次归属",
             body: "用户层 I/O 软件 → 设备独立性软件 → 设备驱动程序 → 中断处理程序。设备驱动程序是<strong>内核代码（软件）</strong>，将抽象 I/O 请求转换为具体设备命令；设备控制器是<strong>硬件</strong>（电路板/芯片），负责物理层协议转换和数据缓冲。",
             conclusion: "层次从用户态到内核态递减。2021 真题：磁盘驱动器属于 I/O 设备，不是 I/O 接口。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-bus-split2", badges: ["计组", "总线"],
             title: "总线事务分离 vs 突发传输",
             body: "总线事务分离将'请求→等待→响应'拆为两段，中间释放总线供其他设备使用，核心目的是<strong>提高总线利用率</strong>。突发传输在一次事务中连续传输多个数据，整个传输期间持续占用总线。",
             conclusion: "分离事务需要设备具备主动发起请求能力和事务缓冲能力。突发传输减少寻址次数但不释放总线。",
-            noteLink: { name: "第6章_总线和输入输出系统.md", path: "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md" }
+            noteLink: { name: "第6章_总线和输入输出系统.md", path: "E:/NPEE/408/CO/第6章_总线和输入输出系统.md" }
           },
           {
             id: "sec-io-port2", badges: ["OS", "I/O管理"],
             title: "I/O 接口 vs I/O 端口：408 高频考点",
             body: "I/O 接口 = 硬件电路（物理连接器+信号转换），CPU <strong>不能</strong>直接访问；I/O 端口 = 设备控制器上的寄存器（数据/命令/状态端口），CPU 可通过独立编址或统一编址访问。",
             conclusion: "一个设备控制器通常有多个端口。I/O 端口可被 CPU 编址，接口不能。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           }
         ],
         quiz: [
           {
             id: "sec-q1", question: "首次 open() 一个文件时，FCB/inode、系统级打开文件表、进程级打开文件表分别发生了什么操作？open() 返回的是什么？两个进程打开同一文件时读写位置是否相同？",
             answer: "<strong>open() 做三件事：</strong>① 根据路径在目录中找到 FCB/inode → ② 将 FCB/inode 从外存复制到内存的<strong>系统级打开文件表</strong>（创建表项，含 inode 指针、文件大小、引用计数）→ ③ 在<strong>进程级打开文件表</strong>分配一个条目（含 fd、读写位置、打开标志），返回<strong>文件描述符 fd</strong>。<br>open() 不读文件内容（那是 read()），不修改权限（只检查）。<br><strong>两个进程打开同一文件，读写位置各自独立</strong>——因为读写位置存储在进程级表中。dup() 后两个 fd 共享偏移量。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-q2", question: "I/O 接口与 I/O 端口的本质区别是什么？CPU 能否直接访问 I/O 接口？一个设备控制器上有几个端口？",
             answer: "<strong>I/O 接口是硬件电路</strong>（物理连接器+信号转换），<strong>I/O 端口是设备控制器上的寄存器</strong>（CPU 可编址的存储单元）。CPU <strong>不能直接访问 I/O 接口</strong>，只能通过 I/O 端口（独立编址或统一编址）读写设备状态和数据。<br>一个设备控制器通常有<strong>多个端口</strong>：数据端口（读写数据）、命令端口（写入控制命令）、状态端口（读取设备状态）。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           },
           {
             id: "sec-q3", question: "总线事务分离（Split Transaction）与突发传输（Burst Transfer）在总线占用时间上的本质区别是什么？实现事务分离需要什么前提条件？",
             answer: "<strong>本质区别在总线占用时间：</strong>事务分离在请求与响应之间<strong>释放总线</strong>，允许其他设备使用；突发传输在整个传输期间<strong>持续占用总线</strong>。<br><strong>前提条件：</strong>从设备必须具备①<strong>主动发起总线请求</strong>的能力（响应准备好后自己请求总线）；②<strong>事务缓冲能力</strong>（暂存未完成的请求和响应数据）。突发传输不需要这些条件，因为它持续占线。",
-            noteLink: { name: "第6章_总线和输入输出系统.md", path: "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md" }
+            noteLink: { name: "第6章_总线和输入输出系统.md", path: "E:/NPEE/408/CO/第6章_总线和输入输出系统.md" }
           },
           {
             id: "sec-q4", question: "设文件 F1 引用计数为 1，依次创建硬链接 H1、符号链接 S1，再删除 F1。此时 H1 和 S1 是否有效？F1 的 inode 是否被释放？引用计数分别是多少？",
             answer: "<strong>H1 有效，S1 失效（悬垂链接），F1 的 inode 未释放。</strong><br>步骤分析：① 创建 H1：H1 与 F1 共享 inode，引用计数 <strong>1→2</strong>；② 创建 S1：S1 新建独立 inode 存 F1 路径，F1 引用计数不变（仍为 2），S1 自身引用计数 = 1；③ 删除 F1：F1 的目录项被删除，引用计数 <strong>2→1</strong>（H1 仍指向该 inode）。<strong>inode 不释放</strong>（引用计数 > 0）。H1 通过原 inode 仍可访问数据；S1 存储的路径已不存在，访问时找不到文件，变成<strong>悬垂链接</strong>。",
-            noteLink: { name: "第4章_文件管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md" }
+            noteLink: { name: "第4章_文件管理.md", path: "E:/NPEE/408/OS/第4章_文件管理.md" }
           },
           {
             id: "sec-q5", question: "设备控制器与设备驱动程序的本质区别是什么？I/O 子系统的四层结构（从用户态到内核态）分别是什么？2021 真题中为什么'磁盘驱动器'不属于 I/O 接口？",
             answer: "<strong>设备控制器是硬件</strong>（电路板/芯片），负责物理层协议转换、数据缓冲、速度匹配。<strong>设备驱动程序是软件</strong>（内核代码），将 OS 抽象请求翻译为控制器能理解的命令。<br><strong>I/O 四层结构（从高到低）：</strong>用户层 I/O 软件 → 设备独立性软件 → 设备驱动程序 → 中断处理程序。<br><strong>磁盘驱动器是 I/O 设备本身</strong>（执行 I/O 的物理机械/电子装置），不是连接设备与主机总线的硬件电路（I/O 接口/控制器）。I/O 接口负责数据缓冲、格式转换、命令译码。",
-            noteLink: { name: "第5章_IO管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md" }
+            noteLink: { name: "第5章_IO管理.md", path: "E:/NPEE/408/OS/第5章_IO管理.md" }
           }
         ],
         english: {
@@ -1203,7 +1203,7 @@
             { title: "beyond which 引导定语从句", body: "<code>tipping points beyond which...</code> 中，beyond which = '超过这些临界点之后'。介词 + which 引导定语从句是考研高频句型。类似：above which（超过）、below which（低于）、from which（从中）。" },
             { title: "yet 连接两个并列分句", body: "yet 置于两个分句之间表'然而'，连接两个独立分句。yet 既可作连词（= but, however），也可作副词（= '尚未'、'已经'）。此处为连词用法。" }
           ],
-          noteLink: { name: "长难句笔记.md", path: "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md" }
+          noteLink: { name: "长难句笔记.md", path: "E:/NPEE/English/grammar/长难句笔记.md" }
         },
         math: {
           id: "sec-math",
@@ -1214,7 +1214,7 @@
               title: "隐函数求二阶导：必须先求 y(x₀)",
               body: "对隐函数 <code>F(x,y)=0</code> 求二阶导后，方程中仍含 <code>y</code> 这个未知量。即使题目已给 <code>y'(x₀)</code>，也<strong>不能直接代入求解 y''(x₀)</strong>——二阶导方程有两个未知数（y 和 y''），一个方程解不出来。<br>标准流程：<strong>先求 y(x₀) → 再求 y'(x₀) → 最后求 y''(x₀)</strong>。<br>求 y(x₀) 有两条路径：<br>① <strong>推荐</strong>：直接代入 x₀ 到<strong>原方程</strong> F(x₀,y)=0 解 y（无增根）<br>② 利用已知 y'(x₀) 回代一阶导方程简化后解 y，但<strong>必须回代原方程检验</strong>（有增根风险）",
               conclusion: "口诀：导数方程的根 ≠ 原方程的根，回代检验是底线。优先用原方程求 y(x₀)。",
-              noteLink: { name: "计算陷阱.md", path: "C:/Users/92534/Desktop/考研/Math/高数/计算陷阱.md" }
+              noteLink: { name: "计算陷阱.md", path: "E:/NPEE/Math/高数/计算陷阱.md" }
             },
             {
               type: "knowledge",
@@ -1222,7 +1222,7 @@
               title: "高阶导数两大路径：泰勒展开 vs 莱布尼茨",
               body: "<strong>方法选择：</strong><br>① 含低次多项式乘积（如 x²·eˣ）→ <strong>莱布尼茨</strong>：令 u = 低次多项式（u'''=0），求和仅剩有限项<br>② 单一初等函数（ln(1+x)、arctan x、sin x、eˣ）→ <strong>泰勒展开</strong>：f⁽ⁿ⁾(0) = n! · aₙ<br>③ 两个超越函数相乘 → 分别泰勒展开后<strong>卷积</strong>求系数<br><strong>奇偶性速判：</strong>sin x、arctan x 只含奇数项 → 偶数阶 f⁽²ᵏ⁾(0) = 0；cos x 只含偶数项 → 奇数阶 = 0",
               conclusion: "核心公式：f⁽ⁿ⁾(0) = n! · aₙ（aₙ 是 xⁿ 项系数），不是 aₙ 本身。莱布尼茨下标从 k=0 开始，共 n+1 项。",
-              noteLink: { name: "第2章_一元函数微分学.md", path: "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md" }
+              noteLink: { name: "第2章_一元函数微分学.md", path: "E:/NPEE/Math/高数/第2章_一元函数微分学.md" }
             },
             {
               type: "method",
@@ -1230,7 +1230,7 @@
               title: "部分分式分解：不可约二次因式的分子设定",
               body: "<strong>规则：</strong>一次因式 (x-a) → 分子设<strong>常数 A</strong>（0 次）；不可约二次因式 (x²+px+q) → 分子设<strong>一次式 Bx+C</strong>（1 次）。<br>记忆口诀：<strong>'一次因式上面设常数，二次因式上面设一次'</strong>。<br>本质：二次因式对应两个自由度（B, C 两个参数），只设一个常数无法匹配分子多项式的三个系数（二次、一次、常数项），方程组约束过紧，一般无解。<br>验证：通分后比较分子，令 x=a 直接求 A，比较 x² 项和常数项求 B, C。",
               conclusion: "分母几次，分子最高设（次数-1）次。分解前先看每个因式的次数，再设定分子形式。",
-              noteLink: { name: "第3章_一元函数积分学.md", path: "C:/Users/92534/Desktop/考研/Math/高数/第3章_一元函数积分学.md" }
+              noteLink: { name: "第3章_一元函数积分学.md", path: "E:/NPEE/Math/高数/第3章_一元函数积分学.md" }
             }
           ]
         }
@@ -1244,62 +1244,62 @@
             title: "缺页中断次数：copy A to B 最多 6 次",
             body: "一条 <code>copy A to B</code> 指令最多触发 <strong>6 次</strong>缺页中断：取指令本身跨页（2 次）+ 源操作数 A 跨页（2 次）+ 目标操作数 B 跨页（2 次）。取指令也会缺页，且 copy 是<strong>先读后写</strong>，读 A 和写 B 都要访存。",
             conclusion: "速记口诀：指令跨页 2，源跨页 2，目标跨页 2，copy 一条 6 次底。别漏了取指令本身的跨页。",
-            noteLink: { name: "第3章_内存管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md" }
+            noteLink: { name: "第3章_内存管理.md", path: "E:/NPEE/408/OS/第3章_内存管理.md" }
           },
           {
             id: "sec-thrashing", badges: ["OS", "内存管理"],
             title: "系统颠簸（Thrashing）判断与改进",
             body: "现象：CPU 利用率极低（如 10%），磁盘交换区利用率极高（如 99.7%）→ 内存不足 + 进程过多 → 缺页频繁 → 系统忙于换页而非计算。<strong>有效措施</strong>：① 增大内存容量（根本解决）；② 减少多道程序度数（降低页面竞争）。",
             conclusion: "无效措施：增大交换区容量、用更快的交换区、用更快的 CPU、增加多道程序度数（反而加剧颠簸）。",
-            noteLink: { name: "第3章_内存管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md" }
+            noteLink: { name: "第3章_内存管理.md", path: "E:/NPEE/408/OS/第3章_内存管理.md" }
           },
           {
             id: "sec-pagereplace", badges: ["OS", "内存管理"],
             title: "页面置换算法对比：OPT / FIFO / LRU / Clock",
             body: "OPT 理论最优但不可实现（需预知未来）；FIFO 简单但有 <strong>Belady 异常</strong>（物理块增加缺页率反升）；LRU 性能接近 OPT 但开销大（需记录时间戳）；Clock 是 LRU 的近似，只需访问位，开销小；改进型 Clock 兼顾访问位+修改位，优先淘汰 (0,0) 类页面。",
             conclusion: "只有 FIFO 有 Belady 异常。有空闲页框时直接调入，无需置换——置换只发生在请求分页/虚拟存储中。",
-            noteLink: { name: "第3章_内存管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md" }
+            noteLink: { name: "第3章_内存管理.md", path: "E:/NPEE/408/OS/第3章_内存管理.md" }
           },
           {
             id: "sec-superscalar", badges: ["计组", "CPU"],
             title: "超标量 vs 超流水线 vs 多核",
             body: "超标量 = <strong>空间并行</strong>（横向扩展多套功能部件，每周期同时发射多条指令），CPI 可 < 1；超流水线 = <strong>纵向细分</strong>流水线段数（周期更短），每周期仍发射 1 条，CPI ≈ 1；多核 = 线程级并行，各核独立。超标量是单核技术，不依赖多核。",
             conclusion: "CPI < 1 是超标量的统计平均效果，单条指令周期仍 ≥ 1 时钟周期。现代 CPU 三者叠加使用。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-flynn", badges: ["计组", "CPU"],
             title: "Flynn 分类：看指令流数量，不看发射条数",
             body: "Flynn 分类依据是<strong>指令流</strong>数量。超标量/流水线/超流水线都只有 1 个 PC、1 个指令流 → 都是 <strong>SISD</strong>；阵列/向量/GPU 单指令控制多数据 → <strong>SIMD</strong>；多核/多机/SMT 各有独立 PC → <strong>MIMD</strong>。",
             conclusion: "速记：超标量流水线都是 SISD；阵列向量并行机 SIMD；多核多机 SMT 是 MIMD。每周期发射多条 ≠ MIMD。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           }
         ],
         quiz: [
           {
             id: "sec-q1", question: "一条 <code>copy A to B</code> 指令在请求分页系统中最多会触发几次缺页中断？请分项说明。为什么取指令阶段也可能缺页？",
             answer: "<strong>最多 6 次。</strong>分项：① <strong>取指令本身跨页</strong>——指令（如 x86 变长指令，最长 15 字节）在页末尾开始可能延伸到下一页，需访问 2 个页面 → 2 次；② <strong>读源操作数 A</strong>——数据在页边界处跨页 → 2 次；③ <strong>写目标操作数 B</strong>——同样跨页 → 2 次。copy 是先读后写，读 A 和写 B 都要访存。<br>取指阶段会缺页是因为：页边界对程序完全透明，编译器/链接器放置指令时不会刻意对齐页边界，虚拟地址连续但物理上可能分散到不同页框，指令跨页时其后半部分所在页可能不在内存。",
-            noteLink: { name: "第3章_内存管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md" }
+            noteLink: { name: "第3章_内存管理.md", path: "E:/NPEE/408/OS/第3章_内存管理.md" }
           },
           {
             id: "sec-q2", question: "某系统监控显示：CPU 利用率 10%，磁盘交换区利用率 99.7%，其他 I/O 利用率 5%。系统发生了什么？下列措施哪些有效：①增大内存 ②增大交换区容量 ③减少多道程序度数 ④增加多道程序度数 ⑤更快的交换区 ⑥更快的 CPU？",
             answer: "系统发生了<strong>颠簸（Thrashing）</strong>：内存不足 + 进程过多 → 缺页极其频繁 → 系统绝大部分时间在换页而非计算，故 CPU 空闲（10%）而磁盘交换区几乎满载（99.7%）。<br><strong>有效措施：① 增大内存（根本解决，减少缺页）、③ 减少多道程序度数（减少进程数，降低页面竞争）。</strong><br>无效：② 交换区利用率高不是容量不够而是使用太频繁；④ 增加进程度数会加剧颠簸；⑤ 更快的交换区只让换页更快、不减少次数；⑥ CPU 已空闲、不是速度问题。",
-            noteLink: { name: "第3章_内存管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md" }
+            noteLink: { name: "第3章_内存管理.md", path: "E:/NPEE/408/OS/第3章_内存管理.md" }
           },
           {
             id: "sec-q3", question: "OPT、FIFO、LRU、Clock 四种页面置换算法中，哪个会出现 Belady 异常？LRU 和 Clock 的本质区别是什么？改进型 Clock 的淘汰优先级如何？",
             answer: "<strong>只有 FIFO 会出现 Belady 异常</strong>（物理块增加，缺页率反而上升）。OPT、LRU、Clock 都属于栈算法，不会有 Belady 异常。<br><strong>LRU vs Clock：</strong>LRU 记录每页<strong>何时</strong>被访问（需时间戳/链表，开销大），淘汰最久未用的；Clock 只用 1 个<strong>访问位</strong>记录是否被访问过（不记录时间），是 LRU 的低开销近似。<br><strong>改进型 Clock 淘汰优先级</strong>（访问位, 修改位）：(0,0) → (0,1) → 若无则清访问位再扫一轮 → 再找 (0,0)。优先淘汰未访问且未修改的页（无需写回，代价最小）。",
-            noteLink: { name: "第3章_内存管理.md", path: "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md" }
+            noteLink: { name: "第3章_内存管理.md", path: "E:/NPEE/408/OS/第3章_内存管理.md" }
           },
           {
             id: "sec-q4", question: "超标量、超流水线、多核三者的并行方式分别是什么？为什么说 CPI < 1 只能由超标量实现而不是超流水线？超标量必须依赖多核吗？",
             answer: "<strong>超标量 = 空间并行</strong>（横向扩展多套功能部件，一个时钟周期同时发射多条指令）；<strong>超流水线 = 时间并行的深化</strong>（纵向把流水线段切得更细，时钟周期更短，但每周期仍只发射 1 条）；<strong>多核 = 线程级并行</strong>（多个物理核心各自独立执行）。<br><strong>CPI < 1 只能由超标量实现</strong>：超流水线每周期仍只完成 1 条指令，理想 CPI 极限 ≈ 1，无法 < 1；超标量每周期发射多条，平均 CPI 才能 < 1。<br><strong>超标量不依赖多核</strong>——它是单核内部技术（如早期 Pentium 双发射），靠单核内多套功能部件实现。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           },
           {
             id: "sec-q5", question: "按 Flynn 分类，超标量流水线处理机属于 SISD 还是 MIMD？多核处理器和 SMT 属于哪一类？Flynn 分类的判据到底是什么？",
             answer: "<strong>超标量流水线处理机属于 SISD</strong>：它只有 <strong>1 个 PC、1 个指令流</strong>，同一周期发射的多条指令都来自同一线程（同一指令流）。<br><strong>多核处理器和 SMT 都属于 MIMD</strong>：多核每个核有独立 PC、独立指令流；SMT（同时多线程）各线程也有独立 PC。<br><strong>Flynn 分类的判据是「指令流数量 × 数据流数量」，看的是指令流条数，不是每周期发射多少条指令。</strong>阵列/向量处理机是 1 个控制器广播 1 条指令给多个处理单元处理不同数据 → SIMD。易错：把「每周期发射多条」误判为 MIMD。",
-            noteLink: { name: "第5章_中央处理器CPU.md", path: "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md" }
+            noteLink: { name: "第5章_中央处理器CPU.md", path: "E:/NPEE/408/CO/第5章_中央处理器CPU.md" }
           }
         ],
         english: {
@@ -1331,7 +1331,7 @@
             { title: "in + doing 作状语插入主谓之间", body: "<code>may, in displacing..., precipitate</code> 中 <code>in doing sth.</code> = '在做某事的过程中/由于做某事'，插入语打断 may 与 precipitate。阅读时先跳读抓主干 'gains may precipitate dislocation'。" },
             { title: "意义回环（反讽结构）", body: "句末 <code>the productivity those gains were meant to enhance</code> 与句首 <code>efficiency gains</code> 形成语义闭环——效率提升反而损害了它本应提升的生产力，是论述题常见的'自我拆台'逻辑。" }
           ],
-          noteLink: { name: "长难句笔记.md", path: "C:/Users/92534/Desktop/考研/English/语法/长难句笔记.md" }
+          noteLink: { name: "长难句笔记.md", path: "E:/NPEE/English/语法/长难句笔记.md" }
         },
         math: {
           id: "sec-math",
@@ -1342,7 +1342,7 @@
               title: "拐点判定：f''(x₀)=0 是必要非充分",
               body: "<code>f''(x₀)=0</code> <strong>不能直接判定 x₀ 是拐点</strong>——还必须验证 <code>f''</code> 在 x₀ 两侧<strong>变号</strong>。<br>反例：<code>f(x)=x⁴</code> 在 x=0 处 f''(0)=0，但 f''=12x²≥0 两侧不变号，<strong>不是拐点</strong>。<br>另一方向的陷阱：<strong>拐点处 f'' 可以不存在</strong>——如 <code>f(x)=|x|·x</code> 在 x=0 处凹凸性翻转（是拐点），但 f''(0) 不存在。",
               conclusion: "拐点判据 = 凹凸性改变（f'' 变号）。f''=0 只是二阶可导时的必要条件，既不充分，也非必需（f'' 可不存在）。",
-              noteLink: { name: "第2章_一元函数微分学.md", path: "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md" }
+              noteLink: { name: "第2章_一元函数微分学.md", path: "E:/NPEE/Math/高数/第2章_一元函数微分学.md" }
             },
             {
               type: "knowledge",
@@ -1350,7 +1350,7 @@
               title: "极值第三充分条件：偶极奇拐",
               body: "设 <code>f'(x₀)=…=f⁽ⁿ⁻¹⁾(x₀)=0</code>，<code>f⁽ⁿ⁾(x₀)≠0</code>。<strong>第三充分条件不要求 n 为偶数</strong>，而是由 n 的奇偶性决定结论：<br>• <strong>n 偶数 → 极值</strong>（f⁽ⁿ⁾<0 极大，f⁽ⁿ⁾>0 极小）<br>• <strong>n 奇数 → 非极值</strong>（是水平拐点）<br>依据泰勒展开 <code>f(x)-f(x₀)≈f⁽ⁿ⁾(x₀)/n!·(x-x₀)ⁿ</code>：偶次幂两侧同号 → 极值；奇次幂两侧异号 → 非极值。第二充分条件是 n=2 的特例。",
               conclusion: "口诀「偶极奇拐」。误区：以为必须 n 为偶数才能用——n 奇数时结论「非极值」同样是有效判定。",
-              noteLink: { name: "第2章_一元函数微分学.md", path: "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md" }
+              noteLink: { name: "第2章_一元函数微分学.md", path: "E:/NPEE/Math/高数/第2章_一元函数微分学.md" }
             },
             {
               type: "method",
@@ -1358,7 +1358,7 @@
               title: "驻点 vs 拐点：分维度快速判断",
               body: "<strong>驻点看一阶（f'=0），拐点看二阶变号（f'' 改变符号），两者考察不同维度、互不蕴含。</strong>四种组合快速对号入座：<br>• 是驻点非拐点：<code>x²</code>（f'(0)=0，f''不变号）<br>• 是拐点非驻点：<code>x+x³</code>（f'(0)=1≠0，f''=6x 变号）<br>• 既驻点又拐点：<code>x³</code>（f'(0)=0 且 f''=6x 变号，水平拐点）<br>• 都不是：<code>y=x</code>（直线）",
               conclusion: "判断顺序：先算 f' 定驻点，再算 f'' 是否变号定拐点。驻点 ≠ 极值（还需 f' 变号），拐点 ≠ f''=0（还需变号）。",
-              noteLink: { name: "第2章_一元函数微分学.md", path: "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md" }
+              noteLink: { name: "第2章_一元函数微分学.md", path: "E:/NPEE/Math/高数/第2章_一元函数微分学.md" }
             }
           ]
         }

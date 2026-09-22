@@ -13,8 +13,8 @@ version: 2.0.0
 
 ## 前置条件
 
-- `C:\Users\92534\Desktop\考研\src\daily_planner.py` 存在且支持 `--review` 和 `--date tomorrow`
-- `C:\Users\92534\Desktop\考研\src\generate_dashboard.py` 存在（本地大盘）
+- `E:\NPEE\src\daily_planner.py` 存在且支持 `--review` 和 `--date tomorrow`
+- `E:\NPEE\src\generate_dashboard.py` 存在（本地大盘）
 - lark-cli 已登录（`lark-cli auth status` 验证）
 - 飞书任务清单 guid: `3e86d27d-bf16-4a36-aadb-87f546fece88`
 - 用户 open_id: `ou_74764c33e2de854fc37312dc1de44000`
@@ -60,9 +60,9 @@ version: 2.0.0
 按顺序执行（串行，有数据依赖）：
 
 ```bash
-python C:\Users\92534\Desktop\考研\src\daily_planner.py --review
-python C:\Users\92534\Desktop\考研\src\daily_planner.py --date tomorrow
-python C:\Users\92534\Desktop\考研\src\generate_dashboard.py
+python E:\NPEE\src\daily_planner.py --review
+python E:\NPEE\src\daily_planner.py --date tomorrow
+python E:\NPEE\src\generate_dashboard.py
 ```
 
 从 stdout 提取关键数据：
@@ -71,7 +71,7 @@ python C:\Users\92534\Desktop\考研\src\generate_dashboard.py
 - 闪卡复习统计（今日复习数/正确率）
 - 明日到期闪卡数
 
-> 本地大盘输出：`C:\Users\92534\Desktop\考研\src\dashboard.html`（浏览器直接打开，无需飞书）
+> 本地大盘输出：`E:\NPEE\src\dashboard.html`（浏览器直接打开，无需飞书）
 
 ## Step 2：当日零散知识点归档（如对话中有）
 
@@ -84,7 +84,7 @@ python C:\Users\92534\Desktop\考研\src\generate_dashboard.py
 
 ## Step 3：创建明日飞书任务
 
-读取明日计划文件：`C:\Users\92534\Desktop\考研\schedule\daily\plan_YYYY-MM-DD.md`
+读取明日计划文件：`E:\NPEE\schedule\daily\plan_YYYY-MM-DD.md`
 
 从计划中提取各科具体学习任务，为每个任务创建飞书任务：
 

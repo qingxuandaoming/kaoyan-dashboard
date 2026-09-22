@@ -18,8 +18,8 @@ import sqlite3
 import os
 from datetime import date, timedelta
 
-DB_PATH = "C:/Users/92534/Desktop/考研/src/question_bank.db"
-GRAPH_DIR = "C:/Users/92534/Desktop/考研/src/knowledge_graph"
+DB_PATH = "E:/NPEE/src/question_bank.db"
+GRAPH_DIR = "E:/NPEE/src/knowledge_graph"
 
 # ──────────────────────────────────────────────────────────────────
 # 1. Populate topics

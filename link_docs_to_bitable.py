@@ -20,7 +20,7 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-KAOYAN = r"C:\Users\92534\Desktop\考研"
+KAOYAN = r"E:\NPEE"
 BITABLE_BASE_TOKEN = "IK92bxLZoa0pFysqYNzcwjANnLW"
 TABLE_NOTE = "tblDLcYfCHmeLLMV"
 

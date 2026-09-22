@@ -28,7 +28,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-DB_PATH = Path(r"C:\Users\92534\Desktop\考研\src\question_bank.db")
+DB_PATH = Path(r"E:\NPEE\src\question_bank.db")
 
 # ---------------------------------------------------------------------------
 # 改写表：qid -> {字段: 新值}

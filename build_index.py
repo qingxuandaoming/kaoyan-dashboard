@@ -25,7 +25,7 @@ if sys.platform == "win32":
 # Configuration
 # ---------------------------------------------------------------------------
 
-_BASE = r"C:\Users\92534\Desktop\考研"
+_BASE = r"E:\NPEE"
 
 DRAFT_FILES = {
     "高数": os.path.join(_BASE, r"Math\高数\高数 notes.md"),

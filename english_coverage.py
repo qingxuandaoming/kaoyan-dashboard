@@ -254,7 +254,7 @@ if __name__ == "__main__":
     import json
     import sys
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    ROOT = r"C:\Users\92534\Desktop\考研"
+    ROOT = r"E:\NPEE"
     with open(os.path.join(ROOT, "src", "progress.json"), encoding="utf-8") as f:
         prog = json.load(f)
     rc = english_review_counts(os.path.join(ROOT, "src", "question_bank.db"))

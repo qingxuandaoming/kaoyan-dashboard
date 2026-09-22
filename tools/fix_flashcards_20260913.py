@@ -31,7 +31,7 @@ from pathlib import Path
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-DB = Path(r"C:\Users\92534\Desktop\考研\src\question_bank.db")
+DB = Path(r"E:\NPEE\src\question_bank.db")
 TODAY = date.today().isoformat()
 
 # ---------------------------------------------------------------------------

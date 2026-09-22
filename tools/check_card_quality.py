@@ -37,7 +37,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-BASE_DIR = Path(r"C:\Users\92534\Desktop\考研")
+BASE_DIR = Path(r"E:\NPEE")
 DB_PATH = BASE_DIR / "src" / "question_bank.db"
 
 # 判定规则与出题侧的闸门共用 tools/card_quality.py（单一事实来源，避免口径漂移）

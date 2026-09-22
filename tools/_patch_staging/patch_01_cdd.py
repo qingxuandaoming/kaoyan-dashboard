@@ -5,8 +5,8 @@ EDITS = [
         "file": r"C:\Users\92534\.qoderworkcn\skills\kaoyan-progress-sync\SKILL.md",
         "replacements": [
             {
-                "old": "```bash\ncd /d C:\\Users\\92534\\Desktop\\考研\\src\npython gap_analysis.py\npython daily_planner.py\npython generate_dashboard.py\n```",
-                "new": "```bash\npython C:\\Users\\92534\\Desktop\\考研\\src\\gap_analysis.py\npython C:\\Users\\92534\\Desktop\\考研\\src\\daily_planner.py\npython C:\\Users\\92534\\Desktop\\考研\\src\\generate_dashboard.py\n```",
+                "old": "```bash\ncd /d E:\\NPEE\\src\npython gap_analysis.py\npython daily_planner.py\npython generate_dashboard.py\n```",
+                "new": "```bash\npython E:\\NPEE\\src\\gap_analysis.py\npython E:\\NPEE\\src\\daily_planner.py\npython E:\\NPEE\\src\\generate_dashboard.py\n```",
                 "all": False,
             },
             {

@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-SRC = r"C:\Users\92534\Desktop\考研\src"
+SRC = r"E:\NPEE\src"
 NODE = r"C:\Program Files\nodejs\node.exe"
 PORT = 18098
 COPY = os.path.join(SRC, "tools", "_e2e_flash_copy.db")     # 跑完删掉（副本，不是他的库）

@@ -23,8 +23,8 @@ import os
 from pathlib import Path
 
 # ---------- 路径配置 ----------
-MATH_ROOT = Path(r"C:\Users\92534\Desktop\考研\Math")
-CSS_PATH = Path(r"C:\Users\92534\Desktop\考研\src\note_style.css")
+MATH_ROOT = Path(r"E:\NPEE\Math")
+CSS_PATH = Path(r"E:\NPEE\src\note_style.css")
 PDF_ROOT = MATH_ROOT / "pdf"
 
 # 各科目目录（章节笔记所在）

@@ -5,7 +5,7 @@ from matplotlib import font_manager
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle
 
 
-ROOT = Path(r"C:\Users\92534\Desktop\考研\408")
+ROOT = Path(r"E:\NPEE\408")
 OUT = ROOT / "CO" / "assets"
 OUT.mkdir(parents=True, exist_ok=True)
 

@@ -3,7 +3,7 @@
 r"""
 generate_dashboard.py — Local HTML Dashboard Generator
 
-Generates C:\Users\92534\Desktop\考研\src\dashboard.html — a single-file analytics dashboard
+Generates E:\NPEE\src\dashboard.html — a single-file analytics dashboard
 with inline D3.js visualizations for the 考研 study project.
 
 Usage:
@@ -46,7 +46,7 @@ except Exception as _e:                                   # noqa: BLE001
 # Configuration
 # ---------------------------------------------------------------------------
 
-BASE_DIR      = Path(r"C:\Users\92534\Desktop\考研")
+BASE_DIR      = Path(r"E:\NPEE")
 INDEX_PATH    = BASE_DIR / "src" / "笔记索引.yaml"
 GRAPH_DIR     = BASE_DIR / "src" / "knowledge_graph"
 DB_PATH       = BASE_DIR / "src" / "question_bank.db"

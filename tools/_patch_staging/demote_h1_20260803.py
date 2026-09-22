@@ -6,7 +6,7 @@ import re
 import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-ROOT = pathlib.Path(r"C:\Users\92534\Desktop\考研")
+ROOT = pathlib.Path(r"E:\NPEE")
 files = [
     r"408\DS\数据结构\数据结构Markdown版.md",
     r"English\grammar\考研英语语法笔记.md",

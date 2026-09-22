@@ -11,7 +11,7 @@ import sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 BS = chr(92)          # 一个反斜杠。用 chr() 构造，免得在多层转义里迷路
 
-P = r"C:\Users\92534\Desktop\考研\src\generate_dashboard.py"
+P = r"E:\NPEE\src\generate_dashboard.py"
 s = io.open(P, encoding="utf-8").read()
 
 old = "[^$" + BS + "n]+?"

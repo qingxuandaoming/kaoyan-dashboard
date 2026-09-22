@@ -34,7 +34,7 @@ if sys.platform == "win32":
 # Configuration
 # ---------------------------------------------------------------------------
 
-_KAOYAN = r"C:\Users\92534\Desktop\考研"
+_KAOYAN = r"E:\NPEE"
 GRAPH_DIR  = os.path.join(_KAOYAN, r"src\knowledge_graph")
 INDEX_PATH = os.path.join(_KAOYAN, "src", "笔记索引.yaml")
 PROGRESS_PATH = os.path.join(_KAOYAN, r"src\progress.json")

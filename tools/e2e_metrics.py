@@ -5,7 +5,7 @@
 import io, json, os, shutil, subprocess, sys, time, urllib.request, urllib.error
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-SRC = r"C:\Users\92534\Desktop\考研\src"
+SRC = r"E:\NPEE\src"
 NODE = r"C:\Program Files\nodejs\node.exe"
 PORT = 18097
 DB = os.path.join(SRC, "question_bank.db")

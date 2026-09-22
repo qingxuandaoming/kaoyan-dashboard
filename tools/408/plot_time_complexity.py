@@ -13,7 +13,7 @@ C_TEXT = '#3D3D3D'
 C_GRID = '#E3E3E3'
 C_BORDER = '#8A9AA8'
 
-OUT = r'C:\Users\92534\Desktop\考研\408\专题\assets\DS_时间复杂度增长曲线对比.png'
+OUT = r'E:\NPEE\408\专题\assets\DS_时间复杂度增长曲线对比.png'
 
 fig, ax = plt.subplots(figsize=(10, 6.2), dpi=200)
 fig.patch.set_facecolor('white')

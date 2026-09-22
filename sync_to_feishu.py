@@ -38,7 +38,7 @@ except ImportError:
 # Configuration
 # ---------------------------------------------------------------------------
 
-_KAOYAN = r"C:\Users\92534\Desktop\考研"
+_KAOYAN = r"E:\NPEE"
 INDEX_PATH  = os.path.join(_KAOYAN, "笔记索引.yaml")
 STATE_PATH  = os.path.join(_KAOYAN, "sync_state.json")
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))

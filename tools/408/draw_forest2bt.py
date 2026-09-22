@@ -62,6 +62,6 @@ ax.plot([0.7, 1.0], [-0.6, -0.6], color=C_RIGHT, lw=2)
 ax.text(1.1, -0.6, "右孩子 = 兄弟（含根链）", fontsize=10, va="center", color=C_RIGHT)
 
 fig.tight_layout()
-out = Path(r"C:\Users\92534\Desktop\考研\408\DS\assets\DS_森林转二叉树_示例.png")
+out = Path(r"E:\NPEE\408\DS\assets\DS_森林转二叉树_示例.png")
 fig.savefig(out, dpi=150, bbox_inches="tight")
 print("saved:", out)

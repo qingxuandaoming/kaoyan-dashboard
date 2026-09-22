@@ -16,7 +16,7 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-KAOYAN = r"C:\Users\92534\Desktop\考研"
+KAOYAN = r"E:\NPEE"
 MAPPING_PATH = os.path.join(KAOYAN, "doc_mapping.json")
 
 # Reuse the same node/run.js lookup as sync_to_feishu

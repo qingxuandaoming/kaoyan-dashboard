@@ -22,7 +22,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8")
 
 # ── Constants ──────────────────────────────────────────────────────────
-KAOYAN_DIR = Path(r"C:\Users\92534\Desktop\考研")
+KAOYAN_DIR = Path(r"E:\NPEE")
 BASE_TOKEN = "IK92bxLZoa0pFysqYNzcwjANnLW"
 STATE_FILE = KAOYAN_DIR / "feishu_docs_state.json"
 INDEX_FILE = KAOYAN_DIR / "笔记索引.yaml"

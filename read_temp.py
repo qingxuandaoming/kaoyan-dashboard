@@ -23,7 +23,7 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-BASE_DIR = Path(r"C:\Users\92534\Desktop\考研")
+BASE_DIR = Path(r"E:\NPEE")
 TEMP_DIR = BASE_DIR / "temp"
 DONE_DIR = TEMP_DIR / "done"
 

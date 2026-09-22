@@ -43,7 +43,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-BASE_DIR = Path(r"C:\Users\92534\Desktop\考研")
+BASE_DIR = Path(r"E:\NPEE")
 DB_PATH = BASE_DIR / "src" / "question_bank.db"
 TODAY = date.today().isoformat()
 SOURCE = f"语法与计算陷阱-{TODAY}"

@@ -3,7 +3,7 @@
 """
 daily_planner.py -- Adaptive daily study plan generator for 考研 2026
 
-Generates a markdown daily plan at C:/Users/92534/Desktop/考研/schedule/daily/plan_YYYY-MM-DD.md
+Generates a markdown daily plan at E:/NPEE/schedule/daily/plan_YYYY-MM-DD.md
 based on knowledge graphs, notes index, question bank, and FSRS card data.
 
 Usage:
@@ -44,13 +44,13 @@ if sys.platform == "win32":
 # Constants
 # ---------------------------------------------------------------------------
 EXAM_DATE = date(2026, 12, 19)
-KNOWLEDGE_GRAPH_DIR = "C:/Users/92534/Desktop/考研/src/knowledge_graph"
-NOTES_INDEX_PATH = "C:/Users/92534/Desktop/考研/src/笔记索引.yaml"
-QUESTION_BANK_PATH = "C:/Users/92534/Desktop/考研/src/question_bank.db"
-DAILY_PLAN_DIR = "C:/Users/92534/Desktop/考研/schedule/daily"
-SYNC_STATE_PATH = "C:/Users/92534/Desktop/考研/src/sync_state.json"
-PROGRESS_PATH = "C:/Users/92534/Desktop/考研/src/progress.json"
-FLASHCARD_SYNC_PATH = "C:/Users/92534/Desktop/考研/src/flashcard_session_export.json"
+KNOWLEDGE_GRAPH_DIR = "E:/NPEE/src/knowledge_graph"
+NOTES_INDEX_PATH = "E:/NPEE/src/笔记索引.yaml"
+QUESTION_BANK_PATH = "E:/NPEE/src/question_bank.db"
+DAILY_PLAN_DIR = "E:/NPEE/schedule/daily"
+SYNC_STATE_PATH = "E:/NPEE/src/sync_state.json"
+PROGRESS_PATH = "E:/NPEE/src/progress.json"
+FLASHCARD_SYNC_PATH = "E:/NPEE/src/flashcard_session_export.json"
 
 # 2026-09-19 起科目映射由 subjects.json 派生（subjects_conf.py），
 # 与 serve.js / generate_dashboard.py / gap_analysis.py 同口径，改学科只动配置文件。
