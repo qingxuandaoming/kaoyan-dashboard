@@ -4,14 +4,16 @@
   "migrated_at": "2026-09-15T09:54:30.911Z",
   "note": "由 _extract_review.js 一次性迁移生成；此后由 morning-review 工作流直接维护本文件，不再回写 HTML。",
   "meta": {
-    "days": 9,
+    "days": 23,
     "first_date": "2026-06-19",
     "last_date": "2026-09-30",
-    "review_items": 49,
-    "quiz_items_unused": 44,
+    "review_items": 87,
+    "quiz_items_unused": 73,
     "english_days": 9,
     "flashcard_cards": 30,
-    "flashcard_start_date": "2026-07-07"
+    "flashcard_start_date": "2026-07-07",
+    "math_items": 36,
+    "note": ""
   },
   "days": {
     "2026-06-19": {
@@ -1522,8 +1524,8 @@
             "body": "<strong>方法选择原则：</strong><br>① 求 <code>f⁽ⁿ⁾(0)</code> 时，含 <code>ln(1+x)</code>、<code>arctan x</code>、<code>e^x</code>、<code>sin x</code>、<code>cos x</code> 等<strong>单一初等函数</strong>，优先用<strong>泰勒展开法</strong>：<code>f⁽ⁿ⁾(0) = n! · aₙ</code>（aₙ是xⁿ项系数）。<br>② 含<strong>低次多项式乘积</strong>（如 <code>x²·ln(1+x)</code>），可用<strong>莱布尼茨公式</strong>：多项式高阶导为0，求和仅剩有限项。<br>③ 分式/三角函数有理式：先分解为简单分式，再套已知高阶导公式。",
             "conclusion": "易错系数：莱布尼茨系数C(n,k)写错；[ln(1+x)]⁽ᵐ⁾ = (-1)^(m-1)·(m-1)!·(1+x)^(-m) 漏乘(m-1)!；泰勒展开时阶数不够导致漏项。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -1770,8 +1772,8 @@
             "body": "<strong>方法选择：</strong><br>① 含低次多项式乘积（如 x²·eˣ）→ <strong>莱布尼茨</strong>：令 u = 低次多项式（u'''=0），求和仅剩有限项<br>② 单一初等函数（ln(1+x)、arctan x、sin x、eˣ）→ <strong>泰勒展开</strong>：f⁽ⁿ⁾(0) = n! · aₙ<br>③ 两个超越函数相乘 → 分别泰勒展开后<strong>卷积</strong>求系数<br><strong>奇偶性速判：</strong>sin x、arctan x 只含奇数项 → 偶数阶 f⁽²ᵏ⁾(0) = 0；cos x 只含偶数项 → 奇数阶 = 0",
             "conclusion": "核心公式：f⁽ⁿ⁾(0) = n! · aₙ（aₙ 是 xⁿ 项系数），不是 aₙ 本身。莱布尼茨下标从 k=0 开始，共 n+1 项。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -1784,8 +1786,8 @@
             "body": "<strong>规则：</strong>一次因式 (x-a) → 分子设<strong>常数 A</strong>（0 次）；不可约二次因式 (x²+px+q) → 分子设<strong>一次式 Bx+C</strong>（1 次）。<br>记忆口诀：<strong>'一次因式上面设常数，二次因式上面设一次'</strong>。<br>本质：二次因式对应两个自由度（B, C 两个参数），只设一个常数无法匹配分子多项式的三个系数（二次、一次、常数项），方程组约束过紧，一般无解。<br>验证：通分后比较分子，令 x=a 直接求 A，比较 x² 项和常数项求 B, C。",
             "conclusion": "分母几次，分子最高设（次数-1）次。分解前先看每个因式的次数，再设定分子形式。",
             "noteLink": {
-              "name": "第3章_一元函数积分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3章_一元函数积分学.md"
+              "name": "第8讲_一元函数积分学的概念与性质.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第8讲_一元函数积分学的概念与性质.md"
             }
           }
         ]
@@ -2003,8 +2005,8 @@
             "body": "<code>f''(x₀)=0</code> <strong>不能直接判定 x₀ 是拐点</strong>——还必须验证 <code>f''</code> 在 x₀ 两侧<strong>变号</strong>。<br>反例：<code>f(x)=x⁴</code> 在 x=0 处 f''(0)=0，但 f''=12x²≥0 两侧不变号，<strong>不是拐点</strong>。<br>另一方向的陷阱：<strong>拐点处 f'' 可以不存在</strong>——如 <code>f(x)=|x|·x</code> 在 x=0 处凹凸性翻转（是拐点），但 f''(0) 不存在。",
             "conclusion": "拐点判据 = 凹凸性改变（f'' 变号）。f''=0 只是二阶可导时的必要条件，既不充分，也非必需（f'' 可不存在）。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -2017,8 +2019,8 @@
             "body": "设 <code>f'(x₀)=…=f⁽ⁿ⁻¹⁾(x₀)=0</code>，<code>f⁽ⁿ⁾(x₀)≠0</code>。<strong>第三充分条件不要求 n 为偶数</strong>，而是由 n 的奇偶性决定结论：<br>• <strong>n 偶数 → 极值</strong>（f⁽ⁿ⁾<0 极大，f⁽ⁿ⁾>0 极小）<br>• <strong>n 奇数 → 非极值</strong>（是水平拐点）<br>依据泰勒展开 <code>f(x)-f(x₀)≈f⁽ⁿ⁾(x₀)/n!·(x-x₀)ⁿ</code>：偶次幂两侧同号 → 极值；奇次幂两侧异号 → 非极值。第二充分条件是 n=2 的特例。",
             "conclusion": "口诀「偶极奇拐」。误区：以为必须 n 为偶数才能用——n 奇数时结论「非极值」同样是有效判定。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -2031,8 +2033,8 @@
             "body": "<strong>驻点看一阶（f'=0），拐点看二阶变号（f'' 改变符号），两者考察不同维度、互不蕴含。</strong>四种组合快速对号入座：<br>• 是驻点非拐点：<code>x²</code>（f'(0)=0，f''不变号）<br>• 是拐点非驻点：<code>x+x³</code>（f'(0)=1≠0，f''=6x 变号）<br>• 既驻点又拐点：<code>x³</code>（f'(0)=0 且 f''=6x 变号，水平拐点）<br>• 都不是：<code>y=x</code>（直线）",
             "conclusion": "判断顺序：先算 f' 定驻点，再算 f'' 是否变号定拐点。驻点 ≠ 极值（还需 f' 变号），拐点 ≠ f''=0（还需变号）。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -2136,8 +2138,8 @@
             "body": "泰勒公式是<strong>有限项 + 余项</strong>，在于 x₀ 处逼近，<strong>不讨论收敛</strong>；<br>泰勒级数/幂级数是<strong>无穷多项</strong>，是函数的一种级数表示，必须讨论<strong>收敛域</strong>。<br>一个点处的泰勒公式总是成立的（只要求 f 足够阶可导），“展开式收敛”是另一回事。",
             "conclusion": "口诀：有限+余项=泰勒公式（不谈收敛）；无穷级数=泰勒级数（谈收敛域）。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -2151,8 +2153,8 @@
             "body": "<code>f''(x₀)=0</code> <strong>不能直接判拐点</strong>，还必须验证 <code>f''</code> 在 x₀ 两侧<strong>变号</strong>。<br>反例：<code>f(x)=x⁴</code> 在 0 处 f''(0)=0 但不变号，<strong>不是拐点</strong>。<br>反之<strong>拐点处 f'' 可不存在</strong>：<code>f(x)=|x|·x</code> 是拐点但 f''(0) 不存在。",
             "conclusion": "拐点判据=凹凸性改变（f'' 变号）。f''=0 既不充分也非必需。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -2309,8 +2311,8 @@
             "body": "<code>eˣ = Σ xⁿ/n! = 1 + x + x²/2! + x³/3! + …</code>（全体实数收敛）<br><code>sin x = Σ (−1)ⁿx²ⁿ⁺¹/(2n+1)! = x − x³/3! + x⁵/5! − …</code>（仅奇数次项）",
             "conclusion": "eˣ 全阶都有；sin 只含奇次项 → 求偶阶导时要等于 0。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -2351,15 +2353,142 @@
     "2026-09-19": {
       "date": "2026-09-19",
       "weekday": "周六",
-      "studied": false,
-      "subject": "泰勒专题 · D3 · 薄弱点",
-      "review": [],
-      "quiz": [],
+      "studied": true,
+      "subject": "数据结构·树与二叉树 ｜ 政治·史纲/毛中特 ｜ 泰勒专题·D3 麦克劳林",
+      "review": [
+        {
+          "id": "ds-tree-vs-deg2",
+          "badges": [
+            "408",
+            "数据结构"
+          ],
+          "title": "二叉树 ≠ 度为 2 的树",
+          "body": "<strong>度为2的树</strong>至少需 3 个结点（根要分出 2 个孩子），<strong>二叉树可以为空</strong>。这是判断二叉树时最易混的第 1 点。",
+          "list": [
+            "① 二叉树是有序树：即使只有一棵子树，也要区分是左还是右",
+            "② 度为2的树对子树是否分左右不作约定"
+          ],
+          "conclusion": "本质区分：二叉树只约束「最多两个孩子」，可为空且有序；度为2的树强调孩子恰有2个、至少3结点。",
+          "noteLink": {
+            "name": "第5章_树与二叉树.md",
+            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+          }
+        },
+        {
+          "id": "ds-full-complete",
+          "badges": [
+            "408",
+            "数据结构"
+          ],
+          "title": "满二叉树 与 完全二叉树的包含关系",
+          "body": "高度 h 的<strong>满二叉树</strong>含 2<sup>h</sup>−1 个结点，所有叶结点在最下层、其余结点度均为2。<strong>完全二叉树</strong>第 1~h−1 层是满的，第 h 层结点集中在最左边。",
+          "list": [
+            "① 满 ⟹ 完全（一定成立）",
+            "② 完全 ⟹ 满（不一定成立）",
+            "③ 完全二叉树叶结点只能出现在最后两层"
+          ],
+          "conclusion": "满二叉树是完全二叉树的<strong>充分不必要</strong>条件。",
+          "noteLink": {
+            "name": "第5章_树与二叉树.md",
+            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+          }
+        },
+        {
+          "id": "ds-n0n2",
+          "badges": [
+            "408",
+            "数据结构"
+          ],
+          "title": "二叉树性质：n₀ = n₂ + 1",
+          "body": "非空二叉树中，<strong>叶结点数 = 度为2的结点数 + 1</strong>。推导仅用两条恒等式即可，考试常直接套用结论。",
+          "list": [
+            "① 总结点 n = n₀ + n₁ + n₂",
+            "② 总分支数 = n − 1（除根外每个结点有一条入边）",
+            "③ 由入边计：分支数 = n₁ + 2n₂"
+          ],
+          "conclusion": "由 n₀+n₁+n₂ = n₁+2n₂+1 化简即得 n₀=n₂+1。",
+          "noteLink": {
+            "name": "第5章_树与二叉树.md",
+            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+          }
+        },
+        {
+          "id": "pol-yangwu",
+          "badges": [
+            "政治",
+            "史纲"
+          ],
+          "title": "洋务运动：军用 vs 民用工业性质",
+          "body": "早期兴办的<strong>军用工业是封建主义性质</strong>（官办为主、被洋务派官僚控制、封建性浓厚）；后期兴办的<strong>民用工业是资本主义性质</strong>（官督商办/官商合办、以盈利为目的）。",
+          "conclusion": "辨析口诀：军用→封建性质，民用→资本主义性质，千万别看反。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+          }
+        },
+        {
+          "id": "pol-minzu",
+          "badges": [
+            "政治",
+            "毛中特"
+          ],
+          "title": "民族区域自治制度 两句话",
+          "body": "<strong>大杂居、小聚居</strong>的分布特点，是实行民族区域自治制度的<strong>现实依据</strong>；<strong>铸牢中华民族共同体意识</strong>是新时代党的<strong>民族工作的主线</strong>（也是民族地区各项工作的主线）。",
+          "conclusion": "现实依据＝民族分布特点；主线＝铸牢中华民族共同体意识。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "ds-q-tree",
+          "question": "二叉树与「度为2的树」的本质区别是什么？满二叉树与完全二叉树的包含关系怎么记？",
+          "answer": "二叉树<strong>可为空</strong>，且作为有序树要求「单子树也分左右」；度为2的树至少 3 个结点、不作左右区分。包含关系：满⟹完全，完全↛满，即<strong>充分不必要</strong>。",
+          "noteLink": {
+            "name": "第5章_树与二叉树.md",
+            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+          }
+        },
+        {
+          "id": "ds-q-n0n2",
+          "question": "为什么非空二叉树满足 n₀ = n₂ + 1？说出推导的两条恒等式。",
+          "answer": "n = n₀+n₁+n₂；总分支数 = n−1 = n₁+2n₂。两式联立消去 n₁ 即得 n₀=n₂+1。",
+          "noteLink": {
+            "name": "第5章_树与二叉树.md",
+            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+          }
+        },
+        {
+          "id": "pol-q-yangwu",
+          "question": "洋务运动早期军用工业与后期民用工业分别是什么性质？（易混点）",
+          "answer": "军用工业→<strong>封建主义性质</strong>；民用工业→<strong>资本主义性质</strong>。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+          }
+        }
+      ],
       "math": {
         "id": "sec-math",
         "points": [
           {
-            "id": "taylor-d3-1",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "函数极限与连续",
+              "计算陷阱"
+            ],
+            "title": "等价无穷小「加减相消」不能直接替换",
+            "body": "分式极限中，若分子是两个<strong>同阶无穷小相加减</strong>，先判断替换后主部是否抵消。一旦系数可能抵消（如 ln(1−2x)∼−2x 与 +2x），<strong>禁止</strong>用一阶等价替换，必须泰勒展开到比分母高一阶。",
+            "conclusion": "等价无穷小本质是一阶近似；加减法要防「一阶主部抵消丢关键信息」，有抵消嫌疑就上泰勒。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/计算陷阱.md"
+            }
+          },
+          {
             "type": "taylor",
             "badges": [
               "高数",
@@ -2367,11 +2496,11 @@
               "D3"
             ],
             "title": "麦克劳林记忆块②：cos x、ln(1+x)、(1+x)^α",
-            "body": "<code>cos x = Σ (−1)ⁿx²ⁿ/(2n)! = 1 − x²/2! + x⁴/4! − …</code>（仅偶次项）<br><code>ln(1+x) = Σ (−1)ⁿ⁻¹xⁿ/n = x − x²/2 + x³/3 − …</code>（|x|<1）<br><code>(1+x)^α = Σ C(α,n)xⁿ = 1+αx+α(α−1)x²/2!+…</code>（|x|<1）",
-            "conclusion": "cos 只偶次、ln 系数带 (−1)ⁿ⁻¹/n、(1+x)^α 是二项式推广（α 可为任意实数）。",
+            "body": "<strong>cos x = 1 − x²/2! + x⁴/4! − x⁶/6! + …</strong>（仅偶数项非零）；<strong>ln(1+x) = x − x²/2 + x³/3 − x⁴/4 + …</strong>（交错，系数 (−1)^{n−1}/n）；<strong>(1+x)^α = 1 + αx + α(α−1)/2!·x² + …</strong>（广义二项式）。",
+            "conclusion": "背法：cos 只留偶次项且正负交替；ln(1+x) 每项带 1/n；​(1+x)^α 系数是组合数 C(α,k)。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -2380,10 +2509,335 @@
     "2026-09-20": {
       "date": "2026-09-20",
       "weekday": "周日",
-      "studied": false,
-      "subject": "泰勒专题 · D4 · 新学回顾",
-      "review": [],
-      "quiz": [],
+      "studied": true,
+      "subject": "数据结构·图与串(KMP) ｜ 政治·史纲新道路/毛泽东思想 ｜ 高数·o记号/概率事件 ｜ 泰勒专题·D4 常用展开 ｜ 数学一·微分方程通解/曲线积分路径无关 ｜ 政治·基本国策7项 ｜ 英语·从句判据 ｜ 概率论·函数分布/先验后验 ｜ 计组·Cache三种映射 ｜ 英语·词根词缀",
+      "review": [
+        {
+          "id": "ds-graph-conn",
+          "badges": [
+            "408",
+            "数据结构",
+            "图"
+          ],
+          "title": "连通/强连通图的「最少边数」与非连通上界",
+          "body": "n 个顶点的<strong>无向连通图</strong>最少 <code>n−1</code> 条边（此时就是一棵树）；n 个顶点的<strong>非连通无向图</strong>边数最多为 <code>(n−1)(n−2)/2</code>，再多 1 条（C(n−1,2)+1）就<strong>必定连通</strong>。<strong>有向强连通图</strong>最少需要 <code>n</code> 条弧（n 个顶点构成一个单向环）。",
+          "list": [
+            "① 无向连通下界：n−1 条边",
+            "② 非连通上界：n−1 个顶点构成完全图、余 1 个孤立点 → C(n−1,2)",
+            "③ 有向强连通下界：n 条弧（单向环），区别于无向的 n−1"
+          ],
+          "conclusion": "口诀：无向连通 n−1、有向强连通 n；非连通上界 C(n−1,2)，加 1 必连通。",
+          "noteLink": {
+            "name": "第6章_图.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第6章_图.md"
+          }
+        },
+        {
+          "id": "ds-graph-traverse",
+          "badges": [
+            "408",
+            "数据结构",
+            "图"
+          ],
+          "title": "图的 DFS/BFS：复杂度看存储、唯一性看矩阵",
+          "body": "DFS 类似树的<strong>先序遍历</strong>（用栈），BFS 类似树的<strong>层序遍历</strong>（用队列），二者都必须带 <code>visited[]</code>。时间复杂度：邻接矩阵 <code>O(V²)</code>、邻接表 <code>O(V+E)</code>；空间 <code>O(V)</code>。<strong>非连通图</strong>遍历得到的是<strong>生成森林</strong>。",
+          "list": [
+            "① 邻接表表示不唯一 → DFS/BFS 序列与生成树不唯一",
+            "② 邻接矩阵唯一 → 遍历序列与生成树唯一",
+            "③ 无权图中 BFS 可求单源最短路径（按边数由近及远）"
+          ],
+          "conclusion": "图遍历必带 visited；复杂度由存储结构决定，序列唯一性只认邻接矩阵。",
+          "noteLink": {
+            "name": "第6章_图.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第6章_图.md"
+          }
+        },
+        {
+          "id": "ds-kmp-next",
+          "badges": [
+            "408",
+            "数据结构",
+            "串"
+          ],
+          "title": "KMP：主串指针不回溯，next[j]＝最长相等前后缀长度",
+          "body": "<code>next[j]</code> 表示模式串 <code>T[0..j−1]</code> 的<strong>最长相等前后缀长度</strong>；T[j] 失配时模式串回退到 next[j]，<strong>主串指针不回溯</strong>，故整体 <code>O(n+m)</code>（暴力匹配最坏 O(nm)）。nextval 优化：当 <code>T[j]==T[next[j]]</code> 时令 <code>nextval[j]=nextval[next[j]]</code>，跳过必然再次失配的位置。",
+          "list": [
+            "① next：失配后模式串该跳到哪",
+            "② nextval：连续相同字符时一路前跳，比较次数更少",
+            "③ 串是数据元素限定为字符的线性表；空串 ≠ 空格串"
+          ],
+          "conclusion": "KMP 快在「主串不回头」；next 记最长相等前后缀，nextval 消除连续同字符的冗余回溯。",
+          "noteLink": {
+            "name": "第4章_串.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第4章_串.md"
+          }
+        },
+        {
+          "id": "pol-lead-core",
+          "badges": [
+            "政治",
+            "史纲"
+          ],
+          "title": "领导核心确立脉络：遵义「事实上」、七大「正式」",
+          "body": "<strong>1927</strong> 秋收起义引兵井冈山，开辟农村包围城市道路（实践奠基）→ <strong>1935 遵义会议</strong>纠正左倾军事错误，<strong>事实上确立</strong>毛泽东在党中央和红军的领导地位，是生死攸关的转折点 → <strong>1942 延安整风</strong>实现全党思想统一 → <strong>1945 中共七大</strong>正式确立毛泽东思想为党的指导思想。",
+          "conclusion": "秒判：遵义＝事实上确立领导核心；七大＝正式确立（思想＋核心）。",
+          "noteLink": {
+            "name": "史纲.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\史纲.md"
+          }
+        },
+        {
+          "id": "pol-mao-mature",
+          "badges": [
+            "政治",
+            "毛中特"
+          ],
+          "title": "毛泽东思想成熟的唯一核心标志：新民主主义革命理论系统阐明",
+          "body": "<strong>1938 六届六中全会</strong>《论新阶段》首次提出「马克思主义中国化」命题——只是<strong>定方向</strong>，不是成熟标志；<strong>1939–1940</strong>《〈共产党人〉发刊词》《中国革命和中国共产党》《新民主主义论》系统阐明新民主主义革命理论——<strong>成熟的核心标志</strong>；<strong>1945 七大</strong>——写入党章。",
+          "list": [
+            "① 六届六中全会：定方向（提出命题）",
+            "② 三篇著作：成体系（成熟标志）",
+            "③ 中共七大：写入党章（全党确认）"
+          ],
+          "conclusion": "提出命题 ≠ 成熟；活的灵魂三方面：实事求是、群众路线、独立自主。",
+          "noteLink": {
+            "name": "毛中特.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\毛中特.md"
+          }
+        },
+        {
+          "id": "math-diffeq-c",
+          "badges": [
+            "数学一",
+            "微分方程",
+            "易错点"
+          ],
+          "title": "一阶线性方程通解：常数 C 必须写在括号内",
+          "body": "解 <code>y′ + P(x)y = Q(x)</code> 走积分因子法：取 <code>μ = exp(∫P dx)</code>，两边同乘后左边凑成 <code>(μy)′</code>，积分得 <code>μy = ∫μQ dx + C</code>，再除以 μ。<br>本题 <code>P = 1、Q = e⁻ˣ</code>：<code>μ = eˣ</code> → <code>(eˣy)′ = 1</code> → <code>eˣy = x + C</code> → <strong>y = (x+C)e⁻ˣ</strong>。<br>⚠️ 写成 <code>y = x·e⁻ˣ + C</code> 是把常数留在了括号外，代回方程不成立（今晚错选的就是它）。",
+          "conclusion": "口诀：除以 μ 时整个括号一起除，C 拆不出来——C 永远和 x 待在同一个括号里。",
+          "noteLink": {
+            "name": "第15讲_微分方程.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\第15讲_微分方程.md"
+          }
+        },
+        {
+          "id": "math-path-indep",
+          "badges": [
+            "数学一",
+            "曲线积分",
+            "易错点"
+          ],
+          "title": "曲线积分与路径无关 ⟺ ∂P/∂y = ∂Q/∂x",
+          "body": "在<strong>单连通区域</strong> D 内、P、Q 具有一阶连续偏导数时：<code>∫(Pdx + Qdy)</code> 与路径无关 <strong>⟺ ∂P/∂y = ∂Q/∂x</strong> 在 D 内处处成立。<br>等价说法：存在原函数 u 使 <code>du = Pdx + Qdy</code>；沿任意闭曲线积分等于 0。<br>⚠️ 今晚错选成 <code>∂P/∂x = ∂Q/∂y</code>——把两个偏导的求导对象交叉记反了。",
+          "conclusion": "记法：<strong>P 对 y、Q 对 x</strong>（求导变量与函数名不同名）；区域非单连通时该条件只是必要不充分。",
+          "noteLink": {
+            "name": "第18讲_多元函数积分学.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\第18讲_多元函数积分学.md"
+          }
+        },
+        {
+          "id": "pol-guice-7",
+          "badges": [
+            "政治",
+            "帽子题",
+            "记忆点"
+          ],
+          "title": "基本国策只有 7 项，「战略」一律不是国策",
+          "body": "基本国策 <strong>7 项</strong>：对外开放、计划生育、保护环境、节约资源、保护耕地、男女平等、水土保持。<br>分组背：对外 1 + 人口 1 + 资源环境 3（环境 / 资源 / 水土保持）+ 土地 1 + 社会 1。<br>基本方略<strong>只指依法治国</strong>；根本政治制度<strong>只指人民代表大会制度</strong>；科教兴国、人才强国、创新驱动发展、乡村振兴、可持续发展<strong>都是「战略」，都不是国策</strong>。",
+          "conclusion": "词尾判据：先看帽子词落在「国策 / 方略 / 制度 / 战略」哪一类，再核对内容——比从内容反推帽子快，也不容易被干扰项带走。",
+          "noteLink": {
+            "name": "基本国策与相关范畴归属专题.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\专题\\基本国策与相关范畴归属专题.md"
+          }
+        },
+        {
+          "id": "eng-clause-judge",
+          "badges": [
+            "英语一",
+            "三大从句",
+            "易错点"
+          ],
+          "title": "定语从句 vs 同位语从句：只看从句缺不缺成分",
+          "body": "<code>the assumption that he made</code> 与 <code>the assumption that economic growth will reduce inequality</code> 是两种不同的 that 从句。<br>唯一可靠判据是<strong>从句本身成分是否齐全</strong>：定语从句里 that 必须充当成分（made 缺宾语 → 定语从句）；同位语从句里 that 只起连接作用、不充当成分（主谓宾齐全 → 同位语从句），常跟在 fact / assumption / belief / notion / evidence / idea 后。<br>⚠️ 别用「that 能否省略」判——<strong>同位语从句的 that 恰恰不能省略</strong>，凭这点会判反（今晚错选项 D）。",
+          "conclusion": "口诀：从句缺成分 → 定语从句（that 作宾语时可省）；从句完整 → 同位语从句（that 不可省）。",
+          "noteLink": {
+            "name": "考研英语语法笔记.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\grammar\\考研英语语法笔记.md"
+          }
+        },
+        {
+          "id": "gailv-ch2-role",
+          "badges": [
+            "数学一",
+            "概率论",
+            "随机变量及其分布"
+          ],
+          "title": "求 f_Y 的符号规矩：大写是「谁」、小写是「哪儿」",
+          "body": "<strong>大写＝随机变量</strong>（一个函数，取值未定，<strong>只能谈概率、不能代入</strong>）；<strong>小写＝实数</strong>（一个确定的数，可代入、可比大小、可当积分限）。<br>读法分两截：<strong>下标说「哪个随机变量」，括号说「算在哪一点」</strong>。<code>P{·}</code> 的括号里只能放<strong>事件</strong>（含大写随机变量的不等式）；<code>F(·)</code>、<code>f(·)</code> 的括号里只能放<strong>数</strong>——写成 <code>F(y≤Y)</code> 就是把事件塞进了函数括号，非法。<br>分布函数约定<strong>从左累积</strong>（左尾），方向固定为「大 ≤ 小」，即必须写 <code>P{Y≤y}</code>；若写成 <code>P{y≤Y}</code>，它随 y 增大而<strong>减小</strong>，不再是分布函数。<strong>自检锚点</strong>：Φ(1.96)=0.975——代大数得大值，方向就对了。<br>为什么「积完分只剩 y」：积分变量 x 是<strong>哑变量</strong>，积掉即消失；y 藏在<strong>积分限</strong>里、是参数，故保留。「f_Y 里出现 x」不是格式洁癖，而是<strong>变量身份错了</strong>。",
+          "list": [
+            "大写＝谁（随机变量）；小写＝哪儿（实数）",
+            "P 里放大写，F／f 里放小写",
+            "分布函数从左累积 → 只写 Y≤y；f_Y 里出现 x 就是没换干净"
+          ],
+          "conclusion": "记忆诀窍：「大写是谁，小写是哪儿；P 里放大写，F、f 里放小写；从左累积，故写 Y ≤ y。」",
+          "noteLink": {
+            "name": "第2章_随机变量及其分布.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\第2章_随机变量及其分布.md"
+          }
+        },
+        {
+          "id": "gailv-prior-posterior",
+          "badges": [
+            "数学一",
+            "概率论",
+            "条件概率"
+          ],
+          "title": "先验 / 后验 / 边缘：同一个 P(B) 的两种身份",
+          "body": "<strong>先验概率 P(Aᵢ)</strong>＝「原因」的概率，站在试验<strong>前</strong>；<strong>后验概率 P(Aᵢ|B)</strong>＝观察到结果 B 之后对原因的重新评估，站在试验<strong>后</strong>。「先 / 后」永远是相对<strong>某个证据</strong>讲的，不是概率的固有属性。<br><strong>全概率公式</strong> <code>P(B) = Σ P(Aᵢ)·P(B|Aᵢ)</code>：它<strong>用到</strong>了先验，但求出来的是<strong>结果 B 的边缘概率</strong>（把联合概率对 Aᵢ 求和消掉）——由因推果。所以<strong>不能说「全概率公式是先验概率」</strong>。<br><strong>贝叶斯公式</strong>才做反方向：先验 + 似然 → 后验（由果溯因）。<br>注意 <code>P(B|Aᵢ)</code> 也是条件概率，但它读作「已知原因看结果」＝<strong>似然</strong>，<strong>不叫后验</strong>。<br><strong>P(B) 的双重身份</strong>：对划分 {Aᵢ} 求和看，它是<strong>边缘概率</strong>（结构身份）；若此后还要算 P(C|B)，它同时是 B 的<strong>先验</strong>（推断身份）——同一数字，两种叫法。",
+          "list": [
+            "全概率：先验 + 似然 → 结果的边缘概率（由因推果）",
+            "贝叶斯：由果溯因 → 后验",
+            "P(B)：结构上是边缘，推断上是 B 的先验"
+          ],
+          "conclusion": "一句话：全概率「汇出结果」，贝叶斯「反推原因」；先验／后验是相对证据的角色，不是概率的属性。",
+          "noteLink": {
+            "name": "第1章_随机事件与概率.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\第1章_随机事件与概率.md"
+          }
+        },
+        {
+          "id": "co-cache-cmp",
+          "badges": [
+            "408",
+            "计算机组成原理",
+            "Cache"
+          ],
+          "title": "三种映射的比较器个数：直接 1 个、组相联＝路数、全相联＝总行数",
+          "body": "<strong>直接映射</strong>：主存块只能进<strong>唯一确定的一行</strong> → 用索引直接定位，只比较<strong>这一行</strong>的 Tag ⇒ 比较器 <strong>1 个</strong>；地址划成 Tag + 行号 + 块内偏移。<br><strong>全相联</strong>：任意块可进任意行 → 地址<strong>没有行号字段</strong>（只有 Tag + 块内偏移），Tag 与<strong>所有行</strong>同时并行比较 ⇒ 比较器 <strong>＝ Cache 总行数</strong>，还要一个优先编码器选命中行。代价最高：只在行数很少处用（如 TLB），大容量 Cache 改用组相联折中。<br><strong>组相联</strong>：先由<strong>组索引</strong>定位到某一组，再在<strong>组内各路并行</strong>比 Tag ⇒ 比较器 <strong>＝ 路数 K</strong>；地址划成 Tag + 组索引 + 块内偏移。<br>比较器只比 <strong>Tag</strong> ⇒ 比较器<strong>位数＝Tag 位数</strong>。<br>⚠️ <strong>组数 ≠ 路数</strong>：<code>组数 = 总行数 ÷ 路数</code>，组索引位数＝log₂(组数)。例：4 路组相联、1024 行 → 256 组 → 组索引 8 位。",
+          "list": [
+            "比较器个数：直接＝1；组相联＝路数；全相联＝总行数",
+            "比较器位数＝Tag 位数（只比 Tag）",
+            "组数＝总行数÷路数；地址三段之和必等于地址总长"
+          ],
+          "conclusion": "口诀：比较器个数＝路数（直接映射路数为 1，全相联路数＝总行数）；组相联＝用少量比较器换接近全相联的命中率。",
+          "noteLink": {
+            "name": "第3章_存储器层次结构.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\CO\\第3章_存储器层次结构.md"
+          }
+        },
+        {
+          "id": "eng-voc-roots",
+          "badges": [
+            "英语一",
+            "词根词缀",
+            "易错点"
+          ],
+          "title": "高频词根：先钉死「看」和「说」——spect/spic＝看，dict＝说",
+          "body": "三步拆词：<strong>切后缀（定词性）→ 切前缀（定方向）→ 找词根（定意思）</strong>。词根定意思、前缀定方向、后缀定词性。<br><strong>最容易记反的一对</strong>：<strong>spic- / spect- ＝ 看</strong>（perspective 视角、conspicuous 显眼的、speculation 推测）；<strong>dic- / dict- ＝ 说</strong>（predict 预言、contradict 反驳、declare 宣布）。另有 <strong>vid- / vis- 也是「看」</strong>（visible 可见的、self-evident 不言自明的）——三者别串。<br><strong>方向前缀</strong>：con- / com-＝一起、re-＝回 / 再、pro-＝向前、sub-＝在下、super-＝在上、ex-＝向外、de-＝向下 / 离开。<br><strong>高频词根串</strong>：ced- / cess-＝走、让；sist- / sta-＝站；fer-＝带来；ject-＝扔；mit- / miss-＝送；duc- / duct-＝引导；vers- / vert-＝转；clud- / clus-＝关。<br>⚠️ <strong>比较级那组本身即比较级</strong>：superior / inferior / prior / senior / junior 后接 <strong>to</strong>，不加 more、不用 than。<br>⚠️ 后缀 <strong>-able / -ible ＝「能被……的」（被动）</strong>：unmistakable ＝ 不可能被弄错的 → 明确无误的。",
+          "list": [
+            "spect/spic＝看 ｜ dict＝说（最易记反），vid/vis 也是看",
+            "后缀 -able/-ible＝能被…的（被动）",
+            "superior 那一组自带比较级，只跟 to"
+          ],
+          "conclusion": "记法：先把「看」「说」钉死，再用前缀方向拼意思——concede ＝ con(一起) + cede(走 / 让) → 让一步 → 承认、让步。",
+          "noteLink": {
+            "name": "词根词缀总表.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\词根词缀\\词根词缀总表.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "ds-q-graph-edge",
+          "question": "n 个顶点的无向图：保证连通至少需要多少条边？非连通图的边数最多是多少？有向图强连通最少需要多少条弧？",
+          "answer": "无向连通至少 <strong>n−1</strong> 条（一棵树）；非连通最多 <strong>(n−1)(n−2)/2</strong>（n−1 个顶点构成完全图＋1 个孤立点），再多 1 条必连通；有向强连通最少 <strong>n</strong> 条弧（构成单向环）。",
+          "noteLink": {
+            "name": "第6章_图.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第6章_图.md"
+          }
+        },
+        {
+          "id": "ds-q-kmp",
+          "question": "KMP 中 next[j] 的含义是什么？为什么 KMP 总复杂度是 O(n+m)？nextval 相比 next 多优化了什么？",
+          "answer": "next[j]＝<code>T[0..j−1]</code> 的最长相等前后缀长度；失配时只回退模式串、<strong>主串指针不回溯</strong>，两指针总移动量线性，故 O(n+m)。nextval 在 <code>T[j]==T[next[j]]</code> 时直接跳到 nextval[next[j]]，避免连续相同字符造成的必然再次失配。",
+          "noteLink": {
+            "name": "第4章_串.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第4章_串.md"
+          }
+        },
+        {
+          "id": "pol-q-zunyi",
+          "question": "「事实上确立毛泽东在党中央和红军的领导地位」与「正式确立毛泽东思想为党的指导思想」分别对应哪次会议？六届六中全会的定位是什么？",
+          "answer": "<strong>1935 遵义会议</strong>事实上确立领导地位（生死攸关转折点）；<strong>1945 中共七大</strong>正式确立毛泽东思想为指导思想。<strong>1938 六届六中全会</strong>只是首次提出「马克思主义中国化」命题（定方向），不是成熟标志。",
+          "noteLink": {
+            "name": "史纲.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\史纲.md"
+          }
+        },
+        {
+          "id": "q-math-diffeq-c",
+          "question": "y′ + y = e⁻ˣ 的通解是什么？为什么 y = x·e⁻ˣ + C 不对？",
+          "answer": "<strong>y = (x+C)e⁻ˣ</strong>。积分因子 <code>μ = eˣ</code>，两边同乘后左边凑成 <code>(eˣy)′ = 1</code>，积分得 <code>eˣy = x + C</code>，再整体除以 eˣ——常数 C 必须和 x 一起待在括号内；写成 <code>x·e⁻ˣ + C</code> 代回原方程不成立。",
+          "noteLink": {
+            "name": "第15讲_微分方程.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\第15讲_微分方程.md"
+          }
+        },
+        {
+          "id": "q-pol-jizhong-biaoxian",
+          "question": "资本主义基本矛盾在阶级关系上、经济上分别集中表现为什么？「生产无限扩大与劳动人民有支付能力的需求相对缩小」属于哪一层？",
+          "answer": "阶级关系上 → <strong>无产阶级和资产阶级的对立</strong>；经济上 → <strong>周期性爆发的经济危机</strong>（根源是生产相对过剩）。后半句是危机爆发的<strong>直接原因 / 具体矛盾</strong>，不是「集中表现」——选择题常拿这两层互相设坑。",
+          "noteLink": {
+            "name": "马原.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\马原.md"
+          }
+        },
+        {
+          "id": "q-gailv-ch2role",
+          "question": "求 Y=g(X) 的密度时，F_Y(·) 与 f_Y(·) 的括号里各该放什么？为什么 f_Y 的表达式里不能出现 x？",
+          "answer": "<code>F_Y(·)</code>、<code>f_Y(·)</code> 的括号里只能放<strong>数</strong>（如 y）；<strong>事件</strong>只能放进 <code>P{·}</code>——写成 <code>F(y≤Y)</code> 非法。分布函数<strong>从左累积</strong>，方向固定为「大 ≤ 小」，即 <code>P{Y≤y}</code>（自检：Φ(1.96)=0.975，代大数得大值）。<br>f_Y 里不能有 x：积分变量 x 是<strong>哑变量</strong>，积掉即消失；y 藏在<strong>积分限</strong>里当参数，故保留。出现 x 说明<strong>变量身份搞混</strong>了。",
+          "noteLink": {
+            "name": "第2章_随机变量及其分布.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\第2章_随机变量及其分布.md"
+          }
+        },
+        {
+          "id": "q-gailv-prior",
+          "question": "为什么不能说「全概率公式求的是先验概率」？先验、后验、边缘三者各指什么？",
+          "answer": "全概率 <code>P(B)=ΣP(Aᵢ)P(B|Aᵢ)</code> 求的是<strong>结果 B 的边缘概率</strong>（把联合概率对 Aᵢ <strong>求和消掉</strong>），只是<strong>用到</strong>了先验 P(Aᵢ)，不能反过来说它就是先验概率。<br>先验＝试验<strong>前</strong>对原因的概率；后验＝观察到结果 B 后对原因重新评估（贝叶斯才做）；边缘＝联合分布里把别的变量求和消掉后剩下的概率。<br>P(B) 两种身份并存：<strong>结构上是边缘概率，在「以 B 为证据」的推断里是 B 的先验</strong>。",
+          "noteLink": {
+            "name": "第1章_随机事件与概率.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\第1章_随机事件与概率.md"
+          }
+        },
+        {
+          "id": "q-co-cache",
+          "question": "直接映射、K 路组相联、全相联各需多少个比较器？比较器比的是哪一段？「组数」与「路数」是什么关系？",
+          "answer": "直接映射 <strong>1 个</strong>（索引直接定位到唯一一行，只比那一行 Tag）；K 路组相联 <strong>K 个</strong>（组索引定位到组，组内各路<strong>并行</strong>比 Tag）；全相联 <strong>＝ Cache 总行数</strong>（无行号字段，全体并行，另配优先编码器）——代价最高，只在 TLB 这类小容量处用。<br>比较器只比 <strong>Tag</strong>，故比较器<strong>位数＝Tag 位数</strong>。<br><strong>组数＝总行数÷路数</strong>，组索引位数＝log₂(组数)：4 路组相联、1024 行 → 256 组 → 组索引 8 位。",
+          "noteLink": {
+            "name": "第3章_存储器层次结构.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\CO\\第3章_存储器层次结构.md"
+          }
+        },
+        {
+          "id": "q-eng-roots",
+          "question": "spect/spic 与 dict 各是什么意思？concede 怎么拆？superior 那一组比较级的搭配要注意什么？",
+          "answer": "<strong>spect / spic ＝ 看</strong>（perspective 视角、conspicuous 显眼的）；<strong>dict ＝ 说</strong>（predict 预言、contradict 反驳）——这两对最容易记反（另有 vid/vis 也是「看」）。<br><strong>concede ＝ con-(一起) + cede(走 / 让)</strong> → 让一步 → 承认、让步。<br>superior / inferior / prior / senior / junior <strong>本身即比较级</strong>，后接 <strong>to</strong>：不加 more、不用 than。",
+          "noteLink": {
+            "name": "词根词缀总表.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\词根词缀\\词根词缀总表.md"
+          }
+        },
+        {
+          "id": "q-math-fy",
+          "question": "求 Y=X²+1 的密度时，为什么会写成 F_Y(y)=∫(x²+1)dx？错在哪、怎么补救？",
+          "answer": "错在把 <strong>g(x) 当成了密度</strong>：x²+1 是<strong>随机变量 Y 本身</strong>，不是密度；只有题给的 <strong>f_X(x)=|x| 能进积分号</strong>。<br>正确动作：把 g(X)≤y <strong>解成 X 的区间</strong>再对 f_X 积分。|X|≤1 ⇒ Y∈[1,2]；1≤y≤2 时 <code>F_Y(y)=P{−√(y−1)≤X≤√(y−1)}=2∫₀^√(y−1)x dx=y−1</code> ⇒ f_Y(y)=1（即 Y~U(1,2)）。<br>补救三件套：先<strong>定 Y 的值域</strong>；常数由 <code>lim(y→−∞)F_Y(y)=0</code> 定（不能代 F(1)=1）；收尾<strong>密度三查</strong>——是 y 的函数吗、处处 ≥0 吗、积分为 1 吗。原稿 −5/6 违反非负、8/3 违反归一。",
+          "noteLink": {
+            "name": "计算陷阱.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\计算陷阱.md"
+          }
+        }
+      ],
       "math": {
         "id": "sec-math",
         "points": [
@@ -2399,8 +2853,77 @@
             "body": "<code>1/(1−x) = Σ xⁿ = 1+x+x²+…</code>（|x|<1）<br><code>1/(1+x) = Σ (−x)ⁿ = 1−x+x²−…</code>（|x|<1）<br><code>arctan x = Σ (−1)ⁿx²ⁿ⁺¹/(2n+1) = x − x³/3 + x⁵/5 − …</code>",
             "conclusion": "等比展开是母函数，很多级数求和都化到它；arctan 由 1/(1+x²) 逐项积分得到。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+            }
+          },
+          {
+            "id": "taylor-d4-2",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D4"
+            ],
+            "title": "其余常用展开②：tan x 与 arcsin x（背到三阶）",
+            "body": "<code>tan x = x + x³/3 + 2x⁵/15 + …</code>（仅奇次项，|x|&lt;π/2）<br><code>arcsin x = x + x³/6 + 3x⁵/40 + …</code>（仅奇次项，|x|≤1）<br>差函数等价（x→0）：<code>tan x − x ∼ x³/3</code>，<code>arcsin x − x ∼ x³/6</code>。",
+            "conclusion": "口诀：sin/arcsin 的差是 1/6 x³，tan 的差是 1/3 x³；必须是「差」的形式、x→0 时才能直接代换。",
+            "noteLink": {
+              "name": "公式速查.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\公式速查.md"
+            }
+          },
+          {
+            "id": "trap-gaoshu-o-dir",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "函数极限与连续",
+              "计算陷阱"
+            ],
+            "title": "o 记号判方向：「左放分子」，lim B/A=0 才是 B=o(A)",
+            "body": "<code>A=o(B)</code> 的定义是 <code>lim(A/B)=0</code>，<strong>被除数必须是等式左边的整式</strong>。已知 f=o(g) 时，f+g 含主导项 g 是「大」的那个，故 f+g=o(f) 不成立；若算出 lim[f/(f+g)]=0，证明的恰是反方向 <code>f=o(f+g)</code>。",
+            "conclusion": "口诀「左放分子」：得 0 关系成立；得非零常数＝同阶/等价；得 ∞ 说明大小关系说反了。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
+            }
+          },
+          {
+            "id": "trap-gailv-events",
+            "type": "trap",
+            "badges": [
+              "概率论",
+              "随机事件与概率",
+              "计算陷阱"
+            ],
+            "title": "两两独立 ≠ 相互独立；事件运算没有消去律",
+            "body": "题面只给<strong>两两独立</strong>时只能两两连乘，<code>P(ABC)=P(A)P(B)P(C)</code> 不成立（≥3 个事件时两者不等价）。事件运算<strong>无消去律</strong>：<code>(A∪B)−B=A−B≠A</code>，<code>(A−B)∪B=A∪B≠A</code>；遇差事件一律先写 <code>X−Y=XY̅</code> 再用分配律展开。",
+            "conclusion": "连乘前先圈「两两/相互」；差事件转补集再化简，不凭「抵消」直觉跳步。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\计算陷阱.md"
+            }
+          },
+          {
+            "id": "trap-gailv-fy",
+            "type": "trap",
+            "badges": [
+              "概率论",
+              "随机变量及其分布",
+              "计算陷阱"
+            ],
+            "title": "求 f_Y 时把 g(x) 当密度积分——会算出负密度",
+            "body": "已知 f_X(x)＝|x|（|x|≤1），求 Y＝X²+1 的密度。错在写 <code>F_Y(y)＝∫(x²+1)dx</code>：<strong>x²+1 是随机变量 Y 本身，不是密度</strong>；只有题给的 f_X 能进积分号。<br>正确动作：把 <code>g(X)≤y</code> <strong>解成 X 的区间</strong>，再在该区间上对 f_X 积分。本题 |X|≤1 ⇒ Y∈[1,2]；1≤y≤2 时 <code>F_Y(y)＝2∫₀^√(y−1) x dx＝y−1</code>，求导得 <code>f_Y(y)＝1</code>（即 Y ~ U(1,2)）。<br>三处连带崩：① 常数要用 <code>lim(y→−∞)F_Y(y)＝0</code> 定，不能代 F(1)＝1（本题 Y≥1，F_Y(1)＝0）；② 必须先定 Y 的<strong>值域</strong>（决定分段点与值域外的 0）；③ 答案里只能有 y。<br><strong>密度三查（收尾必做）</strong>：是 y 的函数吗？处处 ≥0 吗？积分为 1 吗？原稿出现 <strong>−5/6</strong>（违反非负）与 <strong>8/3</strong>（违反归一），任一查都能当场判错。",
+            "list": [
+              "只有 f_X 进积分号；g(x) 要「翻译成 X 的区间」",
+              "先定 Y 的值域；常数由 F(−∞)=0 定",
+              "密度三查：y 的函数／非负／积分为 1"
+            ],
+            "conclusion": "一句话：求函数分布永远「先定值域 → 解不等式 → 用 f_X 积分 → 对 y 求导」，密度三查是最后一道闸。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\计算陷阱.md"
             }
           }
         ]
@@ -2409,10 +2932,215 @@
     "2026-09-21": {
       "date": "2026-09-21",
       "weekday": "周一",
-      "studied": false,
-      "subject": "泰勒专题 · D5 · 难度攻坚",
-      "review": [],
-      "quiz": [],
+      "studied": true,
+      "subject": "408·数据结构(有序表/顺序表) ｜ 计组·模4补码/中断优先级 ｜ 操作系统·PV顺序/微内核 ｜ 计网·IP首部检验和 ｜ 政治·高质量发展帽子题 ｜ 英语·使役与感官动词 ｜ 高数·级数判敛两个陷阱 ｜ 泰勒专题·D5",
+      "review": [
+        {
+          "id": "ds-ordered-vs-seq",
+          "badges": [
+            "408",
+            "数据结构"
+          ],
+          "title": "有序表 ≠ 顺序表：数据结构由「逻辑结构＋存储结构＋运算」共同定义",
+          "body": "<strong>顺序表</strong>说的是<strong>存储方式</strong>（用连续单元顺序存放）；<strong>有序表</strong>说的是<strong>逻辑上有序</strong>（关键字递增/递减），它既可用顺序表实现、也可用链表实现。<br>判断「是不是同一种数据结构」时，<strong>运算不同就是两种结构</strong>：二叉树与二叉排序树的逻辑结构、存储结构可以完全相同，区别只在运算。",
+          "list": [
+            "① 逻辑结构是面向实际问题的抽象表示，<strong>独立于存储结构</strong>",
+            "② 存数据不仅存元素的值，还要存<strong>元素之间的关系</strong>",
+            "③ 链式存储各结点的存储空间可不连续，但<strong>结点内部</strong>（数据域＋指针域）的地址必须连续"
+          ],
+          "conclusion": "一句话：顺序表讲「怎么存」，有序表讲「怎么排」；判同不同看三件套——值＋关系＋运算。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+          }
+        },
+        {
+          "id": "co-mod4-complement",
+          "badges": [
+            "408",
+            "计组",
+            "数据表示"
+          ],
+          "title": "模4补码 = 双符号位补码 = 变形补码（三个名字一件事）",
+          "body": "模4补码具有模2补码的全部优点，<strong>且更易检查加减运算中的溢出</strong>。关键细节：<strong>存储时只需一个符号位</strong>——任何正确的数值，其模4补码的两个符号位总是相同的；<strong>只在送 ALU 做加减时</strong>才把符号位同时送到双符号位，即「只在 ALU 中采用双符号位」。",
+          "list": [
+            "① 三个名字要认全：模4补码 / 双符号位补码 / 变形补码",
+            "② 存储 1 位符号位，运算时才扩成双符号位",
+            "③ 溢出判据：双符号位为 01（正溢）或 10（负溢）"
+          ],
+          "conclusion": "常考填空「模4补码存储需要几个符号位」——答<strong>一个</strong>：双符号位只在 ALU 里出现。",
+          "noteLink": {
+            "name": "计算机组成原理强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+          }
+        },
+        {
+          "id": "co-int-priority",
+          "badges": [
+            "408",
+            "计组",
+            "中断与异常"
+          ],
+          "title": "响应优先级 vs 处理优先级：中断屏蔽字改的是哪一个",
+          "body": "<strong>响应优先级</strong>＝多个中断同时请求时谁先被响应（由中断查询程序/判优电路决定），它决定中断<strong>服务程序开始执行</strong>的次序；<strong>处理优先级</strong>＝能否打断正在执行的中断服务程序，它决定多个服务程序<strong>执行完</strong>的次序。<strong>中断屏蔽字改的是处理优先级</strong>，改不了响应优先级。",
+          "list": [
+            "① 中断响应周期里的「关中断」由<strong>中断隐指令</strong>（硬件自动）完成；恢复现场、恢复屏蔽字时的关中断才由<strong>关中断指令</strong>完成",
+            "② 系统调用（软中断指令）把 CPU 从用户态切到内核态，硬件保存断点与程序状态字",
+            "③ 中断服务程序执行完<strong>自行返回</strong>（末条是返回指令），无须外设发「中断结束」信号"
+          ],
+          "conclusion": "记配对：屏蔽字↔处理优先级；判优电路↔响应优先级；中断隐指令↔响应周期里那次关中断。",
+          "noteLink": {
+            "name": "计算机组成原理强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+          }
+        },
+        {
+          "id": "os-pv-order",
+          "badges": [
+            "408",
+            "操作系统",
+            "同步与互斥"
+          ],
+          "title": "生产者-消费者：两个 P 的先后不能颠倒（颠倒即死锁）",
+          "body": "缓冲区满时若先 <code>P(mutex)</code> 再 <code>P(empty)</code>，生产者会<strong>占着 mutex 被 empty 阻塞</strong>，而消费者要先拿到 mutex 才能取走产品 → <strong>互相等待、死锁</strong>。所以顺序固定：<strong>先 P(资源信号量)，再 P(互斥信号量)</strong>。两个 V 谁先谁后不致命，但标准写法是 <code>V(mutex)</code> 在前、<code>V(full)</code> 在后。",
+          "list": [
+            "① 写者优先的读者-写者问题里，额外信号量 <code>w</code> 的作用是<strong>有写者等待时挡住新读者</strong>（防写者饥饿），不是「写者之间互斥」",
+            "② 互斥的四类实现（软件方法/硬件指令/关中断/信号量）中，<strong>只有信号量满足「让权等待」</strong>——P 失败时 block 让出 CPU，其余三类都忙等"
+          ],
+          "conclusion": "口诀：先资源、后互斥；四类互斥实现里只有信号量会「让权」。",
+          "noteLink": {
+            "name": "第2章_进程管理.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\OS\\第2章_进程管理.md"
+          }
+        },
+        {
+          "id": "os-microkernel-file",
+          "badges": [
+            "408",
+            "操作系统",
+            "体系结构/文件管理"
+          ],
+          "title": "微内核的长处是可扩展，短板恰好是性能",
+          "body": "微内核把核心功能与其他服务分离：服务可分布在不同处理器上并行、便于消息传递与 RPC，故<strong>可扩展性、灵活性、分布式支持</strong>都更强，<strong>添加系统服务不必修改内核</strong>；但它的主要问题正是<strong>性能</strong>（消息传递与模式切换开销），因此说「微内核使系统更高效」是<strong>错的</strong>。Windows 是<strong>融合了宏内核与微内核</strong>的操作系统。",
+          "list": [
+            "① 文件存放方式随介质变：<strong>磁带→连续存放</strong>、<strong>硬盘→通常不连续</strong>（链接/索引）、<strong>内存→随机存放</strong>",
+            "② 防文件受损用<strong>备份</strong>；存取控制矩阵管的是<strong>多用户之间的存取权限保护</strong>",
+            "③ 银行家算法的安全序列<strong>不唯一、不固定</strong>，它只是「一种可能的分配方案」，从不给出固定的申请顺序"
+          ],
+          "conclusion": "答微内核优点时别顺手写「更高效」；问安全序列别说「唯一」。",
+          "noteLink": {
+            "name": "操作系统强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\操作系统强化.md"
+          }
+        },
+        {
+          "id": "cn-ip-checksum",
+          "badges": [
+            "408",
+            "计网",
+            "网络层"
+          ],
+          "title": "IP 首部检验和：不掺伪首部，也只管首部",
+          "body": "计算 <strong>IP 数据报首部检验和时不需要加伪首部</strong>——伪首部只用于计算 <strong>TCP / UDP</strong> 的检验和。做法：把首部按 16 比特分组，用<strong>反码算术运算</strong>相加，再把和的<strong>反码</strong>写入检验和字段。它<strong>只能检验首部是否出错</strong>，连「源地址字段是否出错」都不能单独判断。",
+          "list": [
+            "① 路由器转发分组时，按路由表条目里的<strong>接口标识符</strong>确定输出端口（输出端口就是路由器的接口）",
+            "② 数据链路层负责：组帧、在不可靠物理连接上实现<strong>结点到结点</strong>的可靠传输、介质访问控制（MAC 子层）",
+            "③ 屏蔽物理传输细节、实现无差别比特传输是<strong>物理层</strong>的活，数据链路层不必考虑"
+          ],
+          "conclusion": "一句话：伪首部只服务 TCP/UDP；IP 首部检验和只保首部、不管数据。",
+          "noteLink": {
+            "name": "计算机网络强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机网络强化.md"
+          }
+        },
+        {
+          "id": "pol-hat-gaozhiliang",
+          "badges": [
+            "政治",
+            "帽子题",
+            "新思想"
+          ],
+          "title": "高质量发展四顶帽子：首要任务 / 战略基点 / 主线 / 要求",
+          "body": "<strong>首要任务</strong>＝高质量发展（全面建设社会主义现代化国家的首要任务）；<strong>战略基点</strong>＝构建新发展格局；<strong>主线</strong>＝深化供给侧结构性改革；<strong>要求</strong>＝推动经济实现质的有效提升和量的合理增长。别混：<strong>根本任务</strong>＝解放和发展社会生产力；全面深化改革的<strong>出发点和落脚点</strong>＝促进社会公平正义、增进人民福祉；进一步全面深化改革的<strong>牵引</strong>＝经济体制改革。",
+          "list": [
+            "① 开放是中国式现代化的鲜明标志",
+            "② 人民军队四顶帽子：人才＝关键因素、改革＝关键一招、依法治军＝基本方式、政治建军＝立军之本",
+            "③ 社会主义核心价值观区别于以往价值观的重要特点是<strong>真实性</strong>，其<strong>根本特性是人民性</strong>"
+          ],
+          "conclusion": "帽子题先认「词尾」——任务 / 基点 / 主线 / 要求 / 牵引 / 出发点，再对内容，比从内容反推帽子快且不易被干扰项带走。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+          }
+        },
+        {
+          "id": "eng-bare-infinitive",
+          "badges": [
+            "英语一",
+            "非谓语动词",
+            "易错点"
+          ],
+          "title": "使役 / 感官动词：主动省 to，被动必须还原 to",
+          "body": "<strong>make / let / have</strong>（使役）与 <strong>see / hear / watch / feel / notice</strong>（感官）后接宾补时，主动语态用<strong>裸不定式</strong>（省 to）：He made me do it. / I saw him run.；一旦改成<strong>被动语态，to 必须还原</strong>：I was made <strong>to</strong> do it. / He was seen <strong>to</strong> run.。",
+          "list": [
+            "① 感官动词 + 裸不定式＝动作<strong>全过程</strong>；+ 现在分词＝动作<strong>正在进行</strong>（I saw him leave / leaving）",
+            "② 情态动词后也省 to，但 <code>ought to</code>、<code>used to</code> 里的 to 属固定搭配，不能省",
+            "③ 别顺手造 <code>insist to do</code>：insist 只接 <code>on doing</code> 或 that 从句（同类：object to doing、look forward to doing）"
+          ],
+          "conclusion": "考点只在两处：主动省、被动还；感官动词靠「不定式 vs 分词」分全过程与进行中。",
+          "noteLink": {
+            "name": "考研英语语法笔记.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\grammar\\考研英语语法笔记.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "q-os-pv-order",
+          "question": "生产者-消费者问题里，为什么不能先 P(mutex) 再 P(empty)？标准顺序是什么？写者优先方案里额外的信号量 w 又管什么？",
+          "answer": "缓冲区满时生产者会<strong>占着 mutex 被 empty 阻塞</strong>，而消费者要先拿到 mutex 才能取产品 → <strong>死锁</strong>。标准顺序：<code>P(empty)</code> → <code>P(mutex)</code> → 生产 → <code>V(mutex)</code> → <code>V(full)</code>。写者优先里的 <code>w</code> 用来<strong>在有写者等待时挡住新读者</strong>（防写者饥饿），不是「实现写者互斥」。",
+          "noteLink": {
+            "name": "第2章_进程管理.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\OS\\第2章_进程管理.md"
+          }
+        },
+        {
+          "id": "q-co-mod4",
+          "question": "模4补码的三个别名是什么？存储与运算各用几个符号位？溢出怎么判？中断屏蔽字改的是哪种优先级？",
+          "answer": "模4补码 ＝ 双符号位补码 ＝ 变形补码；<strong>存储只用 1 个符号位</strong>（正确数值的两个符号位总相同），<strong>送 ALU 运算时才扩成双符号位</strong>；双符号位不一致（01 正溢 / 10 负溢）即溢出。中断屏蔽字改的是<strong>处理优先级</strong>（响应优先级由判优电路决定）。",
+          "noteLink": {
+            "name": "计算机组成原理强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+          }
+        },
+        {
+          "id": "q-ds-ordered",
+          "question": "有序表和顺序表是同一件事吗？为什么说二叉树和二叉排序树是两种数据结构？",
+          "answer": "不是。顺序表说的是<strong>存储方式</strong>（连续存储），有序表说的是<strong>逻辑上有序</strong>，可用顺序或链式实现。二叉树与二叉排序树的<strong>逻辑结构与存储结构可以完全相同</strong>，区别在<strong>运算</strong>（查找/插入的约束不同）→ 算两种数据结构。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+          }
+        },
+        {
+          "id": "q-cn-ip-checksum",
+          "question": "算 IP 首部检验和要不要加伪首部？伪首部是给谁用的？首部检验和能查出数据部分出错吗？",
+          "answer": "<strong>不加</strong>；伪首部只用于 <strong>TCP / UDP</strong> 的检验和。做法：首部按 16 比特分组、用<strong>反码算术</strong>求和，把和的<strong>反码</strong>写入检验和字段。它<strong>只检验 IP 首部</strong>，数据部分出错查不出。",
+          "noteLink": {
+            "name": "计算机网络强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机网络强化.md"
+          }
+        },
+        {
+          "id": "q-pol-hat-gaozhiliang",
+          "question": "帽子题速答：高质量发展是____？构建新发展格局是____？深化供给侧结构性改革是____？人民军队的关键因素与关键一招分别是？",
+          "answer": "高质量发展＝全面建设社会主义现代化国家的<strong>首要任务</strong>；构建新发展格局＝<strong>战略基点</strong>；深化供给侧结构性改革＝<strong>主线</strong>；人民军队<strong>关键因素＝人才</strong>、<strong>关键一招＝改革</strong>（依法治军＝基本方式、政治建军＝立军之本）。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+          }
+        }
+      ],
       "math": {
         "id": "sec-math",
         "points": [
@@ -2428,8 +3156,52 @@
             "body": "把 f 展开成 <code>Σ aₙxⁿ</code> 后，第 n 阶导在 0 处 = <strong>n! · aₙ</strong>（aₙ 是 xⁿ 的系数）。<br>不必逐阶硬算，只数系数；<strong>奇偶项取舍</strong>：sin/arctan 无偶次项 → 偶阶导为 0。",
             "conclusion": "易错：忘记乘 n!；读 aₙ 时看“xⁿ 项的系数”，不是第 n 项本身。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+            }
+          },
+          {
+            "id": "trap-series-necessity",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "无穷级数",
+              "计算陷阱",
+              "陷阱51"
+            ],
+            "title": "lim uₙ = 0 只是必要条件：判敛的收笔句只有三种合法形式",
+            "body": "通项趋于 0 <strong>不能</strong>推出级数收敛（反例：调和级数）。它唯一的作用是<strong>一票否决</strong>：lim uₙ ≠ 0 或不存在 ⇒ 发散。<br>最隐蔽的坑是<strong>「错的推理＋对的结论」</strong>——P105 那两道题答案恰好是「收敛」，于是错方法被误认为可用（把通项改成 <code>ln((1/√n)/sin(1/√n))</code> 后结论立刻变发散）。<br>孪生错误：把 <code>ln(A/B)</code> 直接当成 <code>A/B</code>——A→1 时应是 <code>ln A ~ A − 1</code>，不是 <code>ln A ~ A</code>。",
+            "list": [
+              "① 算完 lim uₙ = 0 只准写「必要条件满足」，然后<strong>必须继续</strong>定阶或写部分和",
+              "② 合法收笔句只有三句：「α > 1，收敛」「S_N → L，收敛」「lim uₙ ≠ 0，发散」",
+              "③ 判敛的本质是<strong>定阶</strong>；化差为商、等价替换都只是中途动作，不是出口"
+            ],
+            "conclusion": "判敛自查一句：我收笔时给的是「阶」还是「极限值」？给的是极限值，就等于没做完。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
+            }
+          },
+          {
+            "id": "trap-series-ratio1",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "无穷级数",
+              "计算陷阱",
+              "陷阱50"
+            ],
+            "title": "含参 / 带根式 / 带 ln n 的通项：比值法结构性失效，直接「定阶」",
+            "body": "通项是 uₙ ~ Cn^(−α) 的「抓阶型」（含 <code>√(n+1)−√n</code>、<code>ln n</code>、<code>sin(1/n)</code> 这类非多项式因子）时，相邻项之比<strong>必然 → 1</strong>——这不是「这次恰好算不出来」，再变形三遍还是 1；而 <strong>ρ = 1 时比值/根值判别法不给任何结论</strong>（停在 ρ=1 等于没做判断）。<br>正确动作：有理化 / 等价替换<strong>读出阶</strong>，比对 p 级数；或由 <code>uₙ/uₙ₋₁ → 1</code> 反推 uₙ ~ Cn^(−α) 救回手稿。",
+            "list": [
+              "① 一旦算出 ρ = 1，立即停手换路，别在同一个式子上反复变形",
+              "② 通项含参数 p、含 √、ln n、sin(1/n) → 默认先「定阶」，不要先启动比值法",
+              "③ 定阶得到 α(p) > 1 后，把<strong>退化参数值</strong>（如 p = 0 使 n^(−p) ≡ 1）回代原式单独验"
+            ],
+            "conclusion": "先问一句：我要的是「阶」还是「值」？要阶走等价替换/泰勒；要值才轮到洛必达，且数列极限要先补归结原则。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
             }
           }
         ]
@@ -2438,10 +3210,187 @@
     "2026-09-22": {
       "date": "2026-09-22",
       "weekday": "周二",
-      "studied": false,
-      "subject": "泰勒专题 · D6 · 做题反馈",
-      "review": [],
-      "quiz": [],
+      "studied": true,
+      "subject": "408·计组(比较标志) ｜ 操作系统·最少页框数 ｜ 计网·TCP四个计时器 ｜ 数据结构·AVL最少结点 ｜ 政治·经济危机与工资本质 ｜ 英语一·拖与拉六词 ｜ 高数·反三角条件/系数非函数值 ｜ 泰勒专题·D6",
+      "review": [
+        {
+          "id": "co-cmp-flags",
+          "badges": [
+            "408",
+            "计组",
+            "数据的表示和运算"
+          ],
+          "title": "比较指令看哪个标志：无符号看 CF，有符号看 SF⊕OF",
+          "body": "无符号数比较只看 <code>CF</code>：<code>CF=0</code> ⇒ A ≥ B，<code>CF=1</code> ⇒ A &lt; B。有符号数比较看 <strong>SF⊕OF</strong>：为 0 ⇒ A ≥ B，为 1 ⇒ A &lt; B。相等一律看 <code>ZF=1</code>。<br>判「严格大于」要再补一条：无符号是 <strong>CF=0 且 ZF=0</strong>，有符号是 <strong>SF⊕OF=0 且 ZF=0</strong>——掉 ZF 就会把「相等」误判成「大于」。",
+          "list": [
+            "① 落笔前先问一句：这是<strong>无符号</strong>还是有符号？判据完全不同",
+            "② <strong>状态条件寄存器（PSW）属于运算器</strong>，不属于控制器（保存 CF、OF 等条件码）",
+            "③ 控制器三件套：指令寄存器 IR ＋ 程序计数器 PC ＋ 操作控制器"
+          ],
+          "conclusion": "一句话：无符号看成败看 CF，有符号看成败看 SF⊕OF；凡是「大于」，都要再带上 ZF=0。",
+          "noteLink": {
+            "name": "计算机组成原理强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+          }
+        },
+        {
+          "id": "os-min-frames",
+          "badges": [
+            "408",
+            "操作系统",
+            "内存管理"
+          ],
+          "title": "最少页框数由「指令系统」定死，与程序大小无关",
+          "body": "进程正常运行所需的<strong>最少页框数</strong>，不取决于代码段长度、虚拟地址空间大小，也不取决于物理内存容量，而取决于<strong>单条指令在取指和执行过程中可能同时访问的最大页面数</strong>——由<strong>寻址方式</strong>直接决定。寄存器寻址 0 个数据页、直接寻址 1 个、间接寻址可能 2 个（形式地址所在页 ＋ 实际操作数所在页），再加上取指那条指令页。若一条指令最多牵扯 k 个不同页面，就必须<strong>至少分配 k 个页框</strong>。",
+          "list": [
+            "① 少于下限就颠簸：换入指令页把数据页挤出去 → 换入数据页又把指令页挤出去 → <strong>无限循环，这条指令永远执行不完</strong>",
+            "② 这个下限是硬件（指令系统）定死的，跟程序写得多大没有关系",
+            "③ 抓手是「一条指令有几次访存」，不是内存容量"
+          ],
+          "conclusion": "一句话：最少页框数 = 一条指令最多同时牵扯的页面数 = 寻址方式说了算。",
+          "noteLink": {
+            "name": "操作系统强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\操作系统强化.md"
+          }
+        },
+        {
+          "id": "cn-tcp-timers",
+          "badges": [
+            "408",
+            "计网",
+            "传输层"
+          ],
+          "title": "TCP 四个计时器：只有「持续计时器」是破零窗口死锁的",
+          "body": "<strong>重传计时器</strong>（发出报文段即启动，超时重传该报文段，管可靠到达）；<strong>持续计时器</strong>（收到对方的<strong>零窗口通知</strong>就启动，超时发<strong>零窗口探测报文段</strong>，管<strong>打破死锁</strong>）；<strong>保活计时器</strong>（连接长期空闲约 2h 才发探测，判断对端是否存活/崩溃）；<strong>时间等待计时器</strong>（<strong>主动关闭方</strong>发出最后一个 ACK 后启动，等 2MSL 才回到 CLOSED）。",
+          "list": [
+            "① 零窗口探测的回执就是窗口值：对方在<strong>确认这个探测报文段时顺带给出当前窗口值</strong>；若仍为 0，发送方收到确认后<strong>重新设置持续计时器</strong>",
+            "② 别混：重传计时器管「到达」，持续计时器管「死锁」，保活计时器管「对方死没死」",
+            "③ 2MSL 两大作用：保证最后一个 ACK 能到达对方 ＋ 让本次连接的老报文段在网络中消逝"
+          ],
+          "conclusion": "速答链：收到零窗口 → 启动持续计时器 → 超时发零窗口探测 → 按对方给出的窗口值决定继续等还是发数据。",
+          "noteLink": {
+            "name": "计算机网络强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机网络强化.md"
+          }
+        },
+        {
+          "id": "ds-avl-min-nodes",
+          "badges": [
+            "408",
+            "数据结构",
+            "树",
+            "AVL"
+          ],
+          "title": "AVL 树高度 h 的最少结点数：N(h) = N(h−1) + N(h−2) + 1",
+          "body": "要让高度为 h 的平衡二叉树<strong>结点数最少</strong>，根的左右子树高度差必须取到极限（相差 1）：一侧高度 h−1、另一侧高度 h−2，且两侧各自也是结点数最少的 AVL 树，最后加上根自己 1 个。于是递推式 <strong>N(h) = N(h−1) + N(h−2) + 1</strong>，初值 <strong>N(0)=0（空树高度为 0）、N(1)=1、N(2)=2</strong>。",
+          "list": [
+            "① 逐项背下来：N(3)=4、N(4)=7、N(5)=12、N(6)=20（形似斐波那契，别记成 2^h）",
+            "② 考试常反过来问：<strong>高度为 h 的 AVL 树最少几个结点</strong>——公式给的是下界；最多结点才是满二叉树 2^h − 1",
+            "③ 度为 m 的哈夫曼树只有度为 0 和 m 的结点：非叶结点数 = (n−1)/(m−1) <strong>向上取整</strong>（每个非叶结点发出 m−1 个分支）"
+          ],
+          "conclusion": "一句话：最少结点「左右取高度差 1 再加根」，N(0)=0、N(1)=1、N(2)=2 起算。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+          }
+        },
+        {
+          "id": "pol-crisis-wage",
+          "badges": [
+            "政治",
+            "马原",
+            "资本主义的本质及规律"
+          ],
+          "title": "经济危机三连问 ＋ 工资本质一句话",
+          "body": "资本主义经济危机<strong>爆发的根本原因</strong> = 资本主义<strong>社会的基本矛盾</strong>（生产社会化 与 生产资料资本主义私人占有）；<strong>本质特征</strong> = 相对于<strong>劳动人民有支付能力的需求</strong>来说，社会生产的商品<strong>过剩</strong>——是<strong>相对</strong>过剩，不是绝对过剩。基本矛盾在阶级关系上集中表现为<strong>无产阶级与资产阶级的对立</strong>，在经济上集中表现为「生产无限扩大 与 劳动人民有支付能力的需求相对缩小」。经济危机周期性爆发使资本再生产也呈现<strong>周期性</strong>，一个周期四阶段：<strong>危机 → 萧条 → 复苏 → 高涨</strong>。",
+          "list": [
+            "① 资本主义工资的本质 = <strong>劳动力的价值或价格</strong>（不是「劳动的价值或价格」——劳动本身没有价值）",
+            "② 劳动力商品的特殊性：其使用价值（劳动）能创造出<strong>比自身价值更大的价值</strong>；消费劳动力时价值不是被转移，而是由工人的劳动<strong>再生产</strong>出来",
+            "③ 三个「相对」别丢：相对过剩、需求相对缩小、工资是劳动<strong>力</strong>的"
+          ],
+          "conclusion": "速答：根本原因看「基本矛盾」，本质特征看「相对有支付能力的需求」，工资看「劳动力」。",
+          "noteLink": {
+            "name": "马原.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\马原.md"
+          }
+        },
+        {
+          "id": "eng-pull-family",
+          "badges": [
+            "英语一",
+            "词义辨析",
+            "动词"
+          ],
+          "title": "拖 / 拉六兄弟：pull · drag · draw · tug · haul · tow",
+          "body": "<strong>pull</strong> 最通用（任意方向，反义 push）；<strong>drag</strong> 沿地面摩擦、费力拖重物（drag on = 拖延）；<strong>draw</strong> 平稳文雅地拉，认死搭配 draw the curtains / draw a sword；<strong>tug</strong> 急促反复使劲、未必拉动（tug at sb's sleeve；tug of war 拔河）；<strong>haul</strong> 极费力、大运量，可长途、可借车船机械（haul cargo / nets）；<strong>tow</strong> 用绳链<strong>牵引无动力的车船</strong>（tow truck 拖车；in tow 紧随）。",
+          "list": [
+            "① 三兄弟硬分：drag＝贴地硬拖（阻力大）、haul＝费力运货（可借工具、大运量）、tow＝牵引故障车船（绳链连接）",
+            "② 名词别漏：<strong>a long haul</strong> = 漫长过程；<strong>in tow</strong> = 跟在后面",
+            "③ 同根记忆：drag / draw / drawer / draft 同源；tug 与 tow / tie 同源（PIE *deuk- 拉、引导）"
+          ],
+          "conclusion": "场景选词：拉门拉抽屉 pull；拖走倒地大树 drag；拉窗帘拔剑 draw；拽袖子央求 tug；卡车运货、拉渔网 haul；拖故障车 tow。",
+          "noteLink": {
+            "name": "第392节_拖拉.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\辨析\\第392节_拖拉.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "q-co-cmp-flags",
+          "question": "无符号数 A、B 比较时靠哪个标志判断 A &gt; B？有符号数靠哪两个标志的异或？为什么判「大于」还要看 ZF？状态条件寄存器属于控制器还是运算器？",
+          "answer": "无符号看 <strong>CF</strong>：CF=0 且 ZF=0 ⇒ A &gt; B（CF=1 则 A &lt; B）。有符号看 <strong>SF⊕OF</strong>：为 0 ⇒ A ≥ B、为 1 ⇒ A &lt; B，判「严格大于」时必须再要求 ZF=0（相等时 ZF=1，只看异或会把相等算成大于）。状态条件寄存器（PSW）属于<strong>运算器</strong>；控制器三件套是 IR、PC、操作控制器。",
+          "noteLink": {
+            "name": "计算机组成原理强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+          }
+        },
+        {
+          "id": "q-os-min-frames",
+          "question": "页式系统中进程所需「最少页框数」由什么决定？为什么间接寻址比直接寻址要求的下限更高？分配少于这个下限会怎样？",
+          "answer": "由<strong>单条指令在取指和执行过程中可能同时访问的最大页面数</strong>决定，而这由<strong>指令系统的寻址方式</strong>决定——与代码段长度、虚拟地址空间大小、物理内存容量都无关。间接寻址执行阶段可能先后访问<strong>两个</strong>数据页（形式地址所在页 ＋ 实际操作数所在页），直接寻址只需一个，再都加上取指页，所以下限更高。少于下限会<strong>颠簸</strong>：换入指令页挤掉数据页、换入数据页又挤掉指令页，无限循环，这条指令永远执行不完。",
+          "noteLink": {
+            "name": "操作系统强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\操作系统强化.md"
+          }
+        },
+        {
+          "id": "q-cn-tcp-timers",
+          "question": "收到对方的「零窗口通知」后 TCP 启动哪个计时器？超时做什么？对方回的窗口仍是 0 怎么办？「主动关闭方发出最后一个 ACK」后启动的是哪个计时器、等多久、为什么？",
+          "answer": "启动<strong>持续计时器</strong>；超时发<strong>零窗口探测报文段</strong>，对方在<strong>确认这个探测报文段时顺带给出当前窗口值</strong>；若窗口仍为 0，发送方收到确认报文段后<strong>重新设置持续计时器</strong>（如此循环直到窗口打开）。主动关闭方发出最后一个 ACK 后启动<strong>时间等待计时器</strong>，等 <strong>2MSL</strong>：① 保证最后一个 ACK 能到达对方；② 让本次连接的老报文段在网络中消逝，不影响新连接。",
+          "noteLink": {
+            "name": "计算机网络强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机网络强化.md"
+          }
+        },
+        {
+          "id": "q-ds-avl-min-nodes",
+          "question": "高度为 h 的平衡二叉树，最少需要多少个结点？递推式与初值分别是什么？高度 5 时最少几个结点？度为 m 的哈夫曼树非叶结点数怎么算？",
+          "answer": "递推式 <strong>N(h) = N(h−1) + N(h−2) + 1</strong>，初值 <strong>N(0)=0、N(1)=1、N(2)=2</strong>（左右子树高度差取极限 1，各自也取最少）。逐项：N(3)=4、N(4)=7、<strong>N(5)=12</strong>、N(6)=20。度为 m 的哈夫曼树只有度为 0 与度为 m 的结点，非叶结点数 = <strong>(n−1)/(m−1) 向上取整</strong>。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+          }
+        },
+        {
+          "id": "q-pol-crisis-wage",
+          "question": "资本主义经济危机爆发的根本原因、本质特征各是什么？周期分哪四个阶段？基本矛盾在阶级关系上、经济上分别集中表现为什么？资本主义工资的本质是什么？",
+          "answer": "根本原因 = 资本主义<strong>社会的基本矛盾</strong>；本质特征 = 相对于<strong>劳动人民有支付能力的需求</strong>来说，社会生产的商品<strong>过剩</strong>（相对过剩）。周期四阶段：<strong>危机 → 萧条 → 复苏 → 高涨</strong>。阶级关系上表现为<strong>无产阶级与资产阶级的对立</strong>；经济上表现为「生产无限扩大 与 劳动人民有支付能力的需求相对缩小」。工资的本质 = <strong>劳动力的价值或价格</strong>。",
+          "noteLink": {
+            "name": "马原.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\马原.md"
+          }
+        },
+        {
+          "id": "q-eng-pull-family",
+          "question": "「把倒地的大树拖离路面」「用卡车长途运走货物」「抛锚的卡车被拖到修理厂」分别用哪个动词？drag on 与 a long haul 各是什么意思？",
+          "answer": "大树用 <strong>drag</strong>（沿地面摩擦、阻力大）；货物用 <strong>haul</strong>（费力、大运量，可借车船机械）；故障车用 <strong>tow</strong>（绳链牵引无动力车船）。<strong>drag on</strong> = （会议、谈判）拖延；<strong>a long haul</strong> = 漫长过程（名词用法）。",
+          "noteLink": {
+            "name": "第392节_拖拉.md",
+            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\辨析\\第392节_拖拉.md"
+          }
+        }
+      ],
       "math": {
         "id": "sec-math",
         "points": [
@@ -2457,8 +3406,73 @@
             "body": "对标准幂级数 <code>Σaₙ(x−x₀)ⁿ</code>：<br><code>R = lim |aₙ/aₙ₊₁|</code>（或 <code>1 / lim n√|aₙ|</code>，极限须存在）<br>收敛开区间 <code>(x₀−R, x₀+R)</code>。",
             "conclusion": "求半径只看系数；求出 R 后记住：<strong>端点必须单独验证</strong>，开/闭由此定。",
             "noteLink": {
-              "name": "第7章_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+              "name": "第16讲_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
+            }
+          },
+          {
+            "id": "taylor-d6-2",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D6"
+            ],
+            "title": "收敛域 = 半径 R ＋ 端点单独验算",
+            "body": "比值法只给出<strong>开区间</strong> <code>(x₀−R, x₀+R)</code>。把 <code>x = x₀ ± R</code> 代回原级数，得到两个<strong>数项级数</strong>，必须各自单独判敛：两端都收敛 ⇒ 闭区间 <code>[x₀−R, x₀+R]</code>；两端都发散 ⇒ 开区间；一收一发 ⇒ 半开半闭。",
+            "list": [
+              "① 端点代入后是交错级数（如 Σ(−1)ⁿ/n）→ 该端点是<strong>条件收敛点</strong>，答案写「收敛」",
+              "② 端点代入后常退化成 p 级数 / 调和型 → 回到 α 与 1 比大小",
+              "③ 四种落点：<code>(−R,R)</code>、<code>[−R,R]</code>、<code>(−R,R]</code>、<code>[−R,R)</code>；别只写一个 R 就收笔"
+            ],
+            "conclusion": "一句话：R 是半径、不是区间答案；端点必须「代入 → 当数项级数判一次」才算做完。",
+            "noteLink": {
+              "name": "第16讲_无穷级数.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\第16讲_无穷级数.md"
+            }
+          },
+          {
+            "id": "trap-arctan-sumdiff",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "函数极限与连续",
+              "计算陷阱",
+              "陷阱55"
+            ],
+            "title": "反三角和差角公式的适用条件：条件就是「让分母为正」",
+            "body": "看到 <code>arctan a − arctan b</code> 直接写 <code>arctan((a−b)/(1+ab))</code> 是错的，<strong>必须先验 ab 与 −1 的大小</strong>。典型：<code>a = 10, b = −1</code>，照写只得 −0.8849，真值是 <strong>2.2565</strong>——相差整整一个 π。<br>机制：<code>tan(α−β)</code> 以 π 为周期，反解只返回<strong>主值</strong>，跨过 <code>1 + ab = 0</code> 这个断点就丢掉一个 π。",
+            "list": [
+              "① 减法族：<strong>ab &gt; −1</strong> 才直接恒等；<code>ab &lt; −1</code> 时看符号——a&gt;0&gt;b 补 +π、a&lt;0&lt;b 补 −π；<code>ab = −1</code> 分母为零，公式失效（原式 = ±π/2）",
+              "② 加法族：条件是 <strong>ab &lt; 1</strong>（分母是 1−ab，条件跟着反）——两族极易混",
+              "③ 统一口诀：<strong>条件就是让分母为正</strong>（减法分母 1+ab、加法分母 1−ab），分母变负就丢（多）一个 π"
+            ],
+            "conclusion": "落笔前先算一个数：ab 与 ∓1 谁大。这一步零成本，是唯一防线。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
+            }
+          },
+          {
+            "id": "trap-power-coeff-not-value",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "无穷级数",
+              "计算陷阱",
+              "陷阱56"
+            ],
+            "title": "幂级数的系数 ≠ 函数值：Σaₙ 后面没跟 x 的幂，就不是 f 的值",
+            "body": "对 <code>f(x) = Σ aₙ(x−x₀)ⁿ</code>，<strong>只有代入具体的 x</strong> 之后才是数。<code>Σ aₙ</code>（后面没有 x 的幂）<strong>不对应任何 x 处的函数值</strong>，别把它当成 <code>f(x₀)</code> 去解方程；而且 <code>f(x₀) = a₀</code> 只挑出<strong>一项</strong>。另一处诱导错：<code>Σ(x−1)ⁿ = 1/(1−(x−1)) = 1/(2−x)</code>，<strong>不是</strong> <code>−1/x</code>（后者是 <code>1/(1+x)</code>，展开中心差一个点）。",
+            "list": [
+              "① 题目问「系数极限」而不问「级数的和」，就是在明示<strong>该处发散、只谈衰减速度</strong>，顺着提示走就不会去解方程",
+              "② 要带符号的系数（如 <code>(−1)ⁿaₙ</code>）就<strong>换展开点</strong>：令 t = 1−x，读 <code>g(t) = f(1−t)</code> 的麦克劳林系数",
+              "③ 级数一旦发散，没有任何方程能把它解出来——手稿最后停在一个含 x 的表达式上就是警告"
+            ],
+            "conclusion": "自查一句：这个 Σ 后面有没有跟 x 的幂？没有就不是函数值，更别对发散级数「解出和」。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
             }
           }
         ]
@@ -2486,8 +3500,8 @@
             "body": "缺项形式如 <code>Σaₙx²ⁿ</code>，直接套系数比 <code>R=lim|aₙ/aₙ₊₁|</code> 会错（中间项为 0）。<br>改对<strong>整个通项</strong>用比值法：<code>lim|uₙ₊₁(x)/uₙ(x)|<1</code> 解不等式定域，或用换元 t=xᵏ。",
             "conclusion": "口诀：缺项→通项法，别套系数比公式。",
             "noteLink": {
-              "name": "第7章_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+              "name": "第16讲_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -2515,8 +3529,8 @@
             "body": "<strong>比值(达朗贝尔)</strong>：<code>lim|uₙ₊₁/uₙ|=ρ</code>，ρ<1 收敛、ρ>1 发散。<br><strong>根值(柯西)</strong>：<code>lim n√|uₙ|=ρ</code>，同上。<br><strong>比较法</strong>：大的收敛→小的收敛；小的发散→大的发散。<br><strong>极限比较法</strong>：lim uₙ/vₙ=l∈(0,∞) 同敛散。",
             "conclusion": "ρ=1 时比值/根值<strong>全部失效</strong>，要换比较法（1/n 与 1/n² 比值都得 1，一散一敛）。",
             "noteLink": {
-              "name": "第7章_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+              "name": "第16讲_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -2544,8 +3558,8 @@
             "body": "<strong>p 级数</strong> <code>Σ1/nᵖ</code>：p>1 收敛、p≤1 发散。<br><strong>等比级数</strong> <code>Σaqⁿ</code>：|q|<1 收敛、|q|≥1 发散。<br><strong>对数 p 级数</strong> <code>Σ1/[n(lnn)ᵖ]</code>：p>1 收敛、p≤1 发散。",
             "conclusion": "这些是比较法的“标尺”，一般判别首先回想 p 级数与等比。",
             "noteLink": {
-              "name": "第7章_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+              "name": "第16讲_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -2573,8 +3587,8 @@
             "body": "先判 <code>Σ|uₙ|</code>：收敛→<strong>绝对收敛</strong>（原级数必收敛）；发散再看是否<strong>条件收敛</strong>。<br>交错级数 <code>Σ(−1)ⁿ⁻¹uₙ</code>（uₙ>0）用<strong>莱布尼茨法</strong>：uₙ单调递减 + uₙ→0 ⇒ 收敛。",
             "conclusion": "交错级数看两项：绝对值单调减、极限趋于零，满足就收敛。只能判收敛不能判发散。",
             "noteLink": {
-              "name": "第7章_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+              "name": "第16讲_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -2602,8 +3616,8 @@
             "body": "aₙ ~ bₙ（n→∞）⇒ Σaₙ 与 Σbₙ 同敛散，<strong>仅限正项/同号级数</strong>；<br>变号级数中不成立——一阶项可交错抵消收敛，残余的同号高阶小项可能把整体拖发散。<br>通项含 ln(1+uₙ)、e^uₙ−1、sin uₙ 时：<strong>泰勒展开到二阶</strong>，一阶看交错、二阶看 p 级数。",
             "conclusion": "变号级数通项能展开就先展开到二阶再判；别对变号直接“换等价”。",
             "noteLink": {
-              "name": "第7章_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+              "name": "第16讲_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -2631,8 +3645,8 @@
             "body": "很多求和化到两个母函数：<br><code>Σxⁿ = 1/(1−x)</code>（等比）与 <code>Σxⁿ/n! = eˣ</code>。<br>先分解成分式/裂项，再对齐已知展开形式求和。",
             "conclusion": "看到数项级数想求和，先想能否化到等比或 eˣ 的展开式。",
             "noteLink": {
-              "name": "第7章_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+              "name": "第16讲_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -2660,8 +3674,8 @@
             "body": "x→0 时把每个因子用麦克劳林<strong>展开到能定阶</strong>，留下“主部”（最低次项），分子分母同阶比较。<br>常用首项：<code>sinx~x</code>、<code>ln(1+x)~x</code>、<code>eˣ−1~x</code>、<code>1−cosx~x²/2</code>。",
             "conclusion": "等价无穷小只能在<strong>乘除因子</strong>里换；加减项要展开到一阶以上再比。",
             "noteLink": {
-              "name": "第2章_一元函数微分学.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第2章_一元函数微分学.md"
+              "name": "第3讲_一元函数微分学的概念.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -2689,8 +3703,8 @@
             "body": "① 能否默写：eˣ、sin、cos、ln(1+x)、(1+x)^α、1/(1−x)、1/(1+x)、arctan。<br>② 判敛流程：先看通项是否 →0（不→0 必发散）；正项 → p/等比/比较/比值/根值；变号 → 先判绝对，再莱布尼茨判条件。",
             "conclusion": "收敛域 = 半径 + <strong>端点逐个验</strong>，别漏。今天测一遍，把卡住的记进错题归档。",
             "noteLink": {
-              "name": "第7章_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第7章_无穷级数.md"
+              "name": "第16讲_无穷级数.md",
+              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]

@@ -269,18 +269,20 @@
     },
     {
       "id": "note.chapter_matching",
-      "title": "笔记章号 ↔ 考点章号的对齐规则",
+      "title": "笔记单元号（章/讲）↔ 考点的对齐规则",
       "scope": "convention",
       "editable": false,
-      "value": "优先用考点上的 note_chapter；没有该键则回退到 chapter。显式 note_chapter: null 表示该考点没有对应笔记（永不匹配、一直显示为缺口）。",
+      "value": "优先用考点上的 note_chapter；没有该键则回退到 chapter。显式 note_chapter: null 表示该考点没有对应笔记（永不匹配、一直显示为缺口）。文件名侧统一用 note_prefix.note_unit_no() 解析，「第N章」与「第N讲」都认。",
       "unit": "",
-      "desc": "数学考点按张宇「讲」建（高数18/线代9/概率9），笔记按「章」写（8/6/6），一章对多讲，所以必须走这个桥。408/政治/英语的 chapter 本身就是教材章号，直接可用。",
-      "source": "note_prefix.py topic_note_chapter(76)",
+      "desc": "数学考点一律按张宇「讲」建（高数18/线代9/概率9）。⚠️ 笔记侧两套并存：高数 2026-09-22 已迁成「第N讲_标题.md」，讲号与 chapter 合一，MATH-GS 的 note_chapter 已删；线代与概率论仍按教材章（第N章_标题.md），且讲号与章号交叉（线代讲5线性方程组在第4章、讲6向量组在第3章），MATH-XD/MATH-GL 的 note_chapter 必须保留，删掉会让这两科的覆盖率与每日任务载体全部错配。408/政治/英语的 chapter 本身就是教材章号，直接可用。",
+      "source": "note_prefix.py topic_note_chapter(102) / note_unit_no(91)；math_lectures.json；tools/migrate_math_lectures.py",
       "used_by": [
         "gap_analysis",
         "generate_dashboard",
-        "daily_planner"
-      ]
+        "daily_planner",
+        "daily_brief"
+      ],
+      "known_bug": "2026-09-22 高数迁移后：第7讲（物理应用：相关变化率/物理极值）确实一条笔记都没有，过去被 note_chapter=2 混在第2章里显示为「已覆盖」，属假覆盖，现在如实报缺口。第4/11/12讲有正文（由原第2/3章拆出）但索引里还没有归档条目，覆盖率按「有索引条目」口径也会算未覆盖——要补的是归档条目，不是改口径。"
     },
     {
       "id": "note.prefix_alias",

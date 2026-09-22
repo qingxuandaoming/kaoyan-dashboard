@@ -550,7 +550,7 @@ SUBJECT_ALL_PREFIXES = subjects_conf.subject_prefixes()       # 短名 → 前�
 # 政治笔记的短编号（MY-001 / 思修-001 / ZT-001）与图谱前缀（POL-MY）不是一套体系，
 # 映射表抽到 note_prefix.py 与 gap_analysis.py 共用——两个脚本各存一份正是
 # 「XSX 被错映射到 POL-SX」和「思修笔记无人认领」两个 bug 的来源（2026-09-17 修）。
-from note_prefix import note_entry_prefix, topic_note_chapter  # noqa: E402
+from note_prefix import note_entry_prefix, topic_note_chapter, note_unit_no  # noqa: E402
 
 def note_files_for(rel: str) -> list:
     """列出某个笔记前缀对应的 .md 文件。
@@ -947,9 +947,12 @@ def scan_note_freshness(graphs: dict, touched: dict) -> dict:
                 cat = "frozen"
             counts[cat] += 1
 
-            # 章节权重（文件名形如「第N章_xxx.md」）
-            m = __import__("re").match(r"第(\d+)章", f.name)
-            ch_w = ch_weights.get((prefix, int(m.group(1))), 0) if m else 0
+            # 章节权重：文件名形如「第N章_xxx.md」（408/政治/英语）
+            # 或「第N讲_xxx.md」（数学，2026-09-22 起按张宇强化36讲拆分）。
+            # 两套名字共存期一律走 note_unit_no，别再写死「章」——
+            # 写死的话数学笔记权重会静默变成 0（权重只影响排序，不报错）。
+            unit_no = note_unit_no(f.name)
+            ch_w = ch_weights.get((prefix, unit_no), 0) if unit_no is not None else 0
             all_files.append({
                 "prefix": prefix, "file": relpath, "name": f.stem,
                 "days_idle": days_idle, "cat": cat, "weight": round(ch_w, 1),
@@ -1238,6 +1241,9 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
                     "subject": subj,
                     "sub": sub_name,
                     "chapter": ch,
+                    # 展示单位由图谱决定：数学一的 chapter 是张宇「讲次」，其余科目是教材章号。
+                    # 写死「第N章」会让数学一的热力图把第15讲显示成「第15章」（长期如此）。
+                    "unit": graph.get("chapter_unit") or "章",
                     "coverage": int(pct),
                     "total": counts["total"],
                     "covered": counts["covered"],
@@ -6698,7 +6704,7 @@ document.getElementById("verified-count").textContent = D.verified_count || 0;
                 ? `闪卡已练 ${{practiced}} 个考点`
                 : (noteOnly ? "仅整理笔记，尚无答题记录" : "无笔记，也未练过");
             tooltip.textContent =
-                `${{item.sub}} 第${{item.chapter}}章: ${{item.covered}}/${{item.total}} (${{item.coverage}}%) · ${{src}}`;
+                `${{item.sub}} 第${{item.chapter}}${{item.unit || "章"}}: ${{item.covered}}/${{item.total}} (${{item.coverage}}%) · ${{src}}`;
         }});
     }});
 

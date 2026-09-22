@@ -328,10 +328,54 @@ def note_state(pfx_idx: dict, d: str):
     return out
 
 
+_NOTE_UNITS = None
+
+
+def graph_note_units() -> dict:
+    """{考点ID: 笔记单元号}，单元号一律取自图谱的 `topic_note_chapter`。
+
+    ⚠️ **绝不能拿考点 ID 的第三段当单元号**。数学考点按张宇「讲」编号，而笔记单元号
+    未必等于讲号：
+
+      * 高数：2026-09-22 起笔记也按讲拆分（`第N讲_标题.md`），讲号 == 单元号；
+      * 线代/概率：**笔记仍按教材章**（`第N章_标题.md`），图谱里的 `note_chapter`
+        才是单元号 —— 讲5「线性方程组」其实在 `第4章_线性方程组.md`，
+        讲6「向量组」在 `第3章_向量组与线性相关性.md`，正好是交叉的。
+
+    直接按 ID 第三段匹配，线代「讲5」会错配到 `第5章_特征值与特征向量.md`，
+    而且**不报错**（matched_by 还会写成「章号」，看起来精确）——这正是本函数存在的理由。
+
+    单元号为 None 表示图谱明说「这个考点没有对应笔记」（如 `note_chapter: null`），
+    此时不做精确匹配，交给标题相似度/最近改动兜底。
+    """
+    global _NOTE_UNITS
+    if _NOTE_UNITS is not None:
+        return _NOTE_UNITS
+    from note_prefix import topic_note_chapter      # 同目录，延迟导入避免环
+    out = {}
+    gd = BASE_DIR / "knowledge_graph"
+    try:
+        for p in sorted(gd.glob("*_graph.json")):
+            g = json.loads(p.read_text(encoding="utf-8"))
+            for sub in (g.get("subs") or {}).values():
+                for t in sub.get("topics", []):
+                    tid = t.get("id")
+                    if tid:
+                        out[str(tid)] = topic_note_chapter(t)
+    except (OSError, ValueError):
+        pass
+    _NOTE_UNITS = out
+    return out
+
+
 def _stem_title(fp: Path) -> str:
-    """「第6章_微分方程.md」→「微分方程」"""
+    """「第6章_微分方程.md」→「微分方程」；「第15讲_微分方程.md」→「微分方程」
+
+    ⚠️ 章/讲两套名字共存（数学 2026-09-22 起按张宇强化36讲拆分成「第N讲」），
+    所以剥前缀要同时认 章 和 讲。
+    """
     s = fp.stem
-    s = re.sub(r"^第?\d+章?[_\-—\s]*", "", s)
+    s = re.sub(r"^第?\d+(?:章|讲)?[_\-—\s]*", "", s)
     return s.strip()
 
 
@@ -345,11 +389,14 @@ def _bigram_sim(a: str, b: str) -> float:
 def note_for_topic(tid: str, pfx_idx: dict, notes: dict, topic_name: str = ""):
     """把考点对到**真实存在**的笔记文件（载体）。
 
-    ⚠️ 两套编号不是一套：408 的题库考点第三段就是笔记章号
-    （408-OS-02 → 408/OS/第2章_进程管理.md），而数学的考点号是图谱顺序号，
-    笔记章号是讲义章号（MATH-GS-15「微分方程」其实在 第6章_微分方程.md）。
-    所以数学按**标题相似度**匹配、408 按章号匹配，匹配不到再退回该子科目录里
-    最新的文件并如实标注 matched_by，不许假装精确。
+    ⚠️ 数学两套编号曾经不是一套：考点号是图谱顺序号、笔记号是教材章号
+    （MATH-GS-15「微分方程」当时躺在 第6章_微分方程.md）→ 那时数学只能按
+    **标题相似度**匹配。2026-09-22 高数笔记改按张宇强化 18 讲拆分后，
+    MATH-GS-15 → 第15讲_微分方程.md 就是同一个号，高数走**讲号精确匹配**；
+    **线代/概率的笔记仍按教材章**，靠图谱的 note_chapter 换算（讲5 线性方程组
+    → 第4章_线性方程组.md），也走精确匹配。标题相似度退化成兜底。
+    408/英语/政治一直是章号精确匹配。匹配不到时退回该子科目录里最新的文件，
+    并如实标注 matched_by，不许假装精确。
     """
     parts = str(tid or "").split("-")
     prefix = "-".join(parts[:2])
@@ -362,22 +409,31 @@ def note_for_topic(tid: str, pfx_idx: dict, notes: dict, topic_name: str = ""):
     info["dir_exists"] = bool(ns.get("exists"))
     info["stale_days"] = ns.get("stale_days")
     ddir = ROOT / (meta["notes_dir"] or "") / (meta["dir"] or "")
-    # ⚠️ 用正则卡死「第N章」，不要用 glob 的「第*章*」：英语那边有
+    # ⚠️ 用正则卡死「第N章」/「第N讲」，不要用 glob 的「第*章*」：英语那边有
     # 「第191节_印章印记.md」，中间的「印章」会被 glob 当成章号匹配上。
+    # 章/讲两套名字共存：数学 2026-09-22 起按张宇强化36讲拆成「第N讲_标题.md」。
     cands = [Path(p) for p in glob.glob(str(ddir / "**" / "第*.md"), recursive=True)
-             if re.match(r"^第\d+章", Path(p).name)]
+             if re.match(r"^第\d+(?:章|讲)", Path(p).name)]
     if not cands:
         cands = [Path(p) for p in glob.glob(str(ddir / "第*.md"))
-                 if re.match(r"^第\d+章", Path(p).name)]
+                 if re.match(r"^第\d+(?:章|讲)", Path(p).name)]
 
     pick = None
-    if cands and len(parts) >= 3 and parts[2].isdigit() and meta["subject"] != "数学一":
-        ch = int(parts[2])
-        seg = [p for p in cands if re.match(rf"^第?0*{ch}章", p.name)]
+    # 单元号（章/讲）精确匹配。数学的单元号必须问图谱（见 graph_note_units 的警告）：
+    # 高数按讲、线代/概率按章，直接拿考点 ID 第三段会把线代讲5 错配到第5章_特征值。
+    units = graph_note_units()
+    if str(tid) in units:
+        unit = units[str(tid)]
+    elif len(parts) >= 3 and parts[2].isdigit():
+        unit = int(parts[2])
+    else:
+        unit = None
+    if cands and unit:
+        seg = [p for p in cands if re.match(rf"^第?0*{unit}(?:章|讲)", p.name)]
         if len(seg) == 1:
-            pick, info["matched_by"] = seg[0], "章号"
+            pick, info["matched_by"] = seg[0], "章号/讲号"
         elif len(seg) > 1:
-            pick, info["matched_by"] = max(seg, key=lambda p: _bigram_sim(topic_name, _stem_title(p))), "章号+标题"
+            pick, info["matched_by"] = max(seg, key=lambda p: _bigram_sim(topic_name, _stem_title(p))), "章号/讲号+标题"
     if pick is None and cands:
         scored = sorted((( _bigram_sim(topic_name, _stem_title(p)), p) for p in cands), reverse=True)
         if scored and scored[0][0] >= 0.3:

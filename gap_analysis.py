@@ -642,6 +642,9 @@ def format_per_sub_gaps(subject, graph, topic_results):
     lines = []
     lines.append(f"  Per-sub gaps for {subject}:")
     covered_ids = {t["id"] for t in topic_results if t["covered"]}
+    # 数学一的 chapter 是张宇「讲次」，其余科目是教材章号——单位跟着图谱走，别写死 Ch
+    unit = graph.get("chapter_unit") or "章"
+    unit_tag = "讲" if unit == "讲" else "Ch"
 
     for sub_key, sub_data in graph.get("subs", {}).items():
         sub_topics = [t for t in topic_results if t["sub_key"] == sub_key]
@@ -655,7 +658,7 @@ def format_per_sub_gaps(subject, graph, topic_results):
                 pri, prereq_met = compute_gap_priority(g, covered_ids)
                 flag = "[+]" if prereq_met else "[-]"
                 lines.append(
-                    f"      {flag} [{g['id']}] Ch{g['chapter']} {g['name']}  "
+                    f"      {flag} [{g['id']}] {unit_tag}{g['chapter']} {g['name']}  "
                     f"weight={g['exam_weight']}  pri={pri:.1f}"
                 )
     lines.append("")

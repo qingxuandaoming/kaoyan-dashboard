@@ -3,7 +3,7 @@
 """
 考研笔记 MD → PDF 生成器
 ================================
-把每科的章节笔记（第X章_*.md）及参考文件（公式速查/错题归档/计算陷阱）
+把每科的章节笔记（第X章_*.md / 数学的 第X讲_*.md）及参考文件（公式速查/错题归档/计算陷阱）
 逐章转成排版精美的 PDF（模仿 QoderWork widget 风格），供平板阅读。
 
 流程：pandoc (MD→HTML+MathML) → 内嵌 CSS → Chrome 无头打印 PDF
@@ -11,7 +11,7 @@
 用法：
     python generate_pdf.py              # 生成全部科目全部章节
     python generate_pdf.py --subject 线代   # 只生成线代
-    python generate_pdf.py --only 第3章    # 只生成文件名含"第3章"的
+    python generate_pdf.py --only 第3章    # 只生成文件名含"第3章"的（数学用 第9讲）
     python generate_pdf.py --list        # 只列出将处理的文件，不生成
 """
 
@@ -35,7 +35,10 @@ SUBJECTS = {
 }
 
 # 要转换的文件名模式
-CHAPTER_PATTERN = "第*章*.md"
+# 章/讲两套共存：数学 2026-09-22 起按张宇强化36讲拆成「第N讲_标题.md」，
+# 408 等科目仍是「第N章_标题.md」。两种都收，别只收章。
+CHAPTER_PATTERNS = ("第*章*.md", "第*讲*.md")
+CHAPTER_PATTERN = "第*章*.md"   # 保留旧名，向后兼容（外部若 import 过它）
 REFERENCE_FILES = ["公式速查.md", "错题归档.md", "计算陷阱.md"]
 
 # Chrome / Edge 可执行文件候选
@@ -90,8 +93,9 @@ def collect_files(subject_filter=None, only_filter=None):
             continue
 
         files = []
-        # 章节笔记
-        files.extend(sorted(folder.glob(CHAPTER_PATTERN)))
+        # 章节笔记（第N章 / 第N讲）
+        for pat in CHAPTER_PATTERNS:
+            files.extend(sorted(folder.glob(pat)))
         # 参考文件
         for ref in REFERENCE_FILES:
             ref_path = folder / ref

@@ -2,6 +2,8 @@
   "subject": "数学一",
   "total_score": 150,
   "exam_date": "2026-12-19",
+  "chapter_unit": "讲",
+  "chapter_unit_note": "本科目考点的 chapter 是张宇强化36讲的「讲次」（高数18/线代9/概率9），不是教材章号。前端展示单位据此显示「第N讲」。高数笔记 2026-09-22 起也按讲拆分（第N讲_标题.md），讲号与 chapter 合一；线代与概率论的笔记仍按教材章，靠各考点的 note_chapter 换算。",
   "subs": {
     "高等数学": {
       "name": "高等数学",
@@ -44,8 +46,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 1
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-02",
@@ -79,8 +80,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 1
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-03",
@@ -114,8 +114,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 2
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-04",
@@ -155,8 +154,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 2
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-05",
@@ -196,8 +194,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 2
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-06",
@@ -237,8 +234,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 2
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-07",
@@ -266,8 +262,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 2
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-08",
@@ -307,8 +302,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 3
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-09",
@@ -348,8 +342,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 3
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-10",
@@ -383,8 +376,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 3
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-11",
@@ -412,8 +404,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 3
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-12",
@@ -441,8 +432,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 3
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-13",
@@ -488,8 +478,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 4
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-14",
@@ -529,8 +518,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 5
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-15",
@@ -570,8 +558,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 6
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-16",
@@ -611,8 +598,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 7
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-17",
@@ -652,8 +638,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": null
+          "typical_questions": []
         },
         {
           "id": "MATH-GS-18",
@@ -693,8 +678,7 @@
             }
           ],
           "linked_notes": [],
-          "typical_questions": [],
-          "note_chapter": 8
+          "typical_questions": []
         }
       ]
     },
