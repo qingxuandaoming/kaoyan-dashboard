@@ -86,12 +86,16 @@ def main():
     fails, notes = [], []
     total_src = Counter()
     total_lec = Counter()
+    compared = 0            # 真正做过逐章比对的源章数
+    skipped = []            # 源章已删除（迁移完成后就是这种状态）
 
     for fn, lecs in sorted(src2lec.items()):
         sp = os.path.join(gs, fn)
         if not os.path.exists(sp):
-            notes.append("（源章文件已删除，跳过逐章比对：%s）" % fn)
+            skipped.append(fn)
+            notes.append("—  源章已删除，无法逐行比对：%s" % fn)
             continue
+        compared += 1
         src = body_multiset(cut_nav(read(sp)), drop_h1=True)
         got = Counter()
         for lec in sorted(lecs, key=lambda x: x["no"]):
@@ -129,7 +133,16 @@ def main():
         print("✗ 复验未通过，%d 条问题：" % len(fails))
         print("\n".join(fails[:40]))
         return 1
-    print("✓ 复验通过：18 个讲文件的正文与 8 个源章文件逐行一致（无丢失、无串讲）。")
+    if compared == 0:
+        # ⚠️ 迁移完成后源章文件已删，这里没有可比对的对象 —— **不能**打印"复验通过"，
+        # 那是空断言（0 行 vs 0 行当然相等）。守恒证据只在迁移当时有效：
+        # 2026-09-22/23 实测 8 章正文 5636 行 → 18 讲 5636 行，0 丢失 0 串讲 0 重复。
+        print("○ 无可比对对象：%d 个源章文件都已删除（迁移已完成）。" % len(skipped))
+        print("  本脚本只在「源章与讲文件并存」时才有意义，用于落盘前的守恒核对。")
+        print("  历史证据：迁移当时 8 章正文 5636 行 → 18 讲 5636 行，0 丢失 / 0 串讲 / 0 重复。")
+        print("  现在要验笔记完整性，请跑 tools/audit_notes.py（断链/锚点）与 tools/e2e_lecture_split.py。")
+        return 0
+    print("✓ 复验通过：%d 个源章的正文与派生讲文件逐行一致（无丢失、无串讲）。" % compared)
     return 0
 
 
