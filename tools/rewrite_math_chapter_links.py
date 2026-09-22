@@ -190,32 +190,53 @@ class Rewriter(object):
             line = re.sub(r"第%d章(?=\s*%s)" % (n, re.escape(nm[:4])), fix2, line)
         return line
 
+    # ---- 字符串形态的链接（notes_index.json 的 links 里混着 dict 与裸字符串）----
+    def fix_str(self, s):
+        """`"text|path"` 或直接一个带锚点的路径。
+
+        ⚠️ 实测 notes_index.json 的 links 里高数 243 个 dict + 9 个裸字符串、线代 63 + 5。
+        第一版只处理 dict，结果 5 条字符串链接漏改（都指向 第3章_一元函数积分学.md），
+        直到审计才被抓出来。字符串里也可能带节号（`…第3章_….md#3.1.3`），一样按节号定位讲。
+        """
+        hit = next((fn for fn in self.M["file_map"] if fn in s), None)
+        if not hit:
+            return s
+        n = self.M["file_ch"][hit]
+        lec, precise = self.resolve(s, n)
+        if lec is None:
+            return self.bare(s)
+        out = s.replace(hit, self.M["lec_by_no"][lec]["file"])
+        out = re.sub(r"第%d章" % n,
+                     ("第%d讲" % lec) if precise else label(n, self.M["ch2lec"]), out)
+        self.n_link += 1
+        if precise:
+            self.detail.append("   [节号·索引串] %s → 第%d讲 ｜ %s" % (hit, lec, s[:64]))
+        return out
+
 
 def process_json(obj, rw):
     """notes_index.json 专用：链接的 text 与 path 是**分离字段**，必须一起改。
 
     条目形如 `{"text": "第3章_一元函数积分学.md > 3.9", "path": "./第3章_一元函数积分学.md"}`。
-    按 text 里的节号定位讲（与 markdown 链接同一套解析），再同时改写 text 与 path；
-    其它地方出现的裸文件名（如个别条目的 `file` 字段）走章首讲兜底。
+    按 text 里的节号定位讲（与 markdown 链接同一套解析），再同时改写 text 与 path。
+    ⚠️ links 里还混着**裸字符串**形态，一并走 rw.fix_str()（第一版漏了这一支）。
     """
-    fm = rw.M["file_map"]
     if isinstance(obj, dict):
         path = obj.get("path")
         if isinstance(path, str):
-            hit = next((fn for fn in fm if fn in path), None)
+            hit = next((fn for fn in rw.M["file_map"] if fn in path), None)
             if hit:
                 n = rw.M["file_ch"][hit]
                 text = obj.get("text") if isinstance(obj.get("text"), str) else ""
-                lec, precise = rw.resolve(text, n)
+                lec, precise = rw.resolve(text or path, n)
                 if lec is not None:
-                    obj["path"] = path.replace(hit, rw.M["lec_by_no"][lec]["file"])
+                    newfn = rw.M["lec_by_no"][lec]["file"]
+                    obj["path"] = path.replace(hit, newfn)
                     if isinstance(obj.get("text"), str):
+                        t = obj["text"].replace(hit, newfn)
                         obj["text"] = re.sub(
                             r"第%d章" % n,
-                            ("第%d讲" % lec) if precise else label(n, rw.M["ch2lec"]),
-                            obj["text"])
-                    obj["text"] = re.sub(re.escape(hit), rw.M["lec_by_no"][lec]["file"],
-                                         obj.get("text", "")) if isinstance(obj.get("text"), str) else obj.get("text")
+                            ("第%d讲" % lec) if precise else label(n, rw.M["ch2lec"]), t)
                     rw.n_link += 1
                     if precise:
                         rw.detail.append("   [节号·索引] %s → 第%d讲 ｜ %s" % (hit, lec, text[:60]))
@@ -223,14 +244,15 @@ def process_json(obj, rw):
             if k == "path":
                 continue
             if isinstance(v, str):
-                obj[k] = rw.bare(v)
+                obj[k] = rw.fix_str(v)
             else:
                 process_json(v, rw)
     elif isinstance(obj, list):
-        for v in obj:
+        for i, v in enumerate(obj):
             if isinstance(v, str):
-                continue
-            process_json(v, rw)
+                obj[i] = rw.fix_str(v)
+            else:
+                process_json(v, rw)
     return obj
 
 
