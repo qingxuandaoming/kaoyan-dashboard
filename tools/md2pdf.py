@@ -6,7 +6,8 @@ md2pdf.py —— 考研笔记 Markdown → PDF 批量转换器（平板阅读版
 用法：
   python tools/md2pdf.py              # 增量：只转换有更新的笔记（默认，供笔记整理后调用）
   python tools/md2pdf.py --all        # 全量重建所有 PDF
-  python tools/md2pdf.py 高数/第1章_函数极限与连续.md   # 只转指定文件（可多个）
+  python tools/md2pdf.py 高数/第9讲_一元函数积分学的计算.md   # 只转指定文件（可多个）
+                                                              # 线代/概率论仍是 第N章_xxx.md
 
 输出：PDF/ 目录，镜像源文件目录结构，并自动添加页码。
 渲染管线：markdown-it-py → HTML（KaTeX 本地渲染公式）→ Edge 无头打印 → pypdf 加页码。
