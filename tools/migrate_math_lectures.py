@@ -421,9 +421,16 @@ def main():
             body += nav_for(lec, spec, siblings, nav_lines)
             outputs[no] = body
 
-    # 无源的讲：stub / hub
+    # 无源的讲：stub / hub / authored
     for lec in spec["lectures"]:
         if lec.get("sources"):
+            continue
+        # authored = 正文已经由人手写或从别处并入（第7讲物理应用、第17讲并入空间解析几何专题）。
+        # 重跑本脚本**绝不能**把它们打回 stub/hub 模板，直接跳过并说明。
+        if lec.get("authored"):
+            report.append("=" * 78)
+            report.append("第%-2d讲 %-46s 跳过（authored：正文已人工建立/并入，不由本脚本生成）"
+                          % (lec["no"], lec["file"]))
             continue
         body = header(lec, None, None)
         if lec.get("kind") == "stub":
