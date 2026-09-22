@@ -7,8 +7,8 @@ skill 被多个工具共享（共 6 个位置）：
   - Kimi:        C:\\Users\\92534\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\skills
   - 豆包&Qoder:  C:\\Users\\92534\\.agents\\skills
   - Trae:        C:\\Users\\92534\\.trae-cn\\skills
-  - Cherry-Data: E:\\application\\CherryStudio\\Data\\Skills
-  - Cherry-Agent:E:\\application\\CherryStudio\\Data\\Agents\\.claude\\skills
+  - Cherry-Data: C:\\Users\\92534\\AppData\\Roaming\\CherryStudio\\Data\\Skills
+  - Cherry-Agent:C:\\Users\\92534\\AppData\\Roaming\\CherryStudio\\Data\\Agents\\.claude\\skills
 
 策略：对每个目标位置，仅同步「该位置已存在」的 skill，不向缺失的位置新增目录。
 复制用 copy2 保留 mtime，使「重复运行 = 幂等空操作」。
@@ -38,8 +38,8 @@ DESTS = [
     r"C:\Users\92534\AppData\Roaming\kimi-desktop\daimon-share\daimon\skills",
     r"C:\Users\92534\.agents\skills",
     r"C:\Users\92534\.trae-cn\skills",
-    r"E:\application\CherryStudio\Data\Skills",
-    r"E:\application\CherryStudio\Data\Agents\.claude\skills",
+    r"C:\Users\92534\AppData\Roaming\CherryStudio\Data\Skills",
+    r"C:\Users\92534\AppData\Roaming\CherryStudio\Data\Agents\.claude\skills",
 ]
 
 # 考研系列 skill 清单（自动同步范围；新增考研 skill 时在此登记）
