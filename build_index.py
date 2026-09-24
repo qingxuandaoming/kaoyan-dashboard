@@ -42,7 +42,7 @@ DRAFT_FILES = {
     "习思想": os.path.join(_BASE, r"Politics\习思想\notes.md"),
 }
 
-OUTPUT_PATH = os.path.join(_BASE, "src", "笔记索引.yaml")
+OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "笔记索引.yaml")   # 代码根（2026-09-25 起与笔记库分离）
 JSON_INDEX_PATH = os.path.join(_BASE, r"Math\notes_index.json")
 JSON_INDEX_408_PATH = os.path.join(_BASE, r"408\notes_index.json")
 JSON_INDEX_POL_PATH = os.path.join(_BASE, r"Politics\notes_index.json")

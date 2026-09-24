@@ -27,7 +27,7 @@ if sys.platform == "win32":
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.dirname(HERE)
-ROOT = os.path.dirname(SRC)
+ROOT = os.environ.get("NOTES_ROOT", r"E:\NPEE")   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 NODE = r"C:\Program Files\nodejs\node.exe"
 EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 PORT = 18096

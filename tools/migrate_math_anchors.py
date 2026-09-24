@@ -32,7 +32,7 @@ if sys.platform == "win32":
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.dirname(HERE)
-ROOT = os.path.dirname(SRC)
+ROOT = os.environ.get("NOTES_ROOT", r"E:\NPEE")   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 GS = os.path.join(ROOT, "Math", "高数")
 
 sys.path.insert(0, HERE)

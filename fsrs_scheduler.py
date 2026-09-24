@@ -695,7 +695,7 @@ def get_days_to_exam(
 
 
 def load_all_knowledge_graphs(
-    base_path: str = "E:/NPEE/src/knowledge_graph/",
+    base_path: str = "E:/Project/kaoyan-dashboard/src/knowledge_graph/",
 ) -> Dict[str, dict]:
     """
     Load all 4 knowledge graphs (408, math, politics, english) from JSON files.
@@ -716,7 +716,7 @@ def load_all_knowledge_graphs(
 
 
 def load_notes_index(
-    path: str = "E:/NPEE/src/笔记索引.yaml",
+    path: str = "E:/Project/kaoyan-dashboard/src/笔记索引.yaml",
 ) -> List[dict]:
     """
     Load the notes index from a YAML file.
@@ -810,7 +810,7 @@ def match_notes_to_topics(
 # ---------------------------------------------------------------------------
 # SQLite convenience helpers
 # ---------------------------------------------------------------------------
-def load_all_questions(db_path: str = "E:/NPEE/src/question_bank.db") -> List[dict]:
+def load_all_questions(db_path: str = "E:/Project/kaoyan-dashboard/src/question_bank.db") -> List[dict]:
     """Load all questions from the SQLite database."""
     if not os.path.exists(db_path):
         return []
@@ -822,7 +822,7 @@ def load_all_questions(db_path: str = "E:/NPEE/src/question_bank.db") -> List[di
     return rows
 
 
-def load_all_cards(db_path: str = "E:/NPEE/src/question_bank.db") -> List[Card]:
+def load_all_cards(db_path: str = "E:/Project/kaoyan-dashboard/src/question_bank.db") -> List[Card]:
     """Load all cards from the SQLite database as Card objects."""
     if not os.path.exists(db_path):
         return []
@@ -835,7 +835,7 @@ def load_all_cards(db_path: str = "E:/NPEE/src/question_bank.db") -> List[Card]:
 
 
 def load_cards_by_topic(
-    db_path: str = "E:/NPEE/src/question_bank.db",
+    db_path: str = "E:/Project/kaoyan-dashboard/src/question_bank.db",
 ) -> Dict[str, List[Card]]:
     """Load all cards grouped by their question's topic_id."""
     if not os.path.exists(db_path):
@@ -861,7 +861,7 @@ def load_cards_by_topic(
     return by_topic
 
 
-def export_srs_state(db_path: str = "E:/NPEE/src/question_bank.db") -> dict:
+def export_srs_state(db_path: str = "E:/Project/kaoyan-dashboard/src/question_bank.db") -> dict:
     """
     Export the full SRS state from the database as a dict keyed by card ID.
     Suitable for JSON serialisation.
@@ -893,7 +893,7 @@ def export_srs_state(db_path: str = "E:/NPEE/src/question_bank.db") -> dict:
 
 
 def get_all(
-    db_path: str = "E:/NPEE/src/question_bank.db",
+    db_path: str = "E:/Project/kaoyan-dashboard/src/question_bank.db",
 ) -> Tuple[List[dict], List[Card], Dict[str, List[dict]]]:
     """
     Load everything: all questions, all cards, and questions grouped by topic.

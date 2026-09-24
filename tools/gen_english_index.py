@@ -37,7 +37,7 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-ENG_DIR = BASE_DIR.parent / "English"
+ENG_DIR = Path(os.environ.get("NOTES_ROOT", r"E:\NPEE")) / "English"   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 OUT_PATH = ENG_DIR / "notes_index.json"
 
 # 考点前缀 → 知识图谱 sub 名（与 english_graph.json 对齐）

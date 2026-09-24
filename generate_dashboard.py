@@ -3,7 +3,7 @@
 r"""
 generate_dashboard.py — Local HTML Dashboard Generator
 
-Generates E:\NPEE\src\dashboard.html — a single-file analytics dashboard
+Generates E:\Project\kaoyan-dashboard\src\dashboard.html — a single-file analytics dashboard
 with inline D3.js visualizations for the 考研 study project.
 
 Usage:
@@ -47,13 +47,14 @@ except Exception as _e:                                   # noqa: BLE001
 # ---------------------------------------------------------------------------
 
 BASE_DIR      = Path(r"E:\NPEE")
-INDEX_PATH    = BASE_DIR / "src" / "笔记索引.yaml"
-GRAPH_DIR     = BASE_DIR / "src" / "knowledge_graph"
-DB_PATH       = BASE_DIR / "src" / "question_bank.db"
-STATE_PATH    = BASE_DIR / "src" / "sync_state.json"
-DASH_DATA_OUT = BASE_DIR / "src" / "dashboard_data.json"
-DECKS_DIR     = BASE_DIR / "src" / "flashcards" / "decks"
-OUTPUT_PATH   = BASE_DIR / "src" / "dashboard.html"
+SRC_DIR       = Path(__file__).resolve().parent   # 代码根（2026-09-25 起与笔记库 BASE_DIR 分离）
+INDEX_PATH    = SRC_DIR / "笔记索引.yaml"
+GRAPH_DIR     = SRC_DIR / "knowledge_graph"
+DB_PATH       = SRC_DIR / "question_bank.db"
+STATE_PATH    = SRC_DIR / "sync_state.json"
+DASH_DATA_OUT = SRC_DIR / "dashboard_data.json"
+DECKS_DIR     = SRC_DIR / "flashcards" / "decks"
+OUTPUT_PATH   = SRC_DIR / "dashboard.html"
 
 EXAM_DATE = date(2026, 12, 19)
 
@@ -867,7 +868,7 @@ def load_sync_state() -> dict:
 # 笔记盘活（强化阶段核心）：新鲜度扫描 / 闪卡联动 / 练习活动
 # ---------------------------------------------------------------------------
 
-NOTE_TOUCH_PATH = BASE_DIR / "src" / "note_reviews.json"
+NOTE_TOUCH_PATH = SRC_DIR / "note_reviews.json"
 
 FRESH_HOT = 7      # ≤7 天：热（活跃）
 FRESH_WARM = 21    # ≤21 天：温（正常）
@@ -1156,7 +1157,7 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
     # 两边都读同一个模块，报告与大盘才不会互相矛盾。
     try:
         import english_coverage as _ec
-        _pp = BASE_DIR / "src" / "progress.json"
+        _pp = SRC_DIR / "progress.json"
         _prog = json.loads(_pp.read_text(encoding="utf-8")) if _pp.exists() else {}
         _cov, _eng_metrics, _eng_warns = _ec.english_type_coverage(
             str(BASE_DIR), _prog, _ec.english_review_counts(str(DB_PATH)))
@@ -15189,7 +15190,7 @@ def main():
     # 3.5 D3 本地内联：本地大盘要求完全离线可用，
     # 优先内联 src/tools/d3.min.js，缺失时才回退 CDN 引用
     d3_cdn_tag = '<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>'
-    d3_local = BASE_DIR / "src" / "tools" / "d3.min.js"
+    d3_local = SRC_DIR / "tools" / "d3.min.js"
     if d3_cdn_tag in html:
         if d3_local.exists():
             d3_code = d3_local.read_text(encoding="utf-8")

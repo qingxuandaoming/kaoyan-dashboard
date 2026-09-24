@@ -14,7 +14,7 @@ const os = require("os");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const ROOT = path.join(__dirname, "..", "..");            // 考研/
+const ROOT = process.env.NOTES_ROOT || "E:\\NPEE";   // 笔记库根（2026-09-25 起与代码根分离）
 const GEN = path.join(__dirname, "..", "generate_dashboard.py");
 const OUT = path.join(os.tmpdir(), "kaoyan_audit_flashjs.js");
 

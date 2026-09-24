@@ -28,7 +28,7 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 SRC = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(SRC)
+ROOT = os.environ.get("NOTES_ROOT", r"E:\NPEE")   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 PROGRESS = os.path.join(SRC, "progress.json")
 DASHBOARD = os.path.join(SRC, "dashboard.html")
 
@@ -85,7 +85,7 @@ def run_step(name, args):
 def main():
     skip_plan = "--no-plan" in sys.argv[1:]
     print("考研学习数据流水线（本地大盘）")
-    print(f"根目录：{ROOT}")
+    print(f"代码根：{SRC}\n笔记库根：{ROOT}")
     check_progress_freshness()
 
     steps = [

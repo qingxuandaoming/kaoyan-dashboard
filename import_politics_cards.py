@@ -37,7 +37,7 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(SRC_DIR)
+ROOT_DIR = os.environ.get("NOTES_ROOT", r"E:\NPEE")   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 DB_PATH = os.path.join(SRC_DIR, "question_bank.db")
 SOURCE_GLOB = os.path.join(SRC_DIR, "flashcards", "source", "politics_*.json")
 

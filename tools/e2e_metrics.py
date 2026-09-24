@@ -5,7 +5,7 @@
 import io, json, os, shutil, subprocess, sys, time, urllib.request, urllib.error
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-SRC = r"E:\NPEE\src"
+SRC = r"E:\Project\kaoyan-dashboard\src"
 NODE = r"C:\Program Files\nodejs\node.exe"
 PORT = 18097
 DB = os.path.join(SRC, "question_bank.db")

@@ -35,11 +35,12 @@ if sys.platform == "win32":
 # ---------------------------------------------------------------------------
 
 _KAOYAN = r"E:\NPEE"
-GRAPH_DIR  = os.path.join(_KAOYAN, r"src\knowledge_graph")
-INDEX_PATH = os.path.join(_KAOYAN, "src", "笔记索引.yaml")
-PROGRESS_PATH = os.path.join(_KAOYAN, r"src\progress.json")
+_SRC = os.path.dirname(os.path.abspath(__file__))   # 代码根（2026-09-25 起与笔记库分离）
+GRAPH_DIR  = os.path.join(_SRC, "knowledge_graph")
+INDEX_PATH = os.path.join(_SRC, "笔记索引.yaml")
+PROGRESS_PATH = os.path.join(_SRC, "progress.json")
 # 英语题型判定要读闪卡答题记录（最客观的「练过」证据），所以这里也要连库
-DB_PATH = os.path.join(_KAOYAN, "src", "question_bank.db")
+DB_PATH = os.path.join(_SRC, "question_bank.db")
 
 # Map graph subject keys -> progress.json subject keys
 # 2026-09-19 起科目映射由 subjects.json 派生（subjects_conf.py），

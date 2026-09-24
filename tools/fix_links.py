@@ -24,7 +24,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-ROOT = Path(os.environ.get("NOTES_ROOT", str(Path(__file__).resolve().parent.parent))).resolve()
+ROOT = Path(os.environ.get("NOTES_ROOT", r"E:\NPEE")).resolve()   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 EXCLUDE_DIRS = {"tools", "PDF", ".git", "assets"}
 IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")

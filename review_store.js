@@ -24,7 +24,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+// 2026-09-25 代码/笔记分离：复盘数据仍在笔记库（E:\NPEE\Review），代码在项目根下。
+const ROOT = process.env.NOTES_ROOT || 'E:\\NPEE';
 const REVIEW_DIR = path.join(ROOT, 'Review');
 const SUBJECTS = ['408', '数学一', '政治', '英语一'];
 

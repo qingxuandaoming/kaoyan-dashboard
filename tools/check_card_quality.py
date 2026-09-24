@@ -38,7 +38,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 BASE_DIR = Path(r"E:\NPEE")
-DB_PATH = BASE_DIR / "src" / "question_bank.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "question_bank.db"   # 代码根（2026-09-25 起与笔记库分离）
 
 # 判定规则与出题侧的闸门共用 tools/card_quality.py（单一事实来源，避免口径漂移）
 sys.path.insert(0, str(Path(__file__).resolve().parent))

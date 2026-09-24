@@ -24,7 +24,7 @@ from pathlib import Path
 
 # ---------- 路径配置 ----------
 MATH_ROOT = Path(r"E:\NPEE\Math")
-CSS_PATH = Path(r"E:\NPEE\src\note_style.css")
+CSS_PATH = Path(r"E:\Project\kaoyan-dashboard\src\note_style.css")
 PDF_ROOT = MATH_ROOT / "pdf"
 
 # 各科目目录（章节笔记所在）

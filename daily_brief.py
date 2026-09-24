@@ -66,7 +66,7 @@ if sys.platform == "win32":
             pass
 
 BASE_DIR = Path(__file__).resolve().parent
-ROOT = BASE_DIR.parent
+ROOT = Path(os.environ.get("NOTES_ROOT", r"E:\NPEE"))   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 DB_PATH = Path(os.environ.get("DB_PATH") or (BASE_DIR / "question_bank.db"))
 SUBJECTS = ["408", "政治", "数学一", "英语一"]
 

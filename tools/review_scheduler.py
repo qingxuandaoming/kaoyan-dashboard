@@ -30,7 +30,7 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # 笔记根目录（默认=考研根：src/tools/ 的上两级；可用 NOTES_ROOT 覆盖）
-ROOT = Path(os.environ.get("NOTES_ROOT", str(Path(__file__).resolve().parent.parent.parent))).resolve()
+ROOT = Path(os.environ.get("NOTES_ROOT", r"E:\NPEE")).resolve()   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 
 # 复习间隔（天数）
 INTERVALS = {

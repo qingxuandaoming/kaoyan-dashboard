@@ -103,7 +103,10 @@ const DB_PATH = process.env.DB_PATH
   : path.join(__dirname, 'question_bank.db');
 const DASH_DATA_PATH = path.join(__dirname, 'dashboard_data.json');
 const NOTE_TOUCH_PATH = path.join(__dirname, 'note_reviews.json');
-const ROOT_DIR = path.resolve(__dirname, '..');   // 考研知识库根目录
+const CODE_ROOT = path.resolve(__dirname, '..');  // 项目根（2026-09-25 代码/笔记分离后 = E:\Project\kaoyan-dashboard）
+// 笔记库根：2026-09-25 起代码与笔记分离——代码在 E:\Project\kaoyan-dashboard，笔记仍在 E:\NPEE。
+// 可用环境变量 NOTES_ROOT 覆盖；笔记预览/插图/学科目录/复盘都以它为边界。
+const ROOT_DIR = process.env.NOTES_ROOT || 'E:\\NPEE';
 let targetedJob = null;   // 盘活出题任务（单任务串行）
 
 // 安全解析相对路径：必须落在根目录内且为 .md 文件
@@ -131,10 +134,18 @@ function resolveAssetPath(rel) {
   if (!rel || typeof rel !== 'string') return null;
   const decoded = decodeURIComponent(rel).replace(/\\/g, '/');
   if (decoded.includes('..')) return null;
-  const abs = path.resolve(ROOT_DIR, decoded);
-  if (!abs.startsWith(ROOT_DIR + path.sep)) return null;
-  if (!(path.extname(abs).toLowerCase() in IMG_MIME)) return null;
-  return abs;
+  // 2026-09-25 分离后：项目自带资产（src/assets/**，番茄钟背景等）在 CODE_ROOT 下，
+  // 笔记插图（408/DS/assets/** 等）与复盘会话图片在 ROOT_DIR（笔记库）下。两个根都试，
+  // 同样的越权防护；都不存在时返回第一个合法形态的 abs（让端点照旧回 404 而不是 400）。
+  let fallback = null;
+  for (const base of [CODE_ROOT, ROOT_DIR]) {
+    const abs = path.resolve(base, decoded);
+    if (!abs.toLowerCase().startsWith(base.toLowerCase() + path.sep)) continue;
+    if (!(path.extname(abs).toLowerCase() in IMG_MIME)) continue;
+    if (fs.existsSync(abs)) return abs;
+    if (!fallback) fallback = abs;
+  }
+  return fallback;
 }
 
 // ============================================================
@@ -4183,7 +4194,7 @@ const SECRETS_PATH = process.env.SECRETS_PATH
     return list.filter(pomoNameOk);
   };
   const readPomo = (get) => {
-    const images = rawPomoList(get).filter(p => fs.existsSync(path.join(ROOT_DIR, p)));
+    const images = rawPomoList(get).filter(p => fs.existsSync(path.join(CODE_ROOT, p)));
     const rawShow = String(get('pomo_bg_show', 'both'));
     return {
       images,
@@ -4202,7 +4213,7 @@ const SECRETS_PATH = process.env.SECRETS_PATH
     st.run('ui_pomo_bg', JSON.stringify(list));
   };
   const delPomoFile = (rel) => {
-    try { fs.unlinkSync(path.join(ROOT_DIR, rel)); return true; } catch (e) { return false; }
+    try { fs.unlinkSync(path.join(CODE_ROOT, rel)); return true; } catch (e) { return false; }
   };
 
   // ---- 番茄钟运行状态（2026-09-21 晚：从各设备 localStorage 搬到服务端）------

@@ -27,7 +27,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parent
-ROOT = SRC.parent
+ROOT = Path(os.environ.get("NOTES_ROOT", r"E:\NPEE"))   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 REVIEW = ROOT / "Review"
 OUT = REVIEW / "_patterns.json"
 

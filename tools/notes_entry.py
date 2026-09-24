@@ -60,6 +60,9 @@ if sys.platform == "win32":
     sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8", errors="replace")
 
 KAOYAN_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 2026-09-25 起代码根（KAOYAN_ROOT=项目根，src/tools 的上两级）与笔记库根分离：
+# --root Math 这类科目相对路径按笔记库根解析；md2pdf/build_index 仍按代码根找。
+NOTES_ROOT = os.environ.get("NOTES_ROOT", r"E:\NPEE")
 
 # 每个库的中控布局：hub 为独立文件，或 inline（索引写在科目文件内）
 LAYOUTS = {
@@ -224,7 +227,7 @@ def main():
                     help="入账后重建 PDF 与总索引")
     args = ap.parse_args()
 
-    root_abs = args.root if os.path.isabs(args.root) else os.path.join(KAOYAN_ROOT, args.root)
+    root_abs = args.root if os.path.isabs(args.root) else os.path.join(NOTES_ROOT, args.root)
     root_name = os.path.basename(root_abs.rstrip("\\/"))
     if not os.path.isdir(root_abs):
         sys.exit(f"[notes_entry] 库根目录不存在：{root_abs}")
@@ -298,7 +301,7 @@ def main():
     # ---------- 写入 ----------
     entries.append(record)
     write(json_path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
-    print(f"  JSON：{os.path.relpath(json_path, KAOYAN_ROOT)} 追加 1 条（{len(entries)} 条）")
+    print(f"  JSON：{os.path.relpath(json_path, NOTES_ROOT)} 追加 1 条（{len(entries)} 条）")
 
     for line in bump_hub(root_abs, layout, subject, record.get("chapter", ""), hub_line, day):
         print(line)

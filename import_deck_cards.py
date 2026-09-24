@@ -35,7 +35,7 @@ from import_politics_cards import make_ext_key, normalize_stem  # noqa: E402
 _STDIO_REFS = (sys.stdout, sys.stderr)   # 持有引用，防止被回收
 
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(SRC_DIR)
+ROOT_DIR = os.environ.get("NOTES_ROOT", r"E:\NPEE")   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
 DB_PATH = os.path.join(SRC_DIR, "question_bank.db")
 
 SOURCE_PREFIX = "deck:"
