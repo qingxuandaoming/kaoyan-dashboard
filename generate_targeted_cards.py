@@ -36,9 +36,10 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-BASE_DIR = Path(r"C:\Users\92534\Desktop\考研")
-DB_PATH = BASE_DIR / "src" / "question_bank.db"
-DASH_DATA = BASE_DIR / "src" / "dashboard_data.json"
+BASE_DIR = Path(r"E:\NPEE")
+SRC_DIR = Path(__file__).resolve().parent   # 代码根（2026-09-25 起与笔记库分离）
+DB_PATH = SRC_DIR / "question_bank.db"
+DASH_DATA = SRC_DIR / "dashboard_data.json"
 
 # 笔记目录 → topic 前缀（与 generate_dashboard.py 保持一致）
 NOTE_PREFIX_MAP = {
@@ -190,12 +191,23 @@ def collect_weak_topics(conn) -> list:
 
 
 def collect_uncovered_weighty(conn) -> list:
-    """高分考点但无卡片 → 验证卡候选（答对即证明掌握）。"""
+    """高分考点但无卡片 → 验证卡候选（答对即证明掌握）。
+
+    ⚠️ 两个踩过的坑，都让本函数静默返回空（"高权重未出卡"看起来像"已经全覆盖了"）：
+    1) 原来的 `t.id NOT IN (SELECT DISTINCT topic_id FROM questions)` 被 13 条
+       topic_id 为空的题污染——SQL 里 `x NOT IN (…NULL…)` 是 NULL 不是 true，
+       整个结果集直接清空；改成 NOT EXISTS（NULL 安全）。
+    2) 题目同时打在父考点和子考点上（父级 398 / 叶子 179），只比 `topic_id = t.id`
+       会把「树和二叉树」误判成没出卡，而它的子考点已有 10 道题——出卡任务会重复造卡。
+       所以连同子考点一起判，并且只取图谱粒度（三段）的考点。
+    """
     rows = conn.execute("""
         SELECT t.id, t.name, t.subject, t.exam_weight
         FROM topics t
         WHERE t.exam_weight >= 2
-          AND t.id NOT IN (SELECT DISTINCT topic_id FROM questions)
+          AND (length(t.id) - length(replace(t.id, '-', ''))) = 2
+          AND NOT EXISTS (SELECT 1 FROM questions q
+                          WHERE q.topic_id = t.id OR q.topic_id LIKE t.id || '-%')
         ORDER BY t.exam_weight DESC
         LIMIT 6
     """).fetchall()
@@ -266,7 +278,7 @@ def call_llm(prompt: str) -> str:
     if not bl_path:
         raise RuntimeError("未找到 bl CLI（bailian-cli），请先安装并登录")
 
-    msg_file = BASE_DIR / "src" / "_targeted_prompt.json"
+    msg_file = SRC_DIR / "_targeted_prompt.json"
     msg_file.write_text(
         json.dumps([{"role": "user", "content": prompt}], ensure_ascii=False),
         encoding="utf-8",
