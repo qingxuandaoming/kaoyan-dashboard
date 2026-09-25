@@ -14211,6 +14211,21 @@ RV_CSS = '''
         .rv-thumb { position: relative; }
         .rv-thumb img { width: 74px; height: 74px; object-fit: cover; display: block;
             border: 1px solid var(--border-color); border-radius: 4px; cursor: zoom-in; }
+        /* 划掉某页：✕ 常驻可见（平板没有 hover），删本地页图、原 PDF 不受影响 */
+        .rv-thumb-x { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px;
+            border: 0; border-radius: 4px; padding: 0; background: rgba(0,0,0,.62);
+            color: #fff; font-size: .68rem; line-height: 20px; text-align: center;
+            cursor: pointer; opacity: .85; }
+        .rv-thumb-x:hover { background: var(--zhusha); opacity: 1; }
+        /* PDF 原件不是图片（asset 端点只放行图片扩展名），画成文档徽标而不是 <img>，
+           否则每组页图末尾都会多一个裂图（2026-09-26 修的正是这个） */
+        .rv-thumb-doc { width: 74px; height: 74px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 3px;
+            border: 1px dashed var(--border-color); border-radius: 4px;
+            background: var(--bg-secondary); color: var(--text-muted); }
+        .rv-thumb-doc-ico { font-size: 1.15rem; opacity: .8; }
+        .rv-thumb-name { font-size: .56rem; max-width: 66px; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; }
         .rv-drop { margin-top: 9px; padding: 14px; text-align: center; font-size: .78rem;
             color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 6px; }
         .rv-drop.on { border-color: var(--dianqing); color: var(--dianqing-lt); }
@@ -14415,9 +14430,18 @@ RV_JS = '''
                 ? '<div class="rv-card"><div class="rv-card-h">' + esc(det.meta.title)
                     + '<span class="rv-tag">' + esc(det.meta.date) + ' · ' + esc(det.meta.subject) + '</span></div>'
                     + (files.length ? '<div class="rv-thumbs">' + files.map(f =>
-                        '<span class="rv-thumb"><img src="' + API + '/api/notes/asset?path='
-                        + encodeURIComponent(f.path) + '" alt="上传图" data-zoom="' + esc(f.path)
-                        + '" title="' + (f.kind === 'pdf-page' ? 'PDF 页（点击放大）' : '上传图（点击放大）') + '"></span>').join('')
+                        f.kind === 'pdf'
+                        ? '<span class="rv-thumb rv-thumb-doc" title="原 PDF 留存（不是图片，左侧页图才是转换结果）">'
+                          + '<span class="rv-thumb-doc-ico">📄</span><span class="rv-thumb-name">'
+                          + esc(String(f.path).split("/").pop()) + '</span></span>'
+                        : '<span class="rv-thumb"><img src="' + API + '/api/notes/asset?path='
+                          + encodeURIComponent(f.path) + '" alt="上传图" data-zoom="' + esc(f.path)
+                          + '" title="' + (f.kind === 'pdf-page' ? 'PDF 页（点击放大）' : '上传图（点击放大）') + '">'
+                          + (f.kind === 'pdf-page'
+                              ? '<button class="rv-thumb-x" data-xfile="' + esc(f.path)
+                                + '" title="划掉这页：从会话移除并删本地页图，原 PDF 不受影响">✕</button>'
+                              : '')
+                          + '</span>').join('')
                         + '</div>' : '')
                     // 已转换的 PDF 页可以反复引用：只传路径，服务端读盘，不必重传几 MB
                     + (files.filter(f => f.kind === 'pdf-page').length
@@ -14541,6 +14565,24 @@ RV_JS = '''
             pendSummary();
             toast("已引用 " + pages.length + " 页，发送时一并交给 AI");
         };
+        // 划掉某页（2026-09-26）：取消登记 + 删本地页图；待发引用里同步摘掉，
+        // 否则发送时会去读已删文件。原 PDF 不动，页图可随时重转。
+        document.querySelectorAll("#rv-mistakes [data-xfile]").forEach(b =>
+            b.onclick = async (e) => {
+                e.stopPropagation();
+                const p = b.dataset.xfile;
+                const name = String(p).split("/").pop();
+                if (!confirm("划掉 " + name + "？\\n该页图会从会话移除并删除本地文件；原 PDF 与已发送的记录不受影响。")) return;
+                try {
+                    const d = await post("/api/review/detach-file",
+                        { subject: M.subject, sid: M.sid, path: p, del: true });
+                    if (M.detail && M.detail.meta) M.detail.meta.files = d.files || [];
+                    M.pendingPdf = (M.pendingPdf || []).filter(x => x !== p);
+                    pendSummary();
+                    mRender();
+                    toast("已划掉 " + name);
+                } catch (e2) { toast("划掉失败：" + e2.message); }
+            });
         document.querySelectorAll("#rv-mistakes [data-zoom]").forEach(img =>
             img.onclick = () => window.open(API + "/api/notes/asset?path=" + encodeURIComponent(img.dataset.zoom), "_blank"));
     }

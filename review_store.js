@@ -188,6 +188,18 @@ function attachFile(subject, sid, relPath, kind) {
   return meta;
 }
 
+/** 取消登记上传文件（划掉某页 / 移除原件徽标）。只改 meta.files，不碰磁盘；
+ *  删本地文件由调用方（serve.js 的 detach-file 端点）在越权校验后自行 unlink。 */
+function detachFile(subject, sid, relPath) {
+  const dir = sessionDir(subject, sid);
+  const meta = readJson(path.join(dir, 'meta.json'), null);
+  if (!meta) throw new Error('会话不存在');
+  meta.files = (meta.files || []).filter(f => f.path !== relPath);
+  meta.updated_at = new Date().toISOString();
+  writeJson(path.join(dir, 'meta.json'), meta);
+  return meta;
+}
+
 function listSessions(subject) {
   if (subject && subject !== 'all') {
     if (!SUBJECTS.includes(subject)) return [];
@@ -221,7 +233,7 @@ function readPatterns() {
 
 module.exports = {
   REVIEW_DIR, ROOT, SUBJECTS,
-  createSession, loadSession, saveErrors, appendTurn, attachFile,
+  createSession, loadSession, saveErrors, appendTurn, attachFile, detachFile,
   listSessions, loadIndex, iterErrors, readPatterns, sessionDir, subjectDir,
   writeJson, readJson,
 };

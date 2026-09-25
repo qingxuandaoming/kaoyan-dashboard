@@ -3631,6 +3631,38 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // POST /api/review/detach-file {subject, sid, path, del?} —— 划掉一页页图（2026-09-26）
+  // 复盘页缩略图给每页 pdf-page 加了 ✕：从 meta.files 取消登记；del=true 时再删本地页图。
+  // 原 PDF 永远不删（页图可由它重转）；path 必须落在本会话内，del 还要求落在 uploads/ 内。
+  if (url === '/api/review/detach-file' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const p = JSON.parse(body || '{}');
+        const subject = String(p.subject || ''), sid = String(p.sid || ''), rel = String(p.path || '');
+        if (!subject || !sid || !rel) { sendJson(400, { ok: false, error: '需要 subject / sid / path' }); return; }
+        if (rel.includes('..')) { sendJson(400, { ok: false, error: 'path 非法' }); return; }
+        const sessPrefix = 'Review/' + subject + '/sessions/' + sid + '/';
+        if (rel.indexOf(sessPrefix) !== 0) { sendJson(400, { ok: false, error: 'path 不属于该会话' }); return; }
+        const meta = reviewStore.detachFile(subject, sid, rel);
+        let deleted = false;
+        if (p.del) {
+          const upPrefix = sessPrefix + 'uploads/';
+          if (rel.indexOf(upPrefix) !== 0) { sendJson(400, { ok: false, error: '只能删 uploads/ 内的文件' }); return; }
+          const abs = path.resolve(reviewStore.ROOT, rel);
+          const guard = path.resolve(reviewStore.ROOT, upPrefix) + path.sep;
+          if (abs.indexOf(guard) !== 0) { sendJson(400, { ok: false, error: 'path 越界' }); return; }
+          try { fs.unlinkSync(abs); deleted = true; }
+          catch (e) { if (e.code !== 'ENOENT') throw e; }
+        }
+        console.log(`[Review] 划掉 ${rel}${deleted ? '（已删本地文件）' : '（仅取消登记）'}`);
+        sendJson(200, { ok: true, files: meta.files || [], deleted });
+      } catch (e) { sendJson(500, { ok: false, error: e.message }); }
+    });
+    return;
+  }
+
   // POST /api/review/errors {subject, sid, errors[]}  —— 覆盖式保存结构化错题
   if (url === '/api/review/errors' && req.method === 'POST') {
     let body = '';
