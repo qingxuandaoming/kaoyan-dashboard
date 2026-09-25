@@ -15,7 +15,7 @@ daily_tasks.py — 每日任务的 agent 侧命令行（2026-09-14）
 
 典型用法（定时任务唤起 agent 后）：
 
-    cd C:/Users/92534/Desktop/考研/src
+    cd E:/Project/kaoyan-dashboard/src
     python daily_tasks.py context --date today          # 1. 读数据
     #   → 据此合成今天的任务，写到 /tmp/tasks.json
     python daily_tasks.py write --date today --tasks-file /tmp/tasks.json --replace
@@ -174,7 +174,7 @@ def review_hot_causes(per_subject=3):
     只读一个派生小文件（不遍历会话目录），文件不存在就返回空、不影响主流程。
     """
     path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Review", "_patterns.json")
+        os.environ.get("NOTES_ROOT", r"E:\NPEE"), "Review", "_patterns.json")
     if not os.path.isfile(path):
         return {}
     try:
@@ -228,6 +228,17 @@ def cmd_context(args):
     conn.close()
     y_done = [t["text"] for t in y_tasks if t["done"]]
 
+    # 决策简报（2026-09-19 加入）：上面这些字段只回答「布置过什么、练了几条」，
+    # 回答不了「错在哪、卡在哪、有没有载体、这条线是不是已经排过」。简报把五条
+    # 证据通道一次给全，任务必须能指回它的字段（详见 daily_brief.py 顶部说明）。
+    brief = None
+    if not args.no_brief:
+        try:
+            import daily_brief
+            brief = daily_brief.build_brief(d)
+        except Exception as e:                                 # noqa: BLE001
+            print(f"  WARN: 决策简报生成失败（{e}），本次只有旧字段可用", file=sys.stderr)
+
     payload = {
         "date": d,
         "yesterday": {
@@ -249,8 +260,19 @@ def cmd_context(args):
         #          | dismiss <id> --note … | delete <id> --note …
         "card_reports": card_reports(),
         "plan_goals": [] if args.no_plan else planner_goals(d),
+        # ⚠️ 决定任务怎么写的是下面这块，不是上面那些计数。
+        "brief": brief,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_brief(args):
+    """打印决策简报（人读 Markdown 或机器读 JSON）。"""
+    import daily_brief
+    d = resolve_date(args.date)
+    b = daily_brief.build_brief(d)
+    print(daily_brief.render_md(b) if args.md else json.dumps(b, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -425,7 +447,13 @@ def main():
     c.add_argument("--date", default="today")
     c.add_argument("--days", type=int, default=7, help="回看用户自加/删除的天数")
     c.add_argument("--no-plan", action="store_true", help="跳过 daily_planner（更快）")
+    c.add_argument("--no-brief", action="store_true", help="跳过决策简报（更快，但会退回到只有计数）")
     c.set_defaults(func=cmd_context)
+
+    b = sub.add_parser("brief", help="备考决策简报：五条证据通道合成候选池（--md 给人看）")
+    b.add_argument("--date", default="today")
+    b.add_argument("--md", action="store_true")
+    b.set_defaults(func=cmd_brief)
 
     w = sub.add_parser("write", help="写入 agent 生成的任务")
     w.add_argument("--date", default="today")
