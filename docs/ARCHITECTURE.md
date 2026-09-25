@@ -225,8 +225,11 @@ FLASH → REVIVE → NOTEQ → TASK → SETTINGS → POMO → SHELL → MR → R
 
 诚实记录，供后续决定是否偿还：
 
-1. **路径写死绝对路径**。启动脚本、多个 Python 模块里都是 `E:\Project\kaoyan-dashboard\src\...`。
-   仓库因此是「备份 / 版本控制」，不是可分发工程。
+1. ~~路径写死绝对路径~~ **已偿还（2026-09-25）**：路径单一事实源 `paths.py` / `paths.js` / `paths.json`——
+   代码根按 `__file__`/`__dirname` 推导，笔记根走 `NOTES_ROOT`（env > paths.json > 内置默认），
+   活跃代码零硬编码（`tools/check_metrics_drift.py` 的分离闸门把关）。仓库可整体搬动，
+   换机器只改 `paths.json`。残留例外：启动 .bat（天然要绝对路径）、`tools/408` 配图脚本、
+   废弃的飞书时代脚本与一次性脚本（都在闸门白名单里注明）。
 2. **顶层脚本平铺**。`src/` 下 ~60 个文件混着流水线、服务、导入导出、一次性脚本。
    由于 8 个自动化技能按 `src\xxx.py` 硬编码引用，**挪动他们会静默失效**，所以暂未重构。
 3. **`generate_dashboard.py` 单文件 1 万行**，前端全靠模板常量字符串拼接，没有构建步骤。

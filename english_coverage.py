@@ -254,7 +254,8 @@ if __name__ == "__main__":
     import json
     import sys
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    ROOT = r"E:\NPEE"
+    import paths
+    ROOT = paths.NOTES_ROOT
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "progress.json"), encoding="utf-8") as f:
         prog = json.load(f)
     rc = english_review_counts(os.path.join(os.path.dirname(os.path.abspath(__file__)), "question_bank.db"))

@@ -34,8 +34,9 @@ if sys.platform == "win32":
 # Configuration
 # ---------------------------------------------------------------------------
 
-_KAOYAN = r"E:\NPEE"
-_SRC = os.path.dirname(os.path.abspath(__file__))   # 代码根（2026-09-25 起与笔记库分离）
+import paths as _paths   # 路径单一事实源（代码根/笔记根分离）
+_KAOYAN = _paths.NOTES_ROOT
+_SRC = _paths.SRC_DIR
 GRAPH_DIR  = os.path.join(_SRC, "knowledge_graph")
 INDEX_PATH = os.path.join(_SRC, "笔记索引.yaml")
 PROGRESS_PATH = os.path.join(_SRC, "progress.json")

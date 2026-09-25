@@ -14,7 +14,7 @@ const os = require("os");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const ROOT = process.env.NOTES_ROOT || "E:\\NPEE";   // 笔记库根（2026-09-25 起与代码根分离）
+const ROOT = require("../paths").NOTES_ROOT;   // 笔记库根（路径单一事实源 paths.js）
 const GEN = path.join(__dirname, "..", "generate_dashboard.py");
 const OUT = path.join(os.tmpdir(), "kaoyan_revive_extracted.js");
 

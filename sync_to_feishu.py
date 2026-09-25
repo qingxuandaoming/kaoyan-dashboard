@@ -38,10 +38,11 @@ except ImportError:
 # Configuration
 # ---------------------------------------------------------------------------
 
-_KAOYAN = r"E:\NPEE"
-INDEX_PATH  = os.path.join(_KAOYAN, "笔记索引.yaml")
-STATE_PATH  = os.path.join(_KAOYAN, "sync_state.json")
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
+import paths as _paths   # 路径单一事实源
+_KAOYAN = _paths.NOTES_ROOT
+INDEX_PATH  = os.path.join(SCRIPT_DIR, "笔记索引.yaml")     # 修正：索引/状态实际都在 src/
+STATE_PATH  = os.path.join(SCRIPT_DIR, "sync_state.json")   #（旧实现误指笔记根；本模块已废弃，顺手修正）
 
 BITABLE_BASE_TOKEN = "IK92bxLZoa0pFysqYNzcwjANnLW"
 

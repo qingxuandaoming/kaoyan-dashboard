@@ -62,7 +62,9 @@ if sys.platform == "win32":
 KAOYAN_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 2026-09-25 起代码根（KAOYAN_ROOT=项目根，src/tools 的上两级）与笔记库根分离：
 # --root Math 这类科目相对路径按笔记库根解析；md2pdf/build_index 仍按代码根找。
-NOTES_ROOT = os.environ.get("NOTES_ROOT", r"E:\NPEE")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import paths as _paths_mod   # 路径单一事实源
+NOTES_ROOT = _paths_mod.NOTES_ROOT
 
 # 每个库的中控布局：hub 为独立文件，或 inline（索引写在科目文件内）
 LAYOUTS = {
@@ -322,10 +324,10 @@ def main():
             if p.endswith(".md") and os.path.exists(os.path.join(root_abs, p)):
                 targets.append(p)
         print(f"\n重建 PDF（CWD={root_name}）：{targets}")
-        subprocess.run([sys.executable, os.path.join(KAOYAN_ROOT, "src", "tools", "md2pdf.py"),
+        subprocess.run([sys.executable, os.path.join(_paths_mod.SRC_DIR, "tools", "md2pdf.py"),
                         *targets], cwd=root_abs, check=False)
         print("\n重建总索引 …")
-        subprocess.run([sys.executable, os.path.join(KAOYAN_ROOT, "src", "build_index.py")],
+        subprocess.run([sys.executable, os.path.join(_paths_mod.SRC_DIR, "build_index.py")],
                        cwd=KAOYAN_ROOT, check=False)
 
     print("\n完成。")

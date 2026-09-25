@@ -3,7 +3,7 @@
 r"""
 generate_dashboard.py — Local HTML Dashboard Generator
 
-Generates E:\Project\kaoyan-dashboard\src\dashboard.html — a single-file analytics dashboard
+Generates <this directory>/dashboard.html — a single-file analytics dashboard
 with inline D3.js visualizations for the 考研 study project.
 
 Usage:
@@ -46,8 +46,9 @@ except Exception as _e:                                   # noqa: BLE001
 # Configuration
 # ---------------------------------------------------------------------------
 
-BASE_DIR      = Path(r"E:\NPEE")
-SRC_DIR       = Path(__file__).resolve().parent   # 代码根（2026-09-25 起与笔记库 BASE_DIR 分离）
+import paths as _paths   # 路径单一事实源（代码根/笔记根分离）
+BASE_DIR      = Path(_paths.NOTES_ROOT)
+SRC_DIR       = Path(_paths.SRC_DIR)
 INDEX_PATH    = SRC_DIR / "笔记索引.yaml"
 GRAPH_DIR     = SRC_DIR / "knowledge_graph"
 DB_PATH       = SRC_DIR / "question_bank.db"

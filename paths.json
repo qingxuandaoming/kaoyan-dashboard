@@ -1,0 +1,1 @@
+{"_comment": "路径单一事实源（2026-09-25 代码/笔记分离后建立）。notes_root = 笔记库根目录。解析优先级：环境变量 NOTES_ROOT > 本文件 notes_root > paths.py/paths.js 内置默认。改完本文件后 serve.js 需重启（模块级缓存了笔记索引）。code_root/src_dir 由 paths 模块按 __file__ 推导，不在此配置。", "notes_root": "E:\\NPEE"}

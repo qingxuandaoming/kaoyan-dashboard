@@ -8,14 +8,19 @@
 口径散落在十来个脚本里，靠人发现不一致是不可持续的。本脚本把「注册表声明的值」
 与「源码里真正在用的值」逐条比对，不一致就报错并指出行号。
 
-三类检查
+五类检查
 --------
 1. **锚点对拍**：metrics_spec.json 里每个 metric 的 checks 给出 (文件, 正则, 期望值)，
-   实际取到的值与之不符 → DRIFT。
+   实际取到的值与之不符 → DRIFT。checks 里可带 expect 字段：覆盖条目 value，
+   用于「源码文本形态与最终值不同」的锚点（如 JS/JSON 里的双反斜杠转义）。
 2. **路径存在性**：kind="path_prefix" 的检查会把「笔记目录规则表」里的目录前缀
    拿到磁盘上验证，不存在 → MISSING-PATH（正是 translation&write 那个 bug）。
 3. **交叉一致**：可改项的 range 必须在 serve.js 的 RANGES 里与 spec 一致（否则设置页
    的输入范围与服务端校验会打架）。
+4. **分离闸门（2026-09-25）**：活跃 .py/.js 里不许硬编码笔记根或代码根的绝对路径——
+   路径单一事实源是 src/paths.py / paths.js / paths.json（env NOTES_ROOT > json > 内置默认）。
+   白名单：paths.* 自身、tools/408 配图脚本、废弃飞书时代与一次性脚本。
+5. **NOTES_ROOT 体检**：解析出的笔记根必须真实存在，且 Math/408/English/Politics 四个科目目录都在。
 
 用法
 ----
@@ -36,7 +41,9 @@ if sys.platform == "win32":
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.dirname(HERE)
-ROOT = os.environ.get("NOTES_ROOT", r"E:\NPEE")   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
+sys.path.insert(0, SRC)
+import paths  # 路径单一事实源
+ROOT = paths.NOTES_ROOT
 SPEC_PATH = os.path.join(SRC, "metrics_spec.json")
 
 MONTHS = None
@@ -100,6 +107,50 @@ def same(a, b):
 
 
 # ---------------------------------------------------------------------------
+# 分离闸门（2026-09-25 加）：活跃代码不许硬编码笔记根/代码根绝对路径。
+# 路径单一事实源 = paths.py / paths.js / paths.json。
+# ---------------------------------------------------------------------------
+GATE_SKIP_DIRS = {"node_modules", ".git", "__pycache__", "backups", "logs",
+                  "katex", "mermaid", "d3", "ts-fsrs", "Python"}
+GATE_ALLOW = re.compile(
+    r"(?:^paths\.(?:py|js)$"
+    r"|^tools/408/"
+    r"|_wk_|_patch_staging|_tmp_|_fix_regex|_patch_insert|20260913"
+    r"|inspect_db\.js$|inspect_q\.js$|latexify_math_cards"
+    r"|fix_flashcards_2026|fix_ascii_math_cards"
+    r"|^populate_questions\.py$|^insert_questions\.py$|^read_temp\.py$"
+    r"|^rebuild_bitable\.py$|^rebuild_feishu_docs\.py$"
+    r"|^import_docs_to_feishu\.py$|^link_docs_to_bitable\.py$"
+    r"|^test-volcano\.js$)")
+GATE_LITERAL = re.compile(r"E:[/\\]+(?:NPEE|Project[/\\]+kaoyan-dashboard)", re.I)
+
+
+def check_hardcoded_paths():
+    """扫活跃 .py/.js（跳过纯注释行）：还有笔记根/代码根绝对路径字面量 → 违规。"""
+    hits = []
+    for dp, dn, fn in os.walk(SRC):
+        dn[:] = [d for d in dn if d not in GATE_SKIP_DIRS]
+        for f in fn:
+            if os.path.splitext(f)[1].lower() not in (".py", ".js"):
+                continue
+            rel = os.path.relpath(os.path.join(dp, f), SRC).replace("\\", "/")
+            if GATE_ALLOW.search(rel):
+                continue
+            try:
+                with open(os.path.join(dp, f), encoding="utf-8", errors="ignore") as fh:
+                    lines = fh.read().splitlines()
+            except OSError:
+                continue
+            for i, ln in enumerate(lines, 1):
+                t = ln.strip()
+                if t.startswith("#") or t.startswith("//") or t.startswith("*"):
+                    continue
+                if GATE_LITERAL.search(ln):
+                    hits.append((rel, i, t[:110]))
+    return hits
+
+
+# ---------------------------------------------------------------------------
 # 主流程
 # ---------------------------------------------------------------------------
 def main():
@@ -138,7 +189,7 @@ def main():
                 continue
 
             actual, ln = extract(lines, ch)
-            want = expected_value(m, ch)
+            want = ch["expect"] if "expect" in ch else expected_value(m, ch)
             if actual is None:
                 drifts.append((mid, rel, 0, "源码里找不到锚点", want, None))
             elif same(actual, want):
@@ -167,6 +218,18 @@ def main():
                 drifts.append((m["id"], "serve.js", 0, [lo, hi], list(m["range"]), ""))
             else:
                 oks.append((m["id"], "serve.js", 0, m["range"], "与 RANGES 一致"))
+
+    # ③ 分离闸门：活跃代码不许硬编码笔记根/代码根绝对路径（单一事实源 = paths.*）
+    for rel, i, t in check_hardcoded_paths():
+        drifts.append(("paths.hardcode_gate", rel, i, t, "应改用 paths.NOTES_ROOT / paths.SRC_DIR", ""))
+
+    # ④ NOTES_ROOT 体检：真实存在 + 四个科目目录都在
+    if not os.path.isdir(paths.NOTES_ROOT):
+        drifts.append(("paths.notes_root", "paths.json", 0, paths.NOTES_ROOT, "笔记根目录不存在", ""))
+    else:
+        for sub in ("Math", "408", "English", "Politics"):
+            if not os.path.isdir(os.path.join(paths.NOTES_ROOT, sub)):
+                missing.append(("paths.notes_root", "paths.json", 0, sub, "科目目录缺失", ""))
 
     # ---- 报告 ----
     print("=" * 76)

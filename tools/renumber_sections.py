@@ -15,7 +15,9 @@ import os, re, sys, json
 
 APPLY = "--apply" in sys.argv
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.join(os.environ.get("NOTES_ROOT", r"E:\NPEE"), "Math")   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
+sys.path.insert(0, os.path.dirname(HERE))
+import paths as _paths   # 路径单一事实源
+ROOT = os.path.join(_paths.NOTES_ROOT, "Math")
 GS = os.path.join(ROOT, "高数")
 
 # ---------- 讲文件与 ## 级映射（按文件内出现顺序，编号连续） ----------

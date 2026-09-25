@@ -12,12 +12,25 @@
 
 ---
 
+## 布局与路径（2026-09-25 代码/笔记分离）
+
+- **代码根**：本仓库（`E:\Project\kaoyan-dashboard\src`）；项目根下另有 `app/`（Flutter 客户端）与 `assets/`（图标）。
+- **笔记根**：`E:\NPEE`（Math/408/English/Politics 各 Obsidian 库 + Review/Schedule 数据）。
+- **路径单一事实源**：`src/paths.py`（Python）/ `src/paths.js`（JS）/ `src/paths.json`（配置）。
+  笔记根解析顺序：环境变量 `NOTES_ROOT` > `paths.json` 的 `notes_root` > 内置默认；
+  代码根一律按 `__file__`/`__dirname` 推导 —— **整个项目可整体搬动，换机器只改 `paths.json` 一处**。
+- **活跃代码禁止硬编码笔记根/代码根绝对路径**：`python tools\check_metrics_drift.py` 的「分离闸门」会抓。
+- `E:\NPEE\src` 是指向本仓库 src 的目录联接（junction），为兼容 Flutter app 与笔记侧旧脚本保留，**新代码不要依赖**。
+- 改 `paths.json` 或笔记结构后要重启 serve.js（它模块级缓存了笔记索引）。
+
+---
+
 ## 快速开始
 
 ### 一键启动（推荐）
 
 ```
-双击  考研\启动考研大盘.bat
+双击桌面「改造我们的学习」快捷方式（或项目根 E:\Project\kaoyan-dashboard\启动考研大盘.bat）
 ```
 
 它会依次：跑数据流水线 → 起本地服务 → 用**实际端口**打开浏览器。
@@ -28,6 +41,9 @@
 ### 手动启动
 
 ```bat
+:: 0) 先进项目根（含 src\ 与 app\ 的目录）
+cd /d E:\Project\kaoyan-dashboard
+
 :: 1) 刷新索引与大盘（只刷数据，不排计划）
 python src\run_pipeline.py --no-plan
 

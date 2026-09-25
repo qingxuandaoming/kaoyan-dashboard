@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-SRC = r"E:\Project\kaoyan-dashboard\src"
+SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 代码根（__file__ 推导，不硬编码）
 NODE = r"C:\Program Files\nodejs\node.exe"
 PORT = 18097
 COPY = os.path.join(SRC, "tools", "_e2e_mr_copy.db")

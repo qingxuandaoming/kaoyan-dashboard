@@ -27,8 +27,10 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-SRC = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.environ.get("NOTES_ROOT", r"E:\NPEE")   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
+import paths  # 路径单一事实源
+
+SRC = paths.SRC_DIR
+ROOT = paths.NOTES_ROOT
 PROGRESS = os.path.join(SRC, "progress.json")
 DASHBOARD = os.path.join(SRC, "dashboard.html")
 

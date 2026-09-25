@@ -36,8 +36,9 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-BASE_DIR = Path(r"E:\NPEE")
-SRC_DIR = Path(__file__).resolve().parent   # 代码根（2026-09-25 起与笔记库分离）
+import paths as _paths   # 路径单一事实源
+BASE_DIR = Path(_paths.NOTES_ROOT)
+SRC_DIR = Path(_paths.SRC_DIR)
 DB_PATH = SRC_DIR / "question_bank.db"
 DASH_DATA = SRC_DIR / "dashboard_data.json"
 

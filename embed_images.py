@@ -22,7 +22,8 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-KAOYAN = r"E:\NPEE"
+import paths  # 路径单一事实源
+KAOYAN = paths.NOTES_ROOT
 STATE_PATH = os.path.join(KAOYAN, "feishu_docs_state.json")
 
 node_exe = shutil.which("node")

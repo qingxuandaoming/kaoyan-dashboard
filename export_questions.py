@@ -26,7 +26,9 @@ import sqlite3
 from typing import Dict, List, Optional, Tuple
 
 
-DB_PATH = "E:/Project/kaoyan-dashboard/src/question_bank.db"
+import paths as _paths   # 路径单一事实源
+
+DB_PATH = _paths.SRC_DIR + "/question_bank.db"
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +204,7 @@ def get_all(
 # JSON export convenience
 # ---------------------------------------------------------------------------
 def export_to_json(
-    output_path: str = "E:/Project/kaoyan-dashboard/src/question_data.json",
+    output_path: str = _paths.SRC_DIR + "/question_data.json",
     db_path: str = DB_PATH,
 ) -> str:
     """
@@ -240,7 +242,7 @@ if __name__ == "__main__":
     import sys
 
     db = DB_PATH
-    out = "E:/Project/kaoyan-dashboard/src/question_data.json"
+    out = _paths.SRC_DIR + "/question_data.json"
 
     if len(sys.argv) > 1:
         db = sys.argv[1]

@@ -25,7 +25,8 @@ CONF_PATH = os.path.join(HERE, "subjects.json")
 TEMPLATES_PATH = os.path.join(HERE, "subjects_templates.json")
 PROGRESS_PATH = os.path.join(HERE, "progress.json")
 GRAPH_DIR = os.path.join(HERE, "knowledge_graph")
-ROOT_DIR = os.environ.get("NOTES_ROOT", r"E:\NPEE")   # 笔记库根（2026-09-25 起与代码根分离；笔记科目目录在这里面）
+import paths as _paths   # 路径单一事实源
+ROOT_DIR = _paths.NOTES_ROOT   # 笔记库根（笔记科目目录在这里面）
 
 CONF_VERSION = 1
 

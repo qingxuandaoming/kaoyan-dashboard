@@ -28,6 +28,8 @@ import os
 import sqlite3
 import sys
 import time
+
+import paths as _paths   # 路径单一事实源
 from collections import Counter, defaultdict
 
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -228,7 +230,7 @@ def build_report(conn, gtc, days):
     # 这是错题复盘页攒出来的热数据：学生真实栽过、且还没出卡的点。
     # 补卡时它比「权重高但没错过」更该优先——那是已经证明会丢分的地方。
     # 只读一个小的派生文件，不去遍历会话目录，避免报告随数据量线性变慢。
-    pat_path = os.path.join(os.environ.get("NOTES_ROOT", r"E:\NPEE"), "Review", "_patterns.json")
+    pat_path = os.path.join(_paths.NOTES_ROOT, "Review", "_patterns.json")
     r["review_patterns"] = {"generated_at": None, "suggestions": []}
     if os.path.isfile(pat_path):
         try:

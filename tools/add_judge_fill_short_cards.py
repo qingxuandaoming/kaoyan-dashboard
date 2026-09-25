@@ -33,7 +33,9 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-BASE_DIR = Path(r"E:\NPEE")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import paths as _paths   # 路径单一事实源
+BASE_DIR = Path(_paths.NOTES_ROOT)
 DB_PATH = Path(__file__).resolve().parent.parent / "question_bank.db"   # 代码根（2026-09-25 起与笔记库分离）
 TODAY = date.today().isoformat()
 SOURCE = f"判断填空简答-{TODAY}"

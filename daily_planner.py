@@ -3,7 +3,7 @@
 """
 daily_planner.py -- Adaptive daily study plan generator for 考研 2026
 
-Generates a markdown daily plan at E:/NPEE/schedule/daily/plan_YYYY-MM-DD.md
+Generates a markdown daily plan at <NOTES_ROOT>/Schedule/daily/plan_YYYY-MM-DD.md
 based on knowledge graphs, notes index, question bank, and FSRS card data.
 
 Usage:
@@ -44,13 +44,15 @@ if sys.platform == "win32":
 # Constants
 # ---------------------------------------------------------------------------
 EXAM_DATE = date(2026, 12, 19)
-KNOWLEDGE_GRAPH_DIR = "E:/Project/kaoyan-dashboard/src/knowledge_graph"
-NOTES_INDEX_PATH = "E:/Project/kaoyan-dashboard/src/笔记索引.yaml"
-QUESTION_BANK_PATH = "E:/Project/kaoyan-dashboard/src/question_bank.db"
-DAILY_PLAN_DIR = "E:/NPEE/schedule/daily"
-SYNC_STATE_PATH = "E:/Project/kaoyan-dashboard/src/sync_state.json"
-PROGRESS_PATH = "E:/Project/kaoyan-dashboard/src/progress.json"
-FLASHCARD_SYNC_PATH = "E:/Project/kaoyan-dashboard/src/flashcard_session_export.json"
+import paths as _paths   # 路径单一事实源（代码根=本仓库 src/，笔记根=NOTES_ROOT）
+
+KNOWLEDGE_GRAPH_DIR = os.path.join(_paths.SRC_DIR, "knowledge_graph")
+NOTES_INDEX_PATH = os.path.join(_paths.SRC_DIR, "笔记索引.yaml")
+QUESTION_BANK_PATH = os.path.join(_paths.SRC_DIR, "question_bank.db")
+DAILY_PLAN_DIR = os.path.join(_paths.NOTES_ROOT, "Schedule", "daily")
+SYNC_STATE_PATH = os.path.join(_paths.SRC_DIR, "sync_state.json")
+PROGRESS_PATH = os.path.join(_paths.SRC_DIR, "progress.json")
+FLASHCARD_SYNC_PATH = os.path.join(_paths.SRC_DIR, "flashcard_session_export.json")
 
 # 2026-09-19 起科目映射由 subjects.json 派生（subjects_conf.py），
 # 与 serve.js / generate_dashboard.py / gap_analysis.py 同口径，改学科只动配置文件。

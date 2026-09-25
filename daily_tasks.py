@@ -15,7 +15,7 @@ daily_tasks.py — 每日任务的 agent 侧命令行（2026-09-14）
 
 典型用法（定时任务唤起 agent 后）：
 
-    cd E:/Project/kaoyan-dashboard/src
+    cd <本仓库 src 目录>
     python daily_tasks.py context --date today          # 1. 读数据
     #   → 据此合成今天的任务，写到 /tmp/tasks.json
     python daily_tasks.py write --date today --tasks-file /tmp/tasks.json --replace
@@ -41,7 +41,8 @@ if sys.platform == "win32":
         except (AttributeError, ValueError):
             pass
 
-BASE_DIR = Path(__file__).resolve().parent
+import paths  # 路径单一事实源
+BASE_DIR = Path(paths.SRC_DIR)
 DB_PATH = Path(os.environ.get("DB_PATH") or (BASE_DIR / "question_bank.db"))
 
 SUBJECTS = ["408", "政治", "数学一", "英语一"]
@@ -174,7 +175,7 @@ def review_hot_causes(per_subject=3):
     只读一个派生小文件（不遍历会话目录），文件不存在就返回空、不影响主流程。
     """
     path = os.path.join(
-        os.environ.get("NOTES_ROOT", r"E:\NPEE"), "Review", "_patterns.json")
+        paths.NOTES_ROOT, "Review", "_patterns.json")
     if not os.path.isfile(path):
         return {}
     try:

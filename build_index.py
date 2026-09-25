@@ -25,7 +25,8 @@ if sys.platform == "win32":
 # Configuration
 # ---------------------------------------------------------------------------
 
-_BASE = r"E:\NPEE"
+import paths  # 路径单一事实源（代码根/笔记根，见 paths.py）
+_BASE = paths.NOTES_ROOT
 
 DRAFT_FILES = {
     "高数": os.path.join(_BASE, r"Math\高数\高数 notes.md"),

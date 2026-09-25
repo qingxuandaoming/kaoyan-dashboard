@@ -6,16 +6,18 @@ Reads the schema from schema.sql and creates all tables and indexes.
 Usage::
 
     python init_db.py
-    python init_db.py --path E:/Project/kaoyan-dashboard/src/question_bank.db
+    python init_db.py --path <任意目录>/question_bank.db
 """
 
 import os
 import sqlite3
 import sys
 
+import paths as _paths   # 路径单一事实源
 
-def init_db(db_path: str = "E:/Project/kaoyan-dashboard/src/question_bank.db",
-            schema_path: str = "E:/Project/kaoyan-dashboard/src/schema.sql") -> None:
+
+def init_db(db_path: str = _paths.SRC_DIR + "/question_bank.db",
+            schema_path: str = _paths.SRC_DIR + "/schema.sql") -> None:
     """
     Initialise the database schema and create all tables.
 
@@ -47,7 +49,7 @@ def init_db(db_path: str = "E:/Project/kaoyan-dashboard/src/question_bank.db",
 
 
 if __name__ == "__main__":
-    path = "E:/Project/kaoyan-dashboard/src/question_bank.db"
+    path = _paths.SRC_DIR + "/question_bank.db"
     if len(sys.argv) > 1 and sys.argv[1] == "--path":
         path = sys.argv[2]
     init_db(db_path=path)

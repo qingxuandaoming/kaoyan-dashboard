@@ -812,6 +812,43 @@
       "used_by": [
         "weekly_flashcard_report"
       ]
+    },
+    {
+      "id": "paths.notes_root",
+      "title": "笔记库根（NOTES_ROOT）",
+      "scope": "fixed",
+      "editable": false,
+      "value": "E:\\NPEE",
+      "unit": "",
+      "desc": "2026-09-25 代码/笔记分离后的笔记库根单一事实源：src/paths.py（Python）与 src/paths.js（JS），解析顺序「环境变量 NOTES_ROOT > src/paths.json 的 notes_root > 内置默认」。活跃代码禁止硬编码笔记根/代码根绝对路径（tools/check_metrics_drift.py 的分离闸门会抓）。改 paths.json 后 serve.js 需重启。",
+      "source": "src/paths.py / src/paths.js / src/paths.json",
+      "used_by": [
+        "serve.js",
+        "review_store.js",
+        "全部管道脚本与工具"
+      ],
+      "checks": [
+        {
+          "file": "paths.py",
+          "regex": "DEFAULT_NOTES_ROOT = r\"([^\"]+)\"",
+          "capture": 1,
+          "kind": "str"
+        },
+        {
+          "file": "paths.js",
+          "regex": "DEFAULT_NOTES_ROOT = '([^']+)'",
+          "capture": 1,
+          "kind": "str",
+          "expect": "E:\\\\NPEE"
+        },
+        {
+          "file": "paths.json",
+          "regex": "\"notes_root\":\\s*\"([^\"]+)\"",
+          "capture": 1,
+          "kind": "str",
+          "expect": "E:\\\\NPEE"
+        }
+      ]
     }
   ]
 }

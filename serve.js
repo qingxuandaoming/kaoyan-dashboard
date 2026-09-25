@@ -103,10 +103,9 @@ const DB_PATH = process.env.DB_PATH
   : path.join(__dirname, 'question_bank.db');
 const DASH_DATA_PATH = path.join(__dirname, 'dashboard_data.json');
 const NOTE_TOUCH_PATH = path.join(__dirname, 'note_reviews.json');
-const CODE_ROOT = path.resolve(__dirname, '..');  // 项目根（2026-09-25 代码/笔记分离后 = E:\Project\kaoyan-dashboard）
-// 笔记库根：2026-09-25 起代码与笔记分离——代码在 E:\Project\kaoyan-dashboard，笔记仍在 E:\NPEE。
-// 可用环境变量 NOTES_ROOT 覆盖；笔记预览/插图/学科目录/复盘都以它为边界。
-const ROOT_DIR = process.env.NOTES_ROOT || 'E:\\NPEE';
+const PATHS = require('./paths');   // 路径单一事实源：env NOTES_ROOT > src/paths.json > 内置默认
+const CODE_ROOT = PATHS.CODE_ROOT;  // 项目根（src 的上级；番茄钟背景图清单按它解析）
+const ROOT_DIR = PATHS.NOTES_ROOT;  // 笔记库根；笔记预览/插图/学科目录/复盘都以它为边界
 let targetedJob = null;   // 盘活出题任务（单任务串行）
 
 // 安全解析相对路径：必须落在根目录内且为 .md 文件

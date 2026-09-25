@@ -29,8 +29,10 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-# 笔记根目录（默认=考研根：src/tools/ 的上两级；可用 NOTES_ROOT 覆盖）
-ROOT = Path(os.environ.get("NOTES_ROOT", r"E:\NPEE")).resolve()   # 笔记库根（2026-09-25 起与代码根分离，可用环境变量 NOTES_ROOT 覆盖）
+# 笔记根目录：单一事实源 paths.NOTES_ROOT（env NOTES_ROOT > src/paths.json > 默认）
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import paths as _paths
+ROOT = Path(_paths.NOTES_ROOT).resolve()
 
 # 复习间隔（天数）
 INTERVALS = {
