@@ -67,6 +67,12 @@ tools/_wk_*.py
 tools/_wk_out/
 __pycache__/
 
+# ---------- 运行日志与本机内嵌运行时（不入库）----------
+#   logs/ 是 serve.js 的运行日志（request.log 会轮转出 .1 后缀，*.log 规则罩不住）
+#   tools/Python/ 是装在工具目录里的内嵌 CPython 3.14 运行时（2700+ 文件）
+logs/
+tools/Python/
+
 # ---------- 系统 / 编辑器垃圾 ----------
 Thumbs.db
 ehthumbs.db
