@@ -23,15 +23,20 @@ import md2pdf  # noqa: E402
 IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
-FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
+FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")  # CommonMark 允许围栏前最多 3 空格缩进
+INLINE_CODE_RE = re.compile(r"`+[^`]*`+")
 
 
 def slugify(t: str) -> str:
-    """近似 GitHub/Obsidian 锚点规则（与 fix_anchors.py 约定一致：连续连字符合并）。
-    首尾连字符规范化去除（emoji 开头的标题不会产生前导 -）。"""
+    """锚点 slug 规则——必须与渲染真值 md2pdf._slugify 完全一致（连续连字符合并）。
+
+    注意：**不做首尾连字符剥离**。emoji 开头的标题是模板惯例（如 `#### 🔥 核心概念辨析：…`），
+    剥掉 emoji 后留下的前导空格会转成 `-`，渲染器会**保留**这个前导 `-`。
+    早期此处多了一句 .strip("-")，导致对 emoji 标题既误报（假阳性）又漏报（假阴性）。
+    """
     t = t.strip().lower()
     t = re.sub(r"[^\w一-鿿\- ]", "", t)
-    return re.sub(r"-+", "-", t.replace(" ", "-")).strip("-")
+    return re.sub(r"-+", "-", t.replace(" ", "-"))
 
 
 def split_code(lines):
@@ -60,6 +65,9 @@ def check_inline_math(lines, in_code):
     for i, s in enumerate(lines):
         if in_code[i] or "$$" in s:
             continue
+        # 行内代码 `...` 内的 $ 不参与配对（markdown-it 数学插件同样跳过代码 span）。
+        # 不剥离会让 MIPS/RISC-V 寄存器 `$ra`、汇编 `movq $0x10, %rax` 等大量假阳性。
+        s = INLINE_CODE_RE.sub(lambda m: " " * len(m.group(0)), s)
         pos = [j for j, ch in enumerate(s) if ch == "$"]
         keep, k = [], 0
         while k < len(pos):  # 剥离 $$ 显示数学的相邻美元符
