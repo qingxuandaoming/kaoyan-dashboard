@@ -7,12 +7,12 @@
     "days": 23,
     "first_date": "2026-06-19",
     "last_date": "2026-09-30",
-    "review_items": 87,
-    "quiz_items_unused": 73,
+    "review_items": 93,
+    "quiz_items_unused": 79,
     "english_days": 9,
     "flashcard_cards": 30,
     "flashcard_start_date": "2026-07-07",
-    "math_items": 36,
+    "math_items": 39,
     "note": ""
   },
   "days": {
@@ -33,7 +33,7 @@
           "conclusion": "关键规则：短码不能是长码的前缀（霍夫曼编码思想），否则译码歧义。",
           "noteLink": {
             "name": "第4章_指令系统.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第4章_指令系统.md"
+            "path": "E:/NPEE/408/CO/第4章_指令系统.md"
           }
         },
         {
@@ -52,7 +52,7 @@
           "conclusion": "本质区别：隐指令是硬件自动执行的微操作序列，中断服务程序是软件编写的可执行程序。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -66,7 +66,7 @@
           "conclusion": "",
           "noteLink": {
             "name": "第4章_指令系统.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第4章_指令系统.md"
+            "path": "E:/NPEE/408/CO/第4章_指令系统.md"
           }
         },
         {
@@ -80,7 +80,7 @@
           "conclusion": "曼彻斯特编码中点必跳变，自带时钟，效率50%。差分曼彻斯特以开始处跳变表示0。",
           "noteLink": {
             "name": "第2章_物理层.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CN/第2章_物理层.md"
+            "path": "E:/NPEE/408/CN/第2章_物理层.md"
           }
         },
         {
@@ -94,7 +94,7 @@
           "conclusion": "整个集线器是一个单一的冲突域，所有端口共享带宽。",
           "noteLink": {
             "name": "第2章_物理层.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CN/第2章_物理层.md"
+            "path": "E:/NPEE/408/CN/第2章_物理层.md"
           }
         }
       ],
@@ -105,7 +105,7 @@
           "answer": "短操作码若作为长操作码的前缀，译码器在读取前缀时无法判断该停止译码（短码）还是继续读取后续位（长码），导致<strong>译码歧义</strong>。后果是指令译码不唯一，CPU无法正确识别指令。",
           "noteLink": {
             "name": "第4章_指令系统.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第4章_指令系统.md"
+            "path": "E:/NPEE/408/CO/第4章_指令系统.md"
           }
         },
         {
@@ -114,7 +114,7 @@
           "answer": "\"隐\"体现在：① 它不是指令系统中的真实指令，<strong>没有操作码</strong>；② 由<strong>硬件自动完成</strong>，不是软件执行。根本区别：中断隐指令是硬件在中断响应周期自动执行的微操作序列（关中断+保存断点+转服务程序），而中断服务程序是软件程序员编写的、存放在内存中的可执行程序。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -123,7 +123,7 @@
           "answer": "会发生<strong>冲突（collision）</strong>。集线器是物理层设备，本质是多口中继器，收到比特后向<strong>所有其他端口广播</strong>。两台主机同时发送时，电信号在集线器内部叠加，导致冲突域内所有节点检测到冲突。整个集线器是一个<strong>单一的冲突域</strong>。",
           "noteLink": {
             "name": "第2章_物理层.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CN/第2章_物理层.md"
+            "path": "E:/NPEE/408/CN/第2章_物理层.md"
           }
         },
         {
@@ -132,7 +132,7 @@
           "answer": "优势：曼彻斯特编码每位中点都有跳变，可以<strong>自带时钟信号</strong>，实现收发双方的自同步，无需额外传输时钟线。代价：编码效率只有 <strong>50%</strong>（每位需要两个电平状态），带宽开销加倍。",
           "noteLink": {
             "name": "第2章_物理层.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CN/第2章_物理层.md"
+            "path": "E:/NPEE/408/CN/第2章_物理层.md"
           }
         }
       ],
@@ -203,7 +203,7 @@
         ],
         "noteLink": {
           "name": "长难句笔记.md",
-          "path": "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md"
+          "path": "E:/NPEE/English/grammar/长难句笔记.md"
         }
       }
     },
@@ -224,7 +224,7 @@
           "conclusion": "易错点：AU 只是 ALU 的'一半'，不是同一概念；CU 属于控制器，不属于运算器。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -238,7 +238,7 @@
           "conclusion": "MUX 选择'用哪个数据'，译码器决定'该做什么'。MUX 输出数据，译码器输出控制信号（独热码）。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -252,7 +252,7 @@
           "conclusion": "取指周期：PC → MAR → 内存 → MDR → IR。PC 自动增量，IR 供译码使用。MAR/MDR 用户不可见。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -266,7 +266,7 @@
           "conclusion": "Cache 扩展的是速度，不是容量。虚拟存储器扩展的才是容量。2016 真题缺失率 = 12.5%（不是 25%）。",
           "noteLink": {
             "name": "CO notes.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/CO notes.md"
+            "path": "E:/NPEE/408/CO/CO notes.md"
           }
         },
         {
@@ -280,7 +280,7 @@
           "conclusion": "页框号必须相同（同一物理页），页号可以不同（各进程独立）。页表是进程私有的，虚拟地址互不干扰。",
           "noteLink": {
             "name": "第3章_内存管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md"
+            "path": "E:/NPEE/408/OS/第3章_内存管理.md"
           }
         }
       ],
@@ -291,7 +291,7 @@
           "answer": "<strong>ALU = AU + LU</strong>。AU（算术单元）和 LU（逻辑单元）是 ALU 的<strong>同级并列子部件</strong>，AU 负责算术运算（加减乘除），LU 负责逻辑运算（与或非异或）。CU（Control Unit，控制单元）属于<strong>控制器</strong>，不属于运算器。ALU 和 CU 是 CPU 的两大核心部件。易错点：'AU 就是 ALU' ❌；'ALU 属于控制器' ❌；'CU 是运算器的一部分' ❌。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -300,7 +300,7 @@
           "answer": "<strong>MUX 是'数据开关'</strong>：多路输入数据中选1路输出，由选择控制信号决定选哪一路（如 ALU 输入来源选择）。<strong>译码器是'指挥棒'</strong>：将 n 位编码转换为 2^n 路控制信号中'激活一路'（独热码），告诉系统接下来该做什么（如指令译码、寄存器选择）。MUX 输出的是<strong>数据</strong>，译码器输出的是<strong>控制信号</strong>。两者互补：译码器决定'该做什么'，MUX 根据控制信号选择'用哪个数据'。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -309,7 +309,7 @@
           "answer": "<strong>PC 保存下一条指令的地址</strong>（Program Counter），<strong>IR 保存当前正在执行的指令内容</strong>（操作码+地址码）。<strong>取指周期：</strong>PC → MAR → 内存 → MDR → IR，PC 自动增量。<strong>MAR/MDR 用户不可见</strong>是因为它们是 CPU 内部数据通路的'收发窗口'，由硬件自动操作，程序员无法通过汇编指令直接访问。用户可见寄存器（PC、SP、PSW、通用寄存器）是 ISA 规定的编程接口。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -318,7 +318,7 @@
           "answer": "<strong>总容量 = 主存容量</strong>，Cache 容量<strong>不计入</strong>。Cache 存放的是主存活跃块的<strong>副本</strong>，不是独立新增空间，对 CPU 完全透明，没有独立地址编码。<strong>2016 真题缺失率 = 12.5%</strong>：每块 16B 放 4 个 int，每块 8 次访存（4 元素×读+写），每块仅第一次读缺失，总缺失率 = 250/2000 = 12.5%。错选 25% 的原因：忽略了写操作，误把总访存次数算成 1000 次。",
           "noteLink": {
             "name": "CO notes.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/CO notes.md"
+            "path": "E:/NPEE/408/CO/CO notes.md"
           }
         },
         {
@@ -327,7 +327,7 @@
           "answer": "<strong>页框号必须相同，页号可以不同。</strong>页号是虚拟地址空间的概念，每个进程有独立的页表，虚拟地址互不干扰；页框号是物理地址空间的概念，共享数据必须指向同一块物理内存。操作系统将不同的虚拟页映射到同一个物理页框，实现共享。例如：进程 A 虚拟页 5 → 页框 100，进程 B 虚拟页 3 → 页框 100。两者指向同一物理页，但虚拟页号不同。",
           "noteLink": {
             "name": "第3章_内存管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md"
+            "path": "E:/NPEE/408/OS/第3章_内存管理.md"
           }
         }
       ],
@@ -401,7 +401,7 @@
         ],
         "noteLink": {
           "name": "长难句笔记.md",
-          "path": "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md"
+          "path": "E:/NPEE/English/grammar/长难句笔记.md"
         }
       }
     },
@@ -422,7 +422,7 @@
           "conclusion": "易错点：AU 只是 ALU 的'一半'，不是同一概念；CU 属于控制器，不属于运算器。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -436,7 +436,7 @@
           "conclusion": "MUX 选择'用哪个数据'，译码器决定'该做什么'。MUX 输出数据，译码器输出控制信号（独热码）。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -450,7 +450,7 @@
           "conclusion": "取指周期：PC → MAR → 内存 → MDR → IR。PC 自动增量，IR 供译码使用。MAR/MDR 用户不可见。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -464,7 +464,7 @@
           "conclusion": "寄存器是'手边工具箱'（主动使用），Cache 是'就近仓库'（被动加速）。访存=访问主存，Cache 命中不算访存。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -478,7 +478,7 @@
           "conclusion": "单周期 CPU：指令周期=1个时钟周期。多周期 CPU：CPI>1。流水线 CPU：理想 CPI≈1（平均），单条指令仍需多个时钟周期。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         }
       ],
@@ -489,7 +489,7 @@
           "answer": "<strong>ALU = AU + LU</strong>。AU（算术单元）和 LU（逻辑单元）是 ALU 的<strong>同级并列子部件</strong>，AU 负责算术运算（加减乘除），LU 负责逻辑运算（与或非异或）。<strong>CU（控制单元）属于<strong>控制器</strong>，不属于运算器。错误原因：AU 只是 ALU 的'一半'，ALU 是运算器核心，包含 AU 和 LU 两个子部件。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -498,7 +498,7 @@
           "answer": "<strong>MUX 是'数据开关'</strong>：多路输入数据中选 1 路输出，由选择控制信号决定选哪一路（如 ALU 输入来源选择）。<strong>译码器是'指挥棒'</strong>：将 n 位编码转换为 2^n 路控制信号中'激活一路'（独热码），告诉系统接下来该做什么。角色不同：MUX 输出的是<strong>数据</strong>，译码器输出的是<strong>控制信号</strong>。两者互补：译码器决定'该做什么'，MUX 根据控制信号选择'用哪个数据'。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -507,7 +507,7 @@
           "answer": "<strong>PC 保存下一条指令的地址</strong>（Program Counter），<strong>IR 保存当前正在执行的指令内容</strong>（操作码+地址码）。<strong>取指周期：</strong>PC → MAR → 内存 → MDR → IR，PC 自动增量。<strong>MAR/MDR 用户不可见</strong>是因为它们是 CPU 内部数据通路的'收发窗口'，由硬件自动操作，程序员无法通过汇编指令直接访问。用户可见寄存器（PC、SP、PSW、通用寄存器）是 ISA 规定的编程接口。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -516,7 +516,7 @@
           "answer": "<strong>ISA 可见性：</strong>寄存器属于 ISA 层面（程序员可见、指令显式读写，如 <code>ADD R1, R2</code>），Cache 属于微架构层面（对程序员完全透明、硬件自动管理）。<strong>控制方式：</strong>寄存器由<strong>软件显式控制</strong>（指令直接指定编号），Cache 由<strong>硬件自动调度</strong>（程序员写代码时根本不知道数据在不在 Cache 中）。虽然都用 SRAM 且都在 CPU 芯片上，但寄存器是'手边工具箱'（主动使用），Cache 是'就近仓库'（被动加速）。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -525,7 +525,7 @@
           "answer": "命名直接对应<strong>数据通路设计</strong>：单周期 CPU 使用单周期数据通路（所有操作在一个时钟周期内完成），多周期 CPU 使用多周期数据通路（指令拆分为多个机器周期，通过 MUX 复用部件）。<strong>单周期硬件成本更高</strong>是因为不能复用功能部件（取指、执行、访存需同时有独立硬件），而多周期通过 MUX 在不同周期复用 ALU、存储器等部件，硬件总量大幅减少。<strong>多周期 CPI > 1</strong> 是因为指令拆分为多个阶段（取指+译码+执行至少 3 个周期），最短指令也必然大于 1 个时钟周期。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         }
       ],
@@ -611,7 +611,7 @@
         ],
         "noteLink": {
           "name": "长难句笔记.md",
-          "path": "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md"
+          "path": "E:/NPEE/English/grammar/长难句笔记.md"
         }
       }
     },
@@ -632,7 +632,7 @@
           "conclusion": "映射目标是<strong>虚拟地址空间</strong>（不是物理地址空间）。2025 真题：可实现页到磁盘块的映射，但不能直接归为进程通信方式。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -646,7 +646,7 @@
           "conclusion": "层次从用户态到内核态递减。设备驱动程序是内核代码（<strong>软件</strong>），不是硬件。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -660,7 +660,7 @@
           "conclusion": "控制器 = 硬件翻译官+缓冲器；驱动程序 = 软件指挥官。2021 真题：磁盘驱动器属于 I/O 设备，不是 I/O 接口。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -674,7 +674,7 @@
           "conclusion": "408 常考：I/O 端口可被 CPU 编址，接口不能。一个设备控制器通常有多个端口（数据/命令/状态）。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -694,7 +694,7 @@
           ],
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         }
       ],
@@ -705,7 +705,7 @@
           "answer": "<strong>虚拟地址空间</strong>。内存映射文件通过<strong>页表</strong>实现虚拟页到磁盘文件块的映射，访问未调入内存的页时触发缺页中断。注意：不是映射到物理地址空间，也不是映射到系统地址空间。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -714,7 +714,7 @@
           "answer": "<strong>I/O 接口是硬件电路</strong>（物理连接器+信号转换），<strong>I/O 端口是设备控制器上的寄存器</strong>（CPU 可编址的存储单元）。CPU <strong>不能直接访问 I/O 接口</strong>，只能通过 I/O 端口（独立编址或统一编址）读写设备状态和数据。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -723,7 +723,7 @@
           "answer": "<table><tr><th>对比项</th><th>中断驱动方式</th><th>DMA 方式</th></tr><tr><td>数据搬运者</td><td>CPU（逐字节/逐字）</td><td>DMAC（直接搬运）</td></tr><tr><td>中断频率</td><td>每传一个数据单位中断一次</td><td>整块传完只中断一次</td></tr><tr><td>CPU 参与度</td><td>高（每次中断都要 CPU 执行 ISR）</td><td>低（只参与初始化和结束处理）</td></tr></table>DMA 传输期间 CPU <strong>可以执行其他任务</strong>（不能访存，因为总线被 DMAC 占用，但可以执行寄存器操作）。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -732,7 +732,7 @@
           "answer": "按流程顺序：<strong>SDT（系统设备表）→ DCT（设备控制表）→ COCT（控制器控制表）→ CHCT（通道控制表）</strong>。设备分配<strong>不需要创建新进程</strong>，由内核通过查表完成，进程请求 I/O 时触发分配。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -741,7 +741,7 @@
           "answer": "<strong>SISD</strong>。超标量流水线只有 <strong>1 个 PC、1 个指令流</strong>，同周期发射的多条指令都来自同一线程。Flynn 分类看的是<strong>指令流数量</strong>，不是每周期发射多少条指令。MIMD 需要多个独立 PC、各自执行不同指令流。超标量、流水线、超流水线都是 SISD。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         }
       ],
@@ -807,7 +807,7 @@
         ],
         "noteLink": {
           "name": "长难句笔记.md",
-          "path": "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md"
+          "path": "E:/NPEE/English/grammar/长难句笔记.md"
         }
       }
     },
@@ -828,7 +828,7 @@
           "conclusion": "操作元件 = '干活的工具'（组合逻辑），状态元件 = '记忆的仓库'（时序逻辑）。操作命令 = 下令干活，状态命令 = 汇报状态。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -842,7 +842,7 @@
           "conclusion": "单周期 = '所有硬件铺一排，一次跑完'；多周期 = '硬件轮流用，分几步跑完'。多周期 CPU 的 CPI 一定 > 1（取指+译码+执行至少 3 个周期）。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -856,7 +856,7 @@
           "conclusion": "间址周期 = '先查地址簿再找人'。取指周期取指令（PC→MAR→MDR→IR），间址周期取地址（IR.地址码→MAR→MDR→真正地址→MAR），执行周期取数据。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -870,7 +870,7 @@
           "conclusion": "身份由阶段赋予，不是由内容决定。总线类型（地址/数据/控制）区分信息载体类型；指令周期阶段（取指/执行）区分内容语义。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -890,7 +890,7 @@
           ],
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         }
       ],
@@ -901,7 +901,7 @@
           "answer": "<strong>组合逻辑（操作元件）：</strong>ALU、MUX、译码器、加法器、比较器——无记忆功能，输出仅取决于当前输入，不需要时钟触发。<br><strong>时序逻辑（状态元件）：</strong>PC、IR、MAR、MDR、寄存器堆、ACC、SP、PSW——有记忆功能，输出取决于当前输入 + 之前状态，需要时钟边沿触发。<br><strong>寄存器堆整体归类为时序逻辑</strong>是因为其写操作需要时钟边沿（数据在时钟边沿写入目标寄存器）。虽然读操作是组合逻辑（给地址立刻出数据），但写操作决定了其整体归类。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -910,7 +910,7 @@
           "answer": "<strong>命名直接对应数据通路设计：</strong>单周期 CPU 使用单周期数据通路（所有操作在一个时钟周期内完成），多周期 CPU 使用多周期数据通路（指令拆分为多个机器周期，通过 MUX 复用部件）。<br><strong>单周期硬件成本更高</strong>是因为不能复用功能部件（取指、执行、访存需同时有独立硬件），而多周期通过 MUX 在不同周期复用 ALU、存储器等部件，硬件总量大幅减少。<br><strong>多周期 CPI > 1</strong> 是因为指令拆分为多个阶段（取指+译码+执行至少 3 个周期），最短指令也必然大于 1 个时钟周期。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -919,7 +919,7 @@
           "answer": "<strong>PC 不变。</strong>间址周期不是取新指令，而是取操作数的真正地址，所以 PC 不需要更新。<br><strong>间址周期取的是'地址'</strong>（操作数的真正地址），送入 MAR 供后续执行周期使用。<br><strong>关键区别：</strong>① 取指周期取的是<strong>指令</strong>（操作码+地址码），送入 IR；间址周期取的是<strong>地址</strong>（操作数的真正地址），送入 MAR。② 取指周期后 PC 自动增量；间址周期 PC 不变。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -928,7 +928,7 @@
           "answer": "<strong>CPU 通过指令周期阶段区分：</strong>取指阶段取出的二进制被当作<strong>指令</strong>译码（送入 IR）；执行阶段取出的二进制被当作<strong>数据</strong>运算（送入 ALU/寄存器）。<br><strong>同一串二进制既是指令又是数据：</strong>同一串二进制（如 0x01020304）在取指阶段被译码为指令；若这条指令包含立即数 0x01020304，在执行阶段它就是数据（操作数本身）。<br><strong>主存不能区分：</strong>主存只按地址读写二进制，不识别内容语义。区分指令和数据的是 CPU 的指令周期阶段，不是主存。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -937,7 +937,7 @@
           "answer": "<strong>DMAC 是硬件</strong>（直接存储器访问控制器），不是操作系统的一部分。<table><tr><th>对比项</th><th>中断驱动方式</th><th>DMA 方式</th></tr><tr><td>数据搬运者</td><td>CPU（逐字节/逐字）</td><td>DMAC（直接搬运）</td></tr><tr><td>中断频率</td><td>每传一个数据单位中断一次</td><td>整块传完只中断一次</td></tr><tr><td>CPU 参与度</td><td>高（每次中断都要 CPU 执行 ISR）</td><td>低（只参与初始化和结束处理）</td></tr></table>DMA 传输期间 CPU <strong>可以执行其他任务</strong>（不能访存，因为总线被 DMAC 占用，但可以执行寄存器操作）。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         }
       ],
@@ -1036,7 +1036,7 @@
         ],
         "noteLink": {
           "name": "长难句笔记.md",
-          "path": "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md"
+          "path": "E:/NPEE/English/grammar/长难句笔记.md"
         }
       }
     },
@@ -1057,7 +1057,7 @@
           "conclusion": "核心区分：低级格式化是物理层，不可逆；高级格式化是逻辑层，可重复。分区与高级格式化是两个独立步骤（切蛋糕 vs 做包装）。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1071,7 +1071,7 @@
           "conclusion": "进程级表存指针，系统级表存FCB。close后只减引用计数，引用计数=0才释放系统级表项。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1085,7 +1085,7 @@
           "conclusion": "硬链接操作的是同一个inode的引用计数；符号链接是两个独立inode，互不影响。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1099,7 +1099,7 @@
           "conclusion": "read()走I/O请求路径，不经过MMU地址转换。阻塞原因是等待I/O完成，不是缺页中断。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -1113,7 +1113,7 @@
           "conclusion": "2021真题：磁盘驱动器属于I/O设备，不是I/O接口。控制器=硬件翻译官；驱动程序=软件指挥官。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         }
       ],
@@ -1124,7 +1124,7 @@
           "answer": "<strong>低级格式化</strong>是物理层工作，负责划分磁道与扇区、写入扇区头信息、标记坏块，由厂家出厂时完成，不可逆。<strong>高级格式化</strong>是逻辑层工作，负责建立文件系统元数据结构（FAT/inode、根目录、空闲空间管理），不碰物理扇区结构。<strong>高级格式化不涉及物理扇区划分</strong>，那是低级格式化的工作。常见错误：把分区或低级格式化与高级格式化混为一谈。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1133,7 +1133,7 @@
           "answer": "<strong>进程级表</strong>存每个进程的文件视图（fd、读写位置、打开标志），<strong>系统级表</strong>存文件客观状态（inode指针、文件大小、物理位置、引用计数）。<strong>两个进程打开同一文件，读写位置各自独立</strong>，因为读写位置存储在进程级表中。如果只有一级表，进程A读100字节会推进共享偏移量，进程B再读就从100开始了——这违背多进程独立I/O的设计。<strong>dup后两个fd共享读写位置</strong>，因为它们指向同一个系统级表项。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1142,7 +1142,7 @@
           "answer": "<strong>F1引用计数 = 1，F3引用计数 = 1。</strong>步骤分析：① 建立硬链接F2：F1与F2共享inode，F1引用计数 <strong>1→2</strong>；② 建立符号链接F3：F3新建独立inode，存F1路径，<strong>F1引用计数不变</strong>（仍为2），F3自身引用计数=1；③ 删除F2：硬链接删除，F1引用计数 <strong>2→1</strong>。F3是独立inode，其引用计数不受影响，仍为1。常见错误：误以为符号链接也会增加目标引用计数（选B 1,2），或误以为删除F2后F3失效（选C 1,0）。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1151,7 +1151,7 @@
           "answer": "<strong>read()触发的是I/O请求，不是缺页中断。</strong>read()是显式系统调用，通过文件系统代码检查缓存，未命中则启动磁盘I/O，进程进入<strong>阻塞态</strong>（睡眠等待DMA完成）。<strong>mmap()访问未加载页时触发缺页中断</strong>，因为mmap通过访存指令访问虚拟地址，MMU发现页表项无效时触发缺页中断。核心区别：read()走文件系统+I/O调度路径，不经过MMU地址转换；mmap()通过页表映射，未命中时走缺页中断路径。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -1160,7 +1160,7 @@
           "answer": "<strong>设备控制器是硬件</strong>（电路板/芯片），负责物理层协议转换、数据缓冲、速度匹配；<strong>设备驱动程序是软件</strong>（内核代码），将OS抽象请求翻译为控制器能理解的命令。<strong>磁盘驱动器不属于I/O接口</strong>，因为它是<strong>I/O设备本身</strong>（执行I/O的物理机械/电子装置），而不是连接设备与主机总线的硬件电路。I/O接口/控制器负责数据缓冲、格式转换、命令译码，如打印机适配器、网络控制器、SATA控制器。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         }
       ],
@@ -1260,7 +1260,7 @@
         ],
         "noteLink": {
           "name": "长难句笔记.md",
-          "path": "C:/Users/92534/Desktop/考研/English/语法/长难句笔记.md"
+          "path": "E:/NPEE/English/语法/长难句笔记.md"
         }
       }
     },
@@ -1281,7 +1281,7 @@
           "conclusion": "需要从设备具备主动发起总线请求的能力和事务缓冲能力。与突发传输（Burst）本质区别：突发传输连续占线传多数据，分离事务中间释放总线。",
           "noteLink": {
             "name": "第6章_总线和输入输出系统.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md"
+            "path": "E:/NPEE/408/CO/第6章_总线和输入输出系统.md"
           }
         },
         {
@@ -1295,7 +1295,7 @@
           "conclusion": "多体交叉存储器靠轮流启动流水访问提速，转移指令导致地址流断裂时效率退化接近单体。单体多字靠加宽数据总线提速。",
           "noteLink": {
             "name": "第6章_总线和输入输出系统.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md"
+            "path": "E:/NPEE/408/CO/第6章_总线和输入输出系统.md"
           }
         },
         {
@@ -1309,7 +1309,7 @@
           "conclusion": "CD-ROM视频文件因只读、寻道慢，连续分配（1次访存）优于多级索引（N+1次访存）。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1323,7 +1323,7 @@
           "conclusion": "open()把FCB/inode读入内存返回fd，不读文件内容（那是read()），不修改权限。两进程打开同一文件时读写位置各自独立，dup()后共享偏移量。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1337,7 +1337,7 @@
           "conclusion": "硬链接不能跨文件系统（inode号仅在本文件系统内唯一），不能对目录创建硬链接（防止循环引用）；符号链接无此限制。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         }
       ],
@@ -1348,7 +1348,7 @@
           "answer": "<strong>核心目的：提高总线利用率</strong>，而非提高单次传输速度。将\"请求→等待→响应\"拆分为两个子事务，中间释放总线供其他设备使用。<br><strong>与突发传输的本质区别：</strong>突发传输在一次总线事务中连续传输多个数据，但整个传输期间<strong>持续占用总线</strong>；分离事务在请求和响应之间<strong>释放总线</strong>，允许其他设备使用总线。突发传输减少了寻址次数但不释放总线，分离事务通过允许总线复用提高整体吞吐率。",
           "noteLink": {
             "name": "第6章_总线和输入输出系统.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md"
+            "path": "E:/NPEE/408/CO/第6章_总线和输入输出系统.md"
           }
         },
         {
@@ -1357,7 +1357,7 @@
           "answer": "<strong>带宽 = 4B × 100MHz ÷ 2 = 200MB/s</strong>。<br>计算步骤：① 总线宽度32位 = 4B；② 每秒传输次数 = 100M ÷ 2 = 50M次/秒；③ 带宽 = 4B × 50M = 200MB/s。<br><strong>常见陷阱：</strong>位和字节直接混算（如直接用32位×100MHz÷2得到1600而忘记÷8）；忘记一个事务需要多个时钟周期；KB/MB/G换算时误用1000而非1024（408中存储容量通常按1024算，频率按1000算）。",
           "noteLink": {
             "name": "第6章_总线和输入输出系统.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md"
+            "path": "E:/NPEE/408/CO/第6章_总线和输入输出系统.md"
           }
         },
         {
@@ -1366,7 +1366,7 @@
           "answer": "<strong>CD-ROM视频文件用连续分配的原因：</strong>CD-ROM是只读介质，文件写入后不再修改；连续分配只需<strong>1次访存</strong>即可读取数据块，而多级索引需要N+1次访存（读索引块+读数据块）；视频播放是顺序读取，连续分配寻道时间最少。<br><strong>随机存取逻辑结构不能用磁带：</strong>随机存取（如索引文件、散列文件）要求能够直接定位到任意记录位置，而磁带是<strong>顺序存取设备</strong>，只能从头顺序扫描到目标位置，无法直接跳转，物理上不支持随机存取的需求。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1375,7 +1375,7 @@
           "answer": "<strong>H仍然有效，S失效（悬垂链接）</strong>。<br>分析：① 创建硬链接H：F引用计数1→2，H与F共享同一inode；② 创建符号链接S：S新建独立inode存F路径，F引用计数不变（仍为2），S自身引用计数=1；③ 删除F：F的目录项被删除，引用计数2→1（因为H仍指向该inode），<strong>inode不释放</strong>（引用计数>0）。H通过原inode仍可访问文件数据；S存储的路径已不存在（F目录项被删），访问时找不到文件，变成悬垂链接。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1384,7 +1384,7 @@
           "answer": "<strong>open()不读取文件内容</strong>，只做三件事：根据路径找到FCB/inode→将其复制到内存的系统级打开文件表→在进程级打开文件表分配fd并返回。文件内容读取由read()完成。<br><strong>read()数据不在内存时触发I/O请求（阻塞等待DMA）</strong>，不经过MMU地址转换，不是缺页中断。<br><strong>mmap()访问未映射页时触发缺页中断</strong>：mmap将文件映射到虚拟地址空间，通过访存指令访问时MMU发现页表项无效，触发缺页中断，由缺页中断处理程序负责将文件页调入内存。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         }
       ],
@@ -1480,7 +1480,7 @@
         ],
         "noteLink": {
           "name": "长难句笔记.md",
-          "path": "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md"
+          "path": "E:/NPEE/English/grammar/长难句笔记.md"
         }
       },
       "math": {
@@ -1497,7 +1497,7 @@
             "conclusion": "核心原则：f(x₀)未知时绝不能跳过第二步；\"一点可导\"≠\"邻域可导\"，洛必达要求去心邻域可导，条件不满足时不可使用。",
             "noteLink": {
               "name": "错题归档.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/错题归档.md"
+              "path": "E:/NPEE/Math/高数/错题归档.md"
             }
           },
           {
@@ -1511,7 +1511,7 @@
             "conclusion": "最优解法：佩亚诺余项泰勒展开法可以一步到位，但必须理解其本质是利用了导数定义与泰勒系数的关系。g(x)仅在x=0处二阶可导时，不可洛必达两次到g''(x)。",
             "noteLink": {
               "name": "错题归档.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/错题归档.md"
+              "path": "E:/NPEE/Math/高数/错题归档.md"
             }
           },
           {
@@ -1525,7 +1525,7 @@
             "conclusion": "易错系数：莱布尼茨系数C(n,k)写错；[ln(1+x)]⁽ᵐ⁾ = (-1)^(m-1)·(m-1)!·(1+x)^(-m) 漏乘(m-1)!；泰勒展开时阶数不够导致漏项。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -1548,7 +1548,7 @@
           "conclusion": "close() 后系统级表项销毁、引用计数减 1，但 inode 仍在磁盘上。引用计数 = 0 时 inode 才被释放。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1562,7 +1562,7 @@
           "conclusion": "类比 Linux rwxrwxrwx = 3 类 × 3 种 = 9 位。2017 真题答案 D（20 位），不是 4+5=9。",
           "noteLink": {
             "name": "OS notes.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/OS notes.md"
+            "path": "E:/NPEE/408/OS/OS notes.md"
           }
         },
         {
@@ -1576,7 +1576,7 @@
           "conclusion": "层次从用户态到内核态递减。2021 真题：磁盘驱动器属于 I/O 设备，不是 I/O 接口。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -1590,7 +1590,7 @@
           "conclusion": "分离事务需要设备具备主动发起请求能力和事务缓冲能力。突发传输减少寻址次数但不释放总线。",
           "noteLink": {
             "name": "第6章_总线和输入输出系统.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md"
+            "path": "E:/NPEE/408/CO/第6章_总线和输入输出系统.md"
           }
         },
         {
@@ -1604,7 +1604,7 @@
           "conclusion": "一个设备控制器通常有多个端口。I/O 端口可被 CPU 编址，接口不能。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         }
       ],
@@ -1615,7 +1615,7 @@
           "answer": "<strong>open() 做三件事：</strong>① 根据路径在目录中找到 FCB/inode → ② 将 FCB/inode 从外存复制到内存的<strong>系统级打开文件表</strong>（创建表项，含 inode 指针、文件大小、引用计数）→ ③ 在<strong>进程级打开文件表</strong>分配一个条目（含 fd、读写位置、打开标志），返回<strong>文件描述符 fd</strong>。<br>open() 不读文件内容（那是 read()），不修改权限（只检查）。<br><strong>两个进程打开同一文件，读写位置各自独立</strong>——因为读写位置存储在进程级表中。dup() 后两个 fd 共享偏移量。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1624,7 +1624,7 @@
           "answer": "<strong>I/O 接口是硬件电路</strong>（物理连接器+信号转换），<strong>I/O 端口是设备控制器上的寄存器</strong>（CPU 可编址的存储单元）。CPU <strong>不能直接访问 I/O 接口</strong>，只能通过 I/O 端口（独立编址或统一编址）读写设备状态和数据。<br>一个设备控制器通常有<strong>多个端口</strong>：数据端口（读写数据）、命令端口（写入控制命令）、状态端口（读取设备状态）。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         },
         {
@@ -1633,7 +1633,7 @@
           "answer": "<strong>本质区别在总线占用时间：</strong>事务分离在请求与响应之间<strong>释放总线</strong>，允许其他设备使用；突发传输在整个传输期间<strong>持续占用总线</strong>。<br><strong>前提条件：</strong>从设备必须具备①<strong>主动发起总线请求</strong>的能力（响应准备好后自己请求总线）；②<strong>事务缓冲能力</strong>（暂存未完成的请求和响应数据）。突发传输不需要这些条件，因为它持续占线。",
           "noteLink": {
             "name": "第6章_总线和输入输出系统.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第6章_总线和输入输出系统.md"
+            "path": "E:/NPEE/408/CO/第6章_总线和输入输出系统.md"
           }
         },
         {
@@ -1642,7 +1642,7 @@
           "answer": "<strong>H1 有效，S1 失效（悬垂链接），F1 的 inode 未释放。</strong><br>步骤分析：① 创建 H1：H1 与 F1 共享 inode，引用计数 <strong>1→2</strong>；② 创建 S1：S1 新建独立 inode 存 F1 路径，F1 引用计数不变（仍为 2），S1 自身引用计数 = 1；③ 删除 F1：F1 的目录项被删除，引用计数 <strong>2→1</strong>（H1 仍指向该 inode）。<strong>inode 不释放</strong>（引用计数 > 0）。H1 通过原 inode 仍可访问数据；S1 存储的路径已不存在，访问时找不到文件，变成<strong>悬垂链接</strong>。",
           "noteLink": {
             "name": "第4章_文件管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第4章_文件管理.md"
+            "path": "E:/NPEE/408/OS/第4章_文件管理.md"
           }
         },
         {
@@ -1651,7 +1651,7 @@
           "answer": "<strong>设备控制器是硬件</strong>（电路板/芯片），负责物理层协议转换、数据缓冲、速度匹配。<strong>设备驱动程序是软件</strong>（内核代码），将 OS 抽象请求翻译为控制器能理解的命令。<br><strong>I/O 四层结构（从高到低）：</strong>用户层 I/O 软件 → 设备独立性软件 → 设备驱动程序 → 中断处理程序。<br><strong>磁盘驱动器是 I/O 设备本身</strong>（执行 I/O 的物理机械/电子装置），不是连接设备与主机总线的硬件电路（I/O 接口/控制器）。I/O 接口负责数据缓冲、格式转换、命令译码。",
           "noteLink": {
             "name": "第5章_IO管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第5章_IO管理.md"
+            "path": "E:/NPEE/408/OS/第5章_IO管理.md"
           }
         }
       ],
@@ -1742,7 +1742,7 @@
         ],
         "noteLink": {
           "name": "长难句笔记.md",
-          "path": "C:/Users/92534/Desktop/考研/English/grammar/长难句笔记.md"
+          "path": "E:/NPEE/English/grammar/长难句笔记.md"
         }
       },
       "math": {
@@ -1759,7 +1759,7 @@
             "conclusion": "口诀：导数方程的根 ≠ 原方程的根，回代检验是底线。优先用原方程求 y(x₀)。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/计算陷阱.md"
+              "path": "E:/NPEE/Math/高数/计算陷阱.md"
             }
           },
           {
@@ -1773,7 +1773,7 @@
             "conclusion": "核心公式：f⁽ⁿ⁾(0) = n! · aₙ（aₙ 是 xⁿ 项系数），不是 aₙ 本身。莱布尼茨下标从 k=0 开始，共 n+1 项。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -1787,7 +1787,7 @@
             "conclusion": "分母几次，分子最高设（次数-1）次。分解前先看每个因式的次数，再设定分子形式。",
             "noteLink": {
               "name": "第8讲_一元函数积分学的概念与性质.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第8讲_一元函数积分学的概念与性质.md"
+              "path": "E:/NPEE/Math/高数/第8讲_一元函数积分学的概念与性质.md"
             }
           }
         ]
@@ -1810,7 +1810,7 @@
           "conclusion": "速记口诀：指令跨页 2，源跨页 2，目标跨页 2，copy 一条 6 次底。别漏了取指令本身的跨页。",
           "noteLink": {
             "name": "第3章_内存管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md"
+            "path": "E:/NPEE/408/OS/第3章_内存管理.md"
           }
         },
         {
@@ -1824,7 +1824,7 @@
           "conclusion": "无效措施：增大交换区容量、用更快的交换区、用更快的 CPU、增加多道程序度数（反而加剧颠簸）。",
           "noteLink": {
             "name": "第3章_内存管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md"
+            "path": "E:/NPEE/408/OS/第3章_内存管理.md"
           }
         },
         {
@@ -1838,7 +1838,7 @@
           "conclusion": "只有 FIFO 有 Belady 异常。有空闲页框时直接调入，无需置换——置换只发生在请求分页/虚拟存储中。",
           "noteLink": {
             "name": "第3章_内存管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md"
+            "path": "E:/NPEE/408/OS/第3章_内存管理.md"
           }
         },
         {
@@ -1852,7 +1852,7 @@
           "conclusion": "CPI < 1 是超标量的统计平均效果，单条指令周期仍 ≥ 1 时钟周期。现代 CPU 三者叠加使用。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -1866,7 +1866,7 @@
           "conclusion": "速记：超标量流水线都是 SISD；阵列向量并行机 SIMD；多核多机 SMT 是 MIMD。每周期发射多条 ≠ MIMD。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         }
       ],
@@ -1877,7 +1877,7 @@
           "answer": "<strong>最多 6 次。</strong>分项：① <strong>取指令本身跨页</strong>——指令（如 x86 变长指令，最长 15 字节）在页末尾开始可能延伸到下一页，需访问 2 个页面 → 2 次；② <strong>读源操作数 A</strong>——数据在页边界处跨页 → 2 次；③ <strong>写目标操作数 B</strong>——同样跨页 → 2 次。copy 是先读后写，读 A 和写 B 都要访存。<br>取指阶段会缺页是因为：页边界对程序完全透明，编译器/链接器放置指令时不会刻意对齐页边界，虚拟地址连续但物理上可能分散到不同页框，指令跨页时其后半部分所在页可能不在内存。",
           "noteLink": {
             "name": "第3章_内存管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md"
+            "path": "E:/NPEE/408/OS/第3章_内存管理.md"
           }
         },
         {
@@ -1886,7 +1886,7 @@
           "answer": "系统发生了<strong>颠簸（Thrashing）</strong>：内存不足 + 进程过多 → 缺页极其频繁 → 系统绝大部分时间在换页而非计算，故 CPU 空闲（10%）而磁盘交换区几乎满载（99.7%）。<br><strong>有效措施：① 增大内存（根本解决，减少缺页）、③ 减少多道程序度数（减少进程数，降低页面竞争）。</strong><br>无效：② 交换区利用率高不是容量不够而是使用太频繁；④ 增加进程度数会加剧颠簸；⑤ 更快的交换区只让换页更快、不减少次数；⑥ CPU 已空闲、不是速度问题。",
           "noteLink": {
             "name": "第3章_内存管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md"
+            "path": "E:/NPEE/408/OS/第3章_内存管理.md"
           }
         },
         {
@@ -1895,7 +1895,7 @@
           "answer": "<strong>只有 FIFO 会出现 Belady 异常</strong>（物理块增加，缺页率反而上升）。OPT、LRU、Clock 都属于栈算法，不会有 Belady 异常。<br><strong>LRU vs Clock：</strong>LRU 记录每页<strong>何时</strong>被访问（需时间戳/链表，开销大），淘汰最久未用的；Clock 只用 1 个<strong>访问位</strong>记录是否被访问过（不记录时间），是 LRU 的低开销近似。<br><strong>改进型 Clock 淘汰优先级</strong>（访问位, 修改位）：(0,0) → (0,1) → 若无则清访问位再扫一轮 → 再找 (0,0)。优先淘汰未访问且未修改的页（无需写回，代价最小）。",
           "noteLink": {
             "name": "第3章_内存管理.md",
-            "path": "C:/Users/92534/Desktop/考研/408/OS/第3章_内存管理.md"
+            "path": "E:/NPEE/408/OS/第3章_内存管理.md"
           }
         },
         {
@@ -1904,7 +1904,7 @@
           "answer": "<strong>超标量 = 空间并行</strong>（横向扩展多套功能部件，一个时钟周期同时发射多条指令）；<strong>超流水线 = 时间并行的深化</strong>（纵向把流水线段切得更细，时钟周期更短，但每周期仍只发射 1 条）；<strong>多核 = 线程级并行</strong>（多个物理核心各自独立执行）。<br><strong>CPI < 1 只能由超标量实现</strong>：超流水线每周期仍只完成 1 条指令，理想 CPI 极限 ≈ 1，无法 < 1；超标量每周期发射多条，平均 CPI 才能 < 1。<br><strong>超标量不依赖多核</strong>——它是单核内部技术（如早期 Pentium 双发射），靠单核内多套功能部件实现。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         },
         {
@@ -1913,7 +1913,7 @@
           "answer": "<strong>超标量流水线处理机属于 SISD</strong>：它只有 <strong>1 个 PC、1 个指令流</strong>，同一周期发射的多条指令都来自同一线程（同一指令流）。<br><strong>多核处理器和 SMT 都属于 MIMD</strong>：多核每个核有独立 PC、独立指令流；SMT（同时多线程）各线程也有独立 PC。<br><strong>Flynn 分类的判据是「指令流数量 × 数据流数量」，看的是指令流条数，不是每周期发射多少条指令。</strong>阵列/向量处理机是 1 个控制器广播 1 条指令给多个处理单元处理不同数据 → SIMD。易错：把「每周期发射多条」误判为 MIMD。",
           "noteLink": {
             "name": "第5章_中央处理器CPU.md",
-            "path": "C:/Users/92534/Desktop/考研/408/CO/第5章_中央处理器CPU.md"
+            "path": "E:/NPEE/408/CO/第5章_中央处理器CPU.md"
           }
         }
       ],
@@ -1989,7 +1989,7 @@
         ],
         "noteLink": {
           "name": "长难句笔记.md",
-          "path": "C:/Users/92534/Desktop/考研/English/语法/长难句笔记.md"
+          "path": "E:/NPEE/English/语法/长难句笔记.md"
         }
       },
       "math": {
@@ -2006,7 +2006,7 @@
             "conclusion": "拐点判据 = 凹凸性改变（f'' 变号）。f''=0 只是二阶可导时的必要条件，既不充分，也非必需（f'' 可不存在）。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -2020,7 +2020,7 @@
             "conclusion": "口诀「偶极奇拐」。误区：以为必须 n 为偶数才能用——n 奇数时结论「非极值」同样是有效判定。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -2034,7 +2034,7 @@
             "conclusion": "判断顺序：先算 f' 定驻点，再算 f'' 是否变号定拐点。驻点 ≠ 极值（还需 f' 变号），拐点 ≠ f''=0（还需变号）。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -2057,7 +2057,7 @@
           "conclusion": "一句话对偶：时代精神→改革创新；民族精神→爱国主义。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+            "path": "E:/NPEE/Politics/政治强化.md"
           }
         },
         {
@@ -2071,7 +2071,7 @@
           "conclusion": "记人物别串：初级阶段→邓小平；社会主义两阶段分类→毛泽东。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+            "path": "E:/NPEE/Politics/政治强化.md"
           }
         },
         {
@@ -2085,7 +2085,7 @@
           "conclusion": "别被题干诈：串=线性表；数组=线性表的推广（因可再分）。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:/Users/92534/Desktop/考研/408/数据结构强化.md"
+            "path": "E:/NPEE/408/数据结构强化.md"
           }
         },
         {
@@ -2099,7 +2099,7 @@
           "conclusion": "判空口诀：循环链判空看<strong>值</strong>指向自身，别错用地址。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:/Users/92534/Desktop/考研/408/数据结构强化.md"
+            "path": "E:/NPEE/408/数据结构强化.md"
           }
         }
       ],
@@ -2110,7 +2110,7 @@
           "answer": "时代精神核心=<strong>改革创新</strong>；民族精神核心=<strong>爱国主义</strong>。易混：社会主义初级阶段（提法）属于<strong>邓小平</strong>，而社会主义分两阶段（论说）属于<strong>毛泽东</strong>。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+            "path": "E:/NPEE/Politics/政治强化.md"
           }
         },
         {
@@ -2119,7 +2119,7 @@
           "answer": "因为数组作为数据元素时<strong>可以再分</strong>，违背线性表“元素不可分割”的特点，故称线性表的<strong>推广</strong>。由 100 个字符组成的<strong>串属于线性表</strong>（元素被限定为字符，仍满足线性表结构）。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:/Users/92534/Desktop/考研/408/数据结构强化.md"
+            "path": "E:/NPEE/408/数据结构强化.md"
           }
         }
       ],
@@ -2139,7 +2139,7 @@
             "conclusion": "口诀：有限+余项=泰勒公式（不谈收敛）；无穷级数=泰勒级数（谈收敛域）。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -2154,7 +2154,7 @@
             "conclusion": "拐点判据=凹凸性改变（f'' 变号）。f''=0 既不充分也非必需。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -2183,7 +2183,7 @@
           "conclusion": "树层序＝树的 BFS，无环免标记；图 BFS 必带 visited，否则死循环。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+            "path": "E:\\NPEE\\408\\数据结构强化.md"
           }
         },
         {
@@ -2203,7 +2203,7 @@
           "conclusion": "取模前先加 maxSize 防负；只有顺序队列谈循环，链队列免谈。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+            "path": "E:\\NPEE\\408\\数据结构强化.md"
           }
         },
         {
@@ -2218,7 +2218,7 @@
           "conclusion": "口诀：满写溢上、空读溢下；栈只开一端。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+            "path": "E:\\NPEE\\408\\数据结构强化.md"
           }
         },
         {
@@ -2233,7 +2233,7 @@
           "conclusion": "主观辩证法＝概念辩证法，是客观辩证法的反映；主客观都唯物，唯心辩证法才错。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
           }
         },
         {
@@ -2248,7 +2248,7 @@
           "conclusion": "一切知识归根到底源于实践；直接经验是源，间接经验是流。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
           }
         },
         {
@@ -2263,7 +2263,7 @@
           "conclusion": "先定性（质）后定量（量）：质是前提，量是深化。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
           }
         }
       ],
@@ -2274,7 +2274,7 @@
           "answer": "关键区别在 <strong>visited 标记</strong>：<strong>图有环</strong>，不标记已访问节点会沿环<strong>死循环</strong>，所以图 BFS 必须带 visited[]，出队后只把未访问的<strong>邻接点</strong>入队；<strong>树无环</strong>且只有父→子单向路径，不可能回到祖先，故层序遍历<strong>无需 visited</strong>，直接把左右孩子入队即可。在树上“层序遍历＝BFS”，二者等价。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+            "path": "E:\\NPEE\\408\\数据结构强化.md"
           }
         },
         {
@@ -2283,7 +2283,7 @@
           "answer": "元素个数＝<code>(rear − front + maxSize) % maxSize</code>；空闲位置数＝<code>(front − rear + maxSize) % maxSize</code>。<br>顺序队列要循环是因为数组出队后前部空间空出、不能利用会<strong>假溢出</strong>；链式队列节点<strong>动态申请、出队即释放</strong>，不存在空间绕回问题，故<strong>不需要循环</strong>。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+            "path": "E:\\NPEE\\408\\数据结构强化.md"
           }
         },
         {
@@ -2292,7 +2292,7 @@
           "answer": "主观辩证法（概念辩证法）是<strong>对客观辩证法的反映</strong>，以概念、判断、推理等思维形式表现；二者<strong>都是唯物的、正确的</strong>辩证法。<strong>唯心辩证法</strong>建立在唯心主义基础上，是<strong>错误</strong>的辩证法——根本区别在是否承认辩证法规律的客观性。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
           }
         }
       ],
@@ -2312,7 +2312,7 @@
             "conclusion": "eˣ 全阶都有；sin 只含奇次项 → 求偶阶导时要等于 0。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -2328,7 +2328,7 @@
             "conclusion": "给相关关系→移项读齐次解；给表示式→系数读特解；n−r 数个数。等价≠等秩。",
             "noteLink": {
               "name": "错题归档.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\线代\\错题归档.md"
+              "path": "E:\\NPEE\\Math\\线代\\错题归档.md"
             }
           },
           {
@@ -2344,7 +2344,7 @@
             "conclusion": "对角元符号≠惯性指数；先定秩 p+q=r，再数特征值正负。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\线代\\计算陷阱.md"
+              "path": "E:\\NPEE\\Math\\线代\\计算陷阱.md"
             }
           }
         ]
@@ -2371,7 +2371,7 @@
           "conclusion": "本质区分：二叉树只约束「最多两个孩子」，可为空且有序；度为2的树强调孩子恰有2个、至少3结点。",
           "noteLink": {
             "name": "第5章_树与二叉树.md",
-            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+            "path": "E:/NPEE/408/DS/第5章_树与二叉树.md"
           }
         },
         {
@@ -2390,7 +2390,7 @@
           "conclusion": "满二叉树是完全二叉树的<strong>充分不必要</strong>条件。",
           "noteLink": {
             "name": "第5章_树与二叉树.md",
-            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+            "path": "E:/NPEE/408/DS/第5章_树与二叉树.md"
           }
         },
         {
@@ -2409,7 +2409,7 @@
           "conclusion": "由 n₀+n₁+n₂ = n₁+2n₂+1 化简即得 n₀=n₂+1。",
           "noteLink": {
             "name": "第5章_树与二叉树.md",
-            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+            "path": "E:/NPEE/408/DS/第5章_树与二叉树.md"
           }
         },
         {
@@ -2423,7 +2423,7 @@
           "conclusion": "辨析口诀：军用→封建性质，民用→资本主义性质，千万别看反。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+            "path": "E:/NPEE/Politics/政治强化.md"
           }
         },
         {
@@ -2437,7 +2437,7 @@
           "conclusion": "现实依据＝民族分布特点；主线＝铸牢中华民族共同体意识。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+            "path": "E:/NPEE/Politics/政治强化.md"
           }
         }
       ],
@@ -2448,7 +2448,7 @@
           "answer": "二叉树<strong>可为空</strong>，且作为有序树要求「单子树也分左右」；度为2的树至少 3 个结点、不作左右区分。包含关系：满⟹完全，完全↛满，即<strong>充分不必要</strong>。",
           "noteLink": {
             "name": "第5章_树与二叉树.md",
-            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+            "path": "E:/NPEE/408/DS/第5章_树与二叉树.md"
           }
         },
         {
@@ -2457,7 +2457,7 @@
           "answer": "n = n₀+n₁+n₂；总分支数 = n−1 = n₁+2n₂。两式联立消去 n₁ 即得 n₀=n₂+1。",
           "noteLink": {
             "name": "第5章_树与二叉树.md",
-            "path": "C:/Users/92534/Desktop/考研/408/DS/第5章_树与二叉树.md"
+            "path": "E:/NPEE/408/DS/第5章_树与二叉树.md"
           }
         },
         {
@@ -2466,7 +2466,7 @@
           "answer": "军用工业→<strong>封建主义性质</strong>；民用工业→<strong>资本主义性质</strong>。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:/Users/92534/Desktop/考研/Politics/政治强化.md"
+            "path": "E:/NPEE/Politics/政治强化.md"
           }
         }
       ],
@@ -2485,7 +2485,7 @@
             "conclusion": "等价无穷小本质是一阶近似；加减法要防「一阶主部抵消丢关键信息」，有抵消嫌疑就上泰勒。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/计算陷阱.md"
+              "path": "E:/NPEE/Math/高数/计算陷阱.md"
             }
           },
           {
@@ -2500,7 +2500,7 @@
             "conclusion": "背法：cos 只留偶次项且正负交替；ln(1+x) 每项带 1/n；​(1+x)^α 系数是组合数 C(α,k)。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -2529,7 +2529,7 @@
           "conclusion": "口诀：无向连通 n−1、有向强连通 n；非连通上界 C(n−1,2)，加 1 必连通。",
           "noteLink": {
             "name": "第6章_图.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第6章_图.md"
+            "path": "E:\\NPEE\\408\\DS\\第6章_图.md"
           }
         },
         {
@@ -2549,7 +2549,7 @@
           "conclusion": "图遍历必带 visited；复杂度由存储结构决定，序列唯一性只认邻接矩阵。",
           "noteLink": {
             "name": "第6章_图.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第6章_图.md"
+            "path": "E:\\NPEE\\408\\DS\\第6章_图.md"
           }
         },
         {
@@ -2569,7 +2569,7 @@
           "conclusion": "KMP 快在「主串不回头」；next 记最长相等前后缀，nextval 消除连续同字符的冗余回溯。",
           "noteLink": {
             "name": "第4章_串.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第4章_串.md"
+            "path": "E:\\NPEE\\408\\DS\\第4章_串.md"
           }
         },
         {
@@ -2583,7 +2583,7 @@
           "conclusion": "秒判：遵义＝事实上确立领导核心；七大＝正式确立（思想＋核心）。",
           "noteLink": {
             "name": "史纲.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\史纲.md"
+            "path": "E:\\NPEE\\Politics\\史纲.md"
           }
         },
         {
@@ -2602,7 +2602,7 @@
           "conclusion": "提出命题 ≠ 成熟；活的灵魂三方面：实事求是、群众路线、独立自主。",
           "noteLink": {
             "name": "毛中特.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\毛中特.md"
+            "path": "E:\\NPEE\\Politics\\毛中特.md"
           }
         },
         {
@@ -2617,7 +2617,7 @@
           "conclusion": "口诀：除以 μ 时整个括号一起除，C 拆不出来——C 永远和 x 待在同一个括号里。",
           "noteLink": {
             "name": "第15讲_微分方程.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\第15讲_微分方程.md"
+            "path": "E:\\NPEE\\Math\\高数\\第15讲_微分方程.md"
           }
         },
         {
@@ -2632,7 +2632,7 @@
           "conclusion": "记法：<strong>P 对 y、Q 对 x</strong>（求导变量与函数名不同名）；区域非单连通时该条件只是必要不充分。",
           "noteLink": {
             "name": "第18讲_多元函数积分学.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\第18讲_多元函数积分学.md"
+            "path": "E:\\NPEE\\Math\\高数\\第18讲_多元函数积分学.md"
           }
         },
         {
@@ -2647,7 +2647,7 @@
           "conclusion": "词尾判据：先看帽子词落在「国策 / 方略 / 制度 / 战略」哪一类，再核对内容——比从内容反推帽子快，也不容易被干扰项带走。",
           "noteLink": {
             "name": "基本国策与相关范畴归属专题.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\专题\\基本国策与相关范畴归属专题.md"
+            "path": "E:\\NPEE\\Politics\\专题\\基本国策与相关范畴归属专题.md"
           }
         },
         {
@@ -2662,7 +2662,7 @@
           "conclusion": "口诀：从句缺成分 → 定语从句（that 作宾语时可省）；从句完整 → 同位语从句（that 不可省）。",
           "noteLink": {
             "name": "考研英语语法笔记.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\grammar\\考研英语语法笔记.md"
+            "path": "E:\\NPEE\\English\\grammar\\考研英语语法笔记.md"
           }
         },
         {
@@ -2682,7 +2682,7 @@
           "conclusion": "记忆诀窍：「大写是谁，小写是哪儿；P 里放大写，F、f 里放小写；从左累积，故写 Y ≤ y。」",
           "noteLink": {
             "name": "第2章_随机变量及其分布.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\第2章_随机变量及其分布.md"
+            "path": "E:\\NPEE\\Math\\概率论\\第2章_随机变量及其分布.md"
           }
         },
         {
@@ -2702,7 +2702,7 @@
           "conclusion": "一句话：全概率「汇出结果」，贝叶斯「反推原因」；先验／后验是相对证据的角色，不是概率的属性。",
           "noteLink": {
             "name": "第1章_随机事件与概率.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\第1章_随机事件与概率.md"
+            "path": "E:\\NPEE\\Math\\概率论\\第1章_随机事件与概率.md"
           }
         },
         {
@@ -2722,7 +2722,7 @@
           "conclusion": "口诀：比较器个数＝路数（直接映射路数为 1，全相联路数＝总行数）；组相联＝用少量比较器换接近全相联的命中率。",
           "noteLink": {
             "name": "第3章_存储器层次结构.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\CO\\第3章_存储器层次结构.md"
+            "path": "E:\\NPEE\\408\\CO\\第3章_存储器层次结构.md"
           }
         },
         {
@@ -2742,7 +2742,7 @@
           "conclusion": "记法：先把「看」「说」钉死，再用前缀方向拼意思——concede ＝ con(一起) + cede(走 / 让) → 让一步 → 承认、让步。",
           "noteLink": {
             "name": "词根词缀总表.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\词根词缀\\词根词缀总表.md"
+            "path": "E:\\NPEE\\English\\word&phrase\\词根词缀\\词根词缀总表.md"
           }
         }
       ],
@@ -2753,7 +2753,7 @@
           "answer": "无向连通至少 <strong>n−1</strong> 条（一棵树）；非连通最多 <strong>(n−1)(n−2)/2</strong>（n−1 个顶点构成完全图＋1 个孤立点），再多 1 条必连通；有向强连通最少 <strong>n</strong> 条弧（构成单向环）。",
           "noteLink": {
             "name": "第6章_图.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第6章_图.md"
+            "path": "E:\\NPEE\\408\\DS\\第6章_图.md"
           }
         },
         {
@@ -2762,7 +2762,7 @@
           "answer": "next[j]＝<code>T[0..j−1]</code> 的最长相等前后缀长度；失配时只回退模式串、<strong>主串指针不回溯</strong>，两指针总移动量线性，故 O(n+m)。nextval 在 <code>T[j]==T[next[j]]</code> 时直接跳到 nextval[next[j]]，避免连续相同字符造成的必然再次失配。",
           "noteLink": {
             "name": "第4章_串.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\DS\\第4章_串.md"
+            "path": "E:\\NPEE\\408\\DS\\第4章_串.md"
           }
         },
         {
@@ -2771,7 +2771,7 @@
           "answer": "<strong>1935 遵义会议</strong>事实上确立领导地位（生死攸关转折点）；<strong>1945 中共七大</strong>正式确立毛泽东思想为指导思想。<strong>1938 六届六中全会</strong>只是首次提出「马克思主义中国化」命题（定方向），不是成熟标志。",
           "noteLink": {
             "name": "史纲.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\史纲.md"
+            "path": "E:\\NPEE\\Politics\\史纲.md"
           }
         },
         {
@@ -2780,7 +2780,7 @@
           "answer": "<strong>y = (x+C)e⁻ˣ</strong>。积分因子 <code>μ = eˣ</code>，两边同乘后左边凑成 <code>(eˣy)′ = 1</code>，积分得 <code>eˣy = x + C</code>，再整体除以 eˣ——常数 C 必须和 x 一起待在括号内；写成 <code>x·e⁻ˣ + C</code> 代回原方程不成立。",
           "noteLink": {
             "name": "第15讲_微分方程.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\第15讲_微分方程.md"
+            "path": "E:\\NPEE\\Math\\高数\\第15讲_微分方程.md"
           }
         },
         {
@@ -2789,7 +2789,7 @@
           "answer": "阶级关系上 → <strong>无产阶级和资产阶级的对立</strong>；经济上 → <strong>周期性爆发的经济危机</strong>（根源是生产相对过剩）。后半句是危机爆发的<strong>直接原因 / 具体矛盾</strong>，不是「集中表现」——选择题常拿这两层互相设坑。",
           "noteLink": {
             "name": "马原.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\马原.md"
+            "path": "E:\\NPEE\\Politics\\马原.md"
           }
         },
         {
@@ -2798,7 +2798,7 @@
           "answer": "<code>F_Y(·)</code>、<code>f_Y(·)</code> 的括号里只能放<strong>数</strong>（如 y）；<strong>事件</strong>只能放进 <code>P{·}</code>——写成 <code>F(y≤Y)</code> 非法。分布函数<strong>从左累积</strong>，方向固定为「大 ≤ 小」，即 <code>P{Y≤y}</code>（自检：Φ(1.96)=0.975，代大数得大值）。<br>f_Y 里不能有 x：积分变量 x 是<strong>哑变量</strong>，积掉即消失；y 藏在<strong>积分限</strong>里当参数，故保留。出现 x 说明<strong>变量身份搞混</strong>了。",
           "noteLink": {
             "name": "第2章_随机变量及其分布.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\第2章_随机变量及其分布.md"
+            "path": "E:\\NPEE\\Math\\概率论\\第2章_随机变量及其分布.md"
           }
         },
         {
@@ -2807,7 +2807,7 @@
           "answer": "全概率 <code>P(B)=ΣP(Aᵢ)P(B|Aᵢ)</code> 求的是<strong>结果 B 的边缘概率</strong>（把联合概率对 Aᵢ <strong>求和消掉</strong>），只是<strong>用到</strong>了先验 P(Aᵢ)，不能反过来说它就是先验概率。<br>先验＝试验<strong>前</strong>对原因的概率；后验＝观察到结果 B 后对原因重新评估（贝叶斯才做）；边缘＝联合分布里把别的变量求和消掉后剩下的概率。<br>P(B) 两种身份并存：<strong>结构上是边缘概率，在「以 B 为证据」的推断里是 B 的先验</strong>。",
           "noteLink": {
             "name": "第1章_随机事件与概率.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\第1章_随机事件与概率.md"
+            "path": "E:\\NPEE\\Math\\概率论\\第1章_随机事件与概率.md"
           }
         },
         {
@@ -2816,7 +2816,7 @@
           "answer": "直接映射 <strong>1 个</strong>（索引直接定位到唯一一行，只比那一行 Tag）；K 路组相联 <strong>K 个</strong>（组索引定位到组，组内各路<strong>并行</strong>比 Tag）；全相联 <strong>＝ Cache 总行数</strong>（无行号字段，全体并行，另配优先编码器）——代价最高，只在 TLB 这类小容量处用。<br>比较器只比 <strong>Tag</strong>，故比较器<strong>位数＝Tag 位数</strong>。<br><strong>组数＝总行数÷路数</strong>，组索引位数＝log₂(组数)：4 路组相联、1024 行 → 256 组 → 组索引 8 位。",
           "noteLink": {
             "name": "第3章_存储器层次结构.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\CO\\第3章_存储器层次结构.md"
+            "path": "E:\\NPEE\\408\\CO\\第3章_存储器层次结构.md"
           }
         },
         {
@@ -2825,7 +2825,7 @@
           "answer": "<strong>spect / spic ＝ 看</strong>（perspective 视角、conspicuous 显眼的）；<strong>dict ＝ 说</strong>（predict 预言、contradict 反驳）——这两对最容易记反（另有 vid/vis 也是「看」）。<br><strong>concede ＝ con-(一起) + cede(走 / 让)</strong> → 让一步 → 承认、让步。<br>superior / inferior / prior / senior / junior <strong>本身即比较级</strong>，后接 <strong>to</strong>：不加 more、不用 than。",
           "noteLink": {
             "name": "词根词缀总表.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\词根词缀\\词根词缀总表.md"
+            "path": "E:\\NPEE\\English\\word&phrase\\词根词缀\\词根词缀总表.md"
           }
         },
         {
@@ -2834,7 +2834,7 @@
           "answer": "错在把 <strong>g(x) 当成了密度</strong>：x²+1 是<strong>随机变量 Y 本身</strong>，不是密度；只有题给的 <strong>f_X(x)=|x| 能进积分号</strong>。<br>正确动作：把 g(X)≤y <strong>解成 X 的区间</strong>再对 f_X 积分。|X|≤1 ⇒ Y∈[1,2]；1≤y≤2 时 <code>F_Y(y)=P{−√(y−1)≤X≤√(y−1)}=2∫₀^√(y−1)x dx=y−1</code> ⇒ f_Y(y)=1（即 Y~U(1,2)）。<br>补救三件套：先<strong>定 Y 的值域</strong>；常数由 <code>lim(y→−∞)F_Y(y)=0</code> 定（不能代 F(1)=1）；收尾<strong>密度三查</strong>——是 y 的函数吗、处处 ≥0 吗、积分为 1 吗。原稿 −5/6 违反非负、8/3 违反归一。",
           "noteLink": {
             "name": "计算陷阱.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\计算陷阱.md"
+            "path": "E:\\NPEE\\Math\\概率论\\计算陷阱.md"
           }
         }
       ],
@@ -2854,7 +2854,7 @@
             "conclusion": "等比展开是母函数，很多级数求和都化到它；arctan 由 1/(1+x²) 逐项积分得到。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -2870,7 +2870,7 @@
             "conclusion": "口诀：sin/arcsin 的差是 1/6 x³，tan 的差是 1/3 x³；必须是「差」的形式、x→0 时才能直接代换。",
             "noteLink": {
               "name": "公式速查.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\公式速查.md"
+              "path": "E:\\NPEE\\Math\\高数\\公式速查.md"
             }
           },
           {
@@ -2886,7 +2886,7 @@
             "conclusion": "口诀「左放分子」：得 0 关系成立；得非零常数＝同阶/等价；得 ∞ 说明大小关系说反了。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
+              "path": "E:\\NPEE\\Math\\高数\\计算陷阱.md"
             }
           },
           {
@@ -2902,7 +2902,7 @@
             "conclusion": "连乘前先圈「两两/相互」；差事件转补集再化简，不凭「抵消」直觉跳步。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\计算陷阱.md"
+              "path": "E:\\NPEE\\Math\\概率论\\计算陷阱.md"
             }
           },
           {
@@ -2923,7 +2923,7 @@
             "conclusion": "一句话：求函数分布永远「先定值域 → 解不等式 → 用 f_X 积分 → 对 y 求导」，密度三查是最后一道闸。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\概率论\\计算陷阱.md"
+              "path": "E:\\NPEE\\Math\\概率论\\计算陷阱.md"
             }
           }
         ]
@@ -2951,7 +2951,7 @@
           "conclusion": "一句话：顺序表讲「怎么存」，有序表讲「怎么排」；判同不同看三件套——值＋关系＋运算。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+            "path": "E:\\NPEE\\408\\数据结构强化.md"
           }
         },
         {
@@ -2971,7 +2971,7 @@
           "conclusion": "常考填空「模4补码存储需要几个符号位」——答<strong>一个</strong>：双符号位只在 ALU 里出现。",
           "noteLink": {
             "name": "计算机组成原理强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+            "path": "E:\\NPEE\\408\\计算机组成原理强化.md"
           }
         },
         {
@@ -2991,7 +2991,7 @@
           "conclusion": "记配对：屏蔽字↔处理优先级；判优电路↔响应优先级；中断隐指令↔响应周期里那次关中断。",
           "noteLink": {
             "name": "计算机组成原理强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+            "path": "E:\\NPEE\\408\\计算机组成原理强化.md"
           }
         },
         {
@@ -3010,7 +3010,7 @@
           "conclusion": "口诀：先资源、后互斥；四类互斥实现里只有信号量会「让权」。",
           "noteLink": {
             "name": "第2章_进程管理.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\OS\\第2章_进程管理.md"
+            "path": "E:\\NPEE\\408\\OS\\第2章_进程管理.md"
           }
         },
         {
@@ -3030,7 +3030,7 @@
           "conclusion": "答微内核优点时别顺手写「更高效」；问安全序列别说「唯一」。",
           "noteLink": {
             "name": "操作系统强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\操作系统强化.md"
+            "path": "E:\\NPEE\\408\\操作系统强化.md"
           }
         },
         {
@@ -3050,7 +3050,7 @@
           "conclusion": "一句话：伪首部只服务 TCP/UDP；IP 首部检验和只保首部、不管数据。",
           "noteLink": {
             "name": "计算机网络强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机网络强化.md"
+            "path": "E:\\NPEE\\408\\计算机网络强化.md"
           }
         },
         {
@@ -3070,7 +3070,7 @@
           "conclusion": "帽子题先认「词尾」——任务 / 基点 / 主线 / 要求 / 牵引 / 出发点，再对内容，比从内容反推帽子快且不易被干扰项带走。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
           }
         },
         {
@@ -3090,7 +3090,7 @@
           "conclusion": "考点只在两处：主动省、被动还；感官动词靠「不定式 vs 分词」分全过程与进行中。",
           "noteLink": {
             "name": "考研英语语法笔记.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\grammar\\考研英语语法笔记.md"
+            "path": "E:\\NPEE\\English\\grammar\\考研英语语法笔记.md"
           }
         }
       ],
@@ -3101,7 +3101,7 @@
           "answer": "缓冲区满时生产者会<strong>占着 mutex 被 empty 阻塞</strong>，而消费者要先拿到 mutex 才能取产品 → <strong>死锁</strong>。标准顺序：<code>P(empty)</code> → <code>P(mutex)</code> → 生产 → <code>V(mutex)</code> → <code>V(full)</code>。写者优先里的 <code>w</code> 用来<strong>在有写者等待时挡住新读者</strong>（防写者饥饿），不是「实现写者互斥」。",
           "noteLink": {
             "name": "第2章_进程管理.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\OS\\第2章_进程管理.md"
+            "path": "E:\\NPEE\\408\\OS\\第2章_进程管理.md"
           }
         },
         {
@@ -3110,7 +3110,7 @@
           "answer": "模4补码 ＝ 双符号位补码 ＝ 变形补码；<strong>存储只用 1 个符号位</strong>（正确数值的两个符号位总相同），<strong>送 ALU 运算时才扩成双符号位</strong>；双符号位不一致（01 正溢 / 10 负溢）即溢出。中断屏蔽字改的是<strong>处理优先级</strong>（响应优先级由判优电路决定）。",
           "noteLink": {
             "name": "计算机组成原理强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+            "path": "E:\\NPEE\\408\\计算机组成原理强化.md"
           }
         },
         {
@@ -3119,7 +3119,7 @@
           "answer": "不是。顺序表说的是<strong>存储方式</strong>（连续存储），有序表说的是<strong>逻辑上有序</strong>，可用顺序或链式实现。二叉树与二叉排序树的<strong>逻辑结构与存储结构可以完全相同</strong>，区别在<strong>运算</strong>（查找/插入的约束不同）→ 算两种数据结构。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+            "path": "E:\\NPEE\\408\\数据结构强化.md"
           }
         },
         {
@@ -3128,7 +3128,7 @@
           "answer": "<strong>不加</strong>；伪首部只用于 <strong>TCP / UDP</strong> 的检验和。做法：首部按 16 比特分组、用<strong>反码算术</strong>求和，把和的<strong>反码</strong>写入检验和字段。它<strong>只检验 IP 首部</strong>，数据部分出错查不出。",
           "noteLink": {
             "name": "计算机网络强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机网络强化.md"
+            "path": "E:\\NPEE\\408\\计算机网络强化.md"
           }
         },
         {
@@ -3137,7 +3137,7 @@
           "answer": "高质量发展＝全面建设社会主义现代化国家的<strong>首要任务</strong>；构建新发展格局＝<strong>战略基点</strong>；深化供给侧结构性改革＝<strong>主线</strong>；人民军队<strong>关键因素＝人才</strong>、<strong>关键一招＝改革</strong>（依法治军＝基本方式、政治建军＝立军之本）。",
           "noteLink": {
             "name": "政治强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\政治强化.md"
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
           }
         }
       ],
@@ -3157,7 +3157,7 @@
             "conclusion": "易错：忘记乘 n!；读 aₙ 时看“xⁿ 项的系数”，不是第 n 项本身。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           },
           {
@@ -3179,7 +3179,7 @@
             "conclusion": "判敛自查一句：我收笔时给的是「阶」还是「极限值」？给的是极限值，就等于没做完。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
+              "path": "E:\\NPEE\\Math\\高数\\计算陷阱.md"
             }
           },
           {
@@ -3201,7 +3201,7 @@
             "conclusion": "先问一句：我要的是「阶」还是「值」？要阶走等价替换/泰勒；要值才轮到洛必达，且数列极限要先补归结原则。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
+              "path": "E:\\NPEE\\Math\\高数\\计算陷阱.md"
             }
           }
         ]
@@ -3230,7 +3230,7 @@
           "conclusion": "一句话：无符号看成败看 CF，有符号看成败看 SF⊕OF；凡是「大于」，都要再带上 ZF=0。",
           "noteLink": {
             "name": "计算机组成原理强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+            "path": "E:\\NPEE\\408\\计算机组成原理强化.md"
           }
         },
         {
@@ -3250,7 +3250,7 @@
           "conclusion": "一句话：最少页框数 = 一条指令最多同时牵扯的页面数 = 寻址方式说了算。",
           "noteLink": {
             "name": "操作系统强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\操作系统强化.md"
+            "path": "E:\\NPEE\\408\\操作系统强化.md"
           }
         },
         {
@@ -3270,7 +3270,7 @@
           "conclusion": "速答链：收到零窗口 → 启动持续计时器 → 超时发零窗口探测 → 按对方给出的窗口值决定继续等还是发数据。",
           "noteLink": {
             "name": "计算机网络强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机网络强化.md"
+            "path": "E:\\NPEE\\408\\计算机网络强化.md"
           }
         },
         {
@@ -3291,7 +3291,7 @@
           "conclusion": "一句话：最少结点「左右取高度差 1 再加根」，N(0)=0、N(1)=1、N(2)=2 起算。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+            "path": "E:\\NPEE\\408\\数据结构强化.md"
           }
         },
         {
@@ -3311,7 +3311,7 @@
           "conclusion": "速答：根本原因看「基本矛盾」，本质特征看「相对有支付能力的需求」，工资看「劳动力」。",
           "noteLink": {
             "name": "马原.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\马原.md"
+            "path": "E:\\NPEE\\Politics\\马原.md"
           }
         },
         {
@@ -3331,7 +3331,7 @@
           "conclusion": "场景选词：拉门拉抽屉 pull；拖走倒地大树 drag；拉窗帘拔剑 draw；拽袖子央求 tug；卡车运货、拉渔网 haul；拖故障车 tow。",
           "noteLink": {
             "name": "第392节_拖拉.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\辨析\\第392节_拖拉.md"
+            "path": "E:\\NPEE\\English\\word&phrase\\辨析\\第392节_拖拉.md"
           }
         }
       ],
@@ -3342,7 +3342,7 @@
           "answer": "无符号看 <strong>CF</strong>：CF=0 且 ZF=0 ⇒ A &gt; B（CF=1 则 A &lt; B）。有符号看 <strong>SF⊕OF</strong>：为 0 ⇒ A ≥ B、为 1 ⇒ A &lt; B，判「严格大于」时必须再要求 ZF=0（相等时 ZF=1，只看异或会把相等算成大于）。状态条件寄存器（PSW）属于<strong>运算器</strong>；控制器三件套是 IR、PC、操作控制器。",
           "noteLink": {
             "name": "计算机组成原理强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机组成原理强化.md"
+            "path": "E:\\NPEE\\408\\计算机组成原理强化.md"
           }
         },
         {
@@ -3351,7 +3351,7 @@
           "answer": "由<strong>单条指令在取指和执行过程中可能同时访问的最大页面数</strong>决定，而这由<strong>指令系统的寻址方式</strong>决定——与代码段长度、虚拟地址空间大小、物理内存容量都无关。间接寻址执行阶段可能先后访问<strong>两个</strong>数据页（形式地址所在页 ＋ 实际操作数所在页），直接寻址只需一个，再都加上取指页，所以下限更高。少于下限会<strong>颠簸</strong>：换入指令页挤掉数据页、换入数据页又挤掉指令页，无限循环，这条指令永远执行不完。",
           "noteLink": {
             "name": "操作系统强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\操作系统强化.md"
+            "path": "E:\\NPEE\\408\\操作系统强化.md"
           }
         },
         {
@@ -3360,7 +3360,7 @@
           "answer": "启动<strong>持续计时器</strong>；超时发<strong>零窗口探测报文段</strong>，对方在<strong>确认这个探测报文段时顺带给出当前窗口值</strong>；若窗口仍为 0，发送方收到确认报文段后<strong>重新设置持续计时器</strong>（如此循环直到窗口打开）。主动关闭方发出最后一个 ACK 后启动<strong>时间等待计时器</strong>，等 <strong>2MSL</strong>：① 保证最后一个 ACK 能到达对方；② 让本次连接的老报文段在网络中消逝，不影响新连接。",
           "noteLink": {
             "name": "计算机网络强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\计算机网络强化.md"
+            "path": "E:\\NPEE\\408\\计算机网络强化.md"
           }
         },
         {
@@ -3369,7 +3369,7 @@
           "answer": "递推式 <strong>N(h) = N(h−1) + N(h−2) + 1</strong>，初值 <strong>N(0)=0、N(1)=1、N(2)=2</strong>（左右子树高度差取极限 1，各自也取最少）。逐项：N(3)=4、N(4)=7、<strong>N(5)=12</strong>、N(6)=20。度为 m 的哈夫曼树只有度为 0 与度为 m 的结点，非叶结点数 = <strong>(n−1)/(m−1) 向上取整</strong>。",
           "noteLink": {
             "name": "数据结构强化.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\408\\数据结构强化.md"
+            "path": "E:\\NPEE\\408\\数据结构强化.md"
           }
         },
         {
@@ -3378,7 +3378,7 @@
           "answer": "根本原因 = 资本主义<strong>社会的基本矛盾</strong>；本质特征 = 相对于<strong>劳动人民有支付能力的需求</strong>来说，社会生产的商品<strong>过剩</strong>（相对过剩）。周期四阶段：<strong>危机 → 萧条 → 复苏 → 高涨</strong>。阶级关系上表现为<strong>无产阶级与资产阶级的对立</strong>；经济上表现为「生产无限扩大 与 劳动人民有支付能力的需求相对缩小」。工资的本质 = <strong>劳动力的价值或价格</strong>。",
           "noteLink": {
             "name": "马原.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\Politics\\马原.md"
+            "path": "E:\\NPEE\\Politics\\马原.md"
           }
         },
         {
@@ -3387,7 +3387,7 @@
           "answer": "大树用 <strong>drag</strong>（沿地面摩擦、阻力大）；货物用 <strong>haul</strong>（费力、大运量，可借车船机械）；故障车用 <strong>tow</strong>（绳链牵引无动力车船）。<strong>drag on</strong> = （会议、谈判）拖延；<strong>a long haul</strong> = 漫长过程（名词用法）。",
           "noteLink": {
             "name": "第392节_拖拉.md",
-            "path": "C:\\Users\\92534\\Desktop\\考研\\English\\word&phrase\\辨析\\第392节_拖拉.md"
+            "path": "E:\\NPEE\\English\\word&phrase\\辨析\\第392节_拖拉.md"
           }
         }
       ],
@@ -3407,7 +3407,7 @@
             "conclusion": "求半径只看系数；求出 R 后记住：<strong>端点必须单独验证</strong>，开/闭由此定。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
             }
           },
           {
@@ -3428,7 +3428,7 @@
             "conclusion": "一句话：R 是半径、不是区间答案；端点必须「代入 → 当数项级数判一次」才算做完。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\第16讲_无穷级数.md"
+              "path": "E:\\NPEE\\Math\\高数\\第16讲_无穷级数.md"
             }
           },
           {
@@ -3450,7 +3450,7 @@
             "conclusion": "落笔前先算一个数：ab 与 ∓1 谁大。这一步零成本，是唯一防线。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
+              "path": "E:\\NPEE\\Math\\高数\\计算陷阱.md"
             }
           },
           {
@@ -3472,7 +3472,7 @@
             "conclusion": "自查一句：这个 Σ 后面有没有跟 x 的幂？没有就不是函数值，更别对发散级数「解出和」。",
             "noteLink": {
               "name": "计算陷阱.md",
-              "path": "C:\\Users\\92534\\Desktop\\考研\\Math\\高数\\计算陷阱.md"
+              "path": "E:\\NPEE\\Math\\高数\\计算陷阱.md"
             }
           }
         ]
@@ -3481,10 +3481,161 @@
     "2026-09-23": {
       "date": "2026-09-23",
       "weekday": "周三",
-      "studied": false,
-      "subject": "泰勒专题 · D7 · 公式背诵",
-      "review": [],
-      "quiz": [],
+      "studied": true,
+      "subject": "408·中断类型判定 ｜ 计组·寻址方式访存次数 ｜ 操作系统·银行家安全序列 ｜ 政治·人民军队四顶帽子 ｜ 英语·A and B 主谓一致 ｜ 英语·之后后来六词 ｜ 高数·陷阱57/58 + 对数级数闭形式 ｜ 泰勒专题·D7",
+      "review": [
+        {
+          "id": "os-int-who",
+          "badges": [
+            "408",
+            "操作系统",
+            "中断"
+          ],
+          "title": "中断类型由谁判定：向量法=硬件，查询法=软件；且中断结束不用打招呼",
+          "body": "识别「这是哪个设备的中断」有两种做法：<strong>向量中断法</strong>——由<strong>硬件</strong>（中断控制器直接给出中断类型号）识别，速度最快、现代主流，<strong>408 默认考这个</strong>；<strong>查询中断法</strong>——由<strong>软件</strong>（中断服务程序依次查询各设备的状态寄存器）识别，硬件简单但慢，<strong>优先级由查询顺序决定</strong>。<br>再记一条分工：<strong>外部中断（I/O 中断）的类型由中断控制器判定；内部中断的类型由 CPU 自己判定。</strong><br>还有一条最容易漏的：中断服务程序的<strong>最后一条指令就是返回指令</strong>，执行结束后 <strong>CPU 自行返回</strong>，<strong>无须外设发「中断结束」信号</strong>。",
+          "conclusion": "硬件给类型号（向量）、软件挨个查（查询）；<strong>中断结束不需要外设再打一次招呼</strong>。",
+          "noteLink": {
+            "name": "操作系统强化.md",
+            "path": "E:\\NPEE\\408\\操作系统强化.md"
+          }
+        },
+        {
+          "id": "co-addr-visits",
+          "badges": [
+            "408",
+            "计组",
+            "指令系统"
+          ],
+          "title": "九种数据寻址 × 访存次数：0 次的只有两个",
+          "body": "按「取操作数要访存几次」把九种排开——<br><strong>0 次（最快）</strong>：<strong>立即寻址</strong>（操作数就在指令 A 字段里，取指同时拿到）、<strong>寄存器寻址</strong>（EA = Ri，操作数在寄存器里）。<br><strong>1 次</strong>：直接寻址（EA = A）、<strong>寄存器间接寻址</strong>（EA = (Ri)）、相对寻址（EA = PC + A）、基址寻址（EA = BR + A）、变址寻址（EA = IX + A）、堆栈寻址（SP 隐含栈顶）。<br><strong>2 次</strong>：<strong>间接寻址</strong>（EA = (A)，一次先取地址、再取操作数）。<br>两个坑：① 「<strong>寄存器间接寻址</strong>」名字里带「寄存器」，但寄存器里存的是<strong>地址</strong>，仍要<strong>访存 1 次</strong>；② 基址/变址/相对寻址的<strong>地址运算在 CPU 内部完成</strong>，所以也只访存 1 次（不是「算地址」也要访存）。",
+          "list": [
+            "① 0 次 → 立即、寄存器（这两个才是「不访存、最快」）",
+            "② 1 次 → 直接、寄存器间接、相对、基址、变址、堆栈",
+            "③ 2 次 → 间接寻址（一次间接）"
+          ],
+          "conclusion": "口诀：<strong>零次只有「立即」和「寄存器」；间接 2 次；寄存器间接 1 次。</strong>",
+          "noteLink": {
+            "name": "第4章_指令系统.md",
+            "path": "E:\\NPEE\\408\\CO\\第4章_指令系统.md"
+          }
+        },
+        {
+          "id": "os-banker-safe-seq",
+          "badges": [
+            "408",
+            "操作系统",
+            "死锁"
+          ],
+          "title": "银行家算法：安全序列「不唯一、不固定」，它不是运行规则",
+          "body": "银行家算法确实靠<strong>检测是否存在安全序列</strong>来判断一次资源申请是否合法，但要记牢它的边界：<br>① 安全序列<strong>不是唯一的</strong>——同一状态下可能有多个合法序列，找到<strong>一个</strong>就能放行；<br>② 安全序列<strong>不是固定的</strong>——它只是<strong>一种可能的分配方案</strong>，<strong>不是一种必须遵循的规则</strong>；<br>③ 因此银行家算法<strong>并没有给出固定的申请资源顺序</strong>，进程实际运行时<strong>不必</strong>照着那个序列去要资源。<br>所以「系统处于安全状态 ⇒ 一定不发生死锁」成立；但「不安全状态」只是<strong>可能</strong>进入死锁，不等于已经死锁。",
+          "conclusion": "安全序列是<strong>存在性判据</strong>，不是<strong>调度表</strong>——找到一个即可，运行不必照走。",
+          "noteLink": {
+            "name": "操作系统强化.md",
+            "path": "E:\\NPEE\\408\\操作系统强化.md"
+          }
+        },
+        {
+          "id": "pol-jundui-hats",
+          "badges": [
+            "政治",
+            "帽子题",
+            "习思想"
+          ],
+          "title": "人民军队四顶帽子：人才 / 改革 / 依法治军 / 政治建军",
+          "body": "推动人民军队高质量发展，四个「帽子」各归各位，最容易互相张冠李戴：<br>· 赢得军事竞争和未来战争主动的<strong>关键因素</strong> = <strong>人才</strong><br>· 决定人民军队发展壮大、制胜未来的<strong>关键一招</strong> = <strong>改革</strong><br>· 党建军治军的<strong>基本方式</strong> = <strong>依法治军</strong><br>· 人民军队的<strong>立军之本</strong> = <strong>政治建军</strong>",
+          "conclusion": "顺口溜：<strong>「人才是因素、改革是一招、依法治军是方式、政治建军是根本」</strong>。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
+          }
+        },
+        {
+          "id": "eng-and-subject",
+          "badges": [
+            "英语一",
+            "语法",
+            "主谓一致"
+          ],
+          "title": "A and B 作主语：判据是「语义整体」，零冠词只是辅助线索",
+          "body": "核心判据是<strong>语义</strong>：作者想表达「<strong>一个融合概念</strong>」还是「<strong>两个分立事物</strong>」。同一整体 → 谓语<strong>单数</strong>；各自分立 → 谓语<strong>复数</strong>。<br>冠词是最好用的<strong>辅助线索</strong>（第二项前<strong>不重复</strong>冠词/限定词 → 倾向整体）：<code>the secretary and treasurer is</code>（一人兼两职）vs <code>the secretary and the treasurer are</code>（两个人）；<code>a knife and fork is</code>（一副刀叉）vs <code>a knife and a fork are</code>。<br><strong>但零冠词不等于「一定是整体」</strong>——<code>bread and butter</code> 说「黄油面包这种食品」用 <strong>is</strong>，说「面包和黄油两样东西都在桌上」就用 <strong>are</strong>，<strong>形式完全一样，只能靠语义定</strong>。<br>真题陷阱：<code>a conviction and a learning that was itself a form of authority</code> —— 用 <strong>was</strong> 而非 were，因为二者被作者视为<strong>一种统一的写作气质</strong>；若用 were 就变成「信念是权威、学识也是权威」两个独立来源，与原文不符。<br>常见整体搭配（都接单数）：<code>trial and error</code> 试错法、<code>bread and butter</code> 生计/黄油面包。",
+          "conclusion": "口诀：<strong>「同一人/物用单数，两个用复数；看冠词，更看语义」</strong>。「只要出现 and 就一律用复数」是<strong>错的</strong>。",
+          "noteLink": {
+            "name": "考研英语语法笔记.md",
+            "path": "E:\\NPEE\\English\\grammar\\考研英语语法笔记.md"
+          }
+        },
+        {
+          "id": "eng-after-family",
+          "badges": [
+            "英语一",
+            "词义辨析",
+            "完形"
+          ],
+          "title": "「之后 / 后来」六词：after 不能独立作副词，hence 才是「……年之后」",
+          "body": "<strong>after</strong>：作<strong>副词时不能单独用</strong>，只能缩在 <code>soon / shortly / long / ever after</code> 这类搭配里；它的主要身份是<strong>介词、连词</strong>。所以 <code>I'll do it after.</code> ❌ 必须改 <strong>later</strong> 或 <strong>afterwards</strong>。<br><strong>later</strong>：late 的比较级，「稍后、后来」，<strong>最通用、可独立</strong>，句首句末都行（<code>later on</code> / <code>no later than</code> / <code>sooner or later</code>）。<br><strong>afterwards</strong>（美 <code>afterward</code>）：= <strong>after that</strong>，以某事件为起点<strong>强调动作先后</strong>，可独立作状语。<br><strong>thereafter</strong>：正式书面语版的 after that / from then on，<strong>阅读高频</strong>，作文用可提升正式度。<br><strong>since</strong>：从过去某时点<strong>一直持续到说话时</strong>，主句<strong>绑完成时</strong>（<code>ever since</code> / <code>since then</code>）；另有「既然」义。<br><strong>hence</strong>：时间义是「从今以后、<strong>……年之后</strong>」，结构是「<strong>时间段 + hence</strong>」（<code>a decade hence</code> 十年之后）；现代主要义是「因此」。同族：<code>thence</code> 从那里、<code>whence</code> 从何处。",
+          "conclusion": "完形两个秒杀信号：<strong>句末单用「稍后」→ later / afterwards（绝不选 after）</strong>；<strong>「X years ___」→ hence</strong>。",
+          "noteLink": {
+            "name": "第394节_之后后来.md",
+            "path": "E:\\NPEE\\English\\word&phrase\\辨析\\第394节_之后后来.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "q-os-int-who",
+          "question": "① 向量中断法和查询中断法，分别由硬件还是软件识别中断类型？哪个是 408 默认？② 外部中断与内部中断的类型各由谁判定？③ 中断服务程序执行完毕后，需要外设再发一个「中断结束」信号吗？",
+          "answer": "① <strong>向量中断法=硬件</strong>（中断控制器给出类型号），最快、<strong>408 默认考这个</strong>；<strong>查询中断法=软件</strong>（中断服务程序依次查各设备状态寄存器），慢，优先级由查询顺序决定。<br>② <strong>外部中断（I/O 中断）由中断控制器判定；内部中断由 CPU 自己判定。</strong><br>③ <strong>不需要</strong>——中断服务程序的最后一条指令就是返回指令，<strong>CPU 自行返回</strong>。",
+          "noteLink": {
+            "name": "操作系统强化.md",
+            "path": "E:\\NPEE\\408\\操作系统强化.md"
+          }
+        },
+        {
+          "id": "q-co-addr-visits",
+          "question": "① 九种数据寻址里，取操作数<strong>完全不访存（0 次）</strong>的是哪两种？② 间接寻址、寄存器间接寻址、基址寻址各访存几次？③ 为什么基址寻址只需 1 次？",
+          "answer": "① <strong>立即寻址</strong>与<strong>寄存器寻址</strong>（0 次，速度最快）。<br>② 间接寻址 <strong>2 次</strong>（一次先取地址再取数）；寄存器间接寻址 <strong>1 次</strong>（名字带「寄存器」，但里面存的是地址）；基址寻址 <strong>1 次</strong>。<br>③ 因为 <strong>EA = BR + A 的加法在 CPU 内部完成</strong>，不占访存；算出有效地址后<strong>只用它访存一次</strong>取操作数。相对寻址、变址寻址同理。",
+          "noteLink": {
+            "name": "第4章_指令系统.md",
+            "path": "E:\\NPEE\\408\\CO\\第4章_指令系统.md"
+          }
+        },
+        {
+          "id": "q-os-banker",
+          "question": "银行家算法找到的那个安全序列，进程实际运行时必须照着它去申请资源吗？安全序列唯一吗？「不安全状态」等于已经死锁吗？",
+          "answer": "<strong>不必照着走。</strong>安全序列<strong>不唯一、也不固定</strong>，它只是<strong>一种可能的分配方案</strong>，<strong>不是必须遵循的规则</strong>；银行家算法<strong>没有给出固定的申请资源顺序</strong>。<br>判据是<strong>存在性</strong>：只要<strong>存在一个</strong>安全序列就放行。<br><strong>不安全状态 ≠ 死锁</strong>，只是<strong>有可能</strong>进入死锁；反过来「安全状态 ⇒ 一定不死锁」成立。",
+          "noteLink": {
+            "name": "操作系统强化.md",
+            "path": "E:\\NPEE\\408\\操作系统强化.md"
+          }
+        },
+        {
+          "id": "q-pol-jundui",
+          "question": "填空（人民军队四顶帽子）：赢得军事竞争和未来战争主动的______是人才；决定人民军队发展壮大、制胜未来的______是改革；党建军治军的______是依法治军；人民军队的______是政治建军。",
+          "answer": "<strong>关键因素</strong>（人才）／<strong>关键一招</strong>（改革）／<strong>基本方式</strong>（依法治军）／<strong>立军之本</strong>（政治建军）。<br>顺口溜：<strong>「人才是因素、改革是一招、依法治军是方式、政治建军是根本」</strong>。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
+          }
+        },
+        {
+          "id": "q-eng-and-subject",
+          "question": "① <code>The secretary and treasurer ___ coming.</code> 与 <code>The secretary and the treasurer ___ coming.</code> 各填 is / are？为什么？<br>② <code>Bread and butter</code> 作主语，什么时候用 is、什么时候用 are？零冠词能不能直接判定它是「整体」？",
+          "answer": "① 前者 <strong>is</strong>（一个人兼任两个职务 = 同一整体）；后者 <strong>are</strong>（第二项前重复了 <code>the</code> ⇒ 两个人）。<br>② 指「黄油面包这种食品」用 <strong>is</strong>；指「面包和黄油这两样东西」用 <strong>are</strong>。<strong>零冠词不能直接判定</strong>——它只是<strong>辅助线索</strong>，两种意思的书写形式完全一样，<strong>只能靠语义（是否一个融合概念）定</strong>。<br>所以「只要句中出现 and，谓语一律用复数」是<strong>错误</strong>的。",
+          "noteLink": {
+            "name": "考研英语语法笔记.md",
+            "path": "E:\\NPEE\\English\\grammar\\考研英语语法笔记.md"
+          }
+        },
+        {
+          "id": "q-eng-after-family",
+          "question": "① <code>I'll explain the details ___</code>（稍后）能填 after 吗？<br>② <code>a decade ___</code>（十年之后）填哪个词？<br>③ <code>He graduated in 2015 and has lived here ever ___</code> 填什么？为什么绑完成时？<br>④ thereafter 与 afterwards 的差别在哪？",
+          "answer": "① <strong>不能</strong>。after <strong>作副词不能独立使用</strong>，只能缩在 <code>soon / shortly / long / ever after</code> 里 → 这里填 <strong>later</strong>（或 afterwards）。<br>② <strong>hence</strong>——时间义是「从今以后、……年之后」，结构是「<strong>时间段 + hence</strong>」。<br>③ <strong>since</strong>。since 表「从过去某时点<strong>一直持续到说话时</strong>」，所以主句<strong>必须用完成时</strong>（<code>ever since</code> / <code>since then</code>）。<br>④ 意思都≈ after that，但 <strong>thereafter 是正式书面语</strong>（阅读高频，作文用可提升正式度）；<strong>afterwards 通用口语/书面皆可</strong>，强调动作先后。",
+          "noteLink": {
+            "name": "第394节_之后后来.md",
+            "path": "E:\\NPEE\\English\\word&phrase\\辨析\\第394节_之后后来.md"
+          }
+        }
+      ],
       "math": {
         "id": "sec-math",
         "points": [
@@ -3501,7 +3652,57 @@
             "conclusion": "口诀：缺项→通项法，别套系数比公式。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
+            }
+          },
+          {
+            "id": "trap-e-exp-inner-sign",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "多元函数微分学",
+              "计算陷阱",
+              "陷阱57"
+            ],
+            "title": "陷阱57：对 e^(−y) 求导写成 +e^(−y) —— 内层的 −1 没乘出来",
+            "body": "典型错式：把 ∂/∂y 作用到 e^(−y) + y²/x 上，写成 <strong>+e^(−y)</strong> + 2y/x。<br>错在哪：外层 (eᵘ)′ = eᵘ 写对了，但<strong>内层 u = −y 的导数 u′ = −1 没乘出来</strong>，正确是 <strong>−e^(−y)</strong> + 2y/x。<br>它比另两条更阴：负号<strong>藏在指数里</strong>，外观「已经是负的」，不像 −f(x) 那样显眼，所以最容易麻痹（区别于陷阱 2「负号在多项式各项间的分配」、陷阱 47「对 ln y(x) 求导漏 1/y 因子」）。<br><strong>两条防线（背下来就够，不用动笔）</strong>：<br>① 看到 e^□ 求导 → <strong>先问「□ 的导数是多少」</strong>，把 e^□ · □′ 的 □′ 写出来再化简，<strong>不跳步</strong>；<br>② <strong>符号自检</strong>：e^(−y) 关于 y 是<strong>减函数</strong>，其导数<strong>必为负</strong> —— 一旦算出 +e^(−y) 立刻就能发现。",
+            "conclusion": "方向导数 / 全微分题里 e^(−x)、e^(−y) 高频出现（如 P113 T6），<strong>「指数复合必乘内层导数」+「减函数导数为负」</strong>两句自检口诀背牢。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "E:\\NPEE\\Math\\高数\\计算陷阱.md"
+            }
+          },
+          {
+            "id": "trap-proj-by-intersection",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "多元函数积分学",
+              "计算陷阱",
+              "陷阱58"
+            ],
+            "title": "陷阱58：投影区域的外层积分限由「两曲面交线」决定，不是单曲面最大半径",
+            "body": "两曲面围成的立体 Ω，它在 xOy 面上的投影区域 D 的<strong>边界来自两曲面交线的最外轮廓</strong>，<strong>不是任一单曲面自己的轮廓</strong>。<br>实例：Ω 由抛物面 r² = 3z 与球面 z = √(4−r²) 围成。球面的<strong>赤道半径是 r = 2</strong>（z = 0 处），但这个立体「最胖」处在<strong>交线高度 z = 1</strong>，那里 <strong>r = √3</strong> → 所以 D = { r ≤ √3 }，<strong>比球的大圆还要小</strong>。误把 r ≤ 2 当外层限，整个积分就废了。<br><strong>倒挂检查（这是本条最值钱的通用结论）</strong>：内层下限 z₁(r) 在 D 内<strong>不得超过</strong>上限 z₂(r)，且在 D 的边界 ∂D 上<strong>恰好相等</strong> —— 所以「<strong>解 z₁(r) = z₂(r)</strong>」本身就是求外层积分限的自然途径，不是额外一步。<br>再配一次草图：确认交线在赤道面的<strong>上方还是下方</strong>，就能判断投影比大圆小还是大。",
+            "conclusion": "求外层限 = <strong>联立两曲面解交线</strong>；「单曲面最大半径」永远不能直接当投影限。本条建系与内层限都可能全对，<strong>只错外层区域</strong>，所以最难自查。",
+            "noteLink": {
+              "name": "计算陷阱.md",
+              "path": "E:\\NPEE\\Math\\高数\\计算陷阱.md"
+            }
+          },
+          {
+            "id": "know-ln-series-closed-form",
+            "type": "knowledge",
+            "badges": [
+              "高数",
+              "无穷级数",
+              "错题归档"
+            ],
+            "title": "对数级数闭形式：正项是 −ln(1−x)，交错才是 ln(1+x)",
+            "body": "两个长得极像、必须分开背的展开（都在 |x| &lt; 1 内）：<br>· <strong>全正项</strong>（通项没有 (−1) 的因子）：Σ xᵐ/m = <strong>−ln(1−x)</strong><br>· <strong>交错</strong>（通项带 (−1)^(m−1)）：Σ (−1)^(m−1) xᵐ/m = <strong>ln(1+x)</strong><br>口诀：<strong>「正项 −ln(1−x)，交错 ln(1+x)」</strong>。<br>P109 第13题（Σ 1/((n²−1)·2ⁿ) 求和）的构造过程全对，只错在换指标 m = n−1 之后把 Σ xᵐ/m 写成了 ln(1+x) —— 该题通项<strong>全正、没有 (−1)ⁿ</strong>，正解是 <strong>−ln(1−x)</strong>。这一个符号错误会顺着后面的积分因子一路传导下去。<br><strong>写出任何 Σ 的闭形式后，必做「二选一检验」</strong>：<br>① 展开 <strong>x² 项系数对号</strong>（+½ 还是 −½）；或 ② <strong>代点</strong> x = ½（ln2 ≈ 0.693 vs ln(3/2) ≈ 0.405，一眼能分）。<br>另配一条同族提醒：换指标凑出 Σ xᵐ/m 之后，<strong>记得扣掉缺的前几项</strong>（P108 第12题就栽在这里）。",
+            "conclusion": "级数求和的错误<strong>多半不在技巧、而在闭形式认错</strong>——所以「x² 系数对号 / 代点」这一步<strong>不是可选检查，是必做工序</strong>。",
+            "noteLink": {
+              "name": "错题归档.md",
+              "path": "E:\\NPEE\\Math\\高数\\错题归档.md"
             }
           }
         ]
@@ -3530,7 +3731,7 @@
             "conclusion": "ρ=1 时比值/根值<strong>全部失效</strong>，要换比较法（1/n 与 1/n² 比值都得 1，一散一敛）。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -3559,7 +3760,7 @@
             "conclusion": "这些是比较法的“标尺”，一般判别首先回想 p 级数与等比。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -3588,7 +3789,7 @@
             "conclusion": "交错级数看两项：绝对值单调减、极限趋于零，满足就收敛。只能判收敛不能判发散。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -3617,7 +3818,7 @@
             "conclusion": "变号级数通项能展开就先展开到二阶再判；别对变号直接“换等价”。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -3646,7 +3847,7 @@
             "conclusion": "看到数项级数想求和，先想能否化到等比或 eˣ 的展开式。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
@@ -3675,7 +3876,7 @@
             "conclusion": "等价无穷小只能在<strong>乘除因子</strong>里换；加减项要展开到一阶以上再比。",
             "noteLink": {
               "name": "第3讲_一元函数微分学的概念.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第3讲_一元函数微分学的概念.md"
+              "path": "E:/NPEE/Math/高数/第3讲_一元函数微分学的概念.md"
             }
           }
         ]
@@ -3704,7 +3905,7 @@
             "conclusion": "收敛域 = 半径 + <strong>端点逐个验</strong>，别漏。今天测一遍，把卡住的记进错题归档。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
-              "path": "C:/Users/92534/Desktop/考研/Math/高数/第16讲_无穷级数.md"
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
             }
           }
         ]
