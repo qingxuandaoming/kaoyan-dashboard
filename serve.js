@@ -529,6 +529,7 @@ const readCfgValue = (db, k, dflt) => {
 // ============================================================
 const { FSRS, parseConfig } = require('./fsrs_core');
 const gradeLlm = require('./grade_llm');
+const aiProviders = require('./ai_providers');
 // AI 手写的练习题 → 题库卡片（抠 cards 块 / 规范化 / 入库）。单独成模块是为了能
 // 单独跑用例——那段规则最脏，见 tools/test_study_cards.js。
 const studyCards = require('./study_cards');
@@ -995,6 +996,8 @@ const SENSITIVE_PATHS = [
   '/api/flashcards/pins',
   // 学科管理 / 建库（2026-09-19）：写 subjects.json，能改学习范围，同待遇。
   '/api/subjects', '/api/bootstrap',
+  // 多供应商管理（2026-09-26）：写 .secrets.json 里的密钥与启用项，同待遇。
+  '/api/providers',
 ];
 const isSensitivePath = (u) => SENSITIVE_PATHS.some(p => String(u || '').indexOf(p) === 0);
 
@@ -1476,7 +1479,7 @@ const server = http.createServer((req, res) => {
         res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({
           ok: false,
-          error: '未配置 DeepSeek API key：请在 src/.secrets.json 里填 deepseek.api_key，或设置环境变量 DEEPSEEK_API_KEY',
+          error: '未配置 AI 密钥：请在「设置 → 模型与 API Key」添加一个带密钥的供应商并启用',
         }));
         return;
       }
@@ -2915,7 +2918,7 @@ const server = http.createServer((req, res) => {
         const qid = String(p.question_id || '').trim();
         if (!qid) { sendJson(400, { ok: false, error: '缺少 question_id' }); return; }
         if (!gradeLlm.hasKey()) {
-          sendJson(503, { ok: false, error: '未配置 DeepSeek API key：请在 src/.secrets.json 里填 deepseek.api_key，或设置环境变量 DEEPSEEK_API_KEY' });
+          sendJson(503, { ok: false, error: '未配置 AI 密钥：请在「设置 → 模型与 API Key」添加一个带密钥的供应商并启用' });
           return;
         }
         const db = new DatabaseSync(DB_PATH, { readOnly: true });
@@ -2980,7 +2983,7 @@ const server = http.createServer((req, res) => {
         if (!message) { sendJson(400, { ok: false, error: '追问内容不能为空' }); return; }
         if (message.length > 1000) { sendJson(400, { ok: false, error: '追问最多 1000 字' }); return; }
         if (!gradeLlm.hasKey()) {
-          sendJson(503, { ok: false, error: '未配置 DeepSeek API key' });
+          sendJson(503, { ok: false, error: '未配置 AI 密钥（设置 → 模型与 API Key）' });
           return;
         }
         const db = new DatabaseSync(DB_PATH, { readOnly: true });
@@ -3709,7 +3712,7 @@ const server = http.createServer((req, res) => {
         }
         const sess = reviewStore.loadSession(subject, sid);
         if (!sess) { sendJson(404, { ok: false, error: '会话不存在' }); return; }
-        if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 DeepSeek API key' }); return; }
+        if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 AI 密钥（设置 → 模型与 API Key）' }); return; }
 
         const errLines = sess.errors.slice(0, 12).map(e =>
           '- ' + (e.title || e.topic_hint || '未命名') + '｜错因:' + e.cause
@@ -3749,7 +3752,7 @@ const server = http.createServer((req, res) => {
         const subject = String(p.subject || ''), sid = String(p.sid || '');
         const sess = reviewStore.loadSession(subject, sid);
         if (!sess) { sendJson(404, { ok: false, error: '会话不存在' }); return; }
-        if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 DeepSeek API key' }); return; }
+        if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 AI 密钥（设置 → 模型与 API Key）' }); return; }
         const transcript = String(sess.transcript || '').slice(-9000);   // 只取尾部，防超长
         const sys = [
           '从下面这段复盘对话里提炼出**学生真正出过错的知识点**，输出 JSON 数组，不要任何多余文字。',
@@ -3850,7 +3853,7 @@ const server = http.createServer((req, res) => {
         const p = JSON.parse(body || '{}');
         const message = String(p.message || '').slice(0, 4000);
         if (!message) { sendJson(400, { ok: false, error: '消息不能为空' }); return; }
-        if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 DeepSeek API key' }); return; }
+        if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 AI 密钥（设置 → 模型与 API Key）' }); return; }
         const subject = String(p.subject || 'all');
         // 检索与上下文组装跟 agent 端点同源（studyContext），两处口径别各写一份
         const db = new DatabaseSync(DB_PATH, { readOnly: true });
@@ -3895,7 +3898,7 @@ const server = http.createServer((req, res) => {
         const p = JSON.parse(body || '{}');
         const message = String(p.message || '').slice(0, 4000);
         if (!message) { sendJson(400, { ok: false, error: '消息不能为空' }); return; }
-        if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 DeepSeek API key' }); return; }
+        if (!gradeLlm.hasKey()) { sendJson(503, { ok: false, error: '未配置 AI 密钥（设置 → 模型与 API Key）' }); return; }
         const subject = String(p.subject || 'all');
         db = new DatabaseSync(DB_PATH);
         const sc = studyContext(db, subject, message, studyAgent.AGENT_HINT);
@@ -3989,7 +3992,7 @@ const server = http.createServer((req, res) => {
         const p = JSON.parse(body || '{}');
         const message = String(p.message || '').slice(0, 4000);
         if (!message) { sse({ type: 'error', error: '消息不能为空' }); finishStream(); return; }
-        if (!gradeLlm.hasKey()) { sse({ type: 'error', error: '未配置 DeepSeek API key' }); finishStream(); return; }
+        if (!gradeLlm.hasKey()) { sse({ type: 'error', error: '未配置 AI 密钥（设置 → 模型与 API Key）' }); finishStream(); return; }
         const subject = String(p.subject || 'all');
         db = new DatabaseSync(DB_PATH);
         const sc = studyContext(db, subject, message, studyAgent.AGENT_HINT);
@@ -4189,10 +4192,14 @@ const SECRETS_PATH = process.env.SECRETS_PATH
   const pomoNameOk = (p) => typeof p === 'string' && !p.includes('..')
     && POMO_PATH_RE.test(p) && pomoExtOk(p);
   const llmPublic = () => {
+    const reg = aiProviders.loadRegistry();
     const c = gradeLlm.loadConfig();
     return {
       model: c.model, has_key: !!c.apiKey, base_url: c.baseUrl,
       key_hint: c.apiKey ? ('****' + c.apiKey.slice(-4)) : '',
+      // 多供应商（2026-09-26）：清单里密钥只回显尾 4 位；active 与 c 同源
+      protocol: c.protocol, provider_name: c.providerName, provider_id: c.providerId,
+      providers: aiProviders.publicList(reg), active_provider: reg.active,
     };
   };
   const readBgPath = () => {
@@ -4411,6 +4418,7 @@ const SECRETS_PATH = process.env.SECRETS_PATH
   }
 
   // POST /api/settings/apikey {api_key?, model?, clear_key?}
+  // 旧版单密钥入口（2026-09-26 起）：语义不变，但实际改的是**启用中的供应商**。
   // 密钥**只写不读**：传空串表示不改，clear_key=true 才清除。
   if (url === '/api/settings/apikey' && req.method === 'POST') {
     let body = '';
@@ -4418,36 +4426,80 @@ const SECRETS_PATH = process.env.SECRETS_PATH
     req.on('end', () => {
       try {
         const p = JSON.parse(body || '{}');
-        let secrets = {};
-        try { secrets = JSON.parse(fs.readFileSync(SECRETS_PATH, 'utf-8')) || {}; } catch (e) {}
-        if (!secrets.deepseek) secrets.deepseek = {};
-
+        const reg = aiProviders.loadRegistry();
+        const act = reg.providers.find(x => x.id === reg.active);
+        if (!act) { sendJson(400, { ok: false, error: '还没有供应商，请先在设置页添加' }); return; }
         const key = p.api_key == null ? '' : String(p.api_key).trim();
-        if (key) {
-          if (/\s/.test(key)) { sendJson(400, { ok: false, error: 'API Key 不应包含空白字符' }); return; }
-          if (key.length < 8 || key.length > 200) {
-            sendJson(400, { ok: false, error: 'API Key 长度不合法' });
-            return;
-          }
-          secrets.deepseek.api_key = key;
-        } else if (p.clear_key === true) {
-          delete secrets.deepseek.api_key;
-        }
-
         const model = p.model == null ? '' : String(p.model).trim();
-        if (model) {
-          // 模型名会被拼进上游 URL 的请求体，这里严格白名单字符，不给注入留口子
-          if (!/^[A-Za-z0-9._-]{1,80}$/.test(model)) {
-            sendJson(400, { ok: false, error: '模型名只能含字母、数字、点、下划线、连字符' });
-            return;
-          }
-          secrets.deepseek.model = model;
+        if (p.clear_key === true && !key) {
+          // 清除：normalizeProvider 把空串当「不修改」，这里直接落空
+          act.api_key = '';
+          aiProviders.saveRegistry(reg);
+        } else if (key || model) {
+          const patch = {};
+          if (key) patch.api_key = key;
+          if (model) patch.model = model;
+          const r = aiProviders.updateProvider(reg, act.id, patch);
+          aiProviders.saveRegistry(r.reg);
         }
-        fs.writeFileSync(SECRETS_PATH, JSON.stringify(secrets, null, 2), 'utf-8');
-        console.log('[Settings] LLM 配置已更新（model=' + (model || '不变') + '）');
+        console.log('[Settings] LLM 配置已更新（启用供应商 ' + act.name
+          + '，model=' + (model || '不变') + '）');
         sendJson(200, { ok: true, llm: llmPublic() });
       } catch (e) {
-        sendJson(500, { ok: false, error: e.message });
+        sendJson(400, { ok: false, error: e.message });
+      }
+    });
+    return;
+  }
+
+  // POST /api/providers {action, ...} —— 多供应商管理（2026-09-26，参照 Cherry Studio）
+  //   add      {name, protocol, base_url, api_key, model, nothink?}
+  //   update   {id, …同上；api_key 留空 = 不修改}
+  //   remove   {id}       删的是启用中的就自动落到剩余第一个
+  //   activate {id}       立即切换，下一次 AI 调用即生效
+  //   test     {id} 或 {protocol, base_url, api_key, model, nothink?}（不保存，直接试连）
+  // 密钥只写不读：清单与回执里一律只有尾 4 位（publicList / llmPublic）。
+  if (url === '/api/providers' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const p = JSON.parse(body || '{}');
+        const action = String(p.action || '');
+        if (action === 'test') {
+          let cfg;
+          if (p.id) {
+            const reg = aiProviders.loadRegistry();
+            const prov = reg.providers.find(x => x.id === String(p.id));
+            if (!prov) { sendJson(400, { ok: false, error: '供应商不存在' }); return; }
+            cfg = Object.assign({}, prov, {
+              providerId: prov.id, providerName: prov.name,
+              apiKey: prov.api_key, baseUrl: prov.base_url, timeoutMs: 30000,
+            });
+          } else {
+            const prov = aiProviders.normalizeProvider(p, '', true);
+            cfg = Object.assign({}, prov, {
+              providerId: prov.id, providerName: prov.name,
+              apiKey: prov.api_key, baseUrl: prov.base_url, timeoutMs: 30000,
+            });
+          }
+          const r = await gradeLlm.pingModel(cfg);
+          sendJson(r.ok ? 200 : 502, Object.assign({ ok: !!r.ok }, r));
+          return;
+        }
+        const reg = aiProviders.loadRegistry();
+        let out = null;
+        if (action === 'add') out = aiProviders.addProvider(reg, p).reg;
+        else if (action === 'update') out = aiProviders.updateProvider(reg, String(p.id || ''), p).reg;
+        else if (action === 'remove') out = aiProviders.removeProvider(reg, String(p.id || '')).reg;
+        else if (action === 'activate') out = aiProviders.setActive(reg, String(p.id || '')).reg;
+        else { sendJson(400, { ok: false, error: '未知 action：' + action }); return; }
+        aiProviders.saveRegistry(out);
+        console.log('[Providers] ' + action + ' 完成（active=' + out.active
+          + '，共 ' + out.providers.length + ' 个）');
+        sendJson(200, { ok: true, llm: llmPublic() });
+      } catch (e) {
+        sendJson(400, { ok: false, error: e.message });
       }
     });
     return;
@@ -4840,7 +4892,7 @@ const SECRETS_PATH = process.env.SECRETS_PATH
         if (!question) { sendJson(400, { ok: false, error: '问题不能为空' }); return; }
         if (!abs) { sendJson(400, { ok: false, error: '笔记路径非法（仅限知识库内 .md）' }); return; }
         if (!gradeLlm.hasKey()) {
-          sendJson(503, { ok: false, error: '未配置 DeepSeek API key：设置 → 模型与 API Key，或填 src/.secrets.json' });
+          sendJson(503, { ok: false, error: '未配置 AI 密钥：请在「设置 → 模型与 API Key」添加一个带密钥的供应商并启用' });
           return;
         }
         const rel = path.relative(ROOT_DIR, abs).split(path.sep).join('/');

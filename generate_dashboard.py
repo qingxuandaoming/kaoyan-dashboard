@@ -8797,6 +8797,21 @@ SETTINGS_CSS = '''
             background: transparent; border: 0; color: var(--text-secondary); transition: all .15s; }
         .set-seg button:hover { color: var(--text-primary); background: var(--bg-secondary); }
         .set-seg button.on { background: var(--dianqing); color: #fff; }
+        /* 多供应商管理（2026-09-26）：一行一个供应商，启用中的描边高亮 */
+        .prov-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+            margin: 6px 0; border: 1px solid var(--border-color); border-radius: 8px;
+            background: var(--bg-secondary); }
+        .prov-row.on { border-color: var(--zhuqing); }
+        .prov-main { flex: 1; min-width: 0; }
+        .prov-name { font-size: 0.84rem; color: var(--text-primary); font-weight: 600; }
+        .prov-proto { font-size: 0.64rem; padding: 1px 6px; border-radius: 6px; margin-left: 6px;
+            background: rgba(var(--xiang-rgb), .16); color: var(--xiang-lt); font-weight: 400; }
+        .prov-sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .prov-badge { font-size: 0.64rem; padding: 2px 8px; border-radius: 6px; white-space: nowrap;
+            background: rgba(var(--zhuqing-rgb), .18); color: var(--zhuqing-lt); }
+        .set-check { display: flex; gap: 6px; align-items: center; font-size: 0.74rem;
+            color: var(--text-secondary); margin: 6px 0; }
         .set-range { flex: 1; min-width: 150px; accent-color: var(--dianqing); }
         .set-bg-preview { margin-top: 10px; width: 240px; height: 135px; border-radius: 8px;
             border: 1px solid var(--border-color); background-size: cover; background-position: center;
@@ -9166,26 +9181,40 @@ SETTINGS_JS = '''
     function render(container) {
         container.innerHTML =
             '<div class="sec-body">'
-          + '  <div class="set-group"><div class="set-title">🤖 模型与 API Key</div>'
-          + '    <span class="set-label">API Key（只写不读，保存后只显示尾 4 位）</span>'
+          + '  <div class="set-group"><div class="set-title">🤖 模型与 API Key（多供应商）</div>'
+          + '    <div id="set-prov-list"></div>'
           + '    <div class="set-row">'
-          + '      <input class="set-input mono" id="set-key" type="password" autocomplete="off"'
-          + '             placeholder="留空 = 不修改">'
-          + '      <button class="fs-btn" id="set-key-save">保存</button>'
-          + '      <button class="fs-btn" id="set-key-clear">清除</button>'
+          + '      <button class="fs-btn" id="set-prov-add">＋ 添加供应商</button>'
+          + '      <span class="set-hint" style="margin:0">OpenAI 兼容接口（DeepSeek / OpenAI / Moonshot / GLM / Ollama…）'
+          + '与 Anthropic 都能接；点「启用」立即切换，下一次 AI 调用即生效。</span>'
           + '    </div>'
-          + '    <span class="set-label">模型</span>'
-          + '    <div class="set-row">'
-          + '      <input class="set-input mono" id="set-model" list="set-models" placeholder="deepseek-flash">'
-          + '      <datalist id="set-models">'
-          + '        <option value="deepseek-flash"></option>'
-          + '        <option value="deepseek-v4-pro"></option>'
-          + '      </datalist>'
-          + '      <button class="fs-btn" id="set-model-save">保存模型</button>'
+          + '    <div id="set-prov-form" hidden>'
+          + '      <span class="set-label">名称</span>'
+          + '      <input class="set-input" id="set-prov-name" maxlength="40" placeholder="如 DeepSeek / Claude / 本机 Ollama">'
+          + '      <span class="set-label">接口协议</span>'
+          + '      <div class="set-seg" id="set-prov-proto">'
+          + '        <button data-proto="openai" class="on">OpenAI 兼容</button>'
+          + '        <button data-proto="anthropic">Anthropic</button>'
+          + '      </div>'
+          + '      <span class="set-label">Base URL</span>'
+          + '      <input class="set-input mono" id="set-prov-base"'
+          + '             placeholder="OpenAI 兼容填到 /v1 为止（如 https://api.deepseek.com）；Anthropic 填到域名">'
+          + '      <span class="set-label">API Key（只写不读，只显示尾 4 位；编辑时留空 = 不修改）</span>'
+          + '      <input class="set-input mono" id="set-prov-key" type="password" autocomplete="off" placeholder="sk-...">'
+          + '      <span class="set-label">模型名</span>'
+          + '      <input class="set-input mono" id="set-prov-model" placeholder="deepseek-flash / claude-sonnet-4-5 / qwen-plus …">'
+          + '      <label class="set-check"><input type="checkbox" id="set-prov-nothink">'
+          + '      快速模式发送「关闭思考」参数（DeepSeek 系私有扩展；其它接口不要勾）</label>'
+          + '      <div class="set-row">'
+          + '        <button class="fs-btn" id="set-prov-save">保存</button>'
+          + '        <button class="fs-btn" id="set-prov-test">测试连接</button>'
+          + '        <button class="fs-btn" id="set-prov-cancel">取消</button>'
+          + '      </div>'
+          + '      <div class="set-hint" id="set-prov-status"></div>'
           + '    </div>'
           + '    <div class="set-hint" id="set-llm-status"></div>'
-          + '    <div class="set-hint">批改简答题、生成错题解析都走这个模型。'
-          + '关键密钥只存在服务端 <code>src/.secrets.json</code>，不会下发到浏览器。</div>'
+          + '    <div class="set-hint">批改简答题、生成错题解析都走「启用中」的供应商。'
+          + '密钥只存在服务端 <code>src/.secrets.json</code>，不会下发到浏览器。</div>'
           + '    <span class="set-label">答错解析 / 追问的思考强度（默认）</span>'
           + '    <div class="set-seg" id="set-think">'
           + '      <button data-think="quick">关掉思考 · 跟手</button>'
@@ -9595,13 +9624,8 @@ SETTINGS_JS = '''
             // 「再来一组」的张数（默认 10）：服务端没给就落 10
             const ex = container.querySelector("#set-extra");
             if (ex) ex.value = (d.review && d.review.flash_extra_count) || 10;
-            container.querySelector("#set-model").value = d.llm.model || "";
-            const kEl = container.querySelector("#set-key");
-            kEl.placeholder = d.llm.has_key ? ("已设置 " + d.llm.key_hint + "，留空 = 不修改") : "尚未设置";
-            status(container.querySelector("#set-llm-status"),
-                d.llm.has_key ? ("✅ 当前模型 " + d.llm.model + "，密钥 " + d.llm.key_hint)
-                              : "⚠ 尚未配置密钥，AI 批改与错题解析不可用",
-                d.llm.has_key ? "ok" : "warn");
+            // 多供应商（2026-09-26）：清单 + 启用项 + 状态行一次刷好
+            applyLlm(d.llm, container);
             syncAppearance(d);
             markTheme(container, d.ui.theme);
             // 鼠标光效开关（服务端存 ui_mouse_fx，多设备一致）
@@ -9842,36 +9866,156 @@ SETTINGS_JS = '''
         });
     }
 
+    // ---- 多供应商管理（2026-09-26，参照 Cherry Studio 的供应商列表）----
+    // 状态放在 IIFE 级：切页重渲染后清单不丢；密钥永远只在服务端，这里只有尾 4 位。
+    let provList = [], provEditId = "";
+
+    function curProto(container) {
+        const b = container.querySelector("#set-prov-proto button.on");
+        return b ? b.dataset.proto : "openai";
+    }
+    function setProto(container, proto) {
+        container.querySelectorAll("#set-prov-proto button").forEach(x =>
+            x.classList.toggle("on", x.dataset.proto === proto));
+    }
+    function renderProvList(container) {
+        const box = container.querySelector("#set-prov-list");
+        if (!box) return;
+        if (!provList.length) {
+            box.innerHTML = '<div class="set-hint" style="margin-top:0;">还没有供应商，点下面「＋ 添加供应商」。</div>';
+            return;
+        }
+        box.innerHTML = provList.map(p =>
+            '<div class="prov-row' + (p.active ? " on" : "") + '">'
+            + (p.active ? '<span class="prov-badge">启用中</span>'
+                        : '<button class="fs-btn" data-prov-use="' + esc(p.id) + '">启用</button>')
+            + '<div class="prov-main"><div class="prov-name">' + esc(p.name)
+            + '<span class="prov-proto">' + (p.protocol === "anthropic" ? "Anthropic" : "OpenAI 兼容") + '</span></div>'
+            + '<div class="prov-sub">' + esc(p.model) + ' · ' + esc(p.base_url) + ' · '
+            + (p.has_key ? ("密钥 " + esc(p.key_hint)) : "⚠ 未设密钥") + '</div></div>'
+            + '<button class="fs-btn" data-prov-test="' + esc(p.id) + '" title="发一次最小调用试连通">测试</button>'
+            + '<button class="fs-btn" data-prov-edit="' + esc(p.id) + '">编辑</button>'
+            + '<button class="fs-btn" data-prov-del="' + esc(p.id) + '">删除</button>'
+            + '</div>').join("");
+    }
+    function applyLlm(llm, container) {
+        provList = (llm && llm.providers) || [];
+        renderProvList(container);
+        const st = container.querySelector("#set-llm-status");
+        const act = provList.find(x => x.active) || provList[0];
+        if (!act) { status(st, "⚠ 还没有供应商，AI 批改与错题解析不可用", "warn"); return; }
+        status(st, act.has_key
+            ? ("✅ 启用中：" + act.name + " · " + act.model + "（"
+               + (act.protocol === "anthropic" ? "Anthropic" : "OpenAI 兼容") + "），密钥 " + act.key_hint)
+            : ("⚠ 启用中的「" + act.name + "」还没设密钥，AI 批改与错题解析不可用"),
+            act.has_key ? "ok" : "warn");
+    }
+    function openProvForm(container, p) {
+        const f = container.querySelector("#set-prov-form");
+        if (!f) return;
+        provEditId = p ? p.id : "";
+        container.querySelector("#set-prov-name").value = p ? p.name : "";
+        container.querySelector("#set-prov-base").value = p ? p.base_url : "";
+        container.querySelector("#set-prov-model").value = p ? p.model : "";
+        const key = container.querySelector("#set-prov-key");
+        key.value = "";
+        key.placeholder = p
+            ? (p.has_key ? ("已设置 " + p.key_hint + "，留空 = 不修改") : "尚未设置")
+            : "sk-...";
+        container.querySelector("#set-prov-nothink").checked = p ? !!p.nothink : false;
+        setProto(container, p ? p.protocol : "openai");
+        status(container.querySelector("#set-prov-status"), "");
+        f.hidden = false;
+    }
+
     function bind(container) {
         const $ = (s) => container.querySelector(s);
 
-        $("#set-key-save").onclick = async () => {
-            const v = $("#set-key").value.trim();
-            if (!v) { toast("请先填入 API Key"); return; }
+        // ---- 供应商列表：启用 / 测试 / 编辑 / 删除（事件委托，重渲染不丢）----
+        const provBox = $("#set-prov-list");
+        if (provBox) provBox.onclick = async (ev) => {
+            const use = ev.target.closest("[data-prov-use]");
+            const test = ev.target.closest("[data-prov-test]");
+            const edit = ev.target.closest("[data-prov-edit]");
+            const del = ev.target.closest("[data-prov-del]");
             try {
-                const d = await api("/api/settings/apikey", "POST", { api_key: v });
-                $("#set-key").value = "";
-                $("#set-key").placeholder = "已设置 " + d.llm.key_hint + "，留空 = 不修改";
-                status($("#set-llm-status"), "✅ 密钥已保存（" + d.llm.key_hint + "）", "ok");
-                toast("API Key 已保存");
-            } catch (e) { status($("#set-llm-status"), "保存失败：" + e.message, "warn"); }
+                if (use) {
+                    const d = await api("/api/providers", "POST",
+                        { action: "activate", id: use.dataset.provUse });
+                    applyLlm(d.llm, container);
+                    toast("已切换到 " + d.llm.provider_name + " · " + d.llm.model);
+                } else if (test) {
+                    const d = await api("/api/providers", "POST",
+                        { action: "test", id: test.dataset.provTest });
+                    toast("✅ 连通：" + d.ms + " ms" + (d.reply ? (" · " + d.reply) : ""));
+                } else if (edit) {
+                    openProvForm(container, provList.find(x => x.id === edit.dataset.provEdit) || null);
+                } else if (del) {
+                    const p = provList.find(x => x.id === del.dataset.provDel);
+                    if (!p) return;
+                    if (!confirm("删除供应商「" + p.name + "」？"
+                        + (p.active ? "\\n它正启用中，删除后自动切到剩余第一个。" : ""))) return;
+                    const d = await api("/api/providers", "POST",
+                        { action: "remove", id: del.dataset.provDel });
+                    applyLlm(d.llm, container);
+                    toast("已删除 " + p.name);
+                }
+            } catch (e) {
+                toast("操作失败：" + e.message);
+            }
         };
-        $("#set-key-clear").onclick = async () => {
-            if (!confirm("清除已保存的 API Key？清除后 AI 批改与错题解析会不可用。")) return;
-            try {
-                const d = await api("/api/settings/apikey", "POST", { clear_key: true });
-                $("#set-key").placeholder = "尚未设置";
-                status($("#set-llm-status"), "⚠ 密钥已清除", "warn");
-            } catch (e) { status($("#set-llm-status"), "清除失败：" + e.message, "warn"); }
+        $("#set-prov-add").onclick = () => openProvForm(container, null);
+        $("#set-prov-cancel").onclick = () => { $("#set-prov-form").hidden = true; provEditId = ""; };
+        $("#set-prov-proto").onclick = (ev) => {
+            const b = ev.target.closest("button[data-proto]");
+            if (b) setProto(container, b.dataset.proto);
         };
-        $("#set-model-save").onclick = async () => {
-            const m = $("#set-model").value.trim();
-            if (!m) { toast("请填入模型名"); return; }
+        $("#set-prov-save").onclick = async () => {
+            const kv = $("#set-prov-key").value.trim();
+            if (!provEditId && !kv) {
+                status($("#set-prov-status"), "新增供应商需要填 API Key", "warn");
+                return;
+            }
+            const payload = {
+                action: provEditId ? "update" : "add",
+                name: $("#set-prov-name").value.trim(),
+                protocol: curProto(container),
+                base_url: $("#set-prov-base").value.trim(),
+                model: $("#set-prov-model").value.trim(),
+                nothink: $("#set-prov-nothink").checked,
+            };
+            if (provEditId) payload.id = provEditId;
+            if (kv) payload.api_key = kv;
             try {
-                const d = await api("/api/settings/apikey", "POST", { model: m });
-                status($("#set-llm-status"), "✅ 已切换到模型 " + d.llm.model, "ok");
-                toast("模型已切换");
-            } catch (e) { status($("#set-llm-status"), "保存失败：" + e.message, "warn"); }
+                const d = await api("/api/providers", "POST", payload);
+                $("#set-prov-form").hidden = true;
+                provEditId = "";
+                applyLlm(d.llm, container);
+                toast("供应商已保存");
+            } catch (e) { status($("#set-prov-status"), "保存失败：" + e.message, "warn"); }
+        };
+        $("#set-prov-test").onclick = async () => {
+            const kv = $("#set-prov-key").value.trim();
+            const payload = { action: "test" };
+            if (kv) {
+                payload.name = $("#set-prov-name").value.trim() || "测试";
+                payload.protocol = curProto(container);
+                payload.base_url = $("#set-prov-base").value.trim();
+                payload.model = $("#set-prov-model").value.trim();
+                payload.api_key = kv;
+                payload.nothink = $("#set-prov-nothink").checked;
+            } else if (provEditId) {
+                payload.id = provEditId;
+            } else {
+                status($("#set-prov-status"), "先填密钥，或保存后再测", "warn");
+                return;
+            }
+            status($("#set-prov-status"), "测试中…");
+            try {
+                const d = await api("/api/providers", "POST", payload);
+                status($("#set-prov-status"),
+                    "✅ 连通 " + d.ms + " ms，模型回声：" + (d.reply || "（空）"), "ok");
+            } catch (e) { status($("#set-prov-status"), "❌ " + e.message, "warn"); }
         };
         $("#set-quota-save").onclick = async () => {
             try {

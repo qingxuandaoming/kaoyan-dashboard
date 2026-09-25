@@ -17,32 +17,36 @@
 const fs = require('fs');
 const path = require('path');
 
-// 允许 SECRETS_PATH 指向副本文件。测试必须能隔离密钥——否则一次设置页的
-// 自动化测试就会把真实 API Key 覆盖掉，而且不可恢复（踩过一次）。
-const SECRETS_PATH = process.env.SECRETS_PATH
-  ? path.resolve(__dirname, process.env.SECRETS_PATH)
-  : path.join(__dirname, '.secrets.json');
+// 供应商注册表（多 API 多来源、自由切换，2026-09-26）在 ai_providers.js：
+// src/.secrets.json 的 providers[] + active_provider；老配置（只有 deepseek 段）
+// 会被合成一个供应商，行为不变。本文件只管「怎么调」，不管「配置存哪」。
+const providers = require('./ai_providers');
 
 // ---------------------------------------------------------------------------
 // 配置
 // ---------------------------------------------------------------------------
 
 function loadConfig(env = process.env) {
-  let file = {};
-  try {
-    file = JSON.parse(fs.readFileSync(SECRETS_PATH, 'utf-8')).deepseek || {};
-  } catch (e) { /* 没配置文件就走环境变量 */ }
-  const cfg = {
-    apiKey: env.DEEPSEEK_API_KEY || file.api_key || '',
-    baseUrl: (env.DEEPSEEK_BASE_URL || file.base_url || 'https://api.deepseek.com').replace(/\/+$/, ''),
-    model: env.DEEPSEEK_MODEL || file.model || 'deepseek-flash',
-    timeoutMs: parseInt(env.DEEPSEEK_TIMEOUT_MS || '60000', 10),
+  const c = providers.activeConfig(env);
+  return {
+    apiKey: c.apiKey,
+    baseUrl: c.baseUrl,
+    model: c.model,
+    timeoutMs: c.timeoutMs,
+    protocol: c.protocol,
+    nothink: c.nothink,
+    providerId: c.providerId,
+    providerName: c.providerName,
   };
-  return cfg;
 }
 
 function hasKey(env = process.env) {
   return !!loadConfig(env).apiKey;
+}
+
+function noKeyMsg(cfg) {
+  const who = (cfg && (cfg.providerName || cfg.providerId)) || '当前供应商';
+  return `未配置「${who}」的 API key（设置 → 模型与 API Key，或 src/.secrets.json）`;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,15 +209,215 @@ function normalizeResult(parsed, rawText) {
  */
 const NO_THINK = { thinking: { type: 'disabled' } };
 
-async function callDeepSeek(messages, cfg, fetchImpl, maxTokens, opts = {}) {
+// ---------------------------------------------------------------------------
+// Anthropic Messages 协议适配（2026-09-26 多供应商）
+//
+// 内部一律用 OpenAI 消息形状（system/user/assistant/tool + tool_calls），
+// 只在边界处转成 Anthropic 形状、回来时再转回 OpenAI 形状——
+// 上层的工具回路（study_agent 那套）一行都不用改：
+//   · system 消息        → 顶层 system 字符串；
+//   · user 里的 image_url → {type:'image', source:{type:'base64',...}}；
+//   · assistant tool_calls → tool_use 内容块；
+//   · role:'tool'         → user 消息里的 tool_result 块（连续多条合并成一条，
+//                            Anthropic 要求工具结果必须紧跟 tool_use 且角色交替）；
+//   · tools 定义          → {name, description, input_schema}。
+// ---------------------------------------------------------------------------
+
+function parseDataUrl(u) {
+  const m = /^data:(image\/[A-Za-z0-9.+-]+);base64,([\s\S]+)$/.exec(String(u || ''));
+  if (!m) return null;
+  return { media_type: m[1], data: m[2] };
+}
+
+function splitSystem(messages) {
+  const sys = [];
+  const rest = [];
+  for (const m of (messages || [])) {
+    if (!m) continue;
+    if (m.role === 'system') {
+      if (typeof m.content === 'string' && m.content.trim()) sys.push(m.content);
+      continue;
+    }
+    rest.push(m);
+  }
+  return { system: sys.join('\n\n'), rest };
+}
+
+function toAnthropicMessages(rest) {
+  const out = [];
+  let pending = [];
+  const flush = () => {
+    if (!pending.length) return;
+    out.push({ role: 'user', content: pending });
+    pending = [];
+  };
+  for (const m of (rest || [])) {
+    if (!m) continue;
+    if (m.role === 'tool') {
+      pending.push({
+        type: 'tool_result',
+        tool_use_id: String(m.tool_call_id || ''),
+        content: String(m.content == null ? '' : m.content),
+      });
+      continue;
+    }
+    flush();
+    if (m.role === 'assistant') {
+      const blocks = [];
+      if (typeof m.content === 'string' && m.content.trim()) {
+        blocks.push({ type: 'text', text: m.content });
+      }
+      for (const tc of (Array.isArray(m.tool_calls) ? m.tool_calls : [])) {
+        let input = {};
+        try { input = JSON.parse((tc.function && tc.function.arguments) || '{}'); }
+        catch (e) { input = {}; }
+        blocks.push({
+          type: 'tool_use',
+          id: String(tc.id || ''),
+          name: String((tc.function && tc.function.name) || ''),
+          input,
+        });
+      }
+      if (blocks.length) out.push({ role: 'assistant', content: blocks });
+      continue;
+    }
+    if (Array.isArray(m.content)) {
+      const blocks = [];
+      for (const part of m.content) {
+        if (part && part.type === 'text') blocks.push({ type: 'text', text: String(part.text || '') });
+        else if (part && part.type === 'image_url') {
+          const d = parseDataUrl(part.image_url && part.image_url.url);
+          if (d) blocks.push({ type: 'image', source: { type: 'base64', media_type: d.media_type, data: d.data } });
+        }
+      }
+      out.push({ role: 'user', content: blocks.length ? blocks : '（见图）' });
+      continue;
+    }
+    const t = String(m.content == null ? '' : m.content);
+    if (t.trim()) out.push({ role: 'user', content: t });
+  }
+  flush();
+  return out;
+}
+
+function toAnthropicTools(tools) {
+  return (tools || [])
+    .map(t => {
+      const f = (t && t.function) || t || {};
+      return {
+        name: String(f.name || ''),
+        description: String(f.description || ''),
+        input_schema: (f.parameters && typeof f.parameters === 'object')
+          ? f.parameters : { type: 'object', properties: {} },
+      };
+    })
+    .filter(t => t.name);
+}
+
+// base_url 填到域名或到 /v1 都认（与 OpenAI 兼容端点「填到 /v1 为止」的习惯对齐）
+function anthropicUrl(baseUrl) {
+  const b = String(baseUrl || '').replace(/\/+$/, '');
+  return /\/v\d+$/.test(b) ? (b + '/messages') : (b + '/v1/messages');
+}
+
+function anthropicHeaders(cfg) {
+  return {
+    'Content-Type': 'application/json',
+    'x-api-key': cfg.apiKey,
+    'anthropic-version': '2023-06-01',
+  };
+}
+
+// Anthropic 的 stop_reason → 内部沿用的 OpenAI finish_reason 口径
+// （callWithRetry 靠 'length' 判断「被截断、加大预算重试」，不能丢）
+const ANTHROPIC_STOP_MAP = {
+  end_turn: 'stop', stop_sequence: 'stop', max_tokens: 'length', tool_use: 'tool_calls',
+};
+
+function anthropicResult(json) {
+  const blocks = Array.isArray(json.content) ? json.content : [];
+  let text = '', reasoning = '';
+  const calls = [];
+  for (const b of blocks) {
+    if (!b || typeof b !== 'object') continue;
+    if (b.type === 'text') text += String(b.text || '');
+    else if (b.type === 'thinking') reasoning += String(b.thinking || '');
+    else if (b.type === 'tool_use') {
+      calls.push({
+        id: String(b.id || ''),
+        type: 'function',
+        function: {
+          name: String(b.name || ''),
+          arguments: JSON.stringify(b.input == null ? {} : b.input),
+        },
+      });
+    }
+  }
+  return {
+    text, reasoning, tool_calls: calls,
+    finish: ANTHROPIC_STOP_MAP[json.stop_reason] || String(json.stop_reason || 'stop'),
+  };
+}
+
+async function callAnthropic(messages, cfg, fetchImpl, maxTokens, opts = {}) {
   const doFetch = fetchImpl || globalThis.fetch;
-  if (!cfg.apiKey) throw new Error('未配置 DeepSeek API key（src/.secrets.json 或 DEEPSEEK_API_KEY）');
+  if (!cfg.apiKey) throw new Error(noKeyMsg(cfg));
+  const { system, rest } = splitSystem(messages);
+  const payload = {
+    model: cfg.model,
+    max_tokens: maxTokens || 3000,
+    messages: toAnthropicMessages(rest),
+  };
+  if (system) payload.system = system;
+  if (opts.extra && Array.isArray(opts.extra.tools) && opts.extra.tools.length) {
+    payload.tools = toAnthropicTools(opts.extra.tools);
+    payload.tool_choice = { type: 'auto' };
+  }
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), cfg.timeoutMs);
+  try {
+    const resp = await doFetch(anthropicUrl(cfg.baseUrl), {
+      method: 'POST',
+      headers: anthropicHeaders(cfg),
+      body: JSON.stringify(payload),
+      signal: ctl.signal,
+    });
+    const bodyText = await resp.text();
+    if (!resp.ok) {
+      let msg = `HTTP ${resp.status}`;
+      try { msg += ': ' + (JSON.parse(bodyText).error?.message || ''); } catch (e) {}
+      return { ok: false, error: msg, raw: bodyText.slice(0, 500) };
+    }
+    let json;
+    try { json = JSON.parse(bodyText); }
+    catch (e) { return { ok: false, error: '响应不是合法 JSON', raw: bodyText.slice(0, 500) }; }
+    const r = anthropicResult(json);
+    return {
+      ok: true,
+      text: r.text,
+      reasoning: r.reasoning,
+      finish: r.finish,
+      tool_calls: r.tool_calls,
+      message: { role: 'assistant', content: r.text, tool_calls: r.tool_calls },
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// OpenAI 兼容协议（原 callDeepSeek，2026-09-26 起只是双协议之一）
+// ---------------------------------------------------------------------------
+
+async function callOpenAI(messages, cfg, fetchImpl, maxTokens, opts = {}) {
+  const doFetch = fetchImpl || globalThis.fetch;
+  if (!cfg.apiKey) throw new Error(noKeyMsg(cfg));
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), cfg.timeoutMs);
   try {
     const payload = Object.assign({
       model: cfg.model, messages, max_tokens: maxTokens || 3000, temperature: 0.2,
-    }, opts.quick ? NO_THINK : null, opts.extra || null);
+    }, (opts.quick && cfg.nothink !== false) ? NO_THINK : null, opts.extra || null);
     const resp = await doFetch(`${cfg.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
@@ -245,6 +449,30 @@ async function callDeepSeek(messages, cfg, fetchImpl, maxTokens, opts = {}) {
   }
 }
 
+/** 协议分发：一个入口，两种上游。返回值形状完全一致（OpenAI 口径）。 */
+async function callLLM(messages, cfg, fetchImpl, maxTokens, opts = {}) {
+  if (cfg.protocol === 'anthropic') {
+    return callAnthropic(messages, cfg, fetchImpl, maxTokens, opts);
+  }
+  return callOpenAI(messages, cfg, fetchImpl, maxTokens, opts);
+}
+
+/** 连通性测试（设置页「测试」按钮）：最小调用，回耗时与模型回声。 */
+async function pingModel(cfg, fetchImpl) {
+  const t0 = Date.now();
+  let resp;
+  try {
+    resp = await callLLM(
+      [{ role: 'user', content: '连通性测试：只回复两个字「在的」。' }],
+      cfg, fetchImpl, 32, { quick: true });
+  } catch (e) {
+    return { ok: false, ms: Date.now() - t0, error: e.message };
+  }
+  const ms = Date.now() - t0;
+  if (!resp.ok) return { ok: false, ms, error: resp.error, raw: resp.raw };
+  return { ok: true, ms, model: cfg.model, reply: String(resp.text || '').slice(0, 40) };
+}
+
 /**
  * 批改一道简答题。
  * @param {{content:object}} question  questions 表里那行（content 已解析）
@@ -255,7 +483,7 @@ async function callDeepSeek(messages, cfg, fetchImpl, maxTokens, opts = {}) {
 async function gradeAnswer(question, userAnswer, imageDataUrl, opts = {}) {
   const cfg = opts.config || loadConfig();
   const messages = buildMessages(question, userAnswer, imageDataUrl);
-  let resp = await callDeepSeek(messages, cfg, opts.fetchImpl);
+  let resp = await callLLM(messages, cfg, opts.fetchImpl);
 
   // 推理模型的两类截断都要重试：
   //   1) reasoning 占满预算，content 为空且 finish=length；
@@ -264,7 +492,7 @@ async function gradeAnswer(question, userAnswer, imageDataUrl, opts = {}) {
   if (resp.ok && resp.finish === 'length' && (!resp.text.trim() || !extractJson(resp.text))) {
     console.warn('[Grade] 首轮输出不完整（finish=length, textLen=' + resp.text.length
       + '），用更大 max_tokens=6000 重试一次');
-    resp = await callDeepSeek(messages, cfg, opts.fetchImpl, 6000);
+    resp = await callLLM(messages, cfg, opts.fetchImpl, 6000);
   }
 
   if (!resp.ok) return { ok: false, error: resp.error, raw: resp.raw };
@@ -394,7 +622,7 @@ async function callWithRetry(messages, cfg, fetchImpl, maxTokens, opts = {}) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const budget = attempt === 0 ? maxTokens : maxTokens * 3;
-      const resp = await callDeepSeek(messages, cfg, fetchImpl, budget, opts);
+      const resp = await callLLM(messages, cfg, fetchImpl, budget, opts);
       if (!resp.ok) return resp;
       // 被 length 截断：不管有没有正文，都要加大预算重试（首刀可能写了一大段被腰斩）
       if (resp.finish === 'length') {
@@ -524,7 +752,7 @@ async function coachChat(history, system, opts = {}) {
 async function agentTurn(messages, tools, opts = {}) {
   const cfg = opts.config || loadConfig();
   const useTools = Array.isArray(tools) && tools.length;
-  const resp = await callDeepSeek(messages, cfg, opts.fetchImpl, opts.maxTokens || 2500,
+  const resp = await callLLM(messages, cfg, opts.fetchImpl, opts.maxTokens || 2500,
     Object.assign({ quick: !!opts.quick },
       useTools ? { extra: { tools, tool_choice: opts.toolChoice || 'auto' } } : null));
   if (!resp.ok) return { ok: false, error: resp.error, raw: resp.raw };
@@ -534,6 +762,102 @@ async function agentTurn(messages, tools, opts = {}) {
     tool_calls: resp.tool_calls || [],
     finish: resp.finish,
   };
+}
+
+/**
+ * Anthropic 流式（SSE 事件形状与 OpenAI 完全不同，单独解析）：
+ *   content_block_start  {index, content_block:{type:'tool_use', id, name}}
+ *   content_block_delta  {index, delta:{type:'text_delta'|'thinking_delta'|'input_json_delta'}}
+ *   message_delta        {delta:{stop_reason}}
+ *   error                {error:{message}}
+ * 工具调用同样是分片来的（input_json_delta），按 index 归并 arguments。
+ * 对上层的事件口径与 OpenAI 流完全一致：{type:'reasoning'|'content', text}。
+ */
+async function streamAnthropic(messages, cfg, fetchImpl, maxTokens, opts, emit) {
+  const doFetch = fetchImpl || globalThis.fetch;
+  if (!cfg.apiKey) return { ok: false, error: noKeyMsg(cfg) };
+  const { system, rest } = splitSystem(messages);
+  const payload = {
+    model: cfg.model,
+    max_tokens: maxTokens || 2500,
+    stream: true,
+    messages: toAnthropicMessages(rest),
+  };
+  if (system) payload.system = system;
+  if (Array.isArray(opts.tools) && opts.tools.length) {
+    payload.tools = toAnthropicTools(opts.tools);
+    payload.tool_choice = { type: 'auto' };
+  }
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), cfg.timeoutMs);
+  try {
+    const resp = await doFetch(anthropicUrl(cfg.baseUrl), {
+      method: 'POST',
+      headers: anthropicHeaders(cfg),
+      body: JSON.stringify(payload),
+      signal: ctl.signal,
+    });
+    if (!resp.ok) {
+      let bodyText = '';
+      try { bodyText = await resp.text(); } catch (e) {}
+      let msg = `HTTP ${resp.status}`;
+      try { msg += ': ' + (JSON.parse(bodyText).error?.message || ''); } catch (e) {}
+      return { ok: false, error: msg, raw: String(bodyText).slice(0, 500) };
+    }
+    if (!resp.body) return { ok: false, error: '服务端没有返回流（resp.body 为空）' };
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', content = '', reasoning = '', finish = '';
+    const calls = [];
+    for (;;) {
+      const step = await reader.read();
+      if (step.done) break;
+      buf += dec.decode(step.value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).replace(/\r$/, '').trim();
+        buf = buf.slice(nl + 1);
+        if (!line || line.indexOf('data:') !== 0) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        let j = null;
+        try { j = JSON.parse(data); } catch (e) { continue; }
+        if (j.type === 'error') {
+          return { ok: false, error: String(j.error && j.error.message || '流式错误'), raw: data.slice(0, 500) };
+        }
+        if (j.type === 'content_block_start') {
+          const cb = j.content_block || {};
+          if (cb.type === 'tool_use') {
+            const i = Number.isInteger(j.index) ? j.index : 0;
+            calls[i] = { id: String(cb.id || ''), type: 'function', function: { name: String(cb.name || ''), arguments: '' } };
+          }
+          continue;
+        }
+        if (j.type === 'content_block_delta') {
+          const d = j.delta || {};
+          const i = Number.isInteger(j.index) ? j.index : 0;
+          if (d.type === 'text_delta' && d.text) { content += d.text; emit({ type: 'content', text: d.text }); }
+          else if (d.type === 'thinking_delta' && d.thinking) { reasoning += d.thinking; emit({ type: 'reasoning', text: d.thinking }); }
+          else if (d.type === 'input_json_delta' && calls[i]) { calls[i].function.arguments += String(d.partial_json || ''); }
+          continue;
+        }
+        if (j.type === 'message_delta') {
+          const sr = j.delta && j.delta.stop_reason;
+          if (sr) finish = ANTHROPIC_STOP_MAP[sr] || String(sr);
+          continue;
+        }
+      }
+    }
+    const tool_calls = calls.filter(Boolean);
+    return {
+      ok: true,
+      message: { role: 'assistant', content: content, tool_calls: tool_calls },
+      tool_calls: tool_calls, finish: finish || 'stop', reasoning: reasoning,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -551,15 +875,19 @@ async function agentTurnStream(messages, tools, opts = {}, onDelta) {
   const cfg = opts.config || loadConfig();
   const emit = typeof onDelta === 'function' ? onDelta : () => {};
   const useTools = Array.isArray(tools) && tools.length;
+  if (cfg.protocol === 'anthropic') {
+    return streamAnthropic(messages, cfg, opts.fetchImpl, opts.maxTokens || 2500,
+      useTools ? { tools: tools, toolChoice: opts.toolChoice } : {}, emit);
+  }
   const doFetch = opts.fetchImpl || globalThis.fetch;
-  if (!cfg.apiKey) return { ok: false, error: '未配置 DeepSeek API key（src/.secrets.json 或 DEEPSEEK_API_KEY）' };
+  if (!cfg.apiKey) return { ok: false, error: noKeyMsg(cfg) };
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), cfg.timeoutMs);
   try {
     const payload = Object.assign({
       model: cfg.model, messages, max_tokens: opts.maxTokens || 2500,
       temperature: 0.2, stream: true,
-    }, opts.quick ? NO_THINK : null,
+    }, (opts.quick && cfg.nothink !== false) ? NO_THINK : null,
       useTools ? { tools, tool_choice: opts.toolChoice || 'auto' } : null);
     const resp = await doFetch(`${cfg.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -629,6 +957,9 @@ module.exports = {
   scoreToRating, gradeAnswer, RATING_BANDS,
   buildExplainMessages, explainAnswer, explainFollowup, explainSystem,
   coachChat, agentTurn, agentTurnStream, toApiMessages,
+  // 多供应商（2026-09-26）：协议分发 / 连通测试 / Anthropic 适配（供单测直测）
+  callLLM, pingModel,
+  splitSystem, toAnthropicMessages, toAnthropicTools, anthropicResult, anthropicUrl,
 };
 
 // CLI 自测：node grade_llm.js --qid Q-xxx --text "答案"
