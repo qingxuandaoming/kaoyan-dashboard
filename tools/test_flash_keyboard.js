@@ -229,6 +229,9 @@ let explainCache = null;
 let reportsCalls = [];
 // 用例可模拟「serve.js 改了但没重启」：旧版服务对 reports 路径回 404
 let reportsHttp404 = false;
+// 📌 钉住（2026-09-19）：POST /api/flashcards/pin 的调用留痕 + 旧版服务开关
+let pinCalls = [];
+let pinHttp404 = false;
 // 服务端下发的报卡原因清单（真实接口 GET /api/flashcards/reports 的 kinds 字段）
 const REPORT_KINDS = [
   { id: "multi_correct", label: "多个选项都对", hint: "不止一个正确项" },
@@ -240,11 +243,15 @@ const REPORT_LABEL = REPORT_KINDS.reduce((m, k) => { m[k.id] = k.label; return m
 let cardsPayload = null;
 // 用例可预置「服务端的当日那一组」（多端共享的那份进度，2026-09-21）
 let serverSession = null;
+// 设置里的「今日刷完后再来 N 张」（flash_extra_count）：闪卡页头部按钮要把它写出来
+let extraSetting = 20;
 
 function boot(seed) {
   registry = {}; fetchCalls = []; keyHandlers = []; fsCalls = []; docListeners = {}; focusSim = true;
   reportsCalls = [];
   reportsHttp404 = false;
+  pinCalls = [];
+  pinHttp404 = false;
   // 「每次 boot 等于新开一次页面」：窗口监听者与「同步钩子已接线」标记都要重置，
   // 否则第二次 boot 不再注册 hashchange/visibilitychange 钩子，同步就测不到了。
   globalThis.__winListeners = {};
@@ -336,6 +343,9 @@ function boot(seed) {
         { subject: "英语一", total: 82, new: 63, learning: 2, review: 4, mature: 13, leech: 0, suspended: 0, due: 67 },
       ], totals: { total: 249, new: 230, learning: 2, review: 4, mature: 13, leech: 0, suspended: 0, due: 234 } };
     else if (url.includes("/today")) payload = { ok: true, reviewed_today: 0 };
+    // 闪卡页头部那个「🔁 再来一组（N 张）」的张数从这儿来（设置页读的是同一份）
+    else if (url.includes("/api/settings")) payload = { ok: true, review: {
+        new_per_day: 30, reviews_per_day: 50, flash_extra_count: extraSetting } };
     else if (url.includes("/review")) payload = { ok: true };
     else if (url.includes("/undo")) payload = { ok: true };
     // 解析区先查历史（GET，不带 body）：返回预置的缓存或「没有」
@@ -352,6 +362,19 @@ function boot(seed) {
     };
     // 「这题有问题」标记（2026-09-17）：GET 回原因清单（前端不自己抄一份标签表），
     // POST 回新标记（含待修总数，前端那句 toast 要用）。
+    else if (url.includes("/flashcards/pin")) {
+      if (opts && opts.body) {
+        if (pinHttp404) {
+          return Promise.resolve({ ok: false, status: 404,
+            json: () => Promise.reject(new Error("不是 JSON")) });
+        }
+        const b = JSON.parse(opts.body);
+        pinCalls.push(b);
+        payload = { ok: true, card_id: b.card_id, pinned: b.pinned !== false, count: 1 };
+      } else {
+        payload = { ok: true, count: 0, pins: [] };
+      }
+    }
     else if (url.includes("/flashcards/reports")) {
       if (opts && opts.body) {
         if (reportsHttp404) {
@@ -867,6 +890,52 @@ function check(name, cond, extra) {
     if (typeof md === "function") {
       const mshot = md("看到 " + BS + "sum a_n 和 " + BS + "sum|a_n|，分别判断。");
       check("mdTex 路径同样认裸 LaTeX", mshot.indexOf(BS + "sum a_n") >= 0, mshot);
+    }
+    // ---- 跨行独立公式（2026-09-22 用户截图：`\[`、源码、`\]` 三段摊在解析区）----
+    // 模型写独立公式几乎总是三行，而 mdTex 是**逐行**渲染的：不先把三行并回一行，
+    // 定界符各自成段、公式只能按「裸 LaTeX」降级、行内公式还会被中文切块切碎。
+    if (typeof md === "function") {
+      const three = md("正确条件是：\n" + BS + "[\n"
+        + BS + "frac{" + BS + "partial P}{" + BS + "partial y}="
+        + BS + "frac{" + BS + "partial Q}{" + BS + "partial x}\n"
+        + BS + "]\n而 B 把偏导顺序记反了。");
+      check("跨行 \\[..\\] 并成一个显示公式块", three.indexOf('<div class="md-tex">') >= 0, three);
+      check("定界符不再各自成段（正文里没有裸露的 \\[ / \\]）",
+        three.indexOf(">" + BS + "[<") < 0 && three.indexOf(">" + BS + "]<") < 0, three);
+      check("公式源码整段在一起（两个 frac 都在）",
+        (three.match(/frac/g) || []).length >= 2, three);
+      check("前后中文正文照常渲染",
+        three.indexOf("正确条件是") >= 0 && three.indexOf("记反了") >= 0, three);
+      const two = md("$$\nx^2+y^2=1\n$$");
+      check("跨行 $$..$$ 也并成一块", two.indexOf('<div class="md-tex">') >= 0, two);
+      const unclosed = md(BS + "[\nx=1\n这段是正文，不该被卷进公式");
+      check("定界符没闭合时不吞后面的正文", unclosed.indexOf("不该被卷进公式") >= 0, unclosed);
+
+      // ---- KaTeX 懒加载：AI 回复常常是页面上**第一处**出现公式的地方 ----
+      // 题面/选项没公式时 richText 不会触发 ensureKatex，解析区于是永远停在源码兜底上
+      // （用户截图里整段 LaTeX 源码就是这么来的）。mdTex 必须自己喊一声，
+      // 并且把整块登记进 texStore —— 刚喊完那一刻 window.katex 还没到。
+      const realEnsure = globalThis.ensureKatex, realRegister = globalThis.registerTex;
+      const hadKatex = globalThis.katex;
+      delete globalThis.katex;                      // 模拟「页面还没加载 KaTeX」
+      let ensureCalls = 0, regCalls = 0;
+      globalThis.ensureKatex = () => { ensureCalls++; return Promise.resolve(true); };
+      globalThis.registerTex = (fn) => { regCalls++; return realRegister(fn); };
+      let lazy = "";
+      try { lazy = md("由 $" + BS + "sum a_n$ 收敛可得。"); } finally {
+        globalThis.ensureKatex = realEnsure;
+        globalThis.registerTex = realRegister;
+        if (hadKatex !== undefined) globalThis.katex = hadKatex;
+      }
+      check("mdTex 自己触发 KaTeX 懒加载（不指望 richText 顺带）",
+        ensureCalls === 1, "ensureCalls=" + ensureCalls);
+      check("并把整块登记进 texStore（就绪后原地重渲染）",
+        regCalls === 1, "regCalls=" + regCalls);
+      check("登记过的块带 data-texid（flushMath 认这个）",
+        /data-texid="\d+"/.test(lazy), lazy);
+      const noMath = md("这段解析一个公式都没有，只是普通中文。");
+      check("没有公式的回复不折腾 KaTeX（不为它加载几 MB）",
+        noMath.indexOf("data-texid") < 0, noMath);
     }
   }
 
@@ -1462,6 +1531,199 @@ function check(name, cond, extra) {
       api2.isOpen() === false);
   }
 
+  // ---------- 21e. 点名组题不粘人（2026-09-20 用户报的 bug）----------
+  // 用户报的：昨天「练这几张」点名练的那 10 张，今天点开还是它、重开一组还是那 9 张，
+  // 设置里的「今日刷完后再来 20 张」永远也轮不到。病根：ids（点名）被写进了 localStorage，
+  // 于之后**每一组**都按那份点名组题（browse 通道还豁免每日额度与「今天答过的不再出」）。
+  console.log("\n[21e] 「就练这几张」只对这一次有效（不许粘住后面的每一组）");
+  {
+    cardsPayload = null; serverSession = null;
+    // ① 点名当次照旧走得通，但**不落盘**
+    const d = boot();
+    await tick();
+    globalThis.__flashFloat.practice(["C-STUDY-AAAA1111", "C-STUDY-BBBB2222"], "🧠 刚出的 2 张");
+    await tick(); await tick();
+    check("点名组题照旧走得通",
+      /ids=C-STUDY-AAAA1111/.test((groupCalls().slice(-1)[0] || {}).url));
+    check("★ 点名不写进 localStorage（一次性的意图）",
+      !d.__store["kaoyan_flash_filter_v1"]
+      || d.__store["kaoyan_flash_filter_v1"].indexOf("C-STUDY-AAAA1111") < 0,
+      d.__store["kaoyan_flash_filter_v1"]);
+
+    // ② 「重开一组」不能把刚才点名的那几张再端回来
+    const before = groupCalls().length;
+    registry["fs-restart"].click();
+    await tick(); await tick();
+    const url = (groupCalls()[groupCalls().length - 1] || {}).url;
+    check("★ 「重开一组」摘掉点名，回到智能组题",
+      groupCalls().length > before && url.indexOf("ids=") < 0 && url.endsWith("?limit=200"), url);
+
+    // ③ 旧版本已经写进 localStorage 的 ids 脏值：读的时候自己就丢掉了（不用清缓存），
+    //    顺手把清理结果写回去，下次不再读它
+    const d2 = boot({ "kaoyan_flash_filter_v1":
+      JSON.stringify({ subject: "政治", ids: ["C-OLD-1", "C-OLD-2"] }) });
+    await tick();
+    const seeded = d2.__store["kaoyan_flash_filter_v1"] || "";
+    check("★ 旧脏值里的 ids 被丢弃、范围条件（政治）留着",
+      seeded.indexOf("C-OLD-1") < 0 && seeded.indexOf("政治") >= 0, seeded);
+    const b2 = gateBtn();
+    if (b2) b2.click();
+    await tick(); await tick();
+    const u2 = (groupCalls().slice(-1)[0] || {}).url;
+    check("★ 「开始学习」不再按旧点名组题（带了科目筛选、不再点名）",
+      u2.indexOf("ids=") < 0 && u2.includes("subject=%E6%94%BF%E6%B2%BB"), u2);
+  }
+
+  // ---------- 21f. 「今日刷完后再来 N 张」看得见、随时点得到 ----------
+  // 这个设置以前只在「今日额度用完」的空状态里露一次脸，人设了 20 张却看不到任何地方
+  // 有 20，只能怀疑设置没生效。现在卡片头部常驻按钮，张数直接写在按钮上。
+  console.log("\n[21f] 「再来一组」的张数写在按钮上");
+  {
+    cardsPayload = null; serverSession = null; extraSetting = 20;
+    boot();
+    await tick();
+    const b = gateBtn();
+    if (b) b.click();
+    await tick(); await tick();
+    const html = registry["flash-studio"]._html;
+    check("卡片头部有「再来一组」（不用等额度用完）",
+      html.indexOf('id="fs-extra-now"') >= 0, html.slice(0, 200));
+    check("★ 按钮上写着设置里的张数", html.indexOf("🔁 再来 20 张") >= 0,
+      (html.match(/🔁 再来[^<]*/) || [""])[0]);
+
+    // 设置页保存 → 闪卡页头部立刻跟着改（跨 IIFE 走 kaoyan:extra-count 事件）
+    fireDoc("kaoyan:extra-count", { detail: 33 });
+    check("★ 设置页改完张数，头部按钮当场跟着变",
+      registry["fs-extra-now"] && registry["fs-extra-now"]._text === "🔁 再来 33 张",
+      registry["fs-extra-now"] && registry["fs-extra-now"]._text);
+
+    const n0 = groupCalls().length;
+    registry["fs-extra-now"].click();
+    await tick(); await tick();
+    const eu = (groupCalls()[groupCalls().length - 1] || {}).url;
+    check("★ 点它走 extra 模式（不受每日额度限制）",
+      groupCalls().length > n0 && /mode=extra/.test(eu), eu);
+    check("extra 组不会把点名带过去（它自己那条通道）", eu.indexOf("ids=") < 0, eu);
+  }
+
+  // ---------- 21g. 「重开一组」碰到额度用完：直接接上「再来一组」----------
+  // 他自己点的「重开一组」不该停在一个「今日计划已完成」的空屏上让他再点第二次。
+  // 首次「开始学习」不带这个自动跳（那一屏的说明该让他看见）。
+  console.log("\n[21g] 额度用完时，「重开一组」自动接上「再来一组」");
+  {
+    cardsPayload = null; serverSession = null; extraSetting = 20;
+    boot();
+    await tick();
+    const b = gateBtn();
+    if (b) b.click();                       // 首次开始：智能组照旧（不自动跳 extra）
+    await tick(); await tick();
+    cardsPayload = [];                      // 服务端从此回空组 = 今日额度用完
+    const n0 = groupCalls().length;
+    registry["fs-restart"].click();
+    await tick(); await tick(); await tick();
+    const urls = groupCalls().slice(n0).map(c => c.url);
+    check("★ 智能组空了就自动接上「再来一组」（先智能、后 extra 两次请求）",
+      urls.length === 2 && urls[0].endsWith("?limit=200") && /mode=extra/.test(urls[1]),
+      JSON.stringify(urls));
+  }
+
+  // ---------- 21h. 早间回顾：本地卡组（翻转卡，完全不碰闪卡库）----------
+  // 用户澄清（2026-09-20）：「早间的这个闪卡的作用，不是再去学一学闪卡库里的闪卡，
+  // 而就是用来学早间回顾的。就是把早间回顾的内容变成翻转的闪卡。这样正好我把这个
+  // 闪卡读完之后，就自动打卡。」→ 这一组卡由「早」页拼好，走 __flashFloat.local，
+  // 不组题、不写 review_log、不占额度、组末自动打卡。
+  console.log("\n[21h] 早间回顾：本地卡组（翻卡自评，不碰闪卡库）");
+  {
+    cardsPayload = null; serverSession = null;
+    const d = boot();
+    await tick();
+    const cards = [
+      { id: "mrd-rv0", secLabel: "📚 知识点回顾", front: "总线事务分离技术",
+        back: "<p>把请求→等待→响应拆成两段，中间<strong>释放总线</strong>。</p>" },
+      { id: "mrd-qz0", secLabel: "❓ 今日小测",
+        front: "分离技术与突发传输的本质区别？", back: "<strong>分离事务</strong>中间释放总线" },
+    ];
+    let finished = 0;
+    const api = globalThis.__flashFloat;
+    const started = api.local(cards, "早间回顾 · 2026-09-20",
+      { kind: "mr-day", date: "2026-09-20",
+        onFinish: function () { finished += 1; return "✅ 早间回顾已打卡"; } });
+    await tick(); await tick();
+    const head = registry["flash-studio"]._html;
+    check("★ 本地卡组开得起来（不用服务端组题）", started === true);
+    check("★ 开组没有向 /api/flashcards/session 要卡", groupCalls().length === 0,
+      String(groupCalls().length));
+    check("头部就是这一组：第 1 / 2 张", head.indexOf("第 1 / 2 张") >= 0,
+      (head.match(/第 \d+ \/ \d+ 张/) || [""])[0]);
+    check("★ 头部不出现闪卡库那套（额度条 / 再来 N 张 / 重开一组）",
+      head.indexOf("fs-extra-now") < 0 && head.indexOf("fs-restart") < 0 && head.indexOf("可抽") < 0);
+    check("卡片上标了出处", head.indexOf("📚 知识点回顾") >= 0);
+    check("正面原样渲染（HTML 没被转义成源码）", head.indexOf("总线事务分离技术") >= 0);
+
+    SPACE(); await tick();                       // 翻卡
+    check("★ 翻卡后原文按 HTML 渲染（<strong> 没被转义）",
+      fb().indexOf("<strong>释放总线</strong>") >= 0, fb().slice(0, 140));
+    check("★ 没有写主闪卡库（零 /api/flashcards/review 请求）", rated().length === 0,
+      JSON.stringify(rated()));
+    check("★ 也没把这一组推给服务端（主库「当日这一组」不受影响）",
+      fetchCalls.filter(c => c.url.indexOf("/session") >= 0 && c.body).length === 0);
+    check("主闪卡库的本地进度键没被动过", !d.__store["kaoyan_flash_session_v1"]);
+    check("★ 自评四档是「回顾口径」（没想起来/很熟，不是 FSRS 那套）",
+      fb().indexOf("没想起来") >= 0 && fb().indexOf("很熟") >= 0, fb().match(/data-rate="1"[^>]*>.*?<\/button>/));
+
+    press("1"); await tick(); await tick();      // 没想起来 → 本组末尾再问一遍
+    check("★ 答不上的卡在本组末尾回炉（2 张 → 3 张）",
+      registry["flash-studio"]._html.indexOf("第 2 / 3 张") >= 0,
+      (registry["flash-studio"]._html.match(/第 \d+ \/ \d+ 张/) || [""])[0]);
+
+    SPACE(); await tick(); press("3"); await tick(); await tick();
+    check("回炉的那张从头上再出现一次",
+      registry["flash-studio"]._html.indexOf("第 3 / 3 张") >= 0
+      && registry["flash-studio"]._html.indexOf("总线事务分离技术") >= 0,
+      (registry["flash-studio"]._html.match(/第 \d+ \/ \d+ 张/) || [""])[0]);
+
+    SPACE(); await tick(); press("4"); await tick(); await tick();
+    check("组末进了总结屏", registry["flash-studio"]._html.indexOf("完成 🎉") >= 0,
+      registry["flash-studio"]._html.slice(0, 120));
+    check("★ 整组刷完回调了早间回顾（自动打卡）", finished === 1, String(finished));
+    check("总结屏写上了打卡结果",
+      (registry["fs-local-finish"] && registry["fs-local-finish"]._text === "✅ 早间回顾已打卡"),
+      registry["fs-local-finish"] && registry["fs-local-finish"]._text);
+    check("★ 这一天记为「已刷完」（面板据此写「今天刷过一遍」）",
+      globalThis.__mrFlashState("2026-09-20").done === true);
+    check("刷完把本地那份进度清掉（不再提示「继续本组」）",
+      !d.__store["kaoyan_mr_flash_v1"]);
+
+    // 没刷完就离开 → 回来能接着刷（本地进度只存本机）
+    const d2 = boot();
+    await tick();
+    globalThis.__flashFloat.local(cards, "早间回顾 · 2026-09-20", { kind: "mr-day", date: "2026-09-20" });
+    await tick(); await tick();
+    SPACE(); await tick(); press("3"); await tick(); await tick();
+    check("（前置）刷了 1 张离开：还剩 1 张", globalThis.__mrFlashState("2026-09-20").left === 1,
+      String(globalThis.__mrFlashState("2026-09-20").left));
+    globalThis.__flashFloat.local(cards, "早间回顾 · 2026-09-20",
+      { kind: "mr-day", date: "2026-09-20", resume: true });
+    await tick(); await tick();
+    check("★ 回来「继续本组」从第 2 张接着刷",
+      registry["flash-studio"]._html.indexOf("第 2 / 2 张") >= 0,
+      (registry["flash-studio"]._html.match(/第 \d+ \/ \d+ 张/) || [""])[0]);
+    check("日期换了就不算同一组（不会串到别的日子）",
+      globalThis.__mrFlashState("2026-09-21").left === 0);
+    void d2;
+
+    // 本地卡组之后回闪卡页开普通组题：必须恢复成「主闪卡库」的身份
+    boot();
+    await tick();
+    globalThis.__flashFloat.local(cards, "早间回顾", { kind: "mr-day", date: "2026-09-20" });
+    await tick(); await tick();
+    globalThis.__flashStart({ subject: "政治" });
+    await tick(); await tick();
+    const bh = registry["flash-studio"]._html;
+    check("★ 本地卡组→普通组题：头部回到闪卡库那套（额度条 / 再来 N 张都在）",
+      bh.indexOf("fs-extra-now") >= 0 && bh.indexOf("fs-restart") >= 0, bh.slice(0, 160));
+  }
+
   // ---------- 22. 自定义键位：改完键，闪卡真的跟着换 ----------
   // 2026-09-17 加了键位总表（KEYS_JS），闪卡键盘段不再自己比 ev.key，改成问
   // __keys.matches()。这一组就是那次改造的回归网：只测「总表算得对」不够，
@@ -1676,6 +1938,104 @@ function check(name, cond, extra) {
       fb().indexOf("⚑ 已标记") < 0 && reportsCalls.length === 0,
       "已标记?=" + (fb().indexOf("⚑ 已标记") >= 0) + " calls=" + JSON.stringify(reportsCalls));
     reportsHttp404 = false;
+  }
+
+  // ------------------------------------------------------------------
+  console.log("\n[24] 📌 钉住这张卡：按钮 / 快捷键 P / 徽标（2026-09-19）");
+  {
+    // 用户原话：「就算我对的那些题，如果我对 AI 有过追问，那可以给我一个 pin 的键，
+    // 我可以把它钉在那个卡的位置，下次我看到它的时候，我可以再看看它。」
+    // 所以：① 答对答错都能钉（这里用「答对」的路径：按 B 选中正确项）；
+    //       ② 钉完只就地改按钮与徽标，**不重绘整张卡**（重绘会冲掉已挂的解析与追问框）。
+    cardsPayload = [Object.assign({}, CARDS[0], {
+      card_id: "C-PIN-1", question_id: "Q-PIN-1",
+      pin: { note: "", created_at: "" }, ask_count: 2, streak: 1,
+    })];
+    const d24 = boot();
+    await tick(); await tick();
+    gateBtn().click();
+    await tick(); await tick();
+    // ① 已经钉住的卡：头部要看得见徽标（否则他会以为「钉住丢了」）
+    const area24 = () => registry["flash-studio"]._html || "";
+    check("★ 已钉住的卡带头部 📌 徽标", area24().indexOf("fs-pin-badge") >= 0,
+      area24().slice(0, 200));
+
+    // ② 未钉住的卡：按钮就写「钉住这张卡」
+    cardsPayload = [Object.assign({}, CARDS[0], {
+      card_id: "C-PIN-1", question_id: "Q-PIN-1", pin: null, ask_count: 2, streak: 1,
+    })];
+    const d24x = boot();
+    await tick(); await tick();
+    gateBtn().click();
+    await tick(); await tick();
+    // 按钮在**反馈区**（与 ⚑ 同一排）：揭晓答案后才出现，所以先看答案。
+    // （快捷键 P 不受这个限制，它在文档层，任何阶段都能按。）
+    press(" ");
+    await tick(); await tick();
+    check("（前置）反馈区已出现，钉住按钮在场",
+      !!registry["fs-pin"] && fb().indexOf("fs-pin") >= 0,
+      "pin=" + !!registry["fs-pin"] + " fb=" + fb().slice(0, 120));
+    check("未钉住时按钮写「📌 钉住这张卡」", fb().indexOf("📌 钉住这张卡") >= 0,
+      fb().slice(0, 160));
+    // 问过 AI 的卡：头部标出「💬 问过 N」——它是「这张卡不会被连对退役」的凭证。
+    // （钉住的卡不重复标这个，📌 已经说明了同一件事。）
+    check("★ 问过 AI 的卡带「💬 问过 N」徽标（这类卡不会被连对退役）",
+      area24().indexOf("fs-ask-badge") >= 0 && area24().indexOf("问过 2") >= 0,
+      area24().slice(0, 240));
+
+    // ① 按快捷键 P（总表里的 flash.pin，默认 p）
+    press("p");
+    await tick(); await tick();
+    check("★ 按 P 发出钉住请求", pinCalls.length === 1, JSON.stringify(pinCalls));
+    check("★ 请求带卡号与 pinned=true",
+      pinCalls[0] && pinCalls[0].card_id === "C-PIN-1" && pinCalls[0].pinned === true,
+      JSON.stringify(pinCalls[0]));
+    check("★ 按钮就地变成「已钉住」", registry["fs-pin"].textContent.indexOf("已钉住") >= 0,
+      registry["fs-pin"].textContent);
+    check("★ 没有重绘整张卡（解析区与追问框还在）",
+      !!registry["fs-exp-input"] && !!registry["fs-explain"],
+      Object.keys(registry).filter(k => k.indexOf("exp") > 0).join(","));
+
+    // ② 再按一次 → 取消钉住
+    press("p");
+    await tick(); await tick();
+    check("★ 再按 P 发的是取消钉住", pinCalls.length === 2 && pinCalls[1].pinned === false,
+      JSON.stringify(pinCalls[1]));
+    check("按钮回到「钉住这张卡」",
+      registry["fs-pin"].textContent.indexOf("钉住这张卡") >= 0, registry["fs-pin"].textContent);
+
+    // ③ 已经在输入框里打字时，P 不能把卡钉走（输入框守卫）。
+    //    ⚠️ 桩里的 press() 一律给 BODY target，所以这里得像 [19] 那样显式传一个
+    //    INPUT target，否则「在输入框里」这个前提根本没被模拟出来（假绿灯）。
+    const pressIn24 = (key, code, target) => {
+      keyHandlers.forEach(fn => fn({
+        key, code: code || ("Key" + String(key).toUpperCase()), target,
+        preventDefault() {},
+      }));
+    };
+    const before = pinCalls.length;
+    pressIn24("p", "KeyP", { tagName: "INPUT", id: "fs-exp-input", value: "匹" });
+    await tick();
+    check("★ 追问框里打字时 P 不触发钉住", pinCalls.length === before,
+      "calls " + before + "→" + pinCalls.length);
+
+    // ④ 服务端仍是旧版（改了 serve.js 没重启）→ 必须说「重启大盘后生效」
+    cardsPayload = null;
+    const d24b = boot();
+    await tick(); await tick();
+    gateBtn().click();
+    await tick(); await tick();
+    press(" "); await tick(); await tick();
+    pinHttp404 = true;
+    registry["fs-pin"].click();
+    await tick(); await tick(); await tick();
+    const said24 = (d24b.body.children || []).map(c => c.textContent || "").join(" | ");
+    check("★ 旧版服务时说清「重启大盘后」生效（不是含混的「无法连接」）",
+      said24.indexOf("重启") >= 0 && said24.indexOf("无法连接") < 0, said24);
+    check("没假装成功：按钮没变成「已钉住」", fb().indexOf("📌 已钉住") < 0,
+      fb().slice(0, 160));
+    pinHttp404 = false;
+    cardsPayload = null;
   }
 
   cardsPayload = null;

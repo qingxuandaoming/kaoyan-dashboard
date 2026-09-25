@@ -47,7 +47,15 @@ function advance(ms, step) {
 }
 const realSetInterval = global.setInterval, realClearInterval = global.clearInterval;
 
-/* ---------------- 极简 DOM ---------------- */
+/* ---------------- 画面桩（文字自适应配色用） ----------------
+   POMO_JS 换轮播图时会按 cover 反推可见矩形，画进 32×32 的 canvas 量一次亮度，
+   再决定这一轮的卡片用深字还是白字。Node 里没有真 canvas，所以这一档是可插拔的：
+     · px(u, v) 按归一化坐标给一个像素色 —— 「这是什么样的一张照片」
+     · w/h      图片原始尺寸；cw/ch 卡片尺寸（不量就当作卡片被藏着）
+     · ink      遮罩色 --mo-rgb，不写就用深色主题默认
+   不打开这一档时 clientWidth=0、naturalWidth=0，measureBg 一律返回 null ——
+   和真浏览器里「卡片正被切在别的子页」是同一条路，老用例不受影响。 */
+let visual = null;
 let REG = {}, CLASSES = {}, BYATTR = {};
 function mkEl(tag) {
   const el = {
@@ -56,6 +64,22 @@ function mkEl(tag) {
     _made: [], parent: null,
     // 小窗要量尺寸才摆位置；给个固定值，别让 placeMini 因为 offsetWidth=0 直接返回
     offsetWidth: 152, offsetHeight: 122,
+    get clientWidth() { return (visual && visual.cw) || 0; },
+    get clientHeight() { return (visual && visual.ch) || 0; },
+    // canvas：drawImage 不用真画，getImageData 直接按 px() 现造一张
+    getContext() {
+      return {
+        drawImage() {},
+        getImageData: (x, y, w, h) => {
+          const a = new Uint8ClampedArray(w * h * 4);
+          for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+            const p = visual.px(i / w, j / h), o = (j * w + i) * 4;
+            a[o] = p[0]; a[o + 1] = p[1]; a[o + 2] = p[2]; a[o + 3] = 255;
+          }
+          return { data: a };
+        },
+      };
+    },
     getBoundingClientRect() { return { left: 100, top: 100, width: this.offsetWidth, height: this.offsetHeight }; },
     style: { _vars: {}, backgroundImage: "", strokeDasharray: "", strokeDashoffset: "",
              width: "", left: "", top: "",
@@ -197,8 +221,9 @@ let audioPlays = 0, audioPauses = 0, pipCalls = [], mediaSession = null, lastPip
 //   { run, nowOffset, today_stat, days }
 // nowOffset 用来模拟「服务端时钟比本机快 N 毫秒」，验证 end_at 的换算
 // caps：模拟浏览器能力 { media: Media Session, pip: Document PiP }
-function boot(pomoCfg, savedRun, savedDay, srv, caps, extraStore) {
+function boot(pomoCfg, savedRun, savedDay, srv, caps, extraStore, vis) {
   REG = {}; CLASSES = {}; BYATTR = {}; timers = []; nextTimerId = 1; fakeNow = 1770000000000;
+  visual = vis || null;
   audioPlays = 0; audioPauses = 0; pipCalls = []; mediaSession = null; lastPipWin = null;
   const slot = mkEl("div"), overlay = mkEl("div");
   overlay.hidden = true;
@@ -222,6 +247,10 @@ function boot(pomoCfg, savedRun, savedDay, srv, caps, extraStore) {
   // 只换 Date.now，不换 Date 本身：todayKey() 里还要 new Date()
   Date.now = () => fakeNow;
   global.confirm = () => true;
+  // 量亮度时要读 --mo-rgb（遮罩色跟主题走）。Node 里没有 getComputedStyle，给个最小的。
+  global.getComputedStyle = () => ({
+    getPropertyValue: k => (k === "--mo-rgb" && visual && visual.ink) ? visual.ink : "",
+  });
   const fetched = [];
   const nowOffset = (srv && srv.nowOffset) || 0;
   const fetchStub = (url, opt) => {
@@ -286,7 +315,10 @@ function boot(pomoCfg, savedRun, savedDay, srv, caps, extraStore) {
     doc,
     { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } },
     fetchStub, global, { protocol: "http:", origin: "http://localhost:8080" },
-    class { constructor() { setTimeout(() => this.onload && this.onload(), 0); } set src(v) { this._s = v; } get src() { return this._s; } }
+    class { constructor() { setTimeout(() => this.onload && this.onload(), 0); }
+            set src(v) { this._s = v; } get src() { return this._s; }
+            get naturalWidth() { return (visual && visual.w) || 0; }
+            get naturalHeight() { return (visual && visual.h) || 0; } }
   );
   return { doc, slot, overlay, store, fetched };
 }
@@ -809,7 +841,68 @@ function check(name, cond, extra) {
       (BYATTR["data-preset"] || []).map(b => b.dataset.preset).join(","));
   }
 
+  console.log("\n[17] 轮播图上的字自动配色（换图 → 量亮度 → 换字色）");
+  {
+    // 几种「照片」和它们的理论值（dim=.35，遮罩取渐变中档 .4，青墨 21,26,26）：
+    //   暗图 (40,45,50)     → 叠完 ≈ .14，白字本来就看得清，什么都不用改
+    //   亮图 (235,240,245)  → 叠完 ≈ .60，白字糊 → 整张换深字
+    //   上亮下暗            → 平均 ≈ .37（够不到 .42 那条线，说明还有暗处），
+    //                         但亮部仍是 .60 → 换深字则下半张糊、留白字则上半张糊
+    //                         → 只能自动补一档遮罩
+    const solid = (r, g, b) => ({ w: 1600, h: 900, cw: 1000, ch: 300, px: () => [r, g, b] });
+    const mixed = () => ({ w: 1600, h: 900, cw: 1000, ch: 300,
+      px: (u, v) => (v < 0.5 ? [235, 240, 245] : [40, 45, 50]) });
+    const cfg = { images: ["src/assets/pomo/a.png"], interval: 20, dim: 0.35, show: "both" };
+    const scrim = h => Number(h.style._vars["--pm-scrim"]);
+    // ⚠️ 要两拍：配置是 fetch 回来的（微任务链），图 onload 又是个 setTimeout，
+    //    排在它后面的一拍才轮到。只 await 一次 tick() 时量到的还是配置没到位的状态
+    //    ——测出来「字色没变」，看着像功能坏了，其实是没等够。
+    const settle = async () => { await tick(); await tick(); };
+
+    {
+      boot(cfg, null, null, null, null, null, solid(40, 45, 50));
+      await settle();
+      const h = hostOf();
+      check("暗图：不套深字", !h._cls.has("pm-on-lit"));
+      check("暗图：也不补遮罩", scrim(h) === 0, h.style._vars["--pm-scrim"]);
+    }
+    {
+      boot(cfg, null, null, null, null, null, solid(235, 240, 245));
+      await settle();
+      const h = hostOf();
+      check("亮图：整张换成深字", h._cls.has("pm-on-lit"));
+      check("亮图：换深字就够了，不额外压遮罩", scrim(h) === 0, h.style._vars["--pm-scrim"]);
+    }
+    {
+      boot(cfg, null, null, null, null, null, mixed());
+      await settle();
+      const h = hostOf();
+      check("半亮半暗：不套深字（换深字暗处会糊）", !h._cls.has("pm-on-lit"));
+      check("半亮半暗：自动补一档遮罩", scrim(h) > 0.2, h.style._vars["--pm-scrim"]);
+      check("补的量封顶（不把照片压成灰板）", scrim(h) <= 0.45, h.style._vars["--pm-scrim"]);
+      // 反推：补完之后亮部应该刚好落回「白字还算稳」的那条线以下。
+      // 把 32×32 的取样点全带进来算太绕，这里只按理论值验一个量级。
+      check("补的量是「够用就好」，不是往死里压", scrim(h) < 0.4, h.style._vars["--pm-scrim"]);
+
+      // 卡片被藏在别的子页时量不到（clientWidth=0）→ 要保持上一次的判断，
+      // 不能把字色清回默认闪一下
+      visual = Object.assign({}, mixed(), { cw: 0, ch: 0 });
+      advance(20000 + 100); await settle();
+      check("卡片被藏着量不到时，维持上一次的判断", !h._cls.has("pm-on-lit") && scrim(h) > 0.2);
+
+      // 轮播关掉 → 字色回到纯色卡那一套
+      boot({ images: cfg.images, interval: 20, dim: 0.35, show: "off" },
+        null, null, null, null, null, mixed());
+      await settle();
+      const h2 = hostOf();
+      check("不用轮播时不留深字类", !h2._cls.has("pm-on-lit"));
+      check("不用轮播时遮罩归零", scrim(h2) === 0, h2.style._vars["--pm-scrim"]);
+    }
+    visual = null;
+  }
+
   console.log("\n" + (fail === 0 ? "全部通过" : "有失败") + "：pass=" + pass + " fail=" + fail);
   global.setInterval = realSetInterval; global.clearInterval = realClearInterval;
+  delete global.getComputedStyle;
   process.exit(fail === 0 ? 0 : 1);
 })();

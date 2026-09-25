@@ -63,7 +63,7 @@ globalThis.document = {
 // ---- 3. 跑起来 ----
 new Function(js)();
 
-const { richText, texWrap, flushMath, katexHtml } = globalThis;
+const { richText, texWrap, flushMath, katexHtml, registerTex, asciiMath, asciiMathHtml } = globalThis;
 
 // ---- 4. 断言 ----
 let pass = 0, fail = 0;
@@ -115,6 +115,34 @@ check("价格 $5 元（只有一个 $）", richText("价格 $5 元"), "价格 $5
 check("两个 $ 但跨行（不在同一行闭合）", richText(crossLine), crossLine);
 check("四个 $ 且内容为空", richText("$$$$"), "$$$$");
 
+console.log("\n【行内 \\(..\\)】内容里带圆括号也要匹配上（2026-09-22 全量语料探针抓到的）");
+// 模型写的 \(P(x)Q(y)\)、\(F(x,y)\) 的内容里本来就有圆括号；旧 pattern 是 [^)]*?，
+// 撞上内容里的 ) 就整段失配 —— 定界符连同 \frac 一起原样摊在正文里。
+// 拿 explain_log 里 51 条真实 AI 回复跑真浏览器探针：10 条中招。
+globalThis.katex = {
+  renderToString(tex, opts) {
+    mathCalls.push({ tex, display: !!opts.displayMode });
+    return "<KATEX>" + tex + "</KATEX>";
+  },
+};
+check("内容带圆括号：\\(P(x)Q(y)\\)", richText("即 \\(P(x)Q(y)\\) 的形式"),
+  "即 <KATEX>P(x)Q(y)</KATEX> 的形式");
+check("内容带逗号与圆括号：\\(F(x,y)\\)", richText("存在 \\(F(x,y)\\) 使得"),
+  "存在 <KATEX>F(x,y)</KATEX> 使得");
+{
+  mathCalls.length = 0;
+  check("同一行两个 \\(..\\) 各成一段", richText("\\(a\\) 与 \\(b\\) 都对"),
+    "<KATEX>a</KATEX> 与 <KATEX>b</KATEX> 都对");
+  checkTrue("KaTeX 收到的是括号里的原文（定界符已剥掉）",
+    mathCalls.length === 2 && mathCalls[0].tex === "a" && mathCalls[1].tex === "b",
+    "收到的 tex: " + JSON.stringify(mathCalls.map(c => c.tex)));
+}
+// 放宽到「本行内任意字符」之后，仍然不能跨行吞（否则一行落单的 \( 会把后面全卷进公式）
+{
+  const halfOpen = "\\(a" + NL + "b\\)";
+  check("\\(..\\) 不跨行匹配", richText(halfOpen), halfOpen);
+}
+
 console.log("\n【兜底】KaTeX 未就绪时先渲染源码，就绪后原地替换");
 delete globalThis.katex;
 const html = texWrap("$x^2$");
@@ -138,6 +166,25 @@ globalThis.katex = {
 flushMath();
 checkTrue("flushMath 把兜底替换成真实公式",
   el.innerHTML.indexOf("<KATEX2>x^2</KATEX2>") >= 0, el.innerHTML);
+
+console.log("\n【函数式登记】AI 回复（mdTex）整块重渲染，不能退化成 richText");
+// texWrap 登记的是原文（重切公式）；mdTex 登记的是函数（连 Markdown 一起重渲染）。
+// 只认字符串的话，AI 那一屏的标题/表格/粗体在 KaTeX 就绪后会被冲掉。
+{
+  sink.length = 0;
+  let called = 0;
+  const id = registerTex(() => { called++; return "<RERENDERED>" + id + "</RERENDERED>"; });
+  const fnEl = {
+    _html: "",
+    getAttribute(k) { return k === "data-texid" ? String(id) : null; },
+    set innerHTML(v) { this._html = v; },
+    get innerHTML() { return this._html; },
+  };
+  sink.push(fnEl);
+  flushMath();
+  checkTrue("函数式登记被调用（没被当成字符串喂给 richText）", called === 1, "called=" + called);
+  checkTrue("重渲染结果写进了元素", fnEl.innerHTML.indexOf("<RERENDERED>") >= 0, fnEl.innerHTML);
+}
 
 console.log("\n【真实卡】从题库取一张已 LaTeX 化的数学卡，确认公式真的送进 KaTeX");
 {
@@ -226,6 +273,27 @@ check("$公式$ 与 x_i 混排", richText("由 $\\sum a_n$ 得 x_i 收敛"),
 // 2^32B 这类「上标后面还粘着字母」的写法语义有歧义（2³² B 还是 2^(32B)？），
 // 渲染层故意不动，交给题库数据层写成 $2^{32}$ B —— 别在这里"顺手"改掉。
 check("歧义写法 2^32B 保持原样", richText("主存4GB=2^32B"), "主存4GB=2^32B");
+
+console.log("\n【早间回顾那种「本来就带 HTML」的字段】只转标签外的文本");
+// 2026-09-22 用户截图：数学要点的标题/正文里 `(1+x)^α`、`(−1)^{n−1}` 原样漏出。
+// 那份数据（morning_review.json）的字段本身就是 HTML 片段（<strong>/<code>/<span>），
+// 不能走 richText（会先转义、把标签变成可见源码），所以单独有一版 asciiMathHtml。
+check("标签外的 2^n / (1+x)^α 照转", asciiMathHtml("<strong>2^n</strong> 与 (1+x)^α"),
+  "<strong>2<sup>n</sup></strong> 与 (1+x)<sup>α</sup>");
+check("整段括号式 (−1)^{n−1}", asciiMathHtml("系数 (−1)^{n−1}/n"), "系数 (−1)<sup>n−1</sup>/n");
+check("<code> 的内容不动（与笔记/闪卡「代码里的 _ ^ 不当上下标」同一条规矩）",
+  asciiMathHtml("极限 <code>lim_{x→0}f'(x)</code>"), "极限 <code>lim_{x→0}f'(x)</code>");
+check("标签属性里的 _ / ^ 也不会被啃",
+  asciiMathHtml('<span data-a_b="1">x^2</span>'), '<span data-a_b="1">x<sup>2</sup></span>');
+check("没有 ^ / _ 的字段原样返回（快路径）",
+  asciiMathHtml("普通正文，一个记号都没有"), "普通正文，一个记号都没有");
+
+console.log("\n【asciiMath 的两处扩建】希腊字母 + Unicode 下标跟着上标走");
+check("希腊字母上标 (1+x)^α", asciiMath("(1+x)^α"), "(1+x)<sup>α</sup>");
+// ⚠️ 只吃 1 个字符会得到 e<sup>u</sup>ₙ —— 下标挂到外面、意思直接错（真实语料里抓到）
+check("Unicode 下标一起收进上标 e^uₙ−1", asciiMath("e^uₙ−1"), "e<sup>uₙ</sup>−1");
+check("原有规则没退化", asciiMath("O(2^n) 与 W_T"), "O(2<sup>n</sup>) 与 W<sub>T</sub>");
+check("文件名照旧不误判", asciiMath("第5章_IO管理.md 与 book_id"), "第5章_IO管理.md 与 book_id");
 
 console.log("\n【ASCII 上下标·与既有规则不打架】");
 globalThis.katex = {
