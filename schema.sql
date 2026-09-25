@@ -205,3 +205,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_card_reports_open
 
 CREATE INDEX IF NOT EXISTS idx_card_reports_status
     ON card_reports(status, created_at);
+
+-- ============================================================
+-- card_pins —— 「📌 钉住这张卡」（2026-09-19 用户要求）
+--
+-- 用户原话：「就算我对的那些题，如果我对 AI 有过追问，那可以给我一个 pin 的键，
+-- 我可以把它钉在那个卡的位置，下次我看到它的时候，我可以再看看它。」
+--
+-- 语义与另外两个标记区分开：
+--   suspended（🗑 删掉）= 卡下架，再也不出现
+--   card_reports（⚑ 这题有问题）= 题目本身有问题，等 AI 复核
+--   card_pins（📌 钉住）= **题目没问题、我也答对了，但我想留着它** ——
+--     所以它永远进智能组、置顶，而且不会被「连对 N 次就退役」的规则移走
+--     （见 src/card_policy.js 的 R-pin）。
+-- 有行 = 钉住，取消钉住就是删行（不需要 status 列，历史没有保留价值）。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS card_pins (
+    card_id    TEXT PRIMARY KEY,
+    note       TEXT,                            -- 可选：为什么钉住
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at TEXT
+);

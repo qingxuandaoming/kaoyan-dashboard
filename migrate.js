@@ -272,6 +272,22 @@ function run(dbPath) {
         ON card_reports(status, created_at)
     `);
 
+    // --- 4g. card_pins 表（「📌 钉住这张卡」，2026-09-19）---
+    // 与 schema.sql 同源，改一边要改另一边。
+    // 与另外两个标记的区别：suspended（🗑）是卡下架再也不出现；card_reports（⚑）是
+    // 题目本身有问题等 AI 复核；pin 是**题目没问题、我也答对了，但我想留着它**——
+    // 所以它永远进智能组、置顶，且不会被「连对 N 次就退役」的规则移走
+    // （规则见 src/card_policy.js 的 R-pin）。
+    // 有行＝钉住；取消钉住就是删行，不留历史。
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS card_pins (
+        card_id    TEXT PRIMARY KEY,
+        note       TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        updated_at TEXT
+      )
+    `);
+
     // --- 5. schema_version ---
     db.exec(`
       CREATE TABLE IF NOT EXISTS schema_version (
@@ -324,6 +340,8 @@ function run(dbPath) {
     db.prepare('INSERT OR IGNORE INTO schema_version (version) VALUES (?)').run(4);
     // 5 = card_reports 表（「这道题有问题」标记 + 复核留痕）
     db.prepare('INSERT OR IGNORE INTO schema_version (version) VALUES (?)').run(5);
+    // 6 = card_pins 表（📌 钉住这张卡）
+    db.prepare('INSERT OR IGNORE INTO schema_version (version) VALUES (?)').run(6);
 
     report.ok = true;
   } catch (e) {
