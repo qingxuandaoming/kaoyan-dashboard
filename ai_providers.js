@@ -38,8 +38,10 @@ const SECRETS_PATH = process.env.SECRETS_PATH
   : path.join(__dirname, '.secrets.json');
 
 const PROTOCOLS = ['openai', 'anthropic'];
-// 模型名会拼进上游请求体：白名单字符。比旧版多认一个冒号（Ollama 的 llama3:70b 这类 tag）
-const MODEL_RE = /^[A-Za-z0-9._:-]{1,80}$/;
+// 模型名会拼进上游请求体（JSON 字符串，不进 URL）：白名单字符。
+// 比初版多认 冒号（Ollama tag）、斜杠与括号（聚合网关的 openai/gpt-4o、
+// qwen3-vl-30b-a3b-thinking(free) 这类模型 id，2026-09-26 导入 Cherry 供应商时放开）
+const MODEL_RE = /^[A-Za-z0-9._:/()-]{1,120}$/;
 const URL_RE = /^https?:\/\/[^\s]+$/i;
 
 function newId() {
