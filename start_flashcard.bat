@@ -1,7 +1,13 @@
+rem ============================================================
+rem  ENCODING: this file is GBK/ANSI + CRLF ON PURPOSE. Do NOT
+rem  re-save it as UTF-8: cmd mangles UTF-8 batches (Chinese
+rem  lines split mid-character, fragments run as commands).
+rem  Edit it with an ANSI/GBK-capable editor only.
+rem ============================================================
 @echo off
-chcp 65001 >nul 2>&1
+chcp 936 >nul 2>&1
 echo ========================================
-echo   è€ƒç ”é—ªå¡å¯åŠ¨å™¨ - ä»Žé¢˜åº“å¯¼å‡ºæ•°æ®å¹¶æ‰“å¼€
+echo   ¿¼ÑÐÉÁ¿¨Æô¶¯Æ÷ - ´ÓÌâ¿âµ¼³öÊý¾Ý²¢´ò¿ª
 echo ========================================
 
 cd /d "E:\Project\kaoyan-dashboard\src"

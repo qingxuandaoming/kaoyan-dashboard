@@ -5142,12 +5142,19 @@ try {
 //    表现就是：服务起不来 → 启动脚本的最小化窗口一闪就关（用户描述为"闪退"），
 //    而且因为没有提示，完全看不出原因。所以这里依次尝试候选端口，
 //    成功就把端口写进 src/.serve_port，启动脚本读它来打开正确地址。
+const PORT_FILE = path.join(__dirname, '.serve_port');
+const PID_FILE = path.join(__dirname, '.serve_pid');
 const PORT_CANDIDATES = (function () {
-  const want = parseInt(process.env.PORT || '8080', 10) || 8080;
-  const list = [want, 8080, 8088, 8888, 9090, 18080, 28080, 38080];
+  // 顺序有讲究：**上一次成功的端口排最前**（2026-09-27 加）。
+  // 端口每启动一次就跳一个（8888→9090→18080…）的话，平板二维码、浏览器书签、
+  // 用户口口相传的地址全失效。上次能用这次大概率还能用，先试它；
+  // 显式 PORT 环境变量（测试实例/e2e）仍然最优先。
+  const envWant = parseInt(process.env.PORT || '', 10) || 0;
+  let last = 0;
+  try { last = parseInt(fs.readFileSync(PORT_FILE, 'utf8'), 10) || 0; } catch (e) { last = 0; }
+  const list = [envWant, last, 8080, 8088, 8888, 9090, 18080, 28080, 38080];
   return list.filter(function (x, i) { return x > 0 && x < 65536 && list.indexOf(x) === i; });
 })();
-const PORT_FILE = path.join(__dirname, '.serve_port');
 let portIdx = 0;
 let listening = false;
 
@@ -5166,11 +5173,13 @@ function announce(port) {
   console.log(`📖 笔记盘活端点: /api/notes/preview · /api/notes/asset · /api/notes/touch · /api/targeted-cards/generate`);
   console.log(`⏹ 按 Ctrl+C 停止\n`);
   if (migrationNote) console.log(migrationNote + '\n');
-  // 让启动脚本（.bat）知道实际端口，否则它会去开 8080 的白页
+  // 让启动脚本知道实际端口，否则它会去开 8080 的白页
   try {
     fs.writeFileSync(PORT_FILE, String(port));
     console.log(`（端口已写入 ${PORT_FILE}）\n`);
   } catch (err) { console.warn('[Port] 写端口文件失败（不影响使用）:', err.message); }
+  // PID 给启动器的 restart 用：按 PID 结束旧服务，不用用户手动找窗口
+  try { fs.writeFileSync(PID_FILE, String(process.pid)); } catch (err) { /* 不影响使用 */ }
 }
 
 // ⚠️ 监听器只注册**一次**：早先的写法是每次尝试都 `server.once('listening', ...)`，

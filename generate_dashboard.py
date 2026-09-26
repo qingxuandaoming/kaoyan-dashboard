@@ -15363,14 +15363,39 @@ def main():
     fresh = data["revival"]["freshness"]
     # 冷笔记前缀：存在冷/冰冻笔记的前缀，练习区选题向其新卡倾斜
     cold_prefixes = sorted({t["prefix"] for t in fresh["targets"]})
+    # 题库水位：构建时「作答数据写到哪了」的快照，给 run_pipeline --if-stale 对拍。
+    # 不用 db 的 mtime 判陈旧：WAL 模式下 checkpoint 会在没有任何新作答时
+    # 刷新 db/-wal 的 mtime（实测连跑两次启动器都被误判陈旧）。
+    # SQL 与 run_pipeline.py 的 _db_watermark_now 保持同一份口径。
+    db_watermark = ""
+    try:
+        wconn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+        db_watermark = str(wconn.execute(
+            "SELECT (SELECT MAX(rowid) FROM review_log) || ':' ||"
+            " (SELECT MAX(rowid) FROM cards) || ':' ||"
+            " (SELECT MAX(rowid) FROM explain_log) || ':' ||"
+            " (SELECT MAX(rowid) FROM daily_tasks)"
+        ).fetchone()[0])
+        wconn.close()
+    except Exception as e:  # 读不到就留空，--if-stale 那边会当成陈旧重跑
+        db_watermark = f"err:{e}"
     dash_data = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "recent_prefixes": data["recent_prefixes"],
         "cold_prefixes": cold_prefixes,
         "weak_topic_ids": [w["id"] for w in data["weak_topics"]["weak"]],
+        "db_watermark": db_watermark,
     }
-    with open(DASH_DATA_OUT, "w", encoding="utf-8") as f:
-        json.dump(dash_data, f, ensure_ascii=False, indent=2)
+    def _atomic_write(path, text):
+        # 先写同目录临时文件再 os.replace：启动器现在「先开浏览器、后跑流水线」，
+        # 而 serve.js 对 dashboard.html 是每请求 readFileSync —— 直接 open("w")
+        # 会在写入窗口里把半截文件发给正在刷新的浏览器。
+        tmp = path.parent / (path.name + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, path)
+
+    _atomic_write(DASH_DATA_OUT, json.dumps(dash_data, ensure_ascii=False, indent=2))
     print(f"  Dashboard data: {DASH_DATA_OUT.name} "
           f"(recent_prefixes={len(dash_data['recent_prefixes'])}, weak_topics={len(dash_data['weak_topic_ids'])})")
 
@@ -15386,9 +15411,8 @@ def main():
         else:
             print("  [WARN] src/tools/d3.min.js 缺失，图表依赖 CDN（离线时不可用）")
 
-    # 4. Write output
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        f.write(html)
+    # 4. Write output（原子写，见 _atomic_write 注释）
+    _atomic_write(OUTPUT_PATH, html)
 
     size_kb = os.path.getsize(OUTPUT_PATH) / 1024
     print(f"\nDashboard written to: {OUTPUT_PATH}")

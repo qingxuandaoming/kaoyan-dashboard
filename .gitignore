@@ -40,6 +40,7 @@ dashboard_data.json
 笔记索引.yaml
 flashcard_ready.html
 .serve_port
+.serve_pid
 
 # ---------- 活的数据库与本机状态 ----------
 # question_bank.db 每次刷闪卡都会写，体积与改动频率都不适合进 git。
