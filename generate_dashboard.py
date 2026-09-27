@@ -1104,11 +1104,13 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
     # --- 笔记覆盖判定（topic 级）---
     # 优先用 graph 的 linked_notes；若为空则按「笔记条目前缀+章节号」粗匹配
     covered_topic_ids = set()
+    linked_covered = set()      # 图谱里显式登记了 linked_notes 的考点：优先级最高，归因层不许把它摘掉
     for subj, graph in graphs.items():
         for sub_key, sub_data in graph.get("subs", {}).items():
             for topic in sub_data.get("topics", []):
                 if topic.get("linked_notes"):
                     covered_topic_ids.add(topic.get("id", ""))
+                    linked_covered.add(topic.get("id", ""))
 
     if not covered_topic_ids:
         entry_chapters = {}   # "MATH-GS" -> {4, 5, ...}
@@ -1150,6 +1152,41 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
         if no_chapter_notes:
             print("  INFO: 无章节号笔记（跨章专题，不计入章节覆盖）-> "
                   + ", ".join(f"{k}={v} 处" for k, v in sorted(no_chapter_notes.items())))
+
+    # --- AI 归因覆盖（2026-09-27 接入，见 attribution_spec.json + note_attribution.py）---
+    # 上面那套「前缀 + 章节号」粗匹配的结构性缺陷是**章粒度**：
+    #   某章只要有一条带编号的索引条目，该章所有考点都算「有笔记」（虚报），
+    #   而 chapter 写成「专题」「预备知识」或空串的条目一个格都进不去（漏报）。
+    # 实测政治：规则判 17 个考点有笔记，按小节归因判 32 个，其中 3 个是规则的假覆盖。
+    # 所以：**该科目跑过归因就整体以归因为准**（不跟规则取并集，否则假覆盖留着不走），
+    #      没跑过归因的科目才回退规则，并把用的哪套口径一并下发到页面。
+    coverage_source = {}
+    note_unit_counts = {}
+    try:
+        import note_attribution as _na
+        _ai_cov = _na.coverage_by_subject()
+        _ai_thr = _na.thresholds().get("accept")
+        for subj in graphs:
+            m = _ai_cov.get(subj)
+            if not m:
+                coverage_source[subj] = "rule"
+                continue
+            for sub_key, sub_data in graphs[subj].get("subs", {}).items():
+                for topic in sub_data.get("topics", []):
+                    tid = topic.get("id", "")
+                    if tid and tid not in linked_covered:
+                        covered_topic_ids.discard(tid)
+            for tid, info in m.items():
+                covered_topic_ids.add(tid)
+                # 用「篇数」不用「段数」：段数会被批量词条卡灌水
+                note_unit_counts[tid] = (info or {}).get("files", 0)
+            coverage_source[subj] = "ai"
+        print("  笔记覆盖口径: " + "、".join(
+            f"{k}={'按小节AI归因(accept≥%s)' % _ai_thr if v == 'ai' else '章节号粗匹配'}"
+            for k, v in sorted(coverage_source.items())))
+    except Exception as _e:
+        coverage_source = {subj: "rule" for subj in graphs}
+        print(f"  WARN: 归因层读不到（{_e}），笔记覆盖全部回退章节号粗匹配")
 
     # --- 英语题型证据补覆盖（与 gap_analysis 共用 english_coverage，避免两边口径打架）---
     # 大盘原本只认「笔记索引里有没有条目」，但用户的作文批改、阅读专题讲义、完形讲义都躺在
@@ -1222,9 +1259,10 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
                 ch = topic.get("chapter", 0)
                 if ch not in chapters:
                     chapters[ch] = {"total": 0, "sum": 0, "covered": 0,
-                                    "practiced": 0, "note_only": 0}
+                                    "practiced": 0, "note_only": 0, "note_units": 0}
                 chapters[ch]["total"] += 1
                 tid = topic.get("id", "")
+                chapters[ch]["note_units"] += note_unit_counts.get(tid, 0)
                 if tid in topic_acc:
                     score = topic_acc[tid]
                     chapters[ch]["practiced"] += 1
@@ -1251,6 +1289,10 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
                     "covered": counts["covered"],
                     "practiced": counts["practiced"],
                     "note_only": counts["note_only"],
+                    # 这一格里按小节归因出来的材料段数，以及这科的笔记判定用的哪套口径。
+                    # 没有这两个字段，页面上一个 0% 分不清是「没学」还是「管道没看见」。
+                    "note_units": counts["note_units"],
+                    "note_source": coverage_source.get(subj, "rule"),
                 })
 
     # --- Timeline data（全量日粒度）---
@@ -1318,7 +1360,8 @@ def compute_stats(index: dict, graphs: dict, db_stats: dict) -> dict:
             "reviewed": db_stats["reviewed_today"],
             "total": db_stats["total_cards"],
         },
-        "coverage": {"overall": overall_coverage, "by_subject": coverage_by_subject},
+        "coverage": {"overall": overall_coverage, "by_subject": coverage_by_subject,
+                     "note_source": coverage_source},
         "heatmap": heatmap,
         "timeline": timeline_data,
         "level_dist": level_dist,
@@ -5873,6 +5916,19 @@ def generate_html(data: dict) -> str:
             color: var(--text-secondary);
         }}
 
+        /* 找到相关材料、但归因置信度没到门槛：左上角点一颗待确认标。
+           这一档既不算覆盖也不算空白 —— 把它显示成 0% 就是冤枉人。 */
+        .heatmap-cell.is-unsure::after {{
+            content: "";
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent-orange, #e0a856);
+        }}
+
         .heatmap-tooltip {{
             display: none;
             position: absolute;
@@ -6684,6 +6740,7 @@ document.getElementById("verified-count").textContent = D.verified_count || 0;
             const intensity = item.coverage / 100;
             const practiced = item.practiced || 0;
             const noteOnly = practiced === 0 && (item.note_only || 0) > 0;
+            const noteUnits = item.note_units || 0;
 
             // 靛青 91,124,153 —— 与 :root 的 --dianqing-rgb 同源。
             const cell = el("div", {{className: "heatmap-cell"}}, grid);
@@ -6692,6 +6749,9 @@ document.getElementById("verified-count").textContent = D.verified_count || 0;
             cell.style.animationDelay = (rowIdx * 70 + ci * 7) + "ms";
             if (item.coverage === 0) {{
                 cell.style.background = "rgba(91, 124, 153, .06)";
+                // 「一段材料都没判出来」和「判出来了但置信度没到门槛」是两回事。
+                // 后者点一个待确认角标，绝不能显示成「你没学」—— 那正是这次要修的病。
+                if (noteUnits > 0) cell.classList.add("is-unsure");
             }} else if (noteOnly) {{
                 // 有笔记但一次没练：低饱和 + 虚线框，和「练过的实心格」区分开
                 cell.classList.add("is-note-only");
@@ -6705,8 +6765,12 @@ document.getElementById("verified-count").textContent = D.verified_count || 0;
             const src = practiced > 0
                 ? `闪卡已练 ${{practiced}} 个考点`
                 : (noteOnly ? "仅整理笔记，尚无答题记录" : "无笔记，也未练过");
+            // 必须写明这格的笔记判定用的哪套口径：跑过归因的科目按小节归因，
+            // 没跑过的仍是章节号粗匹配。两种口径可信度差一个量级，不能同图不声明。
+            const how = item.note_source === "ai" ? "按小节归因" : "按章节号粗匹配";
             tooltip.textContent =
-                `${{item.sub}} 第${{item.chapter}}${{item.unit || "章"}}: ${{item.covered}}/${{item.total}} (${{item.coverage}}%) · ${{src}}`;
+                `${{item.sub}} 第${{item.chapter}}${{item.unit || "章"}}: ${{item.covered}}/${{item.total}} (${{item.coverage}}%) · ${{src}}`
+                + ` ｜ 笔记材料 ${{noteUnits}} 篇（口径：${{how}}）`;
         }});
     }});
 
@@ -6716,7 +6780,7 @@ document.getElementById("verified-count").textContent = D.verified_count || 0;
     const bar = el("div", {{className: "heatmap-legend-bar"}}, legend);
     el("span", {{textContent: "100%"}}, legend);
     el("span", {{className: "heatmap-legend-note",
-        textContent: "虚线格 = 已整理笔记但没刷过闪卡"}}, legend);
+        textContent: "虚线格 = 已整理笔记但没刷过闪卡 ｜ 左上橙点 = 找到相关材料但归因待确认（不算覆盖）"}}, legend);
 }})();
 
 // ============================================================

@@ -286,10 +286,16 @@ def build_note_lookup(entries):
     return prefix_chapters, prefix_total
 
 
-def analyze_graph(graph, note_prefix_chapters, note_prefix_total):
+def analyze_graph(graph, note_prefix_chapters, note_prefix_total, ai_cov=None):
     """
     For one knowledge graph, compute per-topic coverage.
     Returns list of topic_result dicts.
+
+    ai_cov：该科目的按小节归因结果 {考点id: {"units": n, "best": c}}，
+    由 note_attribution.coverage_by_subject() 给出，**只在归因跑完时才非空**
+    （半截结果会被 trustworthy_domains 挡掉）。给了就以它为准 —— 与
+    generate_dashboard 共用同一个读取层，否则缺口报告和大盘会互相矛盾
+    （这个项目的老毛病：两边各存一份口径）。
     """
     subject = graph["subject"]
     results = []
@@ -316,6 +322,13 @@ def analyze_graph(graph, note_prefix_chapters, note_prefix_total):
                     note_count = ch_counts[match_ch]
                     covered = True
 
+            cov_via = "章节号" if covered else None
+            if ai_cov is not None:
+                hit = ai_cov.get(tid)
+                covered = bool(hit)
+                note_count = (hit or {}).get("units", 0)
+                cov_via = "按小节归因"
+
             # Also count total notes for this prefix (regardless of chapter)
             total_for_prefix = note_prefix_total.get(t_prefix, 0)
 
@@ -333,6 +346,7 @@ def analyze_graph(graph, note_prefix_chapters, note_prefix_total):
                 "covered": covered,
                 "note_count": note_count,
                 "total_for_prefix": total_for_prefix,
+                "covered_via": cov_via,
             })
 
     return results
@@ -743,11 +757,26 @@ def main():
     # --- Analyze each graph (with progress overlays) ---
     analysis_results = {}  # subj -> (graph, topic_results, progress_meta)
 
+    # 按小节归因（AI 判定，跑完才生效）：与 generate_dashboard 共用同一个读取层，
+    # 否则「缺口报告」和「大盘热力图」会各报一套覆盖 —— 两边口径打架是这个项目的老毛病。
+    ai_cov = {}
+    try:
+        import note_attribution as _na
+        ai_cov = _na.coverage_by_subject(key="graph_key")
+        if ai_cov:
+            print("  笔记覆盖口径: " + "、".join(
+                f"{k}=按小节归因({len(v)}个考点)" for k, v in sorted(ai_cov.items())))
+        else:
+            print("  笔记覆盖口径: 全部按章节号粗匹配（归因未跑完或表为空）")
+    except Exception as _e:
+        print(f"  WARN: 归因层读不到（{_e}），覆盖判定按章节号粗匹配")
+
     for subj in ["408", "数学一", "政治", "英语一"]:
         if subj not in graphs:
             continue
         graph = graphs[subj]
-        topic_results = analyze_graph(graph, note_prefix_chapters, note_prefix_total)
+        topic_results = analyze_graph(graph, note_prefix_chapters, note_prefix_total,
+                                      ai_cov=ai_cov.get(subj))
 
         # Apply progress-based overlay for politics and english
         progress_meta = None
