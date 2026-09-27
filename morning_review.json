@@ -7,12 +7,12 @@
     "days": 23,
     "first_date": "2026-06-19",
     "last_date": "2026-09-30",
-    "review_items": 93,
-    "quiz_items_unused": 79,
+    "review_items": 100,
+    "quiz_items_unused": 88,
     "english_days": 9,
     "flashcard_cards": 30,
     "flashcard_start_date": "2026-07-07",
-    "math_items": 39,
+    "math_items": 43,
     "note": ""
   },
   "days": {
@@ -3798,10 +3798,237 @@
     "2026-09-27": {
       "date": "2026-09-27",
       "weekday": "周日",
-      "studied": false,
-      "subject": "泰勒专题 · D11 · 薄弱点",
-      "review": [],
-      "quiz": [],
+      "studied": true,
+      "subject": "政治·资本构成/经济危机/帽子题 ｜ 408·Cache三映射/PV顺序口诀 ｜ DS·41题武器表 ｜ 英语·熟词偏义2007 ｜ 高数·差函数符号/级数延拓/多元积分三条纪律 ｜ 概率·t²双尾 ｜ 泰勒专题 D11",
+      "review": [
+        {
+          "id": "d27-pol-const",
+          "badges": [
+            "政治",
+            "马原",
+            "今晨刚写"
+          ],
+          "title": "资本三种构成：技术构成 / 价值构成 / 有机构成（含提高的五条后果链）",
+          "body": "技术构成＝生产资料与劳动力之间的<strong>数量比例</strong>（物质形态）；<br>价值构成＝<strong>c : v</strong>（不变资本与可变资本，价值形态）；<br>有机构成＝<strong>由技术构成决定、并反映技术构成变化</strong>的价值构成，也记作 c : v。<br>⚠️ 价值构成变动 <strong>不等于</strong> 有机构成变动：原料涨价把 c 抬高而技术没变，价值构成变了、有机构成没变。",
+          "list": [
+            "① 动力机制：个别企业追<strong>超额剩余价值</strong> → 改进技术 → 全行业<strong>相对剩余价值</strong> → 有机构成不断提高（内在趋势，不以个人意志为转移）",
+            "② 相对过剩人口：c : v 升 → 资本对劳动力需求<strong>相对</strong>减少（甚至绝对减少）→ 失业。是相对于<strong>资本增殖需要</strong>的过剩，不是人口绝对过多",
+            "③ 平均利润率趋向下降：v 比重降 → p′ = m/(c+v) 下降。原因是<strong>有机构成提高</strong>，不是剥削率下降",
+            "④ 资本积累一般规律：财富在一极，贫困与失业在另一极",
+            "⑤ 部门间有机构成不同 → 等量资本获不等量利润 → 部门间竞争与资本转移 → <strong>平均利润率</strong> → 价值转化为<strong>生产价格</strong>"
+          ],
+          "conclusion": "层次链背这一句：先有不变/可变划分 → 才有 c : v 价值构成 → 反映技术构成时才叫有机构成。题目说「有机构成」必须看到<strong>生产技术变了</strong>。",
+          "noteLink": {
+            "name": "马原.md",
+            "path": "E:\\NPEE\\Politics\\马原.md"
+          }
+        },
+        {
+          "id": "d27-pol-crisis",
+          "badges": [
+            "政治",
+            "马原",
+            "09-20 忘记"
+          ],
+          "title": "经济危机三连问：根本原因 / 本质特征 / 周期四阶段",
+          "body": "根本原因＝<strong>资本主义基本矛盾</strong>（生产社会化与生产资料资本主义私人占有之间的矛盾，这一矛盾在经济上集中表现为<strong>经济危机</strong>）；<br>本质特征＝<strong>相对过剩</strong>——相对于劳动人民有支付能力的需求，商品过剩（不是绝对多到用不完）；<br>经济危机周期性爆发 ⇒ 资本再生产也呈周期性，四阶段固定序：<strong>危机 → 萧条 → 复苏 → 高涨</strong>。",
+          "list": [
+            "工资的本质：在资本主义制度下，工人的工资是<strong>劳动力的价值或价格</strong>（不是劳动的价值或价格）",
+            "<strong>平均利润</strong>是不同部门（行业）资本家竞争的结果，<strong>不是</strong>部门内不同资本家竞争的结果；银行资本家的利润可能高于、低于或等于平均利润",
+            "商品经济产生的两个社会历史条件：一是<strong>社会分工</strong>，二是<strong>生产资料和劳动产品属于不同的所有者</strong>"
+          ],
+          "conclusion": "09-20 这道「基本矛盾在经济上集中表现为＿＿」你打了 R1（忘记）、空着的就是<strong>经济危机</strong>——今天把整串三元区分连着背。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
+          }
+        },
+        {
+          "id": "d27-pol-hats",
+          "badges": [
+            "政治",
+            "帽子题",
+            "2021真题错2道"
+          ],
+          "title": "帽子题固定搭配：一个限定词只配一个答案",
+          "body": "抗日战争胜利四层定位：<strong>决定因素</strong>＝以爱国主义为核心的民族精神；<strong>关键</strong>＝中国共产党的中流砥柱作用；<strong>重要法宝</strong>＝全民族抗战；（第四层）同世界爱好和平正义的国家和人民、国际组织及反法西斯力量的同情和支持分不开。<br>《新时代爱国主义教育实施纲要》：鲜明<strong>主题</strong>＝实现中华民族伟大复兴的中国梦；重要<strong>着力点和落脚点</strong>＝坚持维护祖国统一和民族团结；基本<strong>要求</strong>＝坚持立足中国又面向世界。",
+          "list": [
+            "从 0 到 1 的突破 → 把提升<strong>原始创新能力</strong>摆在更加突出的位置（2021 单选 8：其余选项本身都正确，但不对「更加突出位置」这个限定）",
+            "绝对化即死：「<strong>只能</strong>落后于」「<strong>总是</strong>阻碍」一出就排除；社会意识的相对独立性突出表现为与社会存在发展的<strong>不平衡性</strong>（2021 单选 3）",
+            "早期马克思主义者的三种类型<strong>全是知识分子</strong>；「工人群众中的活跃分子」不属于——那是马克思主义的<strong>阶级基础</strong>，不是传播者的构成（2021 多选 28）"
+          ],
+          "conclusion": "帽子题的症状就是<strong>两个选项都眼熟</strong>：2021 卷错的两道（单选 10 把「关键」选成「法宝」、单选 14 把「着力点」选成「主题」）都是这一刀——今天把政治〈专题·帽子题总结〉那份固定搭配再过一遍，目标：看到限定词 3 秒内锁定唯一对应项。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
+          }
+        },
+        {
+          "id": "d27-co-cache-map",
+          "badges": [
+            "408",
+            "计组",
+            "09-20 连问两次"
+          ],
+          "title": "Cache 三种映射：谁算索引、几个比较器、要不要替换算法",
+          "body": "直接映射：地址＝Tag ＋ <strong>行号（索引）</strong> ＋ 块内偏移；用行号直接定位唯一一行再比 Tag ⇒ <strong>1 个比较器</strong>；位置固定 ⇒ <strong>不需要</strong>替换算法；冲突率最高、查找最快。<br>全相联：地址＝Tag ＋ 块内偏移（<strong>没有行号字段</strong>）；逐行并行比较 ⇒ <strong>N 个比较器</strong>（N＝Cache 总行数）；<strong>需要</strong>替换算法；冲突率最低。<br>组相联（K 路）：先按组直接映射、<strong>组内全相联</strong>；地址＝Tag ＋ <strong>组索引</strong> ＋ 块内偏移 ⇒ <strong>K 个比较器</strong>（K＝路数）；需要替换算法。",
+          "list": [
+            "<strong>路数＝每组几块；组数＝Cache 总块数 ÷ 路数＝共几组</strong>；组索引位 = log₂(组数)，块内偏移位 = log₂(块大小)，Tag = 总位 − 组索引位 − 偏移位",
+            "比较器的<strong>位数</strong>永远等于 Tag 位数，三种方式只变<strong>个数</strong>：1 / N / K",
+            "「直接映射需要替换算法」❌（位置固定无可选）；「全相联不需要替换算法」❌（多个位置可选）——只看<strong>有没有可选位置</strong>，与名字里带不带「映射」无关",
+            "口诀：<strong>地址是切蛋糕，三段之和定总长；Tag 存进 Cache 行，行号偏移是导航；直接映射无替换，回写必加脏一位</strong>"
+          ],
+          "conclusion": "一行记死：<strong>路数是每组几块，组数是共几组</strong>；比较器个数＝直接 1、全相联 N、组相联 K。今天把这张三行对照表补进第3章。",
+          "noteLink": {
+            "name": "第3章_存储器层次结构.md",
+            "path": "E:\\NPEE\\408\\CO\\第3章_存储器层次结构.md"
+          }
+        },
+        {
+          "id": "d27-os-pv-order",
+          "badges": [
+            "408",
+            "操作系统",
+            "14天9错全Again"
+          ],
+          "title": "PV 顺序只有一条：P 先资源后互斥，V 顺序随便",
+          "body": "正确序：<strong>P(资源)</strong>（empty / full，先预扣名额）→ <strong>P(mutex)</strong>（进临界区）→ 干活 → <strong>V(mutex)</strong>（先放锁）→ <strong>V(资源)</strong>（再摇铃）。<br>为什么：P <strong>可能阻塞</strong>，带锁阻塞＝埋死锁；V <strong>不阻塞</strong>，放哪都行。<br>反例（n＝1 且缓冲区已满）：先 P(mutex) 再 P(empty) → 生产者<strong>抱着锁睡</strong>，消费者 P(full) 成功后卡在 P(mutex) → 生产者等消费者的 V(empty)、消费者等生产者的 V(mutex) ⇒ <strong>循环等待</strong>＝死锁（死锁四个必要条件之一）。",
+          "list": [
+            "先 P(empty) 再 P(mutex) 会不会拿不到锁？<strong>不会死锁</strong>：拿不到锁只是阻塞排队，此时手里没锁、不挡任何人的路；等待链单向（阻塞者 → mutex 持有者 → 不等任何人）必然终止——因为持锁者的临界区内<strong>没有任何会阻塞的操作</strong>",
+            "唤醒关系三句话：<code>V(mutex)</code> 是「开门」，谁排门外进谁（不分生产者/消费者）；<code>V(full)</code> 是「到货通知」，只叫醒等货的消费者；<code>V(empty)</code> 是「空位通知」，只叫醒等空位的生产者",
+            "V 操作<strong>不一定</strong>唤醒进程：只有信号量<strong>原值 &lt; 0</strong>（有人排在等待队列）才唤醒，否则只加 1"
+          ],
+          "conclusion": "口诀：<strong>先 P 资源、后 P 互斥；先 V 互斥、后 V 资源</strong>。判据只有一句「P 会阻塞、V 不会」。",
+          "noteLink": {
+            "name": "第2章_进程管理.md",
+            "path": "E:\\NPEE\\408\\OS\\第2章_进程管理.md"
+          }
+        },
+        {
+          "id": "d27-eng-polysemy",
+          "badges": [
+            "英语一",
+            "翻译",
+            "昨晚刚改"
+          ],
+          "title": "熟词偏义：判定口诀 ＋ 2007 翻译真题踩坑区",
+          "body": "口诀：字典第一义代进句子<strong>讲不通</strong> → 十有八九考第二义 → <strong>查搭配，别硬编</strong>。<br>背「标志搭配」不背裸词：<strong>nurse</strong> ＋ 情绪类名词（grudge / doubt）＝怀恨；<strong>weather</strong> ＋ 困难类名词（storm / crisis）＝度过；<strong>table</strong> ＋ 提案类名词（proposal / law）＝搁置（英美 <strong>table a motion</strong> 意思相反，别按字面译）。",
+          "list": [
+            "<strong>preserve</strong>＝专属领域、专利（the special preserve of lawyers），不是「保护」；<strong>equipment</strong>＝素养（intellectual equipment 知识装备），不是「教育」",
+            "<strong>story / stories</strong>＝新闻报道（political stories，你连错两次）；<strong>news media</strong>＝新闻媒体（news ≠ new！）；<strong>notions</strong>＝观念、看法（看成 nations 就废）；<strong>established</strong>＝既定的、约定俗成的（过去分词作定语：established conventions 既定惯例）",
+            "<strong>forge</strong>＝逐步建立（forge links），另有「伪造」；<strong>cover</strong>＝报道 / 涵盖；<strong>parallel to</strong>＝与…相似的，比较对象要落到名词",
+            "回查清单（治漏译，每句译完执行）：主语（it / this 指代谁）→ 状语框（in such institutions、on a daily basis）→ 比较对象（rather than / parallel to 后接的<strong>名词</strong>）→ 英文有几个动词，中文就有几个动作"
+          ],
+          "conclusion": "今天做 2 篇真题阅读时，命中的僻义当场回填这个文件——只在本文件加，不新开文件、不占辨析节号。",
+          "noteLink": {
+            "name": "熟词偏义.md",
+            "path": "E:\\NPEE\\English\\translation&writing\\熟词偏义.md"
+          }
+        },
+        {
+          "id": "d27-ds-weapon-table",
+          "badges": [
+            "408",
+            "数据结构",
+            "今晨刚建"
+          ],
+          "title": "41 题「看到什么用什么」：17 年真题武器对照（背三行）",
+          "body": "数组题：有序 → <strong>对撞双指针</strong>；循环左移 → <strong>三次翻转</strong>；主元素（出现次数 > n/2）→ <strong>摩尔投票</strong>（抵消思想）；「未出现的最小正整数」→ <strong>原地哈希</strong>（下标即桶）。<br>链表题：<strong>快慢指针</strong>（倒数第 k、找中点）＋ 头插逆置 ＋ 合并 ＝ 三板斧。<br>树题：<strong>递归三板斧</strong>（终止、本层、传参/返回）；判 BST → 中序递归 ＋ 前驱值；层次遍历 → 队列 ＋ 层号标记（树不需要 visited，图的 BFS <strong>必须</strong> visited）。",
+          "list": [
+            "按年份记三件：2013 摩尔投票（主元素）、2018 原地哈希（最小正整数）、2024 Kahn ＋ 队列长度监控（判断唯一拓扑序列）",
+            "42 题最高频：<strong>AOE 网与关键路径五步法</strong>（2011、2025 都考它）；散列表构造与 ASL（2010、2024）",
+            "评分纪律：<strong>算法设计思想写对就拿 3~4 分</strong>（哪怕代码写错）；代码不必编译通过，语法笔误不扣分；复杂度分析<strong>必须和自己写的代码匹配</strong>——暴力的 O(n²) 分析正确也拿满分，别硬写最优复杂度"
+          ],
+          "conclusion": "模板一句话：先写「采用 XX 算法，通过 XX 操作」，再列三步（初始化 / 循环 / 返回），最后复杂度对齐自己的代码。",
+          "noteLink": {
+            "name": "数据结构_大题满分专项.md",
+            "path": "E:\\NPEE\\408\\专题\\数据结构大题专项\\数据结构_大题满分专项.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "d27-q-const",
+          "question": "c : v 变了，是有机构成变了还是价值构成变了？「有机构成提高」的五条后果按序是什么？",
+          "answer": "c : v 本身就是<strong>价值构成</strong>；只有当这一变化<strong>反映技术构成变化</strong>时才叫有机构成变动（原料涨价 → 价值构成变、有机构成不变）。五条后果：① 追超额剩余价值→改技术→相对剩余价值→有机构成提高 ② 相对过剩人口 ③ 平均利润率趋向下降 ④ 资本积累一般规律（财富与贫困两极）⑤ 部门间构成不同→平均利润→生产价格。",
+          "noteLink": {
+            "name": "马原.md",
+            "path": "E:\\NPEE\\Politics\\马原.md"
+          }
+        },
+        {
+          "id": "d27-q-crisis",
+          "question": "经济危机的根本原因、本质特征、再生产周期四阶段分别是什么？平均利润是谁和谁竞争的结果？",
+          "answer": "根本原因＝<strong>资本主义基本矛盾</strong>；本质特征＝<strong>相对过剩</strong>（相对于劳动人民有支付能力的需求）；四阶段＝<strong>危机→萧条→复苏→高涨</strong>。平均利润是<strong>不同部门</strong>资本家竞争的结果，不是部门内竞争的结果。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
+          }
+        },
+        {
+          "id": "d27-q-hats",
+          "question": "三顶帽子：① 抗战胜利的「关键」 ② 新时代爱国主义教育的「着力点」 ③ 实现从 0 到 1 突破要摆在更突出位置的能力。",
+          "answer": "① <strong>中国共产党的中流砥柱作用</strong>（决定因素＝民族精神，重要法宝＝全民族抗战）；② <strong>坚持维护祖国统一和民族团结</strong>（鲜明主题＝中国梦）；③ <strong>提升原始创新能力</strong>。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "E:\\NPEE\\Politics\\政治强化.md"
+          }
+        },
+        {
+          "id": "d27-q-cache",
+          "question": "4 路组相联、Cache 共 8 块：有几组？要几个比较器？比较器几位？需要替换算法吗？",
+          "answer": "组数＝8 ÷ 4＝<strong>2 组</strong>（组索引 1 位）；比较器<strong>4 个</strong>（＝路数）；位数＝<strong>Tag 位数</strong>；需要替换算法（组内有可选位置）。「直接映射无替换」是唯一不需要的那一个。",
+          "noteLink": {
+            "name": "第3章_存储器层次结构.md",
+            "path": "E:\\NPEE\\408\\CO\\第3章_存储器层次结构.md"
+          }
+        },
+        {
+          "id": "d27-q-pv",
+          "question": "V 操作一定会唤醒进程吗？为什么 P 必须「先资源后互斥」而 V 顺序随意？",
+          "answer": "不一定——只有信号量<strong>原值 &lt; 0</strong>（等待队列里有人）才唤醒，否则只加 1。P 可能阻塞：先 P(mutex) 再 P(empty) 就是<strong>抱着锁睡</strong>，与消费者构成<strong>循环等待</strong>＝死锁。V 不阻塞，先 V(mutex) 只是提前放锁，不会造成任何持锁等待。",
+          "noteLink": {
+            "name": "第2章_进程管理.md",
+            "path": "E:\\NPEE\\408\\OS\\第2章_进程管理.md"
+          }
+        },
+        {
+          "id": "d27-q-eng",
+          "question": "写出第二义：the special <strong>preserve</strong> of lawyers ／ intellectual <strong>equipment</strong> ／ political <strong>stories</strong> ／ <strong>news</strong> media。",
+          "answer": "preserve＝<strong>专属领域</strong>；equipment＝<strong>素养</strong>；stories＝<strong>新闻报道</strong>；news media＝<strong>新闻媒体</strong>（news ≠ new）。判定口诀：第一义代进去讲不通 → 查搭配，别硬编。",
+          "noteLink": {
+            "name": "熟词偏义.md",
+            "path": "E:\\NPEE\\English\\translation&writing\\熟词偏义.md"
+          }
+        },
+        {
+          "id": "d27-q-ds",
+          "question": "「求出现次数超过 n/2 的主元素」「求未出现的最小正整数」「判断唯一拓扑序列」三题各用什么武器？",
+          "answer": "<strong>摩尔投票</strong>（抵消，2013）；<strong>原地哈希／下标即桶</strong>（2018）；<strong>Kahn ＋ 监控队列长度</strong>（2024）。前两个都是 O(n) 时间、O(1) 空间。",
+          "noteLink": {
+            "name": "数据结构_大题满分专项.md",
+            "path": "E:\\NPEE\\408\\专题\\数据结构大题专项\\数据结构_大题满分专项.md"
+          }
+        },
+        {
+          "id": "d27-q-t2",
+          "question": "X ∼ t(n)，Y＝X²，已知 P{X > c}＝α。P{Y > c²}＝？",
+          "answer": "<strong>＝ 2α</strong>。平方开出来是<strong>绝对值</strong>：P{X² > c²}＝P{|X| > c}＝2P{X > c}（t 密度关于 0 对称，α &lt; 0.5 故 c > 0）。只写单尾 α 就会误选 A（正解 C）。",
+          "noteLink": {
+            "name": "第6章_数理统计的基本概念.md",
+            "path": "E:\\NPEE\\Math\\概率论\\第6章_数理统计的基本概念.md"
+          }
+        },
+        {
+          "id": "d27-q-fourier",
+          "question": "正弦级数求 S(−9/4) 要走两步，是哪两步？漏掉第二步会得到什么？",
+          "answer": "① <strong>先按周期平移</strong>进基本区间：−9/4 ＋ 2 ＝ −1/4；② <strong>再按奇性翻号</strong>：S(−1/4) ＝ −S(1/4) ＝ −f(1/4) ＝ −1/4。漏翻号直接代原函数得 3/4（2013 数一 T3 误选 A，正解 C）。",
+          "noteLink": {
+            "name": "第16讲_无穷级数.md",
+            "path": "E:\\NPEE\\Math\\高数\\第16讲_无穷级数.md"
+          }
+        }
+      ],
       "math": {
         "id": "sec-math",
         "points": [
@@ -3819,6 +4046,70 @@
             "noteLink": {
               "name": "第16讲_无穷级数.md",
               "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
+            }
+          },
+          {
+            "id": "taylor-d11-2",
+            "type": "taylor",
+            "badges": [
+              "高数",
+              "泰勒专题",
+              "D11"
+            ],
+            "title": "差函数的等价无穷小：先写两个展开再相减，不背结论符号",
+            "body": "arctan x ＝ x − x³/3 ＋ o(x³)，三次项<strong>带负号</strong>；相减后 x − arctan x ∼ <strong>＋x³/3</strong>，与展开式的三次项<strong>反号</strong>。<br>同族三条（x → 0）：x − sin x ∼ x³/6，x − tan x ∼ −x³/3，x − ln(1+x) ∼ x²/2。<br>⚠️ <strong>取比值的对数会降一阶</strong>：ln(x/sin x) ∼ x²/6 是 <strong>2 阶</strong>，不是 3 阶（除以 sin x ∼ x 掉了一阶）。",
+            "conclusion": "纪律只有一句：首项相消就升一阶，<strong>先把两个展开式写出来再作差</strong>，绝不背结论符号（2013 T1 手写 −x³/3 就选成 C，正解 D）。",
+            "noteLink": {
+              "name": "公式速查.md",
+              "path": "E:\\NPEE\\Math\\高数\\公式速查.md"
+            }
+          },
+          {
+            "id": "math-gs16-sine-odd-ext",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "无穷级数",
+              "昨日复盘错"
+            ],
+            "title": "和函数在区间外：先平移归周期，再翻号看奇偶",
+            "body": "正弦级数＝<strong>奇延拓 ＋ 周期延拓</strong>两层；余弦级数＝<strong>偶延拓 ＋ 周期延拓</strong>两层——别只记一层。<br>求区间外的 S(x₀) 两步：<strong>①</strong> 按周期把 x₀ 平移进基本区间；<strong>②</strong> 用奇偶性把符号定回来（奇延拓翻号、偶延拓不翻）。<br>⚠️ 奇延拓在 x＝0 与 x＝π 处，若 f 不为 0 就<strong>间断</strong>，端点收敛到 f(π)/2 而不是 f(π)；<strong>偶延拓自动保证两个端点连续</strong>——这是余弦级数比正弦级数好用的根本原因。",
+            "conclusion": "「平移归周期」与「翻号看奇偶」<strong>缺一不可</strong>（2013 数一 T3：S(−9/4) ＝ −f(1/4) ＝ −1/4；直接代 f(−1/4) 得 3/4，误选 A）。",
+            "noteLink": {
+              "name": "第16讲_无穷级数.md",
+              "path": "E:\\NPEE\\Math\\高数\\第16讲_无穷级数.md"
+            }
+          },
+          {
+            "id": "math-gs18-sign-rules",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "多元函数积分学",
+              "今日手练"
+            ],
+            "title": "多元积分三条符号纪律：Green 是差、微元配对、方向只付一次",
+            "body": "<strong>① Green 右端是「差」不是「和」</strong>：φ ＝ ∂Q/∂x − ∂P/∂y，Q 是 <strong>dy 的系数</strong>、P 是 dx 的系数。反用格林（「使曲线积分最大的闭曲线」）＝取 φ ≥ 0 的<strong>整个正值区域</strong>，边界即答案——掺进 φ &lt; 0 的点或挖掉 φ > 0 的点都严格变小。<br><strong>② 微元配对</strong>：P 配 dy dz、Q 配 dz dx、R 配 dx dy，记「<strong>微元缺谁配谁的偏导</strong>」（第一行只许循环序；dz dx ＝ −dx dz，对调必补负号——考场策略：不对调）。<br><strong>③ 方向约定</strong>：Green 逆时针为正（顺时针乘 −1）、Gauss 外侧为正（内侧乘 −1）、Stokes 严格右手定则（四指沿曲线、拇指为法向）；补边要减（原积分＝封闭积分 − 补段积分）；有奇点<strong>必须挖洞</strong>；Green 只适用第二类积分，第一类（ds / dS）没有对应公式。",
+            "conclusion": "三道当场自检：算完 φ <strong>代一个点（如原点）验符号</strong>再谈区域；<strong>球坐标定限口诀</strong>——z 的约束改极角 φ、x 与 y 的约束改方位角 θ，未被限的角取全范围；答案出现 <strong>π²</strong> 就是角度积分退化的警报（漏乘 sin φ / sinθcosθ 一类因子），而且球面方程<strong>只在边界成立</strong>，别代进体积分。",
+            "noteLink": {
+              "name": "第18讲_多元函数积分学.md",
+              "path": "E:\\NPEE\\Math\\高数\\第18讲_多元函数积分学.md"
+            }
+          },
+          {
+            "id": "math-t2-double-tail",
+            "type": "trap",
+            "badges": [
+              "概率论",
+              "数理统计",
+              "昨日复盘错"
+            ],
+            "title": "t 平方化 F：开绝对值、变双尾（＝2α）",
+            "body": "T ∼ t(n) ⇒ T² ∼ F(1, n)。求 P{Y > c²}：P{X² > c²} ＝ P{|X| > c} ＝ 2P{X > c} ＝ <strong>2α</strong>（t 密度关于 0 对称、α &lt; 0.5 故 c > 0）。<br>同页三条顺手背：用 N 还是 t 的<strong>唯一判据</strong>是题目有没有给 σ 的数值（别惯性用 t）；卡方自由度 <strong>μ 已知取 n、μ 未知取 n − 1</strong>；F 的分位数倒数公式 <strong>要把两个自由度调换</strong>，顺序写反是常见丢分点。",
+            "conclusion": "分工口诀：<strong>N 管「全已知」，χ² 管「偏差平方和（方差）」，t 管「方差未知时推均值」，F 管「两个方差比一比」</strong>。（2013 数一 T8：只写单尾 α 会误选 A，正解 C）",
+            "noteLink": {
+              "name": "第6章_数理统计的基本概念.md",
+              "path": "E:\\NPEE\\Math\\概率论\\第6章_数理统计的基本概念.md"
             }
           }
         ]
