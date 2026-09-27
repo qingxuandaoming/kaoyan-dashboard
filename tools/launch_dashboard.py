@@ -46,6 +46,9 @@ DASHBOARD = os.path.join(SRC, "dashboard.html")
 PORT_FILE = os.path.join(SRC, ".serve_port")
 PID_FILE = os.path.join(SRC, ".serve_pid")
 
+# 服务窗口的标题（restart 找不到 PID 时要靠它认窗口）
+SERVICE_TITLE = "考研复习服务"
+
 NODE_CANDIDATE = r"C:\Program Files\nodejs\node.exe"
 TASKKILL = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
                         "System32", "taskkill.exe")
@@ -151,12 +154,24 @@ def node_exe():
     return NODE_CANDIDATE if os.path.exists(NODE_CANDIDATE) else "node"
 
 
+def comspec():
+    root = os.environ.get("SystemRoot") or r"C:\Windows"
+    return os.environ.get("COMSPEC") or os.path.join(root, "System32", "cmd.exe")
+
+
 def start_service():
-    """起一个最小化的独立控制台窗口跑 serve.js（与旧 bat 同形态）。"""
+    """起一个最小化的独立控制台窗口跑 serve.js（与旧 bat 同形态）。
+
+    ⚠️ 整条命令必须当成**一个字符串**交给 CreateProcess，不能用参数列表。
+    列表形式里手写的内嵌引号（"\\考研复习服务\\"）会被 Python 的 list2cmdline
+    再转义一层，cmd 收到的第一个 token 就不再是「带引号的窗口标题」，
+    于是 start 把标题当成要执行的程序 —— 双击启动器直接弹窗
+    「Windows cannot find '\\考研复习服务\\'」，服务根本没起来（2026-09-27 实测）。
+    字符串形式下 CreateProcess 拿到的是原样命令行，引号归 cmd 自己判。
+    """
     node = node_exe()
-    cmd = ["cmd", "/c", "start", "\"考研复习服务\"", "/MIN",
-           f'"{node}"', f'"{SERVE_JS}"']
-    subprocess.Popen(cmd, cwd=SRC)
+    cmdline = f'"{comspec()}" /c start "{SERVICE_TITLE}" /MIN "{node}" "{SERVE_JS}"'
+    subprocess.Popen(cmdline, cwd=SRC)
 
 
 def wait_port(deadline_s=WAIT_PORT_SECONDS):
@@ -185,7 +200,7 @@ def ensure_service(want_restart):
     if alive and want_restart:
         if not pid or not pid_running(pid):
             log("  [!] 服务在跑但找不到它的 PID（.serve_pid 与 netstat 都没有）。")
-            log("      请手动关掉标题为「考研复习服务」的窗口后再试。")
+            log(f"      请手动关掉标题为「{SERVICE_TITLE}」的窗口后再试。")
             return None, False
         log(f"  restart：结束旧服务（PID {pid}）…")
         if not kill_service(pid):
@@ -205,7 +220,7 @@ def ensure_service(want_restart):
         os.remove(PORT_FILE)
     except OSError:
         pass
-    log("  启动本地复习服务（最小化窗口「考研复习服务」）…")
+    log(f"  启动本地复习服务（最小化窗口「{SERVICE_TITLE}」）…")
     start_service()
     port = wait_port()
     if not port:

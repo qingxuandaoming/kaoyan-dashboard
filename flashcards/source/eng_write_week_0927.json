@@ -1,0 +1,26 @@
+{
+  "meta": {
+    "subject": "英语一",
+    "module": "ENG-WRITE",
+    "batch": "note-harvest-2026-09-27",
+    "note": "取材于 2026-09-26 前后改过的 English/translation&writing/作文/好词佳句.md（第 5、13 节）。ENG-WRITE-02-05 高级句式此前 0 张卡。考的是写作输出时的语法硬伤与加分句式，不含时效性内容。"
+  },
+  "cards": [
+    {
+      "type": "choice",
+      "topic_id": "ENG-WRITE-02-05",
+      "q": "大作文里要表达「如果那名球员相信自己，他就不会射失那个关键点球」，下列哪个句子语法正确且是加分句式：",
+      "opts": [
+        "If the player would have believed in himself, he would not have missed the crucial penalty.",
+        "Had the player to believe in himself, he would not have missed the crucial penalty.",
+        "Had the player believed in himself, he would not have missed the crucial penalty.",
+        "If the player had believed in himself, he would not miss the crucial penalty."
+      ],
+      "ans": 2,
+      "exp": "与过去事实相反：从句 had done、主句 would have done；省略 if 时须把 had 提到主语前 → Had the player believed in himself, ...。常见错法：在 if 条件句里写 would have（阅卷判语法硬伤）；把倒装的 Had 误写成 had to（不得不）；从句用了 had done、主句却写成 would do（与过去事实不匹配）。同族可直接套用的虚拟倒装加分句：Were we to trade the environment for short-term gains, we would pay a far heavier price in the future.（Were 前置 = If we were to...）。",
+      "tags": ["英语", "写作", "虚拟语气", "倒装"],
+      "traps": ["在条件从句里使用 would have believed", "省略 if 时忘了把 had 提前，或误补成 had to", "与过去事实相反却把主句写成 would not miss"],
+      "src": "English/translation&writing/作文/好词佳句.md > 5. 自信·直面挑战（Had the player believed...）＋ 13. 环境保护·可持续发展（Were we to trade...）"
+    }
+  ]
+}

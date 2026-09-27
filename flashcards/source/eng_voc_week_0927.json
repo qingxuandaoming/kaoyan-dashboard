@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "subject": "英语一",
+    "module": "ENG-VOC",
+    "batch": "note-harvest-2026-09-27",
+    "note": "取材于 2026-09-26 前后改过的熟词偏义.md、英汉语言差异与翻译策略.md 3.6、辨析/第399节_抵消.md。刻意避开上周（09-20）已出卡的英美文化差异条目（public school / liberal / table a motion / the City / affirmative action / 收养的 / 失业 等），也不重复词根词缀。"
+  },
+  "cards": [
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-04",
+      "q": "熟词僻义的判定口诀：「字典第一义代进句子讲不通 → 十有八九考第二义 → 查搭配，别硬编」。据此判断，下列释义正确的是：",
+      "opts": [
+        "political stories 中的 stories＝故事、轶事",
+        "established conventions 中的 established＝（人们）建立的，强调动作已完成",
+        "news media 指的是「新媒体」",
+        "Her train of thought was interrupted 中的 train＝一连串、一系列（此处指思路）"
+      ],
+      "ans": 3,
+      "exp": "三个错项都是把讲不通的第一义硬编进句子：stories 在报刊语境＝新闻报道（enhance stories 使报道增色）；established 作定语＝既定的、约定俗成的（established conventions 既定惯例）；news media＝新闻媒体，news ≠ new，「新媒体」是 new media。train 的名词僻义＝一连串（a train of events 一连串事件），而「训练」义必须是 training。背词要背「标志搭配」而非裸词：nurse＋情绪类名词＝怀恨，weather＋困难类名词＝度过，count＋票/事＝重要、起作用（Every vote counts）。",
+      "tags": ["英语", "熟词僻义", "一词多义", "翻译"],
+      "traps": ["把 story 译成「故事」（笔记记为本人真题连错两次的点）", "把 news media 看成 new media，译成「新媒体」", "把过去分词作定语的 established 当动词「建立」", "train 与 training 混用：有 -ing 才是「训练」"],
+      "src": "English/translation&writing/熟词偏义.md > 判定方法（先记这个，再背词）＋ 本人真题踩坑区 ＋ 四、零散高频偏义与形近词"
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-01-04",
+      "q": "译 “Help Kids Develop Coping Strategies” 时，把 develop 定为「培养」而不是「制定」，最关键的依据是：",
+      "opts": [
+        "develop 一旦与 strategy 搭配就固定译「制定」，与主语是谁无关",
+        "help kids develop 中 kids 既是 help 的宾语、又是 develop 的逻辑主语，策略是孩子自己渐进养成的（过程义）；译「制定」会造成动作主体漂移，且「制定」是一次性结果态，与全段过程叙事冲突",
+        "「制定」偏口语，考研翻译要求书面语体",
+        "develop 作及物动词时只能译「开发」，这里属于例外"
+      ],
+      "ans": 1,
+      "exp": "元规则：英文动词最常用的义项 ≠ 此处的义项，落笔前先问两句——①谁在做这个动作？②是过程还是结果？对照 develop：develop a skill/habit/interest（主语是被培养者本人）→培养、养成；develop a plan/policy/strategy（主语是机构）→制定；develop resources/software→开发；develop a disease→患上。同型易错：address a problem（处理、解决）、appreciate the difference（意识到）、observe that…（说、认为）。另外选词要连锁调整：若嫌「培养策略」不搭，宜连宾语一起降格为「学会应对办法」，中文「培养」多接能力、习惯、人才。",
+      "tags": ["英语", "一词多义", "动作主体", "翻译"],
+      "traps": ["只查动词词典第一义，不看动作主体，译出「家长替孩子制定策略」", "把过程义的 develop 译成一次性结果态的「制定」", "改了动词却不改宾语，留下「培养策略」这类不搭的中文搭配"],
+      "src": "English/translation&writing/翻译/英汉语言差异与翻译策略.md > 3.6 一词多义的动词选词：先定「动作主体」，再选中文动词"
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-VOC-02-01",
+      "q": "关于「抵消」一族词（counteract / counterbalance / offset / cancel out / neutralize / compensate for / make up for）的分工，下列判断正确的是：",
+      "opts": [
+        "要「结果为零」用 cancel out（须带 each other 或宾语）；要「一增一减相抵」用 offset（高频被动 be offset by）；要「两边持平」用 counterbalance；要「主动压住某个作用力」用 counteract",
+        "counterbalance 与 cancel out 同义，都表示双方作用完全归零",
+        "compensate for 与 offset 都只用于数字相抵，均不含「补偿损失」义",
+        "counteract 与 neutralize 完全等同，都可以不带宾语地表示中和"
+      ],
+      "ans": 0,
+      "exp": "分水岭：cancel out＝两量相互作用后净结果为零；offset＝以彼抵此的账目式相抵（Higher costs were offset by savings，可含弥补义）；counterbalance＝另一边加配重求均衡，重在「衡」不归零；counteract＝反向做功，后接 effects／influence／tendency 等抽象名词；neutralize＝化掉对方的性质或威力使之失效；compensate (for)／make up for＝给回损失（前者正式、后者口语）。另注意同前缀但不是抵消义：counterpart（对应的人/物）、countermeasure（对策）、counterproductive（适得其反）；而 run counter to＝与……相悖（阅读高频）。",
+      "tags": ["英语", "近义词辨析", "抵消", "阅读高频"],
+      "traps": ["把 counterbalance 当成「归零」，它只表示两边势均力敌", "以为 offset 不含「弥补」义，或漏掉它高频出现在被动 be offset by 中", "漏掉 cancel out 必须带 each other 或宾语的句法要求", "把 counterpart／countermeasure／counterproductive 也按「抵消」理解"],
+      "src": "English/word&phrase/辨析/第399节_抵消.md > 核心区别＋维度对比＋易混场景速记"
+    }
+  ]
+}

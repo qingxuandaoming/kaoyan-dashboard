@@ -87,6 +87,13 @@ def load_errors():
                     "severity": max(1, min(5, int(e.get("severity") or 3))),
                     "resolved": bool(e.get("resolved")),
                     "title": (e.get("title") or "").strip()[:200],
+                    # 复盘页真正写出来的字段是 q / chosen / correct / note（不是 topic_hint）。
+                    # chosen ≠ correct 是「已经在真题上真丢过分」的硬证据，
+                    # 用它把只出现过一次但确凿的错因也送进出卡建议（见下面的实证门槛）。
+                    "q": (e.get("q") or "").strip()[:60],
+                    "chosen": (e.get("chosen") or "").strip()[:40],
+                    "correct": (e.get("correct") or "").strip()[:40],
+                    "note_ref": (e.get("note") or "").strip()[:200],
                 })
     return rows
 
@@ -163,6 +170,9 @@ def build(top_n):
                 kinds = defaultdict(int)
                 topic_ids = set()
                 all_resolved = True
+                evidenced = False     # 有没有「选错项 ≠ 正确项」这种真题实证
+                items_notes = []
+                items_q = []
                 for r in items_rows:
                     age = (today - r["date"]).days if r["date"] else 999
                     decay = 0.5 ** (max(0, age) / HALF_LIFE_DAYS)
@@ -175,6 +185,12 @@ def build(top_n):
                         topic_ids.add(r["topic_id"])
                     if not r["resolved"]:
                         all_resolved = False
+                    if r["chosen"] and r["correct"] and r["chosen"] != r["correct"]:
+                        evidenced = True
+                    if r["note_ref"]:
+                        items_notes.append(r["note_ref"])
+                    if r["q"]:
+                        items_q.append(r["q"])
 
                 # 闭环判定：错因涉及的考点全部有卡且平均评分 >=3
                 hints_here = [r["topic_hint"] for r in items_rows if r["topic_hint"]]
@@ -203,6 +219,10 @@ def build(top_n):
                     "resolved": resolved,
                     "last_seen": last_seen.isoformat() if last_seen else None,
                     "sample": next((r["title"] for r in items_rows if r["title"]), ""),
+                    "evidenced": evidenced,
+                    # 复盘页写的是「错题归档/章节笔记 > 小节」，出卡时直接照这个回查
+                    "note_refs": sorted(set(items_notes))[:3],
+                    "items": sorted(set(items_q))[:6],
                     "sessions": sorted({r["sid"] for r in items_rows})[:5],
                 })
 
@@ -218,17 +238,25 @@ def build(top_n):
             db.close()
 
     # 给 weekly_flashcard_report.py / 出卡任务直接用的建议：
-    # 高频 + 尚无卡 + 未闭环 → 最该出卡
+    # 高频 + 尚无卡 + 未闭环 → 最该出卡。
+    # 门槛原先只有 count >= 2，把「2013 数一选填四道各错一次」这类**真题实证**全部静默丢掉
+    # ——一次真题丢分就是已证明会丢分，不该等它凑够两次。
+    # 所以放行条件加上 evidenced：这条错因带「选错项 ≠ 正确项」的记录。
     suggestions = []
     for subject, blk in subjects.items():
         for c in blk["top_causes"]:
-            if not c["has_cards"] and not c["resolved"] and c["count"] >= 2:
+            if c["has_cards"] or c["resolved"]:
+                continue
+            if c["count"] >= 2 or c.get("evidenced"):
                 suggestions.append({
                     "subject": subject, "cause": c["cause"], "count": c["count"],
                     "score": c["score"], "topics": c["topics"],
                     "topic_hints": c["topic_hints"],
+                    "evidenced": bool(c.get("evidenced")),
+                    "note_refs": c.get("note_refs", []),
+                    "items": c.get("items", []),
                 })
-    suggestions.sort(key=lambda x: -x["score"])
+    suggestions.sort(key=lambda x: (-(1 if x["evidenced"] else 0), -x["score"]))
 
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -272,7 +300,8 @@ def main():
         print(f"  {s}：错因 {blk['distinct_causes'] if 'distinct_causes' in blk else 0} 类"
               f"，错题 {blk['total_errors']} 条，未闭环 {blk['open']} 条"
               + (f"，TOP：{tc[0]['cause']}（{tc[0]['count']}次）" if tc else ""))
-    print(f"  建议出卡：{len(patterns['card_suggestions'])} 条")
+    n_ev = sum(1 for s in patterns["card_suggestions"] if s.get("evidenced"))
+    print(f"  建议出卡：{len(patterns['card_suggestions'])} 条（其中真题实证 {n_ev} 条）")
     return 0
 
 
