@@ -133,6 +133,11 @@ function loadSession(subject, sid) {
 function saveErrors(subject, sid, errors) {
   const dir = sessionDir(subject, sid);
   const list = (errors || []).map(e => ({
+    // ⚠️ 先展开再覆盖已知字段：这份文件有两个写入者——本模块的规范 schema，
+    // 和复盘会话/AI 用 q/chosen/correct/type/note 写的临时形状。
+    // 不展开的话，复盘页一保存就会把临时形状里的实证字段（他实际选错的选项、
+    // 笔记回查路径）整批抹掉，出卡依据的热数据就没了（2026-09-27 发现）。
+    ...e,
     id: String(e.id || ('e' + Math.random().toString(36).slice(2, 8))),
     topic_hint: String(e.topic_hint || '').slice(0, 200),
     topic_id: String(e.topic_id || '').slice(0, 60),

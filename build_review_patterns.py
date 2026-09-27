@@ -98,15 +98,41 @@ def load_errors():
     return rows
 
 
-def card_coverage(db, hints):
+def card_coverage(db, hints, topic_ids=()):
     """
     这些错因涉及的考点，库里有没有卡、练得怎么样。
-    用 topics.name 模糊匹配 topic_hint；匹配不上就当作「尚无卡」，
+    两条通道：
+      · topic_id（规范字段，精确）：按考点 id 查，含子考点上卷；
+      · topic_hint（名字，模糊）：匹配不上就当作「尚无卡」。
     宁可漏判闭环也不误判——漏判只是多提醒一次，误判会让真弱点消失。
+    返回的键：hint 原样、topic_id 加 "id:" 前缀，避免两类键撞车。
     """
     cov = {}
-    if not hints:
+    if db is None:
         return cov
+    for tid in topic_ids or ():
+        key = (tid or "").strip()
+        if not key or ("id:" + key) in cov:
+            continue
+        row = db.execute(
+            """
+            SELECT COUNT(DISTINCT c.id) AS cards,
+                   COALESCE(AVG(rl.rating), 0) AS avg_rating,
+                   COUNT(rl.id) AS answered
+              FROM topics t
+              LEFT JOIN questions q ON q.topic_id = t.id OR q.topic_id LIKE t.id || '-%'
+              LEFT JOIN cards c ON c.question_id = q.id AND COALESCE(c.suspended,0) = 0
+              LEFT JOIN review_log rl ON rl.question_id = q.id
+             WHERE t.id = ?
+            """,
+            (key,),
+        ).fetchone()
+        if row:
+            cov["id:" + key] = {
+                "cards": row["cards"] or 0,
+                "answered": row["answered"] or 0,
+                "avg_rating": round(float(row["avg_rating"] or 0), 2),
+            }
     for hint in hints:
         key = (hint or "").strip()
         if len(key) < 2:
@@ -160,7 +186,8 @@ def build(top_n):
                 grouped[r["cause"]].append(r)
 
             hints = sorted({r["topic_hint"] for r in mine if r["topic_hint"]})
-            cov = card_coverage(db, hints) if db else {}
+            ids = sorted({r["topic_id"] for r in mine if r["topic_id"]})
+            cov = card_coverage(db, hints, ids) if db else {}
 
             items = []
             for cause, items_rows in grouped.items():
@@ -194,18 +221,20 @@ def build(top_n):
 
                 # 闭环判定：错因涉及的考点全部有卡且平均评分 >=3
                 hints_here = [r["topic_hint"] for r in items_rows if r["topic_hint"]]
-                covered = [cov.get(h, {}) for h in hints_here] if hints_here else []
+                ids_here = [r["topic_id"] for r in items_rows if r["topic_id"]]
+                keys = hints_here + ["id:" + i for i in ids_here]
+                covered = [cov.get(k, {}) for k in keys] if keys else []
                 has_cards = bool(covered) and all((c or {}).get("cards", 0) > 0 for c in covered)
                 practised_ok = bool(covered) and all(
                     (c or {}).get("answered", 0) > 0 and (c or {}).get("avg_rating", 0) >= 3
                     for c in covered
                 )
-                # ⚠️ 没有 topic_hint 就**取不到**闭环证据（复盘页写出的字段是
-                # q/chosen/correct/note，不是 topic_hint），这时不能让「证据缺失」
-                # 把学生手动勾的「已闭环」否掉 —— 否则复盘页那句
-                # 「勾选=已闭环（会停止提醒并降权）」是假的，勾了永远不沉底。
-                # 有 hint 时仍按原口径：要卡有、要练过且评分 >=3，不许口头闭环。
-                resolved = (all_resolved and has_cards and practised_ok) if hints_here else all_resolved
+                # ⚠️ 没有 topic_hint 也没有 topic_id 就**取不到**闭环证据（复盘页写出的
+                # 字段是 q/chosen/correct/note），这时不能让「证据缺失」把学生手动勾的
+                # 「已闭环」否掉 —— 否则复盘页那句「勾选=已闭环（会停止提醒并降权）」
+                # 是假的，勾了永远不沉底。
+                # 有任何一条可查的考点线索时仍按原口径：要卡有、要练过且评分 >=3，不许口头闭环。
+                resolved = (all_resolved and has_cards and practised_ok) if keys else all_resolved
 
                 age_last = (today - last_seen).days if last_seen else 999
                 # 太老且已闭环的，不再占榜单名额

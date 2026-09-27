@@ -127,14 +127,32 @@ def build_report(conn, gtc, days):
         r["state"][{0: "新卡", 1: "学习中", 2: "复习", 3: "再学习"}.get(st, str(st))] = n
 
     # ---- 3. 空白高频考点（exam_weight>=2 且无卡）----
+    # ⚠️ 必须把子考点上卷：题目同时打在父考点与子考点上，只比 t.id 会把
+    # 「树和二叉树」（子考点已有 10 张卡）这类父考点误报成空白，
+    # 上周就因此喊出 104 个、实际真空白只有 100 个（2026-09-27 对拍）。
+    # 顺带用 NOT EXISTS 代替 NOT IN，天然免疫 topic_id 为 NULL 的污染。
     r["uncovered_high_weight"] = [
         {"topic_id": i, "name": n, "subject": s, "weight": w}
         for i, n, s, w in q(conn, """
             SELECT t.id, t.name, t.subject, t.exam_weight FROM topics t
              WHERE t.exam_weight >= 2
-               AND t.id NOT IN (SELECT DISTINCT topic_id FROM questions WHERE topic_id IS NOT NULL)
+               AND NOT EXISTS (SELECT 1 FROM questions q
+                                WHERE q.topic_id = t.id OR q.topic_id LIKE t.id || '-%')
              ORDER BY t.exam_weight DESC, t.subject, t.id""")
     ]
+
+    # ---- 3b. 证据面：本窗口闪卡 / AI 追问到底有没有输入 ----
+    # 窗口内零作答时第 1 节（explain）会整块全空，极易被误读成「本周没错」；
+    # 把证据面本身报出来，并指路到复盘页会话与第 5 节近 7 天改过的笔记。
+    # ⚠️ 窗口必须用时间戳粒度（与 daily_tasks.py explain --days 7 同口径）：
+    # 用日期粒度会把「7 天前当天」的作答算进来，出现 explain 说 0 条、
+    # 这里说 56 条的自相矛盾（2026-09-27 实测：09-20 18:35 距今天 6.9 天）。
+    row = q(conn, """
+        SELECT (SELECT count(*) FROM review_log
+                 WHERE review_date >= datetime('now','localtime','-7 days')),
+               (SELECT count(*) FROM explain_log
+                 WHERE created_at >= datetime('now','localtime','-7 days'))""")[0]
+    r["window_activity"] = {"review_log": row[0], "explain_log": row[1]}
 
     # ---- 4. 薄弱卡（按正确率从低到高，不是按错误次数）----
     # 错误次数只会选出练得最多的考点；正确率才区分「不会」和「练得多」。
@@ -321,10 +339,23 @@ def render_markdown(r, days):
     rp = r.get("review_patterns") or {}
     L.append("## 9. 错题复盘沉淀的高频错因（优先补卡）")
     L.append("")
+    wa = r.get("window_activity") or {}
+    if wa:
+        if not wa.get("review_log") and not wa.get("explain_log"):
+            L.append("> ⚠️ **本窗口闪卡与 AI 追问零作答**：第 1 节整块全空不是「本周没错」，")
+            L.append("> 是没有输入。错题证据请改看复盘页会话（下表来源）与第 5 节近 7 天改过的笔记。")
+        else:
+            L.append(f"> 本窗口证据面：闪卡作答 {wa.get('review_log')} 条、AI 追问 {wa.get('explain_log')} 条。")
+        L.append("")
     if rp.get("error"):
         L.append(f"- ⚠ 画像读取失败：{rp['error']}")
     elif not rp.get("suggestions"):
-        L.append("- （暂无：复盘页还没积累，或这些错因都已出卡并闭环）")
+        open_n = (rp.get("totals") or {}).get("open", 0)
+        if open_n:
+            L.append(f"- 暂无**待补卡**的错因：画像里还有 {open_n} 条未闭环，但它们都已有对应卡 ——")
+            L.append("  去闪卡里把它们刷对，再回复盘页勾「已闭环」即自动降权沉底，不必再出卡。")
+        else:
+            L.append("- （暂无：复盘页还没积累，或错因都已闭环）")
     else:
         L.append(f"> 画像生成于 {rp.get('generated_at')}"
                  + (f"，错题 {rp['totals']['errors']} 条、未闭环 {rp['totals']['open']} 条"
