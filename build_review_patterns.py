@@ -200,7 +200,12 @@ def build(top_n):
                     (c or {}).get("answered", 0) > 0 and (c or {}).get("avg_rating", 0) >= 3
                     for c in covered
                 )
-                resolved = all_resolved and has_cards and practised_ok
+                # ⚠️ 没有 topic_hint 就**取不到**闭环证据（复盘页写出的字段是
+                # q/chosen/correct/note，不是 topic_hint），这时不能让「证据缺失」
+                # 把学生手动勾的「已闭环」否掉 —— 否则复盘页那句
+                # 「勾选=已闭环（会停止提醒并降权）」是假的，勾了永远不沉底。
+                # 有 hint 时仍按原口径：要卡有、要练过且评分 >=3，不许口头闭环。
+                resolved = (all_resolved and has_cards and practised_ok) if hints_here else all_resolved
 
                 age_last = (today - last_seen).days if last_seen else 999
                 # 太老且已闭环的，不再占榜单名额
