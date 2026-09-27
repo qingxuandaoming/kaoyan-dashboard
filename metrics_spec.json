@@ -849,6 +849,135 @@
           "expect": "E:\\\\NPEE"
         }
       ]
-    }
+    },
+  {
+    "id": "attribution.accept_threshold",
+    "title": "归因计入覆盖的置信度门槛",
+    "scope": "fixed",
+    "editable": false,
+    "value": 0.6,
+    "unit": "",
+    "desc": "AI 按小节判出来的「这段材料属于哪个考点」，置信度 ≥ 0.6 才计入笔记覆盖；0.35~0.6 进待确认队列（页面上是格子左上角的橙点），低于 0.35 视为未覆盖。门槛存在的理由：模型会友好地把擦边材料也归上去，不设门槛的覆盖率是自欺。",
+    "source": "attribution_spec.json thresholds.accept；note_attribution.py coverage_by_subject()",
+    "used_by": [
+      "generate_dashboard",
+      "note_attribution",
+      "ai_attribute_notes"
+    ],
+    "checks": [
+      {
+        "file": "attribution_spec.json",
+        "regex": "\"accept\":\\s*(0\\.\\d+)",
+        "capture": 1,
+        "kind": "float"
+      },
+      {
+        "file": "note_attribution.py",
+        "regex": "thresholds\\(\\)\\.get\\(\"accept\",\\s*(0\\.\\d+)\\)",
+        "capture": 1,
+        "kind": "float"
+      }
+    ]
+  },
+  {
+    "id": "attribution.review_threshold",
+    "title": "归因待确认带下沿",
+    "scope": "fixed",
+    "editable": false,
+    "value": 0.35,
+    "unit": "",
+    "desc": "置信度落在 [review, accept) 的判定标成「待确认」而不是「没笔记」。这一档存在的意义是把「管道不确定」和「你没学」区分开 —— 热力图里一排 0% 最容易伤人的就是这个混淆。",
+    "source": "attribution_spec.json thresholds.review",
+    "used_by": [
+      "generate_dashboard",
+      "ai_attribute_notes"
+    ],
+    "checks": [
+      {
+        "file": "attribution_spec.json",
+        "regex": "\"review\":\\s*(0\\.\\d+)",
+        "capture": 1,
+        "kind": "float"
+      }
+    ]
+  },
+  {
+    "id": "attribution.counting_kinds",
+    "title": "计入笔记覆盖的材料类型",
+    "scope": "convention",
+    "editable": false,
+    "value": [
+      "knowledge_note",
+      "correction",
+      "exercise_log"
+    ],
+    "unit": "类",
+    "desc": "只有这三类算「学过」。刻意不算的：vocab_card（批量生成的词条卡）、raw_source（外刊原文/真题卷面）、plan_or_index（目录/书单/时间轴导航）、cross_cutting（跨考点方法论）、other。理由与当年 gen_english_index 把 595 篇词表排除在外是同一条判断：材料存在不等于掌握，这类材料的真实水平由闪卡正确率体现。区别是这次这个判断落在数据里、可审计可反悔，而不是写在脚本注释里没人看得见。",
+    "source": "attribution_spec.json kinds[].counts_coverage；note_attribution.py counting_kinds()",
+    "used_by": [
+      "generate_dashboard",
+      "note_attribution",
+      "ai_attribute_notes"
+    ],
+    "checks": []
+  },
+  {
+    "id": "attribution.coverage_precedence",
+    "title": "笔记覆盖的口径优先级",
+    "scope": "convention",
+    "editable": false,
+    "value": "linked_notes > AI按小节归因 > 章节号粗匹配（回退）",
+    "unit": "",
+    "desc": "图谱里显式登记 linked_notes 的考点永远算覆盖；该科目跑过归因就整体以归因为准（不与规则取并集，否则「某章有一条带号条目就把整章考点都算有笔记」的假覆盖留着不走 —— 政治实测有 3 个这种）；没跑过归因的科目才回退章节号粗匹配。用的是哪套口径必须随 heatmap 下发并在 tooltip 里写明：两种口径可信度差一个量级，不能同一张图里混着不声明。",
+    "source": "generate_dashboard.py compute_stats() 的 coverage_source",
+    "used_by": [
+      "generate_dashboard"
+    ],
+    "checks": []
+  },
+  {
+    "id": "attribution.prompt_version",
+    "title": "归因提示词版本",
+    "scope": "fixed",
+    "editable": false,
+    "value": "attr-v1",
+    "unit": "",
+    "desc": "写进缓存指纹里。改判定口径（kinds 定义、提示词措辞、阈值语义）必须同时升这个版本号，否则旧判定会继续被当成新口径的结果复用 —— 这是缓存类系统最典型的静默腐化。",
+    "source": "attribution_spec.json prompt_version；tools/ai_attribute_notes.js unitKey()",
+    "used_by": [
+      "ai_attribute_notes",
+      "note_attribution"
+    ],
+    "checks": [
+      {
+        "file": "attribution_spec.json",
+        "regex": "\"prompt_version\":\\s*\"([^\"]+)\"",
+        "capture": 1,
+        "kind": "str"
+      }
+    ]
+  },
+  {
+    "id": "attribution.units_per_call",
+    "title": "归因每批材料段数",
+    "scope": "fixed",
+    "editable": false,
+    "value": 6,
+    "unit": "段",
+    "desc": "一次请求喂几段材料。6 段是实测折中：再大，模型开始把 evidence 写成套话、归属也变懒（倾向只给一个考点）；再小，请求数翻倍。全量参考：政治 153 段/26 次请求，数学 983 段/164 次请求，均 0 失败、0 个编造考点 id。",
+    "source": "attribution_spec.json batch.units_per_call",
+    "used_by": [
+      "ai_attribute_notes"
+    ],
+    "checks": [
+      {
+        "file": "attribution_spec.json",
+        "regex": "\"units_per_call\":\\s*(\\d+)",
+        "capture": 1,
+        "kind": "int"
+      }
+    ]
+  }
+
   ]
 }

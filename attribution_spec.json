@@ -1,0 +1,92 @@
+{
+  "_readme": [
+    "attribution_spec.json —— 「学习材料 → 知识单元」归因层的唯一配置源（2026-09-27 建立）。",
+    "",
+    "为什么要有这个文件：原来「这段笔记属于哪个考点」是三套人肉规则拼出来的 ——",
+    "  note_prefix.py 的科目别名表、gen_english_index.py 的 glob→考点 RULES 表、",
+    "  generate_dashboard.py 里「前缀 + 章节号」的粗匹配。",
+    "三套规则都要求**人先想到**才会生效，所以用户新写一类笔记（政治强化错题、",
+    "英语阅读专题）就静默掉出监控，且没有任何一处会报错。",
+    "",
+    "本文件把「判定」交给模型，把「校验与记账」留在代码里：",
+    "  · 模型只允许从 taxonomy 里已有的 topic id 中选，选不出就是没覆盖；",
+    "  · 每个判定带 kind / confidence / evidence，低置信度进待确认队列，不冒充覆盖；",
+    "  · 结果按内容指纹缓存，正文没变、图谱没变、提示词没变就不重问（见 tools/ai_attribute_notes.js）。",
+    "",
+    "泛化：一个 domain 只需要「一部知识图谱 + 一个语料目录」，与考研无关。",
+    "以后学别的（一门语言、一个框架、考证）就往 domains 里加一条，不用改代码。"
+  ],
+
+  "prompt_version": "attr-v1",
+  "model_provider": "active",
+
+  "unit": {
+    "_note": "材料单元 = 一个 md 文件按标题切出的一段。整篇喂给模型太粗（政治一篇文件含几十个考点），按节切才能归到具体考点。",
+    "split_heading_levels": [2, 3],
+    "min_chars": 30,
+    "max_chars": 1400,
+    "head_chars": 1100
+  },
+
+  "kinds": [
+    { "id": "knowledge_note", "title": "知识点笔记", "counts_coverage": true,
+      "desc": "对某个知识点的讲解、推导、辨析、通法、陷阱总结。这是唯一能证明「学过/整理过」的材料。" },
+    { "id": "correction", "title": "批改/纠错记录", "counts_coverage": true,
+      "desc": "外部对学习者产出的批改（作文批改、答题复盘），反映真实水平，算覆盖。" },
+    { "id": "exercise_log", "title": "练习与错题流水", "counts_coverage": true,
+      "desc": "成体系的错题/题目归档。零散的、无法归到考点的作答痕迹不算。" },
+    { "id": "cross_cutting", "title": "跨考点方法论", "counts_coverage": false,
+      "desc": "横向汇总与通法：题型谱系、审题流程、范畴归属辨析、易错清单这类**同时服务许多考点、不专属于任何一个**的材料。topics 该空就空，不要为凑覆盖硬选一个考点 —— 这类材料的价值在「用过几次」，不在「覆盖了哪个格」。" },
+    { "id": "vocab_card", "title": "词条/卡片式罗列", "counts_coverage": false,
+      "desc": "自动或批量生成的词条小卡、词表、例句堆。**刻意不算覆盖**：材料存在不等于掌握，这类材料的真实水平由闪卡正确率体现。" },
+    { "id": "raw_source", "title": "原料/原文", "counts_coverage": false,
+      "desc": "外刊原文、真题卷面、讲义扫描件等「被加工的对象」，不是学习产出。" },
+    { "id": "plan_or_index", "title": "规划/目录/总览", "counts_coverage": false,
+      "desc": "时间表、书单、导航页、目录。它们指向知识，本身不含知识。" },
+    { "id": "other", "title": "以上都不是", "counts_coverage": false,
+      "desc": "兜底。若某领域大量落到这里，说明 kinds 表需要扩充。" }
+  ],
+
+  "thresholds": {
+    "accept": 0.60,
+    "review": 0.35,
+    "_note": "accept 及以上计入覆盖；review~accept 之间进待确认队列（页面可见、不计覆盖）；低于 review 视为未覆盖。阈值可在设置页调。"
+  },
+
+  "batch": {
+    "units_per_call": 6,
+    "max_tokens": 2600,
+    "_note": "一次问 6 段，比分段单问省一个数量级的 token；图谱条目全量进 system（考研四科各 ≤53 条，塞得下）。"
+  },
+
+  "corpus": {
+    "ignore_dirs": ["assets", "PDF", "figures", "node_modules", ".obsidian", ".uploads", "backups", "0参考资料"],
+    "ignore_paths": [
+      "English/word&phrase/vocab-graph"
+    ],
+    "_note": "ignore 只挡「机器批量生成的产物」和「别人的书」，不挡判断。0参考资料/ 是教材（408 那一份 187KB），实测模型会把它的章节按 knowledge_note 0.9~0.95 归给考点 —— 书在你目录里不等于你学过，这类必须挡在语料外而不是指望模型自觉。原来这类排除写在脚本 docstring 的注释里，没人看得见；放在这里是为了可审计、可反悔。"
+  },
+
+  "domains": [
+    {
+      "id": "kaoyan-408", "title": "408 计算机学科基础", "subject": "408",
+      "graph_file": "408_graph.json",
+      "corpus_root": "408", "registry_index": "408/notes_index.json"
+    },
+    {
+      "id": "kaoyan-math", "title": "数学一", "subject": "数学",
+      "graph_file": "math_graph.json",
+      "corpus_root": "Math", "registry_index": "Math/notes_index.json"
+    },
+    {
+      "id": "kaoyan-politics", "title": "政治", "subject": "政治",
+      "graph_file": "politics_graph.json",
+      "corpus_root": "Politics", "registry_index": "Politics/notes_index.json"
+    },
+    {
+      "id": "kaoyan-english", "title": "英语一", "subject": "英语",
+      "graph_file": "english_graph.json",
+      "corpus_root": "English", "registry_index": "English/notes_index.json"
+    }
+  ]
+}
