@@ -116,6 +116,10 @@ GATE_ALLOW = re.compile(
     r"(?:^paths\.(?:py|js)$"
     r"|^tools/408/"
     r"|_wk_|_patch_staging|_tmp_|_fix_regex|_patch_insert|20260913"
+    # 一次性补卡脚本（文件名带日期批次，如 add_cards_2006essay_errors_20260930.py）：
+    # 跑完就归档，不是活跃代码；它们的 docstring 里常写「素材来自 E:\NPEE\...」当溯源，
+    # 那是给人看的话，不是要解析的路径。2026-10-04 这条闸门就是被它顶红的。
+    r"|^tools/add_cards_.*_20\d{6}\.py$"
     r"|inspect_db\.js$|inspect_q\.js$|latexify_math_cards"
     r"|fix_flashcards_2026|fix_ascii_math_cards"
     r"|^populate_questions\.py$|^insert_questions\.py$|^read_temp\.py$"

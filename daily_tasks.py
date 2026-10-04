@@ -6,19 +6,23 @@ daily_tasks.py — 每日任务的 agent 侧命令行（2026-09-14）
 为什么走 CLI 直连 SQLite 而不是调 HTTP：定时任务在 00:00 触发，那时 serve.js
 可能压根没在运行。表 daily_tasks 是唯一真相源，Node 与 Python 各自实现同规则校验。
 
-四个子命令：
+子命令：
 
     context  把「决定今天布置什么」所需的全部数据吐成 JSON（含用户近期自加/删除）
+    brief    备考决策简报：五条证据通道合成候选池（**制定任务优先用它**，见下）
     write    把生成好的任务写进库（幂等，--replace 只清理自己布置且未完成未删的）
     seed     直接把 daily_planner 的目标清单写成任务（无 LLM 时的回退/链路自检）
     list     人工查看某天的任务
+    explain  周报取数：近 N 天的错题解析记录
 
-典型用法（定时任务唤起 agent 后）：
+**要排今天怎么学，读 `brief` 而不是 `context`。** `context` 是 70KB 的原始数据
+（给程序看的，含各种明细）；`brief` 是同一批证据的 6KB 结论，候选池已经按证据分好层、
+每条带着证据与载体，出题规则也在里面。人读时加 `--md`：
 
     cd <本仓库 src 目录>
-    python daily_tasks.py context --date today          # 1. 读数据
-    #   → 据此合成今天的任务，写到 /tmp/tasks.json
-    python daily_tasks.py write --date today --tasks-file /tmp/tasks.json --replace
+    python daily_tasks.py brief --md --out logs/brief_today.md   # 1. 取简报（一次读完）
+    #   → 据此合成今天的任务，写到 logs/tasks.json
+    python daily_tasks.py write --date today --tasks-file logs/tasks.json --replace
 """
 
 import argparse
@@ -269,11 +273,30 @@ def cmd_context(args):
 
 
 def cmd_brief(args):
-    """打印决策简报（人读 Markdown 或机器读 JSON）。"""
+    """打印决策简报（人读 Markdown 或机器读 JSON）。
+
+    `--out` 是给定时任务用的：把简报落成 6KB 的一个文件、只回一行路径，
+    让 agent **一次读完**。2026-10-04 复盘三条连续超时的定时任务时确认了
+    病根——它们读的是 `context`（69KB / 2500 行 JSON），读不动就自己写探针
+    一层层切片，20 多次工具调用全花在探索上，正事（写任务）还没开始就到点了。
+    """
     import daily_brief
     d = resolve_date(args.date)
     b = daily_brief.build_brief(d)
-    print(daily_brief.render_md(b) if args.md else json.dumps(b, ensure_ascii=False, indent=2))
+    text = daily_brief.render_md(b) if args.md else json.dumps(b, ensure_ascii=False, indent=2)
+    if args.out:
+        p = Path(args.out)
+        if not p.is_absolute():
+            p = Path(__file__).resolve().parent / p
+        p.parent.mkdir(parents=True, exist_ok=True)
+        # 原子写：读的一方可能正看着上一次的简报
+        tmp = p.with_name(p.name + ".tmp")
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        os.replace(tmp, p)
+        print(f"已写 {p}（{len(text)} 字符 / {text.count(chr(10)) + 1} 行）")
+        return 0
+    print(text)
     return 0
 
 
@@ -454,6 +477,7 @@ def main():
     b = sub.add_parser("brief", help="备考决策简报：五条证据通道合成候选池（--md 给人看）")
     b.add_argument("--date", default="today")
     b.add_argument("--md", action="store_true")
+    b.add_argument("--out", default="", help="落盘到该文件并只回一行路径（定时任务首选，避免切片读）")
     b.set_defaults(func=cmd_brief)
 
     w = sub.add_parser("write", help="写入 agent 生成的任务")
