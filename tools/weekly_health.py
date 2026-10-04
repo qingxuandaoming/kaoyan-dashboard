@@ -26,6 +26,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -128,6 +129,39 @@ def step_pipeline(skip=False):
 
 
 # ---------------------------------------------------------------------------
+# 2b. 归因增量（离线层自己不会跑，必须有人踢它）
+# ---------------------------------------------------------------------------
+
+def step_attribution(skip=False):
+    """把「笔记→考点」的 AI 归因按增量刷新一遍。
+
+    为什么要放进体检：归因是**离线旁路**（不在 run_pipeline 里），没有任何东西会自动跑它。
+    2026-10-04 实测：408/数学的笔记已比归因新 6 天，判定条目都还在、闸门全绿，但大盘的
+    覆盖与缺口一直是 6 天前正文的结论——这跟当年"笔记监控不全面"是同一类病（静默过期）。
+    增量很便宜：内容指纹缓存，只问新写/改过的段落（803 文件里 168 段，46 秒）。
+    """
+    if skip:
+        print("[2b] 归因增量  跳过（--no-attribution）")
+        return
+    js = SRC / "tools" / "ai_attribute_notes.js"
+    node = shutil.which("node") or r"C:\Program Files\nodejs\node.exe"
+    if not os.path.exists(node) or not js.exists():
+        WARN.append("找不到 node 或 ai_attribute_notes.js，归因没刷新（下面的新鲜度检查会照实报）")
+        print("[2b] 归因增量  跳过（没有 node）")
+        return
+    rc, so, se, dt = run([node, str(js), "--all"], timeout=1800)
+    last = [l.strip() for l in so.splitlines() if "命中缓存" in l or "本次判定" in l or "编造" in l]
+    print(f"[2b] 归因增量（node tools/ai_attribute_notes.js --all）  {dt:.0f}s  exit={rc}")
+    for l in last[-1:]:
+        print("    " + l)
+    if rc != 0:
+        WARN.append(f"归因增量非零退出（exit={rc}）：{(se or so).strip().splitlines()[-1][:160] if (se or so).strip() else ''}")
+    for ln in interesting(so, [r"失败", r"编造", r"WARN", r"错误"], 6):
+        if "0 个" not in ln and "失败 0" not in ln:
+            WARN.append("归因：" + ln)
+
+
+# ---------------------------------------------------------------------------
 # 3. 笔记体检
 # ---------------------------------------------------------------------------
 
@@ -185,9 +219,10 @@ def step_watermarks(subjects):
           if (newest_idx and yaml_t and prod_t) else "    （有产物缺失，跳过水位对拍）")
 
     # 4b 归因完整性台账：半截数据比没有数据更危险（note_attr_runs 是闸门）
-    spec_pv = ""
+    spec_pv, spec = "", {}
     try:
-        spec_pv = json.load(io.open(SRC / "attribution_spec.json", encoding="utf-8")).get("prompt_version", "")
+        spec = json.load(io.open(SRC / "attribution_spec.json", encoding="utf-8"))
+        spec_pv = spec.get("prompt_version", "")
     except Exception as e:
         FAIL.append(f"读不到 attribution_spec.json：{e}")
     if DB.exists():
@@ -209,6 +244,39 @@ def step_watermarks(subjects):
                 print("    ⚠ " + b)
         elif rows:
             print(f"    归因台账 OK：{len(rows)} 个域全部 units_pending=0 且 prompt_ver={spec_pv}")
+
+        # 4b-2 归因**新鲜度**：只查「跑没跑完」是不够的——2026-10-04 发现 408/数学的笔记比
+        # 归因新 6 天，闸门却是绿的：判定条目还在，只是判的是 6 天前的正文，大盘的覆盖/缺口
+        # 一直是旧结论。**半截数据危险，过期数据同样是骗人的。**
+        if spec.get("domains"):
+            newest_all, stale = None, []
+            for d in spec["domains"]:
+                root = NOTES / d["corpus_root"]
+                if not root.is_dir():
+                    continue
+                newest = None
+                for dp, dn, fn in os.walk(root):
+                    dn[:] = [x for x in dn if x not in (".obsidian", ".trash", ".git", "assets",
+                                                        "PDF", "0参考资料", "node_modules", "uploads")]
+                    for f in fn:
+                        if f.endswith(".md"):
+                            m = os.path.getmtime(os.path.join(dp, f))
+                            if newest is None or m > newest:
+                                newest = m
+                run = next((r for r in rows if r["domain"] == d["id"]), None)
+                if not run or not run["finished_at"] or newest is None:
+                    continue
+                gap = (datetime.fromtimestamp(newest) - datetime.fromisoformat(str(run["finished_at"]))).days
+                if newest_all is None or newest > newest_all:
+                    newest_all = newest
+                if gap >= 1:
+                    stale.append(f"{d['id']} 笔记比归因新 {gap} 天")
+            if stale:
+                WARN.append("归因已过期（大盘覆盖/缺口是旧正文的结论）：" + "；".join(stale)
+                            + "　→ 跑 `node tools\\ai_attribute_notes.js --all`（增量，只问变了的文件；"
+                              "2026-10-04 实测 803 文件 / 168 段新判定 / 46 秒）")
+                for s in stale:
+                    print("    ⚠ " + s)
 
         # 4c 数据源新鲜度（信息项：说清「最近有没有在用」）
         def last(q):
@@ -261,6 +329,7 @@ def step_watermarks(subjects):
 def main():
     ap = argparse.ArgumentParser(description="考研数据链路每周体检（一次跑完、只报异常）")
     ap.add_argument("--no-pipeline", action="store_true", help="跳过 run_pipeline（只查不改）")
+    ap.add_argument("--no-attribution", action="store_true", help="跳过归因增量（不花 API 额度）")
     ap.add_argument("--subjects", default="Math,408,Politics,English", help="体检哪些笔记科目根")
     ap.add_argument("--json", default="", help="把结论落成 JSON（供别的脚本消费）")
     args = ap.parse_args()
@@ -270,6 +339,7 @@ def main():
     print(f"考研数据链路体检 · {date.today():%Y-%m-%d %H:%M}｜代码根 {SRC}｜笔记根 {NOTES}")
     print("-" * 64)
     step_drift()
+    step_attribution(args.no_attribution)
     step_pipeline(args.no_pipeline)
     step_audit(subjects)
     step_watermarks(subjects)
