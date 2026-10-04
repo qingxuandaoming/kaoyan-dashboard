@@ -4,15 +4,15 @@
   "migrated_at": "2026-09-15T09:54:30.911Z",
   "note": "由 _extract_review.js 一次性迁移生成；此后由 morning-review 工作流直接维护本文件，不再回写 HTML。",
   "meta": {
-    "days": 24,
+    "days": 25,
     "first_date": "2026-06-19",
-    "last_date": "2026-10-04",
-    "review_items": 105,
-    "quiz_items_unused": 90,
+    "last_date": "2026-10-05",
+    "review_items": 111,
+    "quiz_items_unused": 92,
     "english_days": 9,
     "flashcard_cards": 30,
     "flashcard_start_date": "2026-07-07",
-    "math_items": 45,
+    "math_items": 47,
     "note": ""
   },
   "days": {
@@ -4330,6 +4330,185 @@
             "noteLink": {
               "name": "第16讲_无穷级数.md",
               "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-10-05": {
+      "date": "2026-10-05",
+      "weekday": "周一",
+      "studied": true,
+      "subject": "408·信号量与多级页表/寻址速度 ｜ 英语·拉丁比较级词与宾语后置 ｜ 高数·微分方程通解形式 ｜ 政治·遵义会议与瓦窑堡",
+      "review": [
+        {
+          "id": "os-sem-two-kinds",
+          "badges": [
+            "408",
+            "OS"
+          ],
+          "title": "信号量是统称：整型信号量 vs 记录型信号量",
+          "body": "题干说「信号量是一种<strong>整型变量</strong>」→ <strong>错</strong>。「整型变量」这个描述只属于<strong>整型信号量</strong>，把教材里的限定描述扩大成一般描述，就是错项。",
+          "list": [
+            "① 整型信号量：<code>int S</code>，只用一个整数表示资源数目，<strong>不满足让权等待</strong>（忙等）。",
+            "② 记录型信号量：结构体 <code>{ int value; struct process *L; }</code> —— 除资源数目 value 外还多一个<strong>等待队列 L</strong>，所以能满足让权等待。",
+            "③ 同一句里「P、V 都是原子操作」本身是对的，别因为前半句错就把整句当全错。"
+          ],
+          "conclusion": "看到「信号量是整型变量」直接判错：只有整型信号量是 int，记录型是「value ＋ 等待队列」的结构体。",
+          "noteLink": {
+            "name": "第2章_进程管理.md",
+            "path": "E:/NPEE/408/OS/第2章_进程管理.md"
+          }
+        },
+        {
+          "id": "os-multilevel-page-disperse",
+          "badges": [
+            "408",
+            "OS"
+          ],
+          "title": "多级页表为什么每一级都能离散存放",
+          "body": "单级页表是<strong>一维数组</strong>：页号直接当下标，CPU 用「页表基址 ＋ 页号 × 页表项大小」找表项，所以整张页表必须连续。多级页表里，<strong>上级页表项存的是下级页表的物理块号（页框号）</strong>，靠这层间接寻址就能定位到分散存放的下级页表。",
+          "list": [
+            "① 判据只有一句：上级表项存的是下级页表的物理块号 → 不要求下级连续。",
+            "② 别把「页表必须连续」当普遍规律 —— 那只是单级页表的约束。"
+          ],
+          "conclusion": "「多级页表各级都可离散存放」＝正确；连续性要求只属于单级页表。",
+          "noteLink": {
+            "name": "第3章_内存管理.md",
+            "path": "E:/NPEE/408/OS/第3章_内存管理.md"
+          }
+        },
+        {
+          "id": "co-addr-speed-rank",
+          "badges": [
+            "408",
+            "CO"
+          ],
+          "title": "寻址方式取操作数的速度排序（这题选成了直接寻址）",
+          "body": "题目问「获取操作数<strong>最快</strong>」→ 只有<strong>寄存器寻址</strong>：操作数就在 CPU 内部寄存器里，一次内存都不用访。",
+          "list": [
+            "① 寄存器寻址：0 次访存（最快）",
+            "② 直接寻址：1 次访存（地址在指令里，直接去取数）",
+            "③ 间接寻址：2 次访存（先取地址、再取数）",
+            "④ 基址寻址：先做加法算出地址，再访存"
+          ],
+          "conclusion": "按「访存次数」排就不会错：寄存器 > 直接 > 间接；直接寻址虽然比间接快，但永远比寄存器慢。",
+          "noteLink": {
+            "name": "第4章_指令系统.md",
+            "path": "E:/NPEE/408/CO/第4章_指令系统.md"
+          }
+        },
+        {
+          "id": "eng-latin-comparatives",
+          "badges": [
+            "英语",
+            "词汇"
+          ],
+          "title": "superior 这一组词本身就是比较级：接 to，不加 more、不用 than",
+          "body": "superior / inferior / prior / senior / junior 是<strong>拉丁语比较级形式，词形本身就是比较级</strong>，所以三条禁令一起记：不能再加 more（双重比较级）、不能用 than（than 只跟 -er / more 搭配）、只能用 <strong>to</strong> 引出比较对象。",
+          "list": [
+            "① be superior to（优于）／be inferior to（劣于）／be prior to（先于）／be senior to（年长于）。",
+            "② 反例：<code>more superior than</code>、<code>superior than</code> 都是双重比较级错误 —— 考研写作高频失分点。",
+            "③ 口诀：<strong>本身比较级，接 to 不接 than，前面不加 more。</strong>"
+          ],
+          "conclusion": "把这五个词整体当固定搭配背：<code>be superior / inferior / prior / senior / junior + to</code>。",
+          "noteLink": {
+            "name": "词义辨析.md",
+            "path": "E:/NPEE/English/word&phrase/词义辨析.md"
+          }
+        },
+        {
+          "id": "eng-heavy-np-shift",
+          "badges": [
+            "英语",
+            "语法"
+          ],
+          "title": "宾语后置（heavy NP shift）：动词 ＋ 宾补 ＋ 长宾语",
+          "body": "原句 <code>he did not accept <strong>as well founded</strong> the charge made by some of his critics that…</code> 还原成正常语序就是 <code>accept the charge as well founded</code>：宾语 the charge 带了长定语，被<strong>后置到宾补之后</strong>。",
+          "list": [
+            "① 结构：<strong>动词 ＋ 宾补(as / for / to be ＋ 形容词) ＋ 长宾语</strong>。",
+            "② 触发词：accept / regard / consider / dismiss / treat / deem / declare。",
+            "③ 两个坑：句末 that 从句常是<strong>同位语从句</strong>（解释 the charge 的内容），不是宾语从句；<code>as well founded</code> 也<strong>不是</strong>修饰紧邻名词的短语。",
+            "④ 同类句：Most economists <code>dismiss as unfounded</code> the fear, voiced by several critics, that…"
+          ],
+          "conclusion": "见到「动词 ＋ as/for ＋ 形容词 ＋ 名词短语」串在一起：中间那截是宾补，后面那个名词才是宾语。",
+          "noteLink": {
+            "name": "考研英语语法笔记.md",
+            "path": "E:/NPEE/English/grammar/考研英语语法笔记.md"
+          }
+        },
+        {
+          "id": "cn-switch-csma-condition",
+          "badges": [
+            "408",
+            "CN"
+          ],
+          "title": "交换机要不要用 CSMA/CD：看端口对端接的是什么",
+          "body": "教材三点看着像互相矛盾，其实<strong>前提不同</strong>：端口直连主机/其他交换机 → 全双工、<strong>不需要</strong> CSMA/CD；端口连集线器（Hub）→ Hub 上所有设备同处一个冲突域 → 只能半双工、<strong>必须用</strong> CSMA/CD。",
+          "list": [
+            "① 冲突域：交换机每个端口是<strong>独立</strong>冲突域（点到点）；Hub 上的设备<strong>共享</strong>一个冲突域。",
+            "② 全双工 100Mbps ＝ 收 100 ＋ 发 100 同时进行（聚合 200）；半双工 100Mbps ＝ 两方向分时共享 100。",
+            "③ 顺带记死：CSMA/CD 没有内置确认，出错/丢帧交上层兜底；CSMA/CA 的单帧 ACK 也<strong>不等于</strong>可靠传输（没有全局序号、不保证按序交付）。",
+            "④ CDMA（码分多址）是<strong>物理层</strong>信道复用技术，与 CSMA 族谱无关。"
+          ],
+          "conclusion": "「交换机不用 CSMA/CD」是<strong>有条件</strong>结论 —— 前提是端口直连主机；接集线器时必须用，且只能半双工。",
+          "noteLink": {
+            "name": "第3章_数据链路层.md",
+            "path": "E:/NPEE/408/CN/第3章_数据链路层.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "q-os-sem-kinds",
+          "question": "题干：「信号量是一种整型变量，除了初始化外，只能通过 P 操作和 V 操作来访问。」这句话对吗？为什么？",
+          "answer": "前两句<strong>错</strong>。信号量是统称：只有<strong>整型信号量</strong>是 <code>int</code>（忙等，不满足让权等待）；<strong>记录型信号量</strong>是结构体 <code>{ int value; struct process *L; }</code>，除资源数目 value 外还有<strong>等待队列 L</strong>，因而满足让权等待。「P、V 都是原子操作」这半句是对的 —— 整句因为把限定描述扩大成一般描述，判<strong>错</strong>。",
+          "noteLink": {
+            "name": "第2章_进程管理.md",
+            "path": "E:/NPEE/408/OS/第2章_进程管理.md"
+          }
+        },
+        {
+          "id": "q-pol-zunyi-wayaobao",
+          "question": "遵义会议与党的七大各「确立」了什么？制定抗日民族统一战线策略方针的是哪个会议？",
+          "answer": "① <strong>遵义会议（1935.1）</strong>：<strong>事实上</strong>确立以毛泽东为核心的党中央的正确领导；② <strong>党的七大（1945）</strong>：<strong>正式</strong>确立毛泽东思想为党的指导思想，从组织上和思想上正式确立毛泽东在全党的核心领导地位；③ 抗日民族统一战线的策略方针出自<strong>瓦窑堡会议（1935.12）</strong>，不是洛川会议 —— 洛川会议（1937.8）是制定<strong>全面抗战路线</strong>、通过《抗日救国十大纲领》。",
+          "noteLink": {
+            "name": "史纲.md",
+            "path": "E:/NPEE/Politics/史纲.md"
+          }
+        }
+      ],
+      "math": {
+        "id": "sec-math-20261005",
+        "points": [
+          {
+            "id": "d05-math-diffeq-c-absorbed",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "计算陷阱"
+            ],
+            "title": "一阶线性通解：任意常数 C 要吸收进括号里，不能挂在外面",
+            "body": "积分过程中必然冒出常数，但求<strong>通解</strong>时它会被吸收到等式右边那个任意常数 $C$ 里 —— 形式上它必须和主项处在<strong>同一个括号/因子</strong>内。10-02 那道错题：$y' + y = e^{-x}$ 的正确通解是 $y = (x + C)e^{-x}$；他当时选的 $y = x e^{-x} + C$ 代回方程并不满足（常数求导为 0，$e^{-x}$ 那部分被消掉了）。",
+            "conclusion": "纪律：通解里 $C$ 一定在最外层的因子里。凡是写成「主项 ＋ C」的选项，基本都是错的。",
+            "noteLink": {
+              "name": "第15讲_微分方程.md",
+              "path": "E:/NPEE/Math/高数/第15讲_微分方程.md"
+            }
+          },
+          {
+            "id": "d05-math-particular-form",
+            "type": "knowledge",
+            "badges": [
+              "高数",
+              "微分方程"
+            ],
+            "title": "二阶常系数非齐次：由右端 $f(x)$ 定特解形式（只背形式，不算系数）",
+            "body": "三行表：① 右端是 $n$ 次多项式 $P_n(x)$ → 设 $y^* = x^k Q_n(x)$，$k$ 取 $\\lambda = 0$ 作为特征根的<strong>重数</strong>；② 右端是 $e^{\\lambda x} P_n(x)$ → 设 $y^* = x^k e^{\\lambda x} Q_n(x)$，$k$ 取 $\\lambda$ 作为特征根的重数；③ 右端是 $e^{\\lambda x}\\left[P_l \\cos \\beta x + P_m \\sin \\beta x\\right]$ → 设 $y^* = x^k e^{\\lambda x}\\left(Q\\cos\\beta x + R\\sin\\beta x\\right)$，$Q, R$ 取 $\\max(l, m)$ 次的<strong>完全</strong>多项式，$k$ 看 $\\lambda \\pm \\beta i$ 是几重特征根。",
+            "conclusion": "三条纪律：$Q_n$ 必须是<strong>完全多项式</strong>（漏常数项是最高频错）；$k$ 只由「右端那个 $\\lambda$ 是不是特征根、几重」决定；右端是和式就<strong>拆开分别设</strong>再相加（叠加原理）。",
+            "noteLink": {
+              "name": "第15讲_微分方程.md",
+              "path": "E:/NPEE/Math/高数/第15讲_微分方程.md"
             }
           }
         ]
