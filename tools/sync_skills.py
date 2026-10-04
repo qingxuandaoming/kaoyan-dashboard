@@ -52,12 +52,23 @@ SKILLS = [
     "flashcard-studio",
     "html-flashcard-builder",
     "kaoyan-evening-review",
+    # 四科 note-taking skill 的共用规范（被 408 / 数学 / 政治 / 英语 依赖）
+    "kaoyan-note-taking-core",
     "kaoyan-progress-sync",
     "math-one-note-taking",
     "morning-review",
     "politics-note-taking",
     "vocab-graph",
 ]
+
+# 源里有、目标可能还没有的 skill：首次同步时**创建**目录再镜像。
+# 其余 SKILLS 只在目标已存在时更新——那是有意的：有些 skill 只该待在部分客户端
+# （如 docx-chinese-text-extraction 只在 Qoder 系），强推给所有人会污染其它客户端的技能列表。
+# ⚠️ 新增「被别的 skill 依赖」的 skill（例如四科 note-taking 依赖的 kaoyan-note-taking-core），
+#    必须同时加进这里，否则目标端会指向一个不存在的 skill。
+BOOTSTRAP = {
+    "kaoyan-note-taking-core",
+}
 
 
 def md5(path):
@@ -86,7 +97,7 @@ def main():
     ap.add_argument("--force", action="store_true", help="忽略防回退保护，强制以源为准")
     args = ap.parse_args()
 
-    synced = skipped = removed_bak = errors = regressions = drift = 0
+    synced = skipped = removed_bak = errors = regressions = drift = created = 0
 
     for dest in DESTS:
         print("=" * 64)
@@ -97,9 +108,18 @@ def main():
         for s in SKILLS:
             sdir = os.path.join(dest, s)
             if not os.path.isdir(sdir):
-                print(f"  [SKIP] {s}（此位置无此 skill）")
-                skipped += 1
-                continue
+                if s in BOOTSTRAP:
+                    if args.check:
+                        print(f"  [MISS] {s}（该位置还没有，同步时会创建）")
+                        drift += 1
+                        continue
+                    os.makedirs(sdir, exist_ok=True)
+                    created += 1
+                    print(f"  [NEW ] {s}（首次创建）")
+                else:
+                    print(f"  [SKIP] {s}（此位置无此 skill）")
+                    skipped += 1
+                    continue
             src_dir = os.path.join(SRC, s)
             src_md = os.path.join(src_dir, "SKILL.md")
             dst_md = os.path.join(sdir, "SKILL.md")
@@ -150,7 +170,7 @@ def main():
     if args.check:
         print(f"体检完成：内容不一致={drift}  回退风险={regressions}")
     else:
-        print(f"同步={synced}  跳过={skipped}  删除.bak={removed_bak}  "
+        print(f"同步={synced}  新建={created}  跳过={skipped}  删除.bak={removed_bak}  "
               f"回退风险={regressions}  错误={errors}")
     return 1 if errors else 0
 
