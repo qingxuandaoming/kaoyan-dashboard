@@ -4,15 +4,15 @@
   "migrated_at": "2026-09-15T09:54:30.911Z",
   "note": "由 _extract_review.js 一次性迁移生成；此后由 morning-review 工作流直接维护本文件，不再回写 HTML。",
   "meta": {
-    "days": 23,
+    "days": 24,
     "first_date": "2026-06-19",
-    "last_date": "2026-09-30",
-    "review_items": 100,
-    "quiz_items_unused": 88,
+    "last_date": "2026-10-04",
+    "review_items": 105,
+    "quiz_items_unused": 90,
     "english_days": 9,
     "flashcard_cards": 30,
     "flashcard_start_date": "2026-07-07",
-    "math_items": 43,
+    "math_items": 45,
     "note": ""
   },
   "days": {
@@ -4194,6 +4194,139 @@
             "title": "专题自查：默写全部麦克劳林 + 判敛流程",
             "body": "① 能否默写：eˣ、sin、cos、ln(1+x)、(1+x)^α、1/(1−x)、1/(1+x)、arctan。<br>② 判敛流程：先看通项是否 →0（不→0 必发散）；正项 → p/等比/比较/比值/根值；变号 → 先判绝对，再莱布尼茨判条件。",
             "conclusion": "收敛域 = 半径 + <strong>端点逐个验</strong>，别漏。今天测一遍，把卡住的记进错题归档。",
+            "noteLink": {
+              "name": "第16讲_无穷级数.md",
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-10-04": {
+      "date": "2026-10-04",
+      "weekday": "周日",
+      "studied": true,
+      "subject": "408·PV与Cache ｜ 数学·级数值端点与抽样分布 ｜ 英语·虚拟语气",
+      "review": [
+        {
+          "id": "os-pv-counter",
+          "badges": [
+            "408",
+            "OS"
+          ],
+          "title": "读者-写者：mutex 保护的是「读计数器」，不是缓冲区",
+          "body": "写者之间的互斥靠 <code>wrt</code>（或写者互斥信号量），<strong>不是</strong>靠读计数器。<br>读进程要互斥地改 <code>count</code>，所以 <code>mutex</code> 只锁计数器那几行；缓冲区本身由 <code>wrt</code> 与读进程的 <code>if(count==1) P(wrt)</code> 一起保证。",
+          "conclusion": "一句话判据：看它保护的是「共享的那个变量」还是「那段临界区」——本题的共享变量是计数器。",
+          "noteLink": {
+            "name": "第2章_进程管理.md",
+            "path": "E:/NPEE/408/OS/第2章_进程管理.md"
+          }
+        },
+        {
+          "id": "co-cache-replace",
+          "badges": [
+            "408",
+            "计组"
+          ],
+          "title": "直接映射不需要替换算法（因为它没得选）",
+          "body": "直接映射：每个主存块只能落到<strong>唯一</strong>一行，调入即覆盖 → 没有「选谁淘汰」的问题。<br>组相联要在<strong>组内</strong>选、全相联在<strong>全局</strong>选，才需要 LRU / FIFO / 随机 / LFU。",
+          "conclusion": "你 09-27 把「直接映射不需要替换算法」判成「错误」——记住：替换算法的存在前提是「有多个候选行」。",
+          "noteLink": {
+            "name": "第3章_存储器层次结构.md",
+            "path": "E:/NPEE/408/CO/第3章_存储器层次结构.md"
+          }
+        },
+        {
+          "id": "math-gs16-vs-path",
+          "badges": [
+            "数学一",
+            "高数"
+          ],
+          "title": "两套判据别串线：幂级数判敛 ≠ 曲线积分路径无关",
+          "body": "幂级数/数项级数判敛：看<strong>通项</strong>——比值法、根值法、比较法、p 级数（ρ=1 失效要换招）。<br>曲线积分路径无关：<code>∂P/∂y = ∂Q/∂x</code>（单连通区域内）——这是<strong>二元函数偏导</strong>的事，跟级数无关。",
+          "conclusion": "你 09-27 在级数题里错选了 <code>B. ∂P/∂x = ∂Q/∂y</code>：先认清「这道题问的是哪个对象的性质」，再选判据。",
+          "noteLink": {
+            "name": "第16讲_无穷级数.md",
+            "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
+          }
+        },
+        {
+          "id": "math-gl-t2f",
+          "badges": [
+            "数学一",
+            "概率论"
+          ],
+          "title": "$t$ 平方化 $F$：开绝对值、变双尾",
+          "body": "$T\\sim t(n)\\Rightarrow T^2\\sim F(1,n)$。求 $P\\{Y>c^2\\}$（$Y\\sim F(1,n)$）时要走 $P\\{X^2>c^2\\}=P\\{|X|>c\\}=2P\\{X>c\\}=2\\alpha$。<br>因为 $t$ 密度关于 0 对称、且分位数 $c>0$，所以<strong>必须</strong>是双尾。",
+          "conclusion": "你 09-25 只写了单尾 $P\\{X>c\\}=\\alpha$，答案差一个因子 2。",
+          "noteLink": {
+            "name": "第6章_数理统计的基本概念.md",
+            "path": "E:/NPEE/Math/概率论/第6章_数理统计的基本概念.md"
+          }
+        },
+        {
+          "id": "eng-subjunctive-back",
+          "badges": [
+            "英语一",
+            "语法"
+          ],
+          "title": "与将来事实相反的虚拟：从句倒退到过去，主句用 would",
+          "body": "与<strong>将来</strong>事实相反：条件句 <code>were to do</code> / <code>should do</code> / <code>did</code>，主句 <code>would / could / might + do</code>。<br>时间倒退是<strong>从句</strong>的事（will→would 不是「过去将来时」，而是虚拟的标志）。",
+          "conclusion": "你 09-27 错选「主句 will+动词原形；从句一般现在时」——那是真实条件句的形态，不是虚拟。",
+          "noteLink": {
+            "name": "考研英语语法笔记.md",
+            "path": "E:/NPEE/English/grammar/考研英语语法笔记.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "os-q-pv-counter",
+          "question": "读者-写者问题里，<code>mutex</code> 保护的是什么？写者之间的互斥靠谁？",
+          "answer": "<code>mutex</code> 保护<strong>共享的读计数器 count</strong>（读进程改它必须互斥）；写者之间的互斥靠 <code>wrt</code>（或写者互斥信号量）。",
+          "noteLink": {
+            "name": "第2章_进程管理.md",
+            "path": "E:/NPEE/408/OS/第2章_进程管理.md"
+          }
+        },
+        {
+          "id": "co-q-cache-replace",
+          "question": "三种映射方式里，哪几种需要替换算法？直接映射为什么不需要？",
+          "answer": "组相联（组内选）与全相联（全局选）需要；直接映射<strong>不需要</strong>——每块只有一个固定行，调入即覆盖，没有候选可挑。",
+          "noteLink": {
+            "name": "第3章_存储器层次结构.md",
+            "path": "E:/NPEE/408/CO/第3章_存储器层次结构.md"
+          }
+        }
+      ],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "trap-diff-eq-infinitesimal",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "计算陷阱"
+            ],
+            "title": "差函数的等价无穷小：符号别丢",
+            "body": "用基本展开作差时，$\\arctan x$ 的三次项是<strong>负</strong>的：$\\arctan x=x-\\dfrac{x^3}{3}+o(x^3)$，所以<br>$$x-\\arctan x=\\frac{x^3}{3}+o(x^3)\\ \\sim\\ \\frac{x^3}{3}$$",
+            "conclusion": "你 09-25 写成 $-x^3/3$——作差前先把两边的三次项符号都写出来，再减。",
+            "noteLink": {
+              "name": "公式速查.md",
+              "path": "E:/NPEE/Math/高数/公式速查.md"
+            }
+          },
+          {
+            "id": "know-fourier-outside",
+            "type": "knowledge",
+            "badges": [
+              "高数",
+              "无穷级数"
+            ],
+            "title": "正弦/余弦级数在区间外的取值：先平移，再翻号",
+            "body": "求 $S(x_0)$（$x_0$ 落在原区间外）两步走：① 按周期 $2l$ 把 $x_0$ 平移回 $[-l,l]$；② <strong>奇延拓要翻号</strong>（$S(-t)=-S(t)$），偶延拓不翻。<br>端点处收敛到 $\\dfrac{f(x_0^-)+f(x_0^+)}{2}$，不是 $f$ 本身。",
+            "conclusion": "你 09-26 直接代原函数 $f(-1/4)=3/4$，正确是 $-f(1/4)=-1/4$——漏了奇延拓那一次翻号。",
             "noteLink": {
               "name": "第16讲_无穷级数.md",
               "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
