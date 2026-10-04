@@ -1,0 +1,53 @@
+{
+  "meta": {
+    "subject": "英语一",
+    "module": "ENG-GRAM",
+    "batch": "week-review-2026-10-04",
+    "note": "两张都来自本周真错题：Q-ENG-GRAM-02-0001（虚拟语气与现在事实相反，他错选 C「主将从现」）与 Q-ENG-GRAM-02-06-0001（宾语后置 heavy NP shift，他错选 C 把句末 that 从句当宾语从句）。ENG-GRAM-01-03 虚拟语气原本只有 1 张（只考「与过去事实相反」），ENG-GRAM-02-06 原有 5 张都不覆盖宾语后置。无时效性内容。"
+  },
+  "cards": [
+    {
+      "type": "choice",
+      "topic_id": "ENG-GRAM-01-03",
+      "q": "关于虚拟语气条件句中从句与主句的时态搭配，下列说法正确的是：",
+      "opts": [
+        "与现在事实相反：从句用一般过去时（be 动词统一用 were），主句用 would/could/might/should + 动词原形；与将来事实相反：从句用一般过去时 / were to do / should do",
+        "与现在事实相反：从句用一般过去时，主句用 will + 动词原形",
+        "与现在事实相反：从句用一般现在时，主句用 will + 动词原形（主将从现）",
+        "与将来事实相反：从句用一般将来时，主句用 would + 动词原形"
+      ],
+      "ans": 0,
+      "exp": "三档配对一次记牢：①与现在事实相反——从句 did / were，主句 would do（If I were you, I would take the job.）；②与过去事实相反——从句 had done，主句 would have done；③与将来事实相反——从句 did / were to do / should do，主句 would do。⚠️「主句 will + 动词原形、从句一般现在时」是**真实条件句**的规则（主将从现），用来说可能发生的情况（If it rains tomorrow, I will stay at home.），把它套到虚拟语气上就是本周实际错选的那一项。判别的入口先看语义：情况可能发生 → 真实条件句；情况不可能发生（与事实相反）→ 虚拟语气，必须用时态后退。",
+      "tags": ["英语一", "语法", "虚拟语气", "条件句", "真实条件句"],
+      "traps": [
+        "把真实条件句的「主将从现」套进虚拟语气（本周实际错选）",
+        "把「与现在相反」和「与过去相反」的配对记反（did/were → would do 对 had done → would have done）",
+        "从句里 be 动词不用 were 而用 was（虚拟语气中 if I were 是固定形式）",
+        "只看时态形式不看语义，忽略「是否与事实相反」这个判别入口"
+      ],
+      "src": "错题归档驱动：本周错题 Q-ENG-GRAM-02-0001；笔记见 English/grammar/考研英语语法笔记.md（虚拟语气）"
+    },
+    {
+      "type": "choice",
+      "topic_id": "ENG-GRAM-02-06",
+      "q": "he did not accept as well founded the charge made by some of his critics that… 该句的结构是：",
+      "opts": [
+        "宾语后置（heavy NP shift）：accept the charge as well founded 因宾语太长而把宾补 as well founded 提到了宾语之前；the charge 才是 accept 的宾语，句末 that 从句是 the charge 的同位语从句",
+        "the charge 是介词 by 的宾语（后置定语 made by some of his critics 的中心词）",
+        "as well founded 是介词短语，整体作 accept 的宾语",
+        "句末 that 从句整体作 accept 的宾语从句"
+      ],
+      "ans": 0,
+      "exp": "结构还原：he did not accept 【the charge [made by some of his critics] [that…]】as well founded —— 原序是 accept the charge as well founded，因为 the charge 后面挂了一个长同位语从句，宾语太重，于是被推到句末（heavy NP shift），宾补 as well founded 提前。触发词固定：accept / regard / consider / dismiss / treat / deem / declare + 宾补（as / for / to be + 形容词）+ 长宾语，写作与翻译里高频出现。同类：Most economists dismiss as unfounded the fear, voiced by several critics, that…。判定要点：①宾语是那个名词，不是紧邻动词的短语；②句末 that 从句解释前面的名词（同位语从句），不是动词的宾语从句。",
+      "tags": ["英语一", "长难句", "宾语后置", "heavy NP shift", "同位语从句"],
+      "traps": [
+        "把 as well founded 误当成修饰紧邻名词的短语（它是宾补，修饰的宾语被推后了）",
+        "把句末 that 从句当成 accept 的宾语从句（它是 the charge 的同位语从句）",
+        "把 the charge 当成介词 by 的宾语（by 的宾语是 some of his critics）",
+        "不认识 heavy NP shift，遇到「动词 + 形容词短语 + 长名词」就断错主干",
+        "把 accept 当成不及物动词或误以为 accept as 是固定短语而不找宾语"
+      ],
+      "src": "错题归档驱动：本周错题 Q-ENG-GRAM-02-06-0001；笔记见 English/grammar/考研英语语法笔记.md（长难句拆分）"
+    }
+  ]
+}
