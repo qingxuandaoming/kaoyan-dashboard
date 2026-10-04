@@ -3,8 +3,8 @@
  *
  * 从 generate_dashboard.py 里抽出真实的 POMO_JS，用「虚拟时钟 + 极简 DOM」跑：
  *   · Date.now / setInterval 全接管 → 45 分钟的段不用真等，advance() 一推就到
- *   · 覆盖：预设段序、开始/暂停/继续的墙钟语义、跳过不记成绩、关页面期间补齐、
- *     全屏搬家（节点从 #pm-slot 搬到 #pm-overlay）、轮播背景三层开关与交叉淡入
+ *   · 覆盖：预设段序、开始/暂停/继续的墙钟语义、跳过与提前结束只记已专注的分钟数、
+ *     关页面期间补齐、全屏搬家（节点从 #pm-slot 搬到 #pm-overlay）、轮播背景三层开关与交叉淡入
  */
 const fs = require("fs");
 const os = require("os");
@@ -128,7 +128,7 @@ function mkEl(tag) {
     pause() { audioPauses++; },
     querySelector(sel) { return qsa(sel)[0] || null; },
     querySelectorAll(sel) { return qsa(sel); },
-    click() { if (this.disabled) return; if (this.onclick) this.onclick({ target: this }); },
+    click() { if (this.disabled) return; if (this.onclick) this.onclick({ target: this }); this._fire("click", { target: this }); },
   };
   Object.defineProperty(el, "classList", {
     get: () => ({ add: c => el._cls.add(c), remove: c => el._cls.delete(c), contains: c => el._cls.has(c),
@@ -253,6 +253,17 @@ function boot(pomoCfg, savedRun, savedDay, srv, caps, extraStore, vis) {
   });
   const fetched = [];
   const nowOffset = (srv && srv.nowOffset) || 0;
+  // srv.rtt：模拟一次请求的往返耗时（毫秒）。桩把「服务端生成响应那一刻」定在
+  // 往返中点，再把虚拟时钟往前推整个 RTT —— 这正是前端要做往返中点补偿的场景：
+  // 不补偿的话 skew 里会多吃进 rtt/2（实测墙外授时源 361ms 的往返，一半就是 180ms）。
+  // 每次请求都现读 srv.rtt，用例中途能把它调快（先按 0 起一轮，再拉长往返看补偿）
+  const rttOf = () => (srv && srv.rtt) || 0;
+  const srvNow = () => fakeNow + nowOffset + rttOf() / 2;
+  const settle = (payload) => {
+    const rtt = rttOf();
+    if (rtt) fakeNow += rtt;
+    return Promise.resolve({ json: () => Promise.resolve(payload) });
+  };
   const fetchStub = (url, opt) => {
     fetched.push({ url, body: opt && opt.body ? JSON.parse(opt.body) : null, method: (opt && opt.method) || "GET" });
     if (url.indexOf("/api/settings") >= 0) {
@@ -261,21 +272,32 @@ function boot(pomoCfg, savedRun, savedDay, srv, caps, extraStore, vis) {
     }
     if (url.indexOf("/api/pomodoro/state") >= 0) {
       const isPost = !!(opt && opt.method === "POST");
-      const base = { ok: true, server_now: fakeNow + nowOffset, today: localToday(),
+      const base = { ok: true, server_now: srvNow(), today: localToday(),
+                     clock: (srv && srv.clock) || undefined,
                      today_stat: (srv && srv.today_stat) || { pomos: 0, min: 0 },
                      days: (srv && srv.days) || [] };
       if (isPost) {
         // 回一个带 server_updated 的 run，模拟服务端落库后的版本
         const echo = JSON.parse(JSON.stringify((opt && JSON.parse(opt.body).run) || {}));
         echo.server_updated = (srv && srv.nextUpdated) || 90001;
-        return Promise.resolve({ json: () => Promise.resolve(Object.assign({}, base, { run: echo })) });
+        return settle(Object.assign({}, base, { run: echo }));
       }
-      return Promise.resolve({ json: () => Promise.resolve(Object.assign({}, base, { run: (srv && srv.run) || null })) });
+      return settle(Object.assign({}, base, { run: (srv && srv.run) || null }));
     }
     if (url.indexOf("/api/pomodoro/credit") >= 0) {
-      return Promise.resolve({ json: () => Promise.resolve({ ok: true, server_now: fakeNow + nowOffset,
-        today: localToday(), today_stat: (srv && srv.after_credit) || { pomos: 1, min: 45 },
-        days: (srv && srv.days) || [] }) });
+      // 回一个「服务端自增之后」的成绩：默认按请求本身算（pomos 默认 +1，
+      // 显式传 0 就只加分钟）。srv.after_credit 可以覆盖它（跨设备用例要更大的累计值）。
+      const req = (opt && opt.body) ? JSON.parse(opt.body) : {};
+      const add = req.pomos === 0 ? 0 : 1;
+      return settle({ ok: true, server_now: srvNow(), today: localToday(),
+        clock: (srv && srv.clock) || undefined,
+        today_stat: (srv && srv.after_credit) || { pomos: add, min: Math.round(Number(req.min) || 0) },
+        days: (srv && srv.days) || [] });
+    }
+    if (url.indexOf("/api/time") >= 0) {
+      const st = (srv && srv.time) || { calibrated: false, source: "system", offset_ms: 0,
+                                        synced_at: 0, age_ms: 0, now: srvNow() };
+      return settle(Object.assign({ ok: true }, st, { now: srvNow() }));
     }
     return Promise.resolve({ json: () => Promise.resolve({ ok: true }) });
   };
@@ -346,10 +368,11 @@ function check(name, cond, extra) {
     const env = boot();
     await tick();
     check("卡片被塞进 #pm-slot", env.slot.children.length === 1);
-    check("预设 5 个（45+10×3 / 60+15×2 / 90 / 120 / 180）",
-      BYATTR["data-preset"] && BYATTR["data-preset"].length === 5,
+    check("预设 6 个（正计时 / 45+10×3 / 60+15×2 / 90 / 120 / 180）",
+      BYATTR["data-preset"] && BYATTR["data-preset"].length === 6,
       BYATTR["data-preset"] && BYATTR["data-preset"].map(b => b.dataset.preset).join(","));
-    check("默认读数 45:00", txt("pm-time") === "45:00", txt("pm-time"));
+    check("默认读数是 45:00（正计时排在 chip 第一位，但不当默认）",
+      txt("pm-time") === "45:00", txt("pm-time"));
     check("默认按钮是「开始」", txt("pm-toggle").indexOf("开始") >= 0, txt("pm-toggle"));
     check("45+10×3 共 6 段 / 165 分钟", txt("pm-plan").indexOf("165") >= 0 || txt("pm-plan").indexOf("2 小时 45") >= 0, txt("pm-plan"));
     check("轮播图没配时不铺背景", hostOf() && !hostOf()._cls.has("pm-hasbg"));
@@ -381,16 +404,26 @@ function check(name, cond, extra) {
     check("专注段走完记一个番茄 · 45 分钟", txt("pm-day").indexOf("<b>1</b> 个番茄 · 专注 <b>45 分</b>") >= 0, txt("pm-day"));
   }
 
-  console.log("\n[3] 跳过不记成绩");
+  console.log("\n[3] 跳过：已专注的分钟数照记，但不计番茄");
   {
     const env = boot(); await tick();
     REG["pm-toggle"].click(); advance(MIN);
     REG["pm-skip"].click();
+    await tick();
     check("跳过专注段 → 进入休息段", txt("pm-time") === "10:00", txt("pm-time"));
-    check("跳过不计入今日番茄", txt("pm-day").indexOf("<b>0</b> 个番茄") >= 0, txt("pm-day"));
+    check("跳过不计番茄", txt("pm-day").indexOf("<b>0</b> 个番茄") >= 0, txt("pm-day"));
+    check("跳过把已专注的 1 分钟记进今日", txt("pm-day").indexOf("专注 <b>1 分</b>") >= 0, txt("pm-day"));
+    const cred = env.fetched.filter(f => f.url.indexOf("/api/pomodoro/credit") >= 0).pop();
+    check("记账带上分钟数、并显式声明不计番茄",
+      cred && cred.body.min === 1 && cred.body.pomos === 0, JSON.stringify(cred && cred.body));
     REG["pm-skip"].click();
+    await tick();
     check("再跳过休息 → 回到第 2 轮专注 45:00", txt("pm-time") === "45:00", txt("pm-time"));
     check("轮次点显示到第 2 轮", txt("pm-phase").indexOf("2/3") >= 0, txt("pm-phase"));
+    check("休息段不进成绩（还是那 1 分钟）", txt("pm-day").indexOf("专注 <b>1 分</b>") >= 0, txt("pm-day"));
+    check("休息段跳过不发记账请求（只发过专注段那一次）",
+      env.fetched.filter(f => f.url.indexOf("/api/pomodoro/credit") >= 0).length === 1,
+      String(env.fetched.filter(f => f.url.indexOf("/api/pomodoro/credit") >= 0).length));
   }
 
   console.log("\n[4] 关掉页面期间补齐（刷新不丢表）");
@@ -403,7 +436,10 @@ function check(name, cond, extra) {
     };
     const env = boot(null, run, { date: null, pomos: 0, min: 0 });
     await tick();
-    check("补齐后停在休息段的 10:00", txt("pm-time") === "10:00", txt("pm-time"));
+    // 专注段在 T0-2min 那一刻就走完了，休息段从那一刻起算 10 分钟 → 现在只剩 8:00。
+    // 若按「发现超时的那一刻」续表（老写法），这里会读到 10:00：休息被凭空推后 2 分钟，
+    // 后台被节流时每段都这么推，整轮就越拖越远——这正是「后台不计时」的观感来源。
+    check("补齐后休息段按专注段末尾顺接，只剩 08:00", txt("pm-time") === "08:00", txt("pm-time"));
     check("走完的专注段照记成绩", txt("pm-day").indexOf("<b>1</b> 个番茄 · 专注 <b>45 分</b>") >= 0, txt("pm-day"));
     check("补齐后仍在跑（休息段自动开始）", txt("pm-toggle").indexOf("暂停") >= 0, txt("pm-toggle"));
   }
@@ -462,7 +498,7 @@ function check(name, cond, extra) {
     check("完成时记上一个 90 分钟番茄", txt("pm-day").indexOf("1 小时 30 分") >= 0, txt("pm-day"));
   }
 
-  console.log("\n[8] 重置与结束（别抢标题、别乱记成绩）");
+  console.log("\n[8] 重置与结束（别抢标题；结束记已专注的分钟数）");
   {
     const env = boot(); await tick();
     REG["pm-toggle"].click(); advance(5 * MIN);
@@ -470,10 +506,20 @@ function check(name, cond, extra) {
     check("重置 → 回到第 1 段 45:00", txt("pm-time") === "45:00", txt("pm-time"));
     check("重置 → 按钮回到「▶ 开始」而不是「继续」", txt("pm-toggle") === "▶ 开始", txt("pm-toggle"));
     check("重置 → 标题交还给页面", env.doc.title === "改造我们的学习", env.doc.title);
+    check("重置不记成绩（那是「重来」，不是「结束」）",
+      txt("pm-day").indexOf("专注 <b>0 分</b>") >= 0, txt("pm-day"));
     REG["pm-toggle"].click(); advance(MIN);
     REG["pm-stop"].click();
+    await tick();
     check("中途结束不写「完成」标题（那是放弃不是跑完）", env.doc.title === "改造我们的学习", env.doc.title);
-    check("中途结束不计入今日番茄", txt("pm-day").indexOf("<b>0</b> 个番茄") >= 0, txt("pm-day"));
+    check("中途结束不计番茄", txt("pm-day").indexOf("<b>0</b> 个番茄") >= 0, txt("pm-day"));
+    check("中途结束把已专注的 1 分钟记进今日", txt("pm-day").indexOf("专注 <b>1 分</b>") >= 0, txt("pm-day"));
+    // 结束后要把「这一轮完了」推给服务端：不推的话别的设备还看到这一段在跑，
+    // 到点会把同一段又记一遍（提前结束已经记过已专注的那部分了）。
+    const last = env.fetched.filter(f => f.url.indexOf("/api/pomodoro/state") >= 0 && f.method === "POST").pop();
+    check("结束会把「没有下一段、没在跑」推给服务端",
+      last && last.body.run.running === false && last.body.run.pos === 6,
+      JSON.stringify(last && last.body.run));
   }
 
   console.log("\n[9] 跨设备同步（服务端是唯一真相源）");
@@ -524,7 +570,8 @@ function check(name, cond, extra) {
     await tick(); await tick();
     const cred = env.fetched.filter(f => f.url.indexOf("/api/pomodoro/credit") >= 0).pop();
     check("跑完一段会向服务端记一个番茄", !!cred, JSON.stringify(env.fetched.map(f => f.url)));
-    check("记账带上这一段的分量", cred && cred.body.min === 45, JSON.stringify(cred && cred.body));
+    check("记账带上这一段的分量（满额，番茄 +1）",
+      cred && cred.body.min === 45 && cred.body.pomos === 1, JSON.stringify(cred && cred.body));
     check("服务端回的成绩覆盖了本地估算", txt("pm-day").indexOf("<b>3</b> 个番茄") >= 0, txt("pm-day"));
   }
 
@@ -770,9 +817,9 @@ function check(name, cond, extra) {
   console.log("\n[16] 自己存预设（＋ 存为预设 / 删掉）");
   {
     const env = boot(); await tick();
-    check("一开始只有 5 个内置预设", (BYATTR["data-preset"] || []).length === 5,
+    check("一开始只有 6 个内置预设", (BYATTR["data-preset"] || []).length === 6,
       String((BYATTR["data-preset"] || []).length));
-    check("内置那五个没有删除尾巴", (BYATTR["data-del"] || []).length === 0,
+    check("内置那六个没有删除尾巴", (BYATTR["data-del"] || []).length === 0,
       String((BYATTR["data-del"] || []).length));
 
     // 存一组：50 分专注 + 8 分歇 × 2 轮
@@ -782,7 +829,7 @@ function check(name, cond, extra) {
     REG["pm-csave"].click();
     await tick();
     const chips = BYATTR["data-preset"] || [];
-    check("存完多出一个 chip", chips.length === 6, String(chips.length));
+    check("存完多出一个 chip", chips.length === 7, String(chips.length));
     const mine = chips.find(b => b.dataset.preset === "my:50x8x2");
     check("id 由参数拼出来（同样数字天然去重）", !!mine,
       chips.map(b => b.dataset.preset).join(","));
@@ -804,13 +851,13 @@ function check(name, cond, extra) {
 
     REG["pm-csave"].click();
     await tick();
-    check("同样的数字存第二次不多出一个 chip", (BYATTR["data-preset"] || []).length === 6,
+    check("同样的数字存第二次不多出一个 chip", (BYATTR["data-preset"] || []).length === 7,
       String((BYATTR["data-preset"] || []).length));
 
     // ⚠️ 删掉的正是在用的那个：表不能被重置（那等于把用户当前这一轮清掉了）
     (BYATTR["data-del"] || []).find(b => b.dataset.del === "my:50x8x2").click();
     await tick();
-    check("删掉后 chip 没了", (BYATTR["data-preset"] || []).length === 5,
+    check("删掉后 chip 没了", (BYATTR["data-preset"] || []).length === 6,
       String((BYATTR["data-preset"] || []).length));
     check("落盘也清了", JSON.parse(env.store["kaoyan.pomo.presets.v1"] || "[]").length === 0);
     check("★ 删掉在用的预设不会把表重置（读数还是 50:00，不是内置的 45:00）",
@@ -824,7 +871,7 @@ function check(name, cond, extra) {
         { id: "my:30x5x4", label: "30 + 5 × 4", work: 30, brk: 5, rounds: 4, note: "x" }]),
     });
     await tick();
-    check("刷新后自己存的预设还在", (BYATTR["data-preset"] || []).length === 6,
+    check("刷新后自己存的预设还在", (BYATTR["data-preset"] || []).length === 7,
       String((BYATTR["data-preset"] || []).length));
     check("也带着删除尾巴", (BYATTR["data-del"] || []).length === 1);
 
@@ -836,7 +883,7 @@ function check(name, cond, extra) {
     });
     await tick();
     check("坏数据被挡掉：不是 my: 前缀的、work<=0 的",
-      (BYATTR["data-preset"] || []).length === 6
+      (BYATTR["data-preset"] || []).length === 7
       && (BYATTR["data-preset"] || []).some(b => b.dataset.preset === "my:25x5x2"),
       (BYATTR["data-preset"] || []).map(b => b.dataset.preset).join(","));
   }
@@ -899,6 +946,164 @@ function check(name, cond, extra) {
       check("不用轮播时遮罩归零", scrim(h2) === 0, h2.style._vars["--pm-scrim"]);
     }
     visual = null;
+  }
+
+  console.log("\n[18] 后台（定时器被节流）仍按墙钟记账，且段序顺接上一段末尾");
+  {
+    // 用户反馈「后台好像不计时」。番茄钟走的是墙钟（endAt），记账不该受
+    // 后台影响——切到别的标签页时浏览器会把 250ms 的心跳节流到约 1 分钟
+    // 一次，这里用大 step 复现这种形态：每步只让心跳跑一次。
+    //
+    // 45+10×3 的时间轴：0~45 专注1，45~55 休息1，55~100 专注2，100~110 休息2，
+    // 110~155 专注3。所以「后台 1 小时」醒来时应该已经在第 2 轮专注里、只剩 40 分钟。
+    // 老写法把下一段的起点定在「发现超时的那一刻」，休息会被推后到第 60 分钟才开始
+    // （读到 10:00），整轮越拖越远——那正是用户看到的「一组结束就卡在休息开头」。
+    const env = boot(); await tick();
+    REG["pm-toggle"].click();                       // 开始 45 分钟专注段
+    advance(60 * MIN, 60 * MIN);
+    check("后台 1 小时：走完的 45 分钟专注段照记一个番茄",
+      txt("pm-day").indexOf("<b>1</b> 个番茄") >= 0, txt("pm-day"));
+    check("段序顺接上一段末尾：1 小时时已在第 2 轮专注",
+      txt("pm-phase").indexOf("专注") >= 0 && txt("pm-phase").indexOf("2/3") >= 0, txt("pm-phase"));
+    check("没有把休息段推后（读数 40:00 而不是 10:00）", txt("pm-time") === "40:00", txt("pm-time"));
+
+    advance(60 * MIN, 60 * MIN);                    // 累计 2 小时
+    check("第 2 轮专注也照记（累计 2 个番茄）",
+      txt("pm-day").indexOf("<b>2</b> 个番茄") >= 0, txt("pm-day"));
+    check("2 小时时在第 3 轮专注、剩 35:00",
+      txt("pm-phase").indexOf("3/3") >= 0 && txt("pm-time") === "35:00",
+      txt("pm-phase") + " " + txt("pm-time"));
+
+    advance(60 * MIN, 60 * MIN);                    // 累计 3 小时 → 整轮（155 分钟）走完
+    check("整轮走完记 3 个番茄", txt("pm-day").indexOf("<b>3</b> 个番茄") >= 0, txt("pm-day"));
+    check("走完进入完成态（不再凭空多出一段）", hostOf()._cls.has("pm-done"), hostOf().className);
+    const mins = env.fetched.filter(f => f.url.indexOf("/api/pomodoro/credit") >= 0)
+      .reduce((a, f) => a + ((f.body && f.body.min) || 0), 0);
+    check("三小时里共记 135 分钟专注（三段 45）", mins === 135, String(mins));
+  }
+
+  console.log("\n[19] 正计时：不设结束时间，结束只记分钟、不计番茄");
+  {
+    const env = boot(); await tick();
+    const upChip = (BYATTR["data-preset"] || []).find(b => b.dataset.preset === "up");
+    check("预设里有正计时入口", !!upChip);
+    upChip.click();
+    await tick();
+    check("切到正计时：读数从 00:00 起", txt("pm-time") === "00:00", txt("pm-time"));
+    check("正计时卡片带 pm-up 类", hostOf()._cls.has("pm-up"), hostOf().className);
+    check("正计时不摆「跳过」（没有下一段）", REG["pm-skip"].hidden === true);
+    check("文案说明「不设结束时间」", txt("pm-plan").indexOf("不设结束时间") >= 0, txt("pm-plan"));
+
+    REG["pm-toggle"].click();                        // 开始
+    advance(37 * MIN);
+    check("正计时表往上走：37 分钟读到 37:00", txt("pm-time") === "37:00", txt("pm-time"));
+    check("不会自己到点收工（还在跑）", txt("pm-toggle").indexOf("暂停") >= 0, txt("pm-toggle"));
+    advance(3 * 60 * MIN, 60 * MIN);                 // 再走 3 小时，越过名义目标的一大截
+    check("越过名义目标仍继续往上走，不夹在目标上", txt("pm-time") === "3:37:00", txt("pm-time"));
+
+    const st = env.fetched.filter(f => f.url.indexOf("/api/pomodoro/state") >= 0 && f.method === "POST").pop();
+    check("写回服务端时带上 up 标记（另一台设备才知道这是正计时）",
+      st && st.body.run.plan.up === true, JSON.stringify(st && st.body.run.plan));
+
+    REG["pm-stop"].click();                          // 结束
+    await tick();
+    check("结束只记分钟、不计番茄", txt("pm-day").indexOf("<b>0</b> 个番茄") >= 0, txt("pm-day"));
+    check("记入 217 分钟（3 小时 37 分）",
+      txt("pm-day").indexOf("专注 <b>3 小时 37 分</b>") >= 0, txt("pm-day"));
+    const cred = env.fetched.filter(f => f.url.indexOf("/api/pomodoro/credit") >= 0).pop();
+    check("记账带分钟数并显式声明不计番茄",
+      cred && cred.body.min === 217 && cred.body.pomos === 0, JSON.stringify(cred && cred.body));
+    check("结束后回到完成态", hostOf()._cls.has("pm-done"), hostOf().className);
+  }
+
+  console.log("\n[20] 跨设备：服务端那份正计时表原样接回来（不被还原成 10 小时倒计时）");
+  {
+    // 正计时的 end_at 是「名义目标」：起点 + 600 分钟。这里造一份「已经走了 30 分钟」
+    // 的远端快照 → end_at = 起点 + 570 分钟。
+    const T0 = 1770000000000;
+    const srv = {
+      nowOffset: 0, nextUpdated: 90001,
+      run: {
+        plan: { id: "up", work: 600, brk: 0, rounds: 1, label: "⏱ 正计时", note: "", up: true },
+        pos: 0, running: true, started_once: true,
+        end_at: T0 + 570 * MIN, remain_ms: 0, server_updated: 90001,
+      },
+    };
+    const env = boot(null, null, null, srv);
+    await tick(); await tick();
+    check("接回来的还是正计时（不是 10 小时倒计时）", hostOf()._cls.has("pm-up"), hostOf().className);
+    check("读数按「已走多久」显示 30:00", txt("pm-time") === "30:00", txt("pm-time"));
+    check("阶段写着正计时", txt("pm-phase").indexOf("正计时") >= 0, txt("pm-phase"));
+    check("小窗文案也不套「第几轮」", (BYATTR["data-f"] || []).filter(x => x.dataset.f === "phase")
+      .every(x => String(x.textContent).indexOf("轮") < 0),
+      (BYATTR["data-f"] || []).filter(x => x.dataset.f === "phase").map(x => x.textContent).join("|"));
+  }
+
+  console.log("\n[21] 时间校准：往返中点补偿 + 状态那一行");
+  {
+    // 场景：服务端时钟比本机快 7 秒，且一次往返要 400ms（墙外授时源的量级）。
+    // 桩把「服务端那一刻」放在往返中点、随后把本机时钟推完整个 RTT。
+    // 不做中点补偿的话 skew 会算成 7000 - 200 = 6800。
+    //
+    // ⚠️ 这里必须用**服务端暂停态**起步，不能拿「服务端在跑」的表来验 skew：
+    //    在跑的表读进来时 end_at 要减 skew、写回去时又加 skew，同一次往返里
+    //    skew 自己抵消掉了（暂停/继续一圈写回的 end_at 与 skew 无关），
+    //    于是 skew 错 200ms 也测不出来 —— 曾据此写出一个永远通过的假用例。
+    //    暂停态不同：剩余时间来自服务端的 remain_ms（纯时长，不含任何时钟），
+    //    点「继续」时本机拿自己的 now 起表、再 +skew 写回，skew 的误差无处可躲。
+    const T0 = 1770000000000;
+    const srv = {
+      nowOffset: 7000, rtt: 400, nextUpdated: 90001,
+      clock: { calibrated: true, source: "taobao", offset_ms: 416, rtt_ms: 361,
+               synced_at: T0 - 3000, age_ms: 3000 },
+      run: {
+        plan: { id: "45x3", work: 45, brk: 10, rounds: 3, label: "45 + 10 × 3" },
+        pos: 0, running: false, started_once: true,
+        end_at: 0, remain_ms: 20 * MIN, server_updated: 90001,
+      },
+    };
+    const env = boot(null, null, null, srv);
+    await tick(); await tick();
+    // 暂停态的读数是服务端给的 remain_ms，原样 20:00（不掺时钟）
+    check("暂停态：读数就是服务端给的剩余 20:00", txt("pm-time") === "20:00", txt("pm-time"));
+
+    const tResume = fakeNow;    // 「继续」那一刻的本机时刻
+    REG["pm-toggle"].click();   // 继续
+    await tick(); await tick();
+    const post = env.fetched.filter(f => f.url.indexOf("/api/pomodoro/state") >= 0 && f.method === "POST").pop();
+    // 真值：服务端此刻 = tResume + 7000（桩里服务端就快 7 秒），这一段应到
+    // 「服务端此刻 + 剩余 20 分钟」结束。skew 若少了 rtt/2（7000→6800），
+    // 写回的 end_at 就会短 200ms —— 别的设备读出来表就短 200ms。
+    const wantEnd = (tResume + 7000) + 20 * MIN;
+    check("写回的 end_at 对准服务端时钟 + 剩余（skew 没吃进 rtt/2）",
+      post && post.body.run.end_at === wantEnd,
+      JSON.stringify({ got: post && post.body.run.end_at, want: wantEnd }));
+
+    check("时间基准那行写「外部标准时间」", txt("pm-clock").indexOf("外部标准时间") >= 0, txt("pm-clock"));
+    check("带上授时源名", txt("pm-clock").indexOf("taobao") >= 0, txt("pm-clock"));
+    check("带上电脑差多少（0.4 秒）", txt("pm-clock").indexOf("电脑慢 0.4 秒") >= 0, txt("pm-clock"));
+    check("校准过就不染提醒色", !REG["pm-clock"]._cls.has("is-off"), cls("pm-clock"));
+  }
+
+  console.log("\n[22] 离线：退回电脑时钟，仍要有清楚的交代");
+  {
+    const env = boot(null, null, null, {
+      nowOffset: 0,
+      clock: { calibrated: false, source: "system", offset_ms: 0, synced_at: 0, age_ms: 0,
+               last_error: "taobao:fetch failed" },
+    });
+    await tick(); await tick();
+    check("离线时写明用电脑时钟", txt("pm-clock").indexOf("电脑时钟") >= 0, txt("pm-clock"));
+    check("离线时说明未对表", txt("pm-clock").indexOf("未对表") >= 0, txt("pm-clock"));
+    check("离线时染提醒色", REG["pm-clock"]._cls.has("is-off"), cls("pm-clock"));
+    check("表照常走（离线不影响计时）", txt("pm-time") === "45:00", txt("pm-time"));
+
+    // 点一下那一行 → 重新对时；桩回「已校准」
+    REG["pm-clock"].click();
+    await tick(); await tick();
+    const req = env.fetched.filter(f => f.url.indexOf("/api/time") >= 0).pop();
+    check("点那一行会去请求 /api/time", !!req && req.body && req.body.force === 1,
+      JSON.stringify(req && req.body));
   }
 
   console.log("\n" + (fail === 0 ? "全部通过" : "有失败") + "：pass=" + pass + " fail=" + fail);

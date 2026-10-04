@@ -104,6 +104,7 @@ const DB_PATH = process.env.DB_PATH
 const DASH_DATA_PATH = path.join(__dirname, 'dashboard_data.json');
 const NOTE_TOUCH_PATH = path.join(__dirname, 'note_reviews.json');
 const PATHS = require('./paths');   // 路径单一事实源：env NOTES_ROOT > src/paths.json > 内置默认
+const clock = require('./clock');   // 时间校准：联网问外部授时源，离线用本机时钟（见 clock.js 头注释）
 const CODE_ROOT = PATHS.CODE_ROOT;  // 项目根（src 的上级；番茄钟背景图清单按它解析）
 const ROOT_DIR = PATHS.NOTES_ROOT;  // 笔记库根；笔记预览/插图/学科目录/复盘都以它为边界
 let targetedJob = null;   // 盘活出题任务（单任务串行）
@@ -4265,6 +4266,8 @@ const SECRETS_PATH = process.env.SECRETS_PATH
   // ️ end_at 一律按**服务端时钟**存。两台设备的系统时间可能差几分钟，
   //    直接存发起端的 epoch，另一台算出来的剩余时间就是错的；客户端拿到
   //    server_now 后自己换算 skew，写回时再换算回去。
+  //    server_now 本身取自 clock.now()（2026-09-30）：联网时是外部标准时间，
+  //    离线时就是这台电脑的系统时钟——服务端始终只认自己这一个基准。
   const POMO_LOG_KEEP = 180;      // 日志保留天数：够看趋势就行，别无限长
   const POMO_CLAMP = { work: [1, 600], brk: [0, 120], rounds: [1, 24] };
   const readPomoRun = (get) => {
@@ -4308,10 +4311,14 @@ const SECRETS_PATH = process.env.SECRETS_PATH
   const normPomoRun = (raw) => {
     if (!raw || typeof raw !== 'object' || !raw.plan) return null;
     const p = raw.plan || {};
+    // up = 正计时：不设结束时间，work 只是「名义目标」（见前端 UP_TARGET_MIN）。
+    // 这个标记必须原样带回去，否则另一台设备把 run.plan 喂进 buildPlan 时看不到
+    // up，会把正计时还原成一只 10 小时的倒计时表。
+    const up = !!p.up;
     const segs = [];
     const work = Math.round(clamp(p.work, POMO_CLAMP.work[0], POMO_CLAMP.work[1], 45));
-    const brk = Math.round(clamp(p.brk, POMO_CLAMP.brk[0], POMO_CLAMP.brk[1], 10));
-    const rounds = Math.round(clamp(p.rounds, POMO_CLAMP.rounds[0], POMO_CLAMP.rounds[1], 1));
+    const brk = up ? 0 : Math.round(clamp(p.brk, POMO_CLAMP.brk[0], POMO_CLAMP.brk[1], 10));
+    const rounds = up ? 1 : Math.round(clamp(p.rounds, POMO_CLAMP.rounds[0], POMO_CLAMP.rounds[1], 1));
     for (let r = 1; r <= rounds; r++) {
       segs.push({ kind: 'work', min: work, round: r });
       if (brk > 0) segs.push({ kind: 'brk', min: brk, round: r });
@@ -4319,12 +4326,15 @@ const SECRETS_PATH = process.env.SECRETS_PATH
     const pos = Math.min(segs.length, Math.max(0, parseInt(raw.pos, 10) || 0));
     const seg = pos < segs.length ? segs[pos] : null;
     const segMs = seg ? seg.min * 60000 : 0;
-    const now = Date.now();
+    // ⚠️ 必须用**校准后**的时钟：客户端写进来的 end_at 是按 server_now（已校准）算的，
+    //    这里若拿裸 Date.now() 去卡下面那个 ±1 分钟合理性窗口，电脑时钟一旦偏了
+    //    超过 1 分钟，所有写回都会被判成「离谱时间戳」而退化成暂停（2026-09-30）。
+    const now = clock.now();
     const endAt = Math.round(Number(raw.end_at) || 0);
     // 「跑完了」的状态不该还挂着 running：另一台设备读到会以为要补一段
     if (!seg) {
       return { plan: { id: String(p.id || 'custom').slice(0, 40), work, brk, rounds,
-                       label: String(p.label || '自定义').slice(0, 60), note: String(p.note || '').slice(0, 120) },
+                       label: String(p.label || '自定义').slice(0, 60), note: String(p.note || '').slice(0, 120), up },
                pos, running: false, started_once: !!raw.started_once,
                end_at: 0, remain_ms: 0, server_updated: now };
     }
@@ -4337,7 +4347,7 @@ const SECRETS_PATH = process.env.SECRETS_PATH
                            : Math.max(0, Math.min(segMs, Math.round(Number(raw.remain_ms) || 0) || segMs));
     return {
       plan: { id: String(p.id || 'custom').slice(0, 40), work, brk, rounds,
-              label: String(p.label || '自定义').slice(0, 60), note: String(p.note || '').slice(0, 120) },
+              label: String(p.label || '自定义').slice(0, 60), note: String(p.note || '').slice(0, 120), up },
       pos, running, started_once: !!raw.started_once,
       end_at: running ? endAt : 0,
       remain_ms: running ? 0 : remain,
@@ -4778,10 +4788,38 @@ const SECRETS_PATH = process.env.SECRETS_PATH
   }
 
   // ==========================================================================
+  // 时间校准（2026-09-30）
+  //   GET  /api/time            → 当前校准状态（now / 偏差 / 源 / 新鲜度）
+  //   POST /api/time {force:1}  → 立刻重问一次外部授时源
+  // 联网：外部标准时钟；离线：本机（=这台电脑）的系统时钟。见 clock.js 头注释。
+  // 只读授时，不吃 key，所以不进 SENSITIVE_PATHS；但 force 会打外部网络，
+  // 加个最小间隔，免得页面反复点把授时源问烦了（也免得被当成压测）。
+  // ==========================================================================
+  if (url === '/api/time' && req.method === 'GET') {
+    sendJson(200, Object.assign({ ok: true }, clock.status()));
+    return;
+  }
+  if (url === '/api/time' && req.method === 'POST') {
+    readBody(4 * 1024, (body) => {
+      let force = false;
+      try { force = !!JSON.parse(body || '{}').force; } catch (e) { force = false; }
+      const st = clock.status();
+      if (force && st.age_ms < 60 * 1000) {
+        sendJson(200, Object.assign({ ok: true, throttled: true }, st));
+        return;
+      }
+      clock.sync().then((s) => sendJson(200, Object.assign({ ok: true }, s)))
+        .catch((e) => sendJson(500, { ok: false, error: e.message }));
+    });
+    return;
+  }
+
+  // ==========================================================================
   // 番茄钟运行状态（跨设备同步，2026-09-21 晚）
   //   GET  /api/pomodoro/state?days=N → 当前这一轮 + 今日成绩 + 近 N 天（默认 14）
   //   POST /api/pomodoro/state {run}   → 覆盖写入（各端每次动作后调用）
-  //   POST /api/pomodoro/credit {min}  → 记一个完成的番茄（服务端自增，两端不互相覆盖）
+  //   POST /api/pomodoro/credit {min, pomos?} → 服务端自增，两端不互相覆盖
+  //     pomos 省略 / 非 0 = 记一个完成的番茄；显式传 0 = 只记分钟（提前结束、跳过）
   // 状态放服务端而不是 localStorage，就是为了「电脑上开着、走到平板接着看」。
   // days 是给首页「月热力图」用的：默认 14 天够看趋势，要铺满一个月就传 42。
   // 上限 180 是 POMO_LOG_KEEP 的保留天数——再往前日志已经裁掉了，问了也是空。
@@ -4797,7 +4835,10 @@ const SECRETS_PATH = process.env.SECRETS_PATH
       db.close();
       const today = localToday();
       sendJson(200, {
-        ok: true, server_now: Date.now(), today,
+        // server_now 一律走校准时钟（联网=外部标准时间，离线=本机时钟）。
+        // 客户端拿它算 skew，两端的表才是同一只（见 clock.js 头注释）。
+        ok: true, server_now: clock.now(), today,
+        clock: clock.status(),
         run,
         today_stat: log[today] || { pomos: 0, min: 0 },
         days: pomoDays(log, nDays),
@@ -4815,7 +4856,7 @@ const SECRETS_PATH = process.env.SECRETS_PATH
         const db = new DatabaseSync(DB_PATH);
         putCfg(db, [['pomo_run', JSON.stringify(run)]]);
         db.close();
-        sendJson(200, { ok: true, server_now: Date.now(), run });
+        sendJson(200, { ok: true, server_now: clock.now(), clock: clock.status(), run });
       } catch (e) { sendJson(500, { ok: false, error: e.message }); }
     });
     return;
@@ -4826,18 +4867,22 @@ const SECRETS_PATH = process.env.SECRETS_PATH
       try {
         const p = JSON.parse(body || '{}');
         const min = Math.round(clamp(p.min, 1, 600, 45));
+        // 番茄数默认 +1（跑完一整段）。提前结束 / 跳过只该记已专注的分钟数，
+        // 前端会显式传 pomos:0 —— 没跑完的段不算一个完整番茄。
+        const addPomos = p.pomos === 0 ? 0 : 1;
         // 日期由发起端给（它的“今天”才是用户眼里的今天），非法就退回服务端本地日期
         const date = isDateStr(p.date) ? p.date : localToday();
         const db = new DatabaseSync(DB_PATH);
         const log = readPomoLog(cfgGet(db));
         const cur = log[date] || { pomos: 0, min: 0 };
-        log[date] = { pomos: cur.pomos + 1, min: cur.min + min };
+        log[date] = { pomos: cur.pomos + addPomos, min: cur.min + min };
         const pruned = prunePomoLog(log);
         putCfg(db, [['pomo_log', JSON.stringify(pruned)]]);
         db.close();
         const today = localToday();
-        console.log('[Pomo] 记一个番茄：' + date + ' → ' + log[date].pomos + ' 个 / ' + log[date].min + ' 分钟');
-        sendJson(200, { ok: true, server_now: Date.now(), today,
+        console.log('[Pomo] 记账：' + date + ' → ' + log[date].pomos + ' 个 / ' + log[date].min + ' 分钟'
+          + (addPomos ? '' : '（提前结束/跳过，只记分钟）'));
+        sendJson(200, { ok: true, server_now: clock.now(), clock: clock.status(), today,
                         today_stat: pruned[today] || { pomos: 0, min: 0 },
                         days: pomoDays(pruned, 14) });
       } catch (e) { sendJson(500, { ok: false, error: e.message }); }
@@ -5189,6 +5234,9 @@ function announce(port) {
 server.on('listening', () => {
   listening = true;
   announce(server.address().port);
+  // 时间校准：起来就问一次外部授时源，之后每 6 小时一次。
+  // 不 await：授时源超时 2.5 秒，不该拖慢/拖挂服务启动；这期间用的是本机时钟。
+  clock.start();
 });
 server.on('error', (e) => {
   if (listening) {

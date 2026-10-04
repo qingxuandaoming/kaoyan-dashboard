@@ -10954,6 +10954,15 @@ POMO_CSS = '''
            跟「自定义 45 分 专注 10 分 歇 2 轮」那排输入框一样高 */
         .pm-capply, .pm-csave { font-size: 0.74rem; padding: 4px 12px; }
         .pm-hint { font-size: 0.7rem; color: var(--pm-fg3); line-height: 1.75; }
+        /* 时间基准那一行：比 hint 还轻，像脚注。可点（重新对时），但不能看起来像主操作按钮。
+           display:block + 左对齐：在 .pm-side 里跟上面几行左边缘对齐。 */
+        .pm-clock { display: block; margin-top: 6px; padding: 2px 0; border: 0; background: none;
+            font: inherit; font-size: 0.68rem; color: var(--pm-fg3); text-align: left;
+            cursor: pointer; opacity: 0.72; line-height: 1.6; }
+        .pm-clock:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+        .pm-clock.is-off { color: var(--xiang-lt); opacity: 0.85; }
+        .pm-clock.is-busy { opacity: 0.5; cursor: default; text-decoration: none; }
+        .pm-fs .pm-clock { text-align: center; }
 
         /* ---- 全屏层 ---- */
         body.pm-lock { overflow: hidden; }
@@ -11071,6 +11080,10 @@ POMO_JS = '''
     // 预设。45+10×3 / 60+15×2 是「几轮」，90/120/180 是单段一次到底（brk=0
     // 就不生成休息段），别给 90 分钟硬塞一个收尾休息——那是在骗人多一段计划。
     const PRESETS = [
+        // 正计时排在最前：它和下面几个不是一回事（没有「段」，也不倒计时），
+        // 但用户找它时第一眼就该看见。up 标记见 buildPlan / catchUp。
+        { id: "up", label: "⏱ 正计时", up: true, work: 0, brk: 0, rounds: 1,
+          note: "不设结束时间，想记多久记多久；点「结束」按已专注的整分钟数记入今日（不计番茄）" },
         { id: "45x3", label: "45 + 10 × 3", work: 45, brk: 10, rounds: 3, note: "三节 45 分钟，每节之间歇 10 分钟" },
         { id: "60x2", label: "60 + 15 × 2", work: 60, brk: 15, rounds: 2, note: "两节一小时，适合数学 / 408 整块刷题" },
         { id: "90",   label: "90 分钟",     work: 90, brk: 0,  rounds: 1, note: "一场模拟试卷的时长，中途不停" },
@@ -11166,7 +11179,19 @@ POMO_JS = '''
     let expiredNote = "";       // 页面关闭期间走完了整轮的提示
     const CUSTOM = { id: "custom", label: "自定义", note: "自己定的节奏" };
 
+    // 正计时的「名义目标」：10 小时。它不是给人看的倒计时，只是拿 endAt 这个
+    // 字段占位——服务端要求 end_at 落在 (now-1min, now+12h) 内，remain 又按
+    // seg.min(≤600) 夹紧，600 分钟正好卡进这两条约束，于是跨设备同步 / skew /
+    // 暂停恢复全都能沿用倒计时那一套，不用为正计时开新字段。
+    // 代价：连跑超过 10 小时会被服务端判成「时间戳离谱」——现实中不会遇到。
+    const UP_TARGET_MIN = 600;
     function buildPlan(base) {
+        if (base && base.up) {
+            return { id: base.id, label: base.label || "正计时", up: true,
+                     work: UP_TARGET_MIN, brk: 0, rounds: 1, note: base.note || "",
+                     segs: [{ kind: "work", min: UP_TARGET_MIN, round: 1 }],
+                     totalMin: UP_TARGET_MIN, workMin: UP_TARGET_MIN };
+        }
         const work = Math.max(1, Math.round(Number(base.work) || 25));
         const brk = Math.max(0, Math.round(Number(base.brk) || 0));
         const rounds = Math.max(1, Math.min(24, Math.round(Number(base.rounds) || 1)));
@@ -11199,6 +11224,12 @@ POMO_JS = '''
     })();
     function saveMy() { lsSet(MY_KEY, JSON.stringify(myPresets)); }
     function allPresets() { return PRESETS.concat(myPresets); }
+    // 默认选中哪个：第一个**不是正计时**的预设。正计时排在 chip 第一位只是为了好找，
+    // 但它不该是「打开页面什么都不点就开始」的那一个——那会让人一上手就是一只
+    // 走不完的表，还会把「今日几个番茄」永远卡在 0（正计时不计番茄）。
+    function defaultPreset() {
+        return PRESETS.find(function (p) { return !p.up; }) || PRESETS[0];
+    }
     // 标签跟内置那五个一个长法：90 分钟 / 45 + 10 × 3
     function myLabel(work, brk, rounds) {
         return (brk > 0 || rounds > 1)
@@ -11248,18 +11279,22 @@ POMO_JS = '''
             day = { date: d, pomos: p, min: m };
         }
     }
-    function credit(min) {
+    // 记账。addPomos=1 = 跑完一整段（番茄数 +1）；0 = 提前结束 / 跳过，
+    // 只把已专注的分钟数记上——没跑完的段不该算一个完整番茄。
+    function credit(min, addPomos) {
+        const add = addPomos === 0 ? 0 : 1;
         // 本地先记上（表立刻对），服务端自增负责合并多设备——两端各记一次不会互相覆盖
-        day = { date: todayKey(), pomos: day.pomos + 1, min: day.min + min };
+        day = { date: todayKey(), pomos: day.pomos + add, min: day.min + min };
         lsSet(LS_DAY, JSON.stringify(day));
-        pushCredit(min);
+        pushCredit(min, add);
     }
-    function pushCredit(min) {
+    function pushCredit(min, addPomos) {
+        const t0 = Date.now();                 // 取中点用的发车时刻，见 applyServerNow
         fetch(API + "/api/pomodoro/credit", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ min: min, date: todayKey() })
+            body: JSON.stringify({ min: min, pomos: addPomos, date: todayKey() })
         }).then(function (r) { return r.json(); }).then(function (d) {
-            if (d && d.ok) { applyServerNow(d.server_now); applyDay(d.today_stat, d.days); paint(); }
+            if (d && d.ok) { applyServerNow(d.server_now, t0, d.clock); applyDay(d.today_stat, d.days); paint(); }
         }).catch(function () { /* 离线也不影响本地这一轮，下次 GET 会对齐 */ });
     }
 
@@ -11274,18 +11309,45 @@ POMO_JS = '''
     //    时钟，读出来换回本机时钟）。两边混用是踩过的坑：会差出一个 skew 的量，
     //    表现成「平板上的表比电脑慢 7 秒」。
     let skew = 0;                 // 服务端时钟 - 本机时钟
+    let clockInfo = null;         // 服务端最近一次报的校准状态（联网授时 / 离线本机时钟）
     let appliedUpdated = 0;       // 已知的服务端版本号（server_updated）
     let pushing = 0;              // 正在写服务端：期间不采纳远端，免得被自己的回声打回去
+    const LS_SKEW = "kaoyan.pomo.skew.v1";
+    // 首屏缓存：刷新页面后不必等第一次同步就能用上校准值。24 小时有效，
+    // 和 clock.js 的 FRESH_MS 对齐（石英钟一天漂不到 1 秒，过了就重新问）。
+    (function loadSkew() {
+        const s = readJson(LS_SKEW);
+        if (s && Number.isFinite(s.skew) && Number.isFinite(s.at)) {
+            const age = Date.now() - s.at;
+            if (age >= 0 && age < 24 * 3600 * 1000) skew = s.skew;
+        }
+    })();
+    function saveSkew() { lsSet(LS_SKEW, JSON.stringify({ skew: skew, at: Date.now() })); }
+
+    // ⚠️ 往返中点补偿：server_now 是**服务端生成响应那一刻**的时间，不是本机收到时的。
+    //    墙外授时源 RTT 常有几百毫秒，直接 `v - Date.now()` 会把「本机慢 RTT/2」
+    //    当成真偏差吃进去（实测一次 361ms 的往返，一半就是 180ms 的固定误差）。
+    //    所以按 NTP 那套取中点：服务器那一刻 ≈ 本机 (t0+t1)/2，t0 由调用方在发请求前取。
     // ⚠️ 只有拿到**合法**的 server_now 才动 skew。老服务端 / 测试桩里没有这个字段时，
     //    若直接算 `undefined - Date.now()`，skew 会变成一个巨大的负数，全盘时间就废了。
-    function applyServerNow(t) {
+    function applyServerNow(t, t0, info) {
+        if (info && typeof info === "object") { clockInfo = info; renderClock(); }
         const v = Number(t);
-        if (Number.isFinite(v) && v > 0) skew = v - Date.now();
+        if (!Number.isFinite(v) || v <= 0) return;
+        const t1 = Date.now();
+        const half = (typeof t0 === "number" && t0 > 0 && t1 > t0) ? (t1 - t0) / 2 : 0;
+        const next = Math.round(v + half - t1);
+        if (Math.abs(next) > 24 * 3600 * 1000) return;   // 离谱值（脏数据 / 老服务端）不采纳
+        if (next === skew) return;
+        skew = next;
+        saveSkew();
+        renderClock();
     }
     function snapshot() {
         const seg = curSeg();
         return {
-            plan: { id: plan.id, work: plan.work, brk: plan.brk, rounds: plan.rounds, label: plan.label, note: plan.note },
+            plan: { id: plan.id, work: plan.work, brk: plan.brk, rounds: plan.rounds,
+                    label: plan.label, note: plan.note, up: !!plan.up },
             pos: pos, running: running, startedOnce: startedOnce,
             endAt: running ? endAt : 0,
             remain: running ? 0 : (seg ? Math.max(0, remain) : 0)
@@ -11298,6 +11360,7 @@ POMO_JS = '''
     }
     function pushRun(s) {
         pushing += 1;
+        const t0 = Date.now();
         fetch(API + "/api/pomodoro/state", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ run: {
@@ -11308,7 +11371,7 @@ POMO_JS = '''
         }).then(function (r) { return r.json(); }).then(function (d) {
             pushing -= 1;
             if (d && d.ok) {
-                applyServerNow(d.server_now);
+                applyServerNow(d.server_now, t0, d.clock);
                 if (d.run && d.run.server_updated) appliedUpdated = d.run.server_updated;
             }
         }).catch(function () { pushing -= 1; });
@@ -11348,9 +11411,10 @@ POMO_JS = '''
         return true;
     }
     function syncState() {
+        const t0 = Date.now();
         return fetch(API + "/api/pomodoro/state").then(function (r) { return r.json(); }).then(function (d) {
             if (!d || !d.ok) return false;
-            applyServerNow(d.server_now);
+            applyServerNow(d.server_now, t0, d.clock);
             if (d.today_stat) mergeToday(Object.assign({}, d.today_stat, { date: d.today || todayKey() }));
             if (Array.isArray(d.days)) days = d.days;
             lsSet(LS_DAY, JSON.stringify(day));
@@ -11376,7 +11440,7 @@ POMO_JS = '''
             if (running) { catchUp(true); }
         } else {
             const p = readJson(LS_PLAN);
-            const hit = p && presetById(p.id) ? presetById(p.id) : (p && p.work ? p : PRESETS[0]);
+            const hit = p && presetById(p.id) ? presetById(p.id) : (p && p.work ? p : defaultPreset());
             plan = buildPlan(hit);
             pos = 0; running = false; remain = segMs(plan.segs[0]); endAt = 0;
         }
@@ -11385,27 +11449,73 @@ POMO_JS = '''
         syncState();
     }
 
-    // 走完当前段并推进。byClock=按表走完（要记账、要响）；skip=手动跳过（不记）。
+    // 这一段还剩多少毫秒：跑着按墙钟算，暂停按冻结的 remain 算。
+    function leftMs(seg) {
+        if (!seg) return 0;
+        return running ? Math.max(0, endAt - Date.now()) : Math.max(0, remain);
+    }
+    // 这一段已经走过多少毫秒。倒计时/正计时本是同一个式子（段总长 − 剩余），
+    // 正计时多绕一道是因为它的 endAt 是「名义目标」而不是真的结束时刻：跑过目标
+    // 之后数字还得继续往上走，不能夹在目标上。
+    function elapsedMs(seg) {
+        if (!seg) return 0;
+        if (plan.up) {
+            return running ? Math.max(0, Date.now() - (endAt - segMs(seg)))
+                           : Math.max(0, segMs(seg) - remain);
+        }
+        return Math.max(0, segMs(seg) - leftMs(seg));
+    }
+    // 表盘 / 小窗 / 锁屏上该显示的数字：倒计时＝还剩多久，正计时＝已经走了多久。
+    function dispMs(seg) { return plan.up ? elapsedMs(seg) : leftMs(seg); }
+    // 当前段已经走过多少**整**分钟（提前结束 / 跳过按它记账）。
+    function elapsedMin() {
+        const s = curSeg();
+        return s ? Math.floor(elapsedMs(s) / 60000) : 0;
+    }
+    // 提前结束 / 跳过：把这一段已经专注的分钟数记进今日成绩。只记分钟、不计番茄
+    // （没跑完的段不算一个完整番茄）；不满 1 分钟没什么可记的（服务端 min 最小也是 1）；
+    // 休息段本来就不进成绩。返回实际记上的分钟数，好让调用方决定怎么措辞。
+    function creditPartial() {
+        const s = curSeg();
+        if (!s || s.kind !== "work") return 0;
+        const m = elapsedMin();
+        if (m < 1) return 0;
+        credit(m, 0);
+        return m;
+    }
+
+    // 走完当前段并推进。byClock=按表走完（记满额）；否则=手动跳过
+    // （跳过前先 creditPartial() 把已专注的分钟数记上，见 skip / stop）。
+    // 铃不在这儿响：一次补齐可能连推好几段，逐段响会连成一串噪音，统一交给 catchUp。
     function finishSeg(byClock) {
         const s = curSeg();
         if (!s) return;
         if (byClock && s.kind === "work") credit(s.min);
+        const prevEnd = endAt;                       // 上一段的结束时刻
         pos += 1;
         const nx = curSeg();
-        if (!nx) { running = false; endAt = 0; remain = 0; if (byClock) chime("done"); return; }
+        if (!nx) { running = false; endAt = 0; remain = 0; return; }
         remain = segMs(nx);
-        if (running) endAt = Date.now() + remain;
-        if (byClock) chime(s.kind === "work" ? "work" : "brk");
+        // ⚠️ 按表走完时，下一段紧接**上一段的结束时刻**，不是「发现它超时」的那一刻。
+        //    用 Date.now() 的话：后台被浏览器节流（心跳降到约 1 分钟一次）时每段都
+        //    被推后一截，整轮越拖越远；标签页被冻结时更糟——醒来只补得动一段，剩下
+        //    的全丢，用户看到的就是「后台不计时、一组结束又停在休息开头」。
+        //    手动跳过是「我现在不想等」，从此刻重新起表，不接旧时间轴。
+        if (running) endAt = (byClock && prevEnd) ? prevEnd + remain : Date.now() + remain;
     }
-    // 页面被关掉 / 电脑睡眠期间也可能整轮走完。刷新回来要一次补齐：
-    // 走完的专注段照常记成绩（人确实把那 45 分钟过完了），最后一声铃不追放。
+    // 页面被关掉 / 电脑睡眠 / 标签页被冻结期间也可能整轮走完。回来要一次补齐：
+    // 走完的专注段照常记成绩（人确实把那几段过完了）。
     function catchUp(fromLoad) {
-        let n = 0, ended = 0;
+        if (plan.up) return;                 // 正计时没有下一段，也没有「到点」
+        let n = 0, ended = 0, last = null;
         while (running && curSeg() && Date.now() >= endAt && n++ < 200) {
             const s = curSeg();
             if (s.kind === "work") ended += 1;
+            last = s.kind;
             finishSeg(true);
         }
+        // 补了几段就只响最后那一声：从后台回来一次补完三段，不该连炸三串铃。
+        if (n > 0) chime(curSeg() ? (last === "work" ? "work" : "brk") : "done");
         if (fromLoad && ended > 0) expiredNote = "上次关掉页面期间走完了 " + ended + " 个专注段，已照记。";
         if (!curSeg()) { running = false; }
         saveRun();
@@ -11598,8 +11708,8 @@ POMO_JS = '''
         + '      <div class="pm-actions">'
         + '        <button class="fs-btn pm-main-btn" id="pm-toggle">▶ 开始</button>'
         + '        <button class="fs-btn" id="pm-reset" title="回到第 1 段">↺ 重置</button>'
-        + '        <button class="fs-btn" id="pm-skip" title="跳过这一段（不计入今日成绩）">⏭ 跳过</button>'
-        + '        <button class="fs-btn" id="pm-stop" title="结束整个番茄钟">⏹ 结束</button>'
+        + '        <button class="fs-btn" id="pm-skip" title="跳过这一段（已专注的分钟数会记入今日，不计番茄）">⏭ 跳过</button>'
+        + '        <button class="fs-btn" id="pm-stop" title="结束整个番茄钟（已专注的分钟数会记入今日）">⏹ 结束</button>'
         + '      </div>'
         + '      <div class="pm-plan" id="pm-plan"></div>'
         + '      <div class="pm-next" id="pm-next"></div>'
@@ -11616,6 +11726,9 @@ POMO_JS = '''
         + '      </div>'
         + '      <div class="pm-hint">番茄钟是墙钟：切到别的窗口也照走（和闪卡那个「失焦即停」的学习计时是两回事）。'
         + '轮播背景在「设置 → 🍅 番茄钟」里配。<span class="pm-esc">按 Esc 退出全屏。</span></div>'
+        // 时间基准那一行：联网=外部标准时间校准过，离线=这台电脑的时钟。
+        // 做成按钮是因为它得能点（重新对时），但又不能抢戏——样式压得很轻。
+        + '      <button class="pm-clock" id="pm-clock" title="番茄钟的时间基准。点一下立刻重新对时"></button>'
         + '    </div>'
         + '  </div>'
         + '</div>';
@@ -11627,7 +11740,7 @@ POMO_JS = '''
         presets: $("pm-presets"), plan: $("pm-plan"), next: $("pm-next"), day: $("pm-day"),
         toggle: $("pm-toggle"), reset: $("pm-reset"), skip: $("pm-skip"), stop: $("pm-stop"),
         full: $("pm-full"), sound: $("pm-sound"),
-        miniBtn: $("pm-mini-btn"), pip: $("pm-pip"), media: $("pm-media"),
+        miniBtn: $("pm-mini-btn"), pip: $("pm-pip"), media: $("pm-media"), clock: $("pm-clock"),
         cwork: $("pm-cwork"), cbrk: $("pm-cbrk"), crounds: $("pm-crounds"),
         capply: $("pm-capply"), csave: $("pm-csave")
     };
@@ -11636,7 +11749,7 @@ POMO_JS = '''
         els.presets.innerHTML = allPresets().map(function (p) {
             const chip = '<button class="pm-chip' + (plan.id === p.id ? " on" : "") + '" data-preset="'
                 + esc(p.id) + '" title="' + esc(p.note) + '">' + esc(p.label)
-                + '<span class="pm-chip-n">' + p.rounds + " 段</span></button>";
+                + '<span class="pm-chip-n">' + (p.up ? "不计番茄" : p.rounds + " 段") + '</span></button>';
             if (p.id.indexOf("my:") !== 0) return chip;      // 内置的不带删除尾巴
             return '<span class="pm-chipw">' + chip + '<button class="pm-chip-x" data-del="'
                 + esc(p.id) + '" title="删除这个预设">✕</button></span>';
@@ -11666,26 +11779,113 @@ POMO_JS = '''
     }
 
     // ---- 绘制 ------------------------------------------------------------
-    function phaseName(s) { return s ? (s.kind === "work" ? "专注" : "休息") : "完成"; }
+    function phaseName(s) {
+        if (!s) return "完成";
+        if (plan.up) return "正计时";
+        return s.kind === "work" ? "专注" : "休息";
+    }
+    // 表盘进度：倒计时是「还剩多少 / 段总长」；正计时没有「头」，走到头就结束的
+    // 那种进度读不出来，改成一小时一圈（圆环 = 当前这一小时走了多少）。
+    // 小窗 / PiP 的进度条也读这个，三处口径必须一致，别各算各的。
+    function dispFrac(seg) {
+        if (!seg) return 1;
+        if (plan.up) return (elapsedMs(seg) % 3600000) / 3600000;
+        return 1 - leftMs(seg) / segMs(seg);
+    }
+    function ringFrac(seg) { return dispFrac(seg); }
+    // 小窗 / PiP / 锁屏上的阶段文案：正计时没有轮次，别硬套「第 1/1 轮」。
+    function phaseLine(seg) {
+        if (!seg) return "已完成";
+        const pre = running ? "" : "暂停 · ";
+        return plan.up ? (pre + "正计时")
+                       : (pre + phaseName(seg) + " 第 " + seg.round + "/" + plan.rounds + " 轮");
+    }
+    // ---- 时间基准（联网授时 / 离线本机时钟）----
+    // 措辞刻意分成两句：**在线**时讲「跟谁对过表、电脑差多少」；**离线**时讲
+    // 「就用这台电脑的时钟」。用户问的就是这个区别，别糊成一句「已校准」。
+    function fmtBias(ms) {
+        const a = Math.abs(ms);
+        const s = a < 10000 ? (Math.round(a / 100) / 10) + " 秒" : Math.round(a / 1000) + " 秒";
+        return " · 电脑" + (ms > 0 ? "慢" : "快") + " " + s;
+    }
+    function fmtAgo(ms) {
+        const m = Math.floor(Math.max(0, ms) / 60000);
+        if (m < 1) return "刚刚";
+        if (m < 60) return m + " 分钟前";
+        return Math.floor(m / 60) + " 小时前";
+    }
+    function fmtClockTxt(info) {
+        if (!info) return "时间基准 电脑时钟 · 尚未对时";
+        const src = info.source && info.source !== "system" ? info.source : "";
+        if (info.calibrated) {
+            return "时间基准 外部标准时间" + (src ? "（" + src + "）" : "")
+                + (Number.isFinite(info.offset_ms) && info.offset_ms !== 0 ? fmtBias(info.offset_ms) : "")
+                + " · " + fmtAgo(info.age_ms) + "对过表";
+        }
+        return "时间基准 电脑时钟 · " + (info.synced_at ? "上次对表已过期" : "离线，未对表")
+            + "（点此重试）";
+    }
+    let clockTxt = null;
+    function renderClock() {
+        const el = els.clock;
+        if (!el) return;
+        const txt = fmtClockTxt(clockInfo);
+        if (txt !== clockTxt) { clockTxt = txt; el.textContent = txt; }   // paint 4Hz，别每帧写 DOM
+        // 没在用外部标准时间（退回电脑时钟）时染提醒色；正在对表则压暗
+        el.classList.toggle("is-off", !(clockInfo && clockInfo.calibrated));
+        el.classList.toggle("is-busy", !!(clockInfo && clockInfo.syncing));
+    }
+    if (els.clock) els.clock.addEventListener("click", function () {
+        const el = els.clock;
+        if (el.classList.contains("is-busy")) return;
+        el.classList.add("is-busy");
+        const t0 = Date.now();
+        fetch(API + "/api/time", { method: "POST", headers: { "Content-Type": "application/json" },
+                                   body: JSON.stringify({ force: 1 }) })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                const st = d || {};
+                if (d && d.throttled) {
+                    toast("刚对过时，1 分钟内不重复问授时源");
+                } else {
+                    clockInfo = st; renderClock(); paint();
+                    toast(st.calibrated
+                        ? "已对齐外部标准时间（" + (st.source || "") + "）"
+                        : "授时源暂不可达，仍用电脑时钟；可稍后再试");
+                }
+                // 授时源返回的 now 是标准时间：顺势把 skew 重算一遍
+                if (Number.isFinite(Number(st.now)) && Number(st.now) > 0) {
+                    const next = Math.round(Number(st.now) + ((Date.now() - t0) / 2) - Date.now());
+                    if (Math.abs(next) <= 24 * 3600 * 1000) { skew = next; saveSkew(); }
+                }
+            })
+            .catch(function () { toast("对时失败：服务端不可达"); })
+            .finally(function () { el.classList.remove("is-busy"); });
+    });
+
     function paint() {
         const seg = curSeg();
-        const left = seg ? (running ? Math.max(0, endAt - Date.now()) : Math.max(0, remain)) : 0;
-        els.time.textContent = seg ? fmtMs(left) : "00:00";
+        const shown = dispMs(seg);
+        els.time.textContent = seg ? fmtMs(shown) : "00:00";
         host.classList.toggle("pm-brk", !!seg && seg.kind === "brk");
         host.classList.toggle("pm-done", !seg);
         host.classList.toggle("pm-pause", !running);
+        host.classList.toggle("pm-up", !!plan.up);
 
         let ph;
         if (!seg) ph = "全部完成 🎉";
+        else if (plan.up) ph = (running ? "" : (startedOnce ? "已暂停 · " : "准备开始 · "))
+            + "正计时 · 不计番茄";
         else if (running) ph = phaseName(seg) + " · 第 " + seg.round + "/" + plan.rounds + " 轮";
         else ph = (startedOnce ? "已暂停 · " : "准备开始 · ") + phaseName(seg) + " 第 " + seg.round + "/" + plan.rounds + " 轮";
         els.phase.textContent = expiredNote && !seg ? expiredNote : ph;
 
-        const p = seg ? (1 - left / segMs(seg)) : 1;
+        const p = ringFrac(seg);
         els.ring.style.strokeDasharray = String(RING);
         els.ring.style.strokeDashoffset = String(RING * (1 - Math.max(0, Math.min(1, p))));
 
-        els.dots.innerHTML = plan.segs.filter(function (s) { return s.kind === "work"; }).map(function (s) {
+        // 正计时没有「第几轮」这回事，那排轮次点就不摆出来了
+        els.dots.innerHTML = plan.up ? "" : plan.segs.filter(function (s) { return s.kind === "work"; }).map(function (s) {
             const done = s.round < (curSeg() ? curSeg().round : plan.rounds + 1);
             const now = !!curSeg() && curSeg().kind === "work" && curSeg().round === s.round;
             return '<span class="pm-dot' + (done ? " ok" : "") + (now ? " now" : "") + '"></span>';
@@ -11694,18 +11894,27 @@ POMO_JS = '''
         els.toggle.textContent = running ? "⏸ 暂停" : (seg ? (startedOnce ? "▶ 继续" : "▶ 开始") : "▶ 再来一轮");
         // 「结束」只在真有一轮在跑/暂停中时出现：待开始和已完成都没有可结束的东西
         els.stop.hidden = !(startedOnce && seg);
-        els.plan.innerHTML = esc(plan.label) + ' <span class="pm-cu">· 共 '
-            + fmtMin(plan.totalMin) + '（专注 ' + fmtMin(plan.workMin) + '）</span>';
+        // 正计时没有下一段，「跳过」无从谈起，藏掉免得点出一个空动作
+        els.skip.hidden = !!plan.up;
+        els.plan.innerHTML = esc(plan.label) + ' <span class="pm-cu">· '
+            + (plan.up ? "不设结束时间，停下时按已专注的整分钟数记账"
+                       : "共 " + fmtMin(plan.totalMin) + "（专注 " + fmtMin(plan.workMin) + "）")
+            + '</span>';
         const nx = pos + 1 < plan.segs.length ? plan.segs[pos + 1] : null;
-        els.next.textContent = !seg
-            ? (expiredNote || "这一轮已经跑完，换个预设或再来一次。")
-            : (running || pos > 0
-                ? "这一段：" + phaseName(seg) + " " + seg.min + " 分钟"
-                  + (nx ? " · 接下来：" + phaseName(nx) + " " + nx.min + " 分钟"
-                        : " · 之后就收工了")
-                : "共 " + plan.segs.length + " 段 · 第一段：" + phaseName(seg) + " " + seg.min + " 分钟");
+        els.next.textContent = plan.up
+            ? ((running || startedOnce)
+                ? "正计时：已经专注 " + fmtMin(elapsedMin()) + "，点「结束」把整分钟数记入今日。"
+                : "正计时：想记多久记多久，不设结束时间；停下时按已专注的整分钟数记账。")
+            : (!seg
+                ? (expiredNote || "这一轮已经跑完，换个预设或再来一次。")
+                : (running || pos > 0
+                    ? "这一段：" + phaseName(seg) + " " + seg.min + " 分钟"
+                      + (nx ? " · 接下来：" + phaseName(nx) + " " + nx.min + " 分钟"
+                            : " · 之后就收工了")
+                    : "共 " + plan.segs.length + " 段 · 第一段：" + phaseName(seg) + " " + seg.min + " 分钟"));
         const d = day;
         els.day.innerHTML = "今日 <b>" + d.pomos + "</b> 个番茄 · 专注 <b>" + fmtMin(d.min) + "</b>" + (d.min ? "" : "（还没记上）");
+        renderClock();     // 「N 分钟前对过表」这种相对时间得跟着走，否则一直停在「刚刚」
         els.sound.textContent = muted ? "🔕 提示音" : "🔔 提示音";
         els.sound.classList.toggle("is-off", muted);
         // 小窗 / 系统小窗 / 锁屏 三颗按钮：不支持的直接藏起来（别给个按了没用的键）
@@ -11740,7 +11949,7 @@ POMO_JS = '''
         // 标题栏挂倒计时只在「有一轮在进行中」时才抢：刚打开大盘、一轮都没开始，
         // 就把别人的标题改掉是越权。
         document.title = seg && (running || startedOnce)
-            ? (running ? "▶ " : "⏸ ") + fmtMs(left) + " " + phaseName(seg) + " · " + BASE_TITLE
+            ? (running ? "▶ " : "⏸ ") + fmtMs(dispMs(seg)) + " " + phaseName(seg) + " · " + BASE_TITLE
             : (!seg && startedOnce ? "🍅 番茄钟完成 · " + BASE_TITLE : BASE_TITLE);
     }
 
@@ -11778,14 +11987,23 @@ POMO_JS = '''
         saveRun(); paint();
     }
     function stop() {
-        if (!confirm("结束这个番茄钟？当前这一段不计入今日成绩。")) return;
+        const s = curSeg();
+        const m = s && s.kind === "work" ? elapsedMin() : 0;
+        if (!confirm("结束这个番茄钟？" + (m >= 1
+            ? "当前这一段已经专注的 " + m + " 分钟会记入今日成绩（不算一个番茄）。"
+            : "当前这一段还没专注满 1 分钟，就不计成绩了。"))) return;
+        creditPartial();                             // 已专注的分钟数照记
         pos = plan.segs.length; running = false; endAt = 0; remain = 0; startedOnce = false;
         lsDel(LS_RUN);
+        // 这一轮结束了要告诉服务端（normPomoRun 会把「没有下一段」存成 running:false）。
+        // 不推的话别的设备还看到这一段在跑，到点会把同一段又记一遍。
+        pushRun(snapshot());
         paint();
     }
     function skip() {
         if (!curSeg()) return;
-        finishSeg(false);                            // 手动跳过不记成绩
+        creditPartial();                             // 已专注的分钟数照记（不计番茄）
+        finishSeg(false);                            // 推进到下一段
         saveRun(); paint();
     }
 
@@ -11926,7 +12144,7 @@ POMO_JS = '''
             + '<div class="pm-mini-bar"><i data-f="bar"></i></div>'
             + '<div class="pm-mini-row">'
             + '<button class="pm-mini-btn go" data-act="toggle" title="开始 / 暂停">\\u25B6</button>'
-            + '<button class="pm-mini-btn" data-act="skip" title="跳过这一段（不计成绩）">\\u23ED</button>'
+            + '<button class="pm-mini-btn" data-act="skip" title="跳过这一段（已专注的分钟数会记入今日）">\\u23ED</button>'
             + '<button class="pm-mini-btn" data-act="full" title="回到全屏沉浸">\\u26F6</button>'
             + '<button class="pm-mini-btn" data-act="pip" title="跳出浏览器：开一个独立置顶小窗（桌面版 Chrome / Edge）" hidden>\\u2197</button>'
             + '</div>'
@@ -12012,15 +12230,15 @@ POMO_JS = '''
         if (pop) pop.hidden = !pipSupported();
         if (!want) return;
         const seg = curSeg();
-        const left = seg ? (running ? Math.max(0, endAt - Date.now()) : Math.max(0, remain)) : 0;
-        const pct = seg ? Math.round(100 * (1 - left / segMs(seg))) : 100;
-        setField(miniEl, "time", seg ? fmtMs(left) : "00:00");
-        setField(miniEl, "phase", !seg ? "已完成"
-            : (running ? "" : "暂停 · ") + phaseName(seg) + " 第 " + seg.round + "/" + plan.rounds + " 轮");
+        setField(miniEl, "time", seg ? fmtMs(dispMs(seg)) : "00:00");
+        setField(miniEl, "phase", phaseLine(seg));
         miniEl.classList.toggle("pm-pause", !running);
         miniEl.classList.toggle("pm-mini-brk", !!seg && seg.kind === "brk");
+        // 正计时没有「下一段」，小窗上的跳过键也就没意义，跟着藏掉
+        const sk = miniEl.querySelector('[data-act="skip"]');
+        if (sk) sk.hidden = !!plan.up;
         const bar = miniEl.querySelector('[data-f="bar"]');
-        if (bar && bar.style) bar.style.width = Math.max(0, Math.min(100, pct)) + "%";
+        if (bar && bar.style) bar.style.width = Math.round(100 * Math.max(0, Math.min(1, dispFrac(seg)))) + "%";
         const tg = miniEl.querySelector('[data-act="toggle"]');
         if (tg) tg.textContent = running ? "\\u23F8" : "\\u25B6";
         const opv = miniEl.querySelector('[data-act="op"]');
@@ -12113,13 +12331,13 @@ POMO_JS = '''
         if (!pipWin || pipWin.closed) return;
         const doc = pipWin.document;
         const seg = curSeg();
-        const left = seg ? (running ? Math.max(0, endAt - Date.now()) : Math.max(0, remain)) : 0;
         if (!doc || !doc.querySelector) return;
-        setField(doc, "time", seg ? fmtMs(left) : "00:00");
-        setField(doc, "phase", !seg ? "已完成"
-            : (running ? "" : "暂停 · ") + phaseName(seg) + " 第 " + seg.round + "/" + plan.rounds + " 轮");
+        setField(doc, "time", seg ? fmtMs(dispMs(seg)) : "00:00");
+        setField(doc, "phase", phaseLine(seg));
+        const sk = doc.querySelector('[data-act="skip"]');
+        if (sk) sk.hidden = !!plan.up;
         const bar = doc.querySelector('[data-f="bar"]');
-        if (bar && bar.style) bar.style.width = (seg ? Math.round(100 * (1 - left / segMs(seg))) : 100) + "%";
+        if (bar && bar.style) bar.style.width = Math.round(100 * Math.max(0, Math.min(1, dispFrac(seg)))) + "%";
         const tg = doc.querySelector('[data-act="toggle"]');
         if (tg) tg.textContent = running ? "\\u23F8" : "\\u25B6";
         // 透明度滑杆：PiP 里也放出来了，得跟着 mini.op 走
@@ -12228,21 +12446,25 @@ POMO_JS = '''
         const now = Date.now();
         if (!force && sig === mediaSig && now - mediaAt < 900) return;
         mediaAt = now; mediaSig = sig;
-        const left = seg ? (running ? Math.max(0, endAt - Date.now()) : Math.max(0, remain)) : 0;
+        // 正计时的 endAt 是「名义目标」不是真结束时刻，锁屏上照样按已走多久显示，
+        // 进度条用「已走 / 名义总长」——和表盘、小窗同一套口径（dispFrac）。
         const dur = seg ? segMs(seg) / 1000 : 0;
+        const posSec = seg ? (plan.up ? elapsedMs(seg) / 1000 : dur - leftMs(seg) / 1000) : 0;
         try {
             const MS = navigator.mediaSession;
             MS.playbackState = running ? "playing" : (startedOnce && seg ? "paused" : "none");
             if (typeof window.MediaMetadata === "function") {
                 MS.metadata = new window.MediaMetadata({
-                    title: seg ? (phaseName(seg) + " " + fmtMs(left)) : "番茄钟已完成",
-                    artist: "第 " + (seg ? seg.round : plan.rounds) + "/" + plan.rounds + " 轮 · "
-                        + (running ? "计时中" : (seg ? "已暂停" : "结束")),
+                    title: seg ? (phaseName(seg) + " " + fmtMs(dispMs(seg))) : "番茄钟已完成",
+                    artist: plan.up
+                        ? (running ? "正计时中" : (seg ? "已暂停" : "结束"))
+                        : ("第 " + (seg ? seg.round : plan.rounds) + "/" + plan.rounds + " 轮 · "
+                           + (running ? "计时中" : (seg ? "已暂停" : "结束"))),
                     album: "改造我们的学习 · 番茄钟",
                 });
             }
             if (seg && MS.setPositionState && dur > 0) {
-                MS.setPositionState({ duration: dur, position: Math.max(0, Math.min(dur, dur - left / 1000)), playbackRate: 1 });
+                MS.setPositionState({ duration: dur, position: Math.max(0, Math.min(dur, posSec)), playbackRate: 1 });
             }
         } catch (e) { /* 浏览器不支持某个字段就跳过，别影响计时 */ }
     }
@@ -12882,7 +13104,7 @@ SHELL_JS = '''
                   ? " ※ 番茄记录只读到近 14 天：本地服务没起，或是还在跑不认识 ?days=42 的旧版——"
                     + "重启「考研复习服务」后就能铺满 5 周。" : "")
             : "曲线是每天的专注时长；圆点下面那格是当天的打卡状态（绿＝已打卡 · 蓝＝有复习没打卡）。"
-              + "跑完一段专注自动计一个，跳过或中途结束不计。";
+              + "跑完一段专注自动计一个番茄；跳过或中途结束只记已专注的分钟数，不计番茄。";
 
         strip.innerHTML = head + kpis + '<div class="strip-view">'
             + (view === "month" ? monthHtml(byDay, mk) : weekHtml(byDay, mk)) + "</div>"

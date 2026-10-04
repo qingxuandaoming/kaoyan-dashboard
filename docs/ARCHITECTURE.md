@@ -78,6 +78,7 @@
 | 模块 | 职责 |
 |---|---|
 | `serve.js` | HTTP 服务：静态白名单 + `/tools/katex/` 离线依赖 + 全部 `/api` |
+| `clock.js` | 时间校准：联网问外部授时源（往返中点补偿），离线用本机时钟；落盘 `time_cal.json` |
 | `grade_llm.js` | 简答题 AI 判分（Key 只在服务端，绝不下发、也不写进 `dashboard.html`） |
 | `fsrs_core.js` | `cards` 行 ↔ `ts-fsrs` Card 结构互转 |
 | `review_store.js` | 错题复盘的会话读写 |
@@ -132,6 +133,7 @@ FLASH → REVIVE → NOTEQ → TASK → SETTINGS → POMO → SHELL → MR → R
 | 笔记 | `/api/notes/{search,preview,asset,touch,ask,qa}` |
 | 错题复盘 | `/api/review/{session,overview,errors,extract,upload,upload-pdf,chat}` |
 | 番茄钟 | `/api/pomodoro/{state,credit}` |
+| 时间校准 | `/api/time`（GET 读状态 / POST `{force:1}` 立刻重问授时源） |
 | 早间回顾 | `/api/morning-review/{overview,day,queue,checkin,sr}` |
 | 任务 | `/api/tasks{,/add,/done,/delete}` |
 | 设置 | `/api/settings{,/apikey,/background…}`、`/api/lan-info` |

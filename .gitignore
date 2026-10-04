@@ -49,6 +49,8 @@ question_bank.db*
 backups/
 sync_state.json
 note_reviews.json
+# 时间校准记录：本机时钟偏差 + 上次对时时刻，纯本机状态，换台机器就是另一份
+time_cal.json
 
 # ---------- 本地数据库备份（含私人学习数据，绝不上传）----------
 _bak_*.db
