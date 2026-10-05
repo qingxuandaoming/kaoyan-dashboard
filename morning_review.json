@@ -4,15 +4,15 @@
   "migrated_at": "2026-09-15T09:54:30.911Z",
   "note": "由 _extract_review.js 一次性迁移生成；此后由 morning-review 工作流直接维护本文件，不再回写 HTML。",
   "meta": {
-    "days": 25,
+    "days": 26,
     "first_date": "2026-06-19",
-    "last_date": "2026-10-05",
-    "review_items": 111,
-    "quiz_items_unused": 92,
+    "last_date": "2026-10-06",
+    "review_items": 116,
+    "quiz_items_unused": 94,
     "english_days": 9,
     "flashcard_cards": 30,
     "flashcard_start_date": "2026-07-07",
-    "math_items": 47,
+    "math_items": 49,
     "note": ""
   },
   "days": {
@@ -4509,6 +4509,164 @@
             "noteLink": {
               "name": "第15讲_微分方程.md",
               "path": "E:/NPEE/Math/高数/第15讲_微分方程.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-10-06": {
+      "date": "2026-10-06",
+      "weekday": "周二",
+      "studied": true,
+      "subject": "英语·作文批改三条复现错因 ｜ 政治·分析题采分点三条硬规则 ｜ 408·中断的两个优先级 ｜ 高数·缺项幂级数与旋转曲面",
+      "review": [
+        {
+          "id": "eng-spell-hardhit",
+          "badges": [
+            "英语一",
+            "作文批改"
+          ],
+          "title": "拼写硬伤：7 篇批改篇篇命中，唯一「零思考成本」的提分项",
+          "body": "今天把 7 篇作文（大作文 4 ＋ 小作文 3）的批改结果并进《批改得分总表》，跨篇统计里<strong>只有一类错因是 7/7 全覆盖</strong>——把单词拼错。反复写错的这批词：phenomenon、destroy、control、reckless、interaction / interactive、confidence、historic、humanity、development、special、truly、interesting、scared、experience、receive、writing、sincerely、valuable、expected、instance。",
+          "list": [
+            "① 三个最常错的「陷阱位」：experi<strong>ence</strong>（不是 experiance）、re<strong>c</strong>eive（i 在 e 前，但 c 后例外）、tr<strong>u</strong>ly（true 去 e 再加 ly）。",
+            "② 这批词已经出成 24 张 <code>spell</code> 卡（知识点 ENG-WRITE-03-04），是系统里第一个<strong>可输入答案</strong>的题型——闪卡页输入英文单词、回车提交，差一个字母会给「近错」提示。",
+            "③ 它不需要新知识：密度从 6 月的 12.1 回落到 10 月的 17.6，不是因为忘了语法，是因为中断近 4 个月后<strong>拼写自检没保持住</strong>。"
+          ],
+          "conclusion": "两条动作：写的时候拿不准就换成有把握的同义词；交卷前专门留 1 分钟只扫拼写，不看内容。",
+          "noteLink": {
+            "name": "批改得分总表.md",
+            "path": "E:/NPEE/English/translation&writing/作文/批改得分总表.md"
+          }
+        },
+        {
+          "id": "eng-predicate-scan",
+          "badges": [
+            "英语一",
+            "作文批改"
+          ],
+          "title": "写完逐句扫一遍谓语：主谓一致 ＋ be 动词，两条合计命中 9 篇次",
+          "body": "复现错因第 2、5 位：<strong>主谓一致</strong>（第三人称单数漏 -s）5/7 篇、<strong>be 动词丢失或重复</strong> 4/7 篇。原句样本：is so many ship ｜ that depict ｜ our country have ｜ Picture show ｜ pepoles has became ｜ we scard that ｜ I sorry ｜ But is turly has been（一句里两个 be）。",
+          "list": [
+            "① <strong>数谓语</strong>：一句里有几个谓语动词？出现两个 → 要么删一个，要么加连词。错例：love is stay by sideways ｜ it is really make they feel。",
+            "② <strong>对主语</strong>：主语单数，谓语就加 -s。our country have → has；Picture show → shows。",
+            "③ <strong>查形容词前</strong>：形容词作表语前面必须有 be。we scard that → we were scared that；I sorry → I am sorry。"
+          ],
+          "conclusion": "这三步是<strong>扫描动作</strong>不是新知识——每写完一篇，逐句走一遍，零成本。",
+          "noteLink": {
+            "name": "批改得分总表.md",
+            "path": "E:/NPEE/English/translation&writing/作文/批改得分总表.md"
+          }
+        },
+        {
+          "id": "eng-app-letter-format",
+          "badges": [
+            "英语一",
+            "作文批改"
+          ],
+          "title": "应用文格式：称呼 / 敬语 / 落款，3 篇里 3 篇都在这三个位置丢分",
+          "body": "小作文 10 分制，格式是「会写也要丢」的那一类。已批的 3 篇应用文——2005 辞职信 4 分、2008 道歉信 5 分、2006 助学信 6 分——<strong>每篇都有 2 处格式错</strong>。",
+          "list": [
+            "① <strong>称呼</strong>：Dear commission: ✗ ——不知道收信人就写 <code>Dear Sir or Madam,</code>；知道就写 <code>Dear Mr. Wang,</code>。是<strong>逗号</strong>不是冒号；整篇没有称呼是直接扣。",
+            "② <strong>敬语</strong>：Yours sencerely ✗ / Yours sensevely ✗ ——正确写法只有 <code>Yours sincerely,</code>（注意拼写），首字母大写。",
+            "③ <strong>落款</strong>：by yours Li Ming. ✗ ——正确是敬语独占一行、<strong>下一行</strong>单独写 <code>Li Ming</code>，不跟敬语同行、末尾不加句号。"
+          ],
+          "conclusion": "背死三行骨架：Dear X, ⏎ 正文 ⏎ Yours sincerely, ⏎ Li Ming。改起来最快、提分最明显。",
+          "noteLink": {
+            "name": "批改得分总表.md",
+            "path": "E:/NPEE/English/translation&writing/作文/批改得分总表.md"
+          }
+        },
+        {
+          "id": "pol-analysis-3rules",
+          "badges": [
+            "政治",
+            "简答题"
+          ],
+          "title": "分析题三条硬规则：分不在背得多，在写对位置",
+          "body": "2021.34（马原，10 分）按采分点拆开实测：<strong>教材原文 ≈ 25%、材料改写 ≈ 10%、原理定位与套用 ≈ 65%</strong>。也就是说马原大题的分几乎全押在「认得出该用哪个原理」上，而不是默写量。",
+          "list": [
+            "① <strong>术语前置，先命名再展开</strong>：阅卷按术语采点。「孕育着新机」不是原理，「<strong>可能与现实</strong>」才是。写法：材料原话 → 这体现了【术语】 → 展开术语 → 回到材料。",
+            "② <strong>问「关系」必须双向＋收口</strong>：A→B ＋ B→A ＋ 一句「两者相辅相成／辩证统一」。这次只写了单向，白丢 1 分——这是马原最普遍的失分模式，且改起来零成本。",
+            "③ <strong>多点薄铺，靠清单不靠灵感</strong>：头脑里要有一套完整原理清单逐条与材料比对。这次漏掉的正是<strong>辩证法五对范畴</strong>：原因与结果、必然与偶然、<strong>可能与现实</strong>、内容与形式、现象与本质。"
+          ],
+          "conclusion": "还有一条知识性红线：规律只能被尊重／利用，<strong>不能说「发挥规律」</strong>——宁可不写，也不能写错。",
+          "noteLink": {
+            "name": "分析题采分点结构表.md",
+            "path": "E:/NPEE/Politics/简答题/分析题采分点结构表.md"
+          }
+        },
+        {
+          "id": "co-int-two-priorities",
+          "badges": [
+            "408",
+            "计组"
+          ],
+          "title": "中断的两个「优先级」，以及关中断到底由谁来做",
+          "body": "这两条最容易反着记。中断优先级 = <strong>响应优先级 ＋ 处理优先级</strong>，而<strong>中断屏蔽字改变的是处理优先级</strong>。",
+          "list": [
+            "① <strong>响应优先级</strong>：由中断查询程序或中断判优电路决定 —— 多个中断<strong>同时请求</strong>时谁先被响应，决定各中断服务程序<strong>开始</strong>执行的顺序。",
+            "② <strong>处理优先级</strong>：由屏蔽字决定 —— 本中断<strong>能不能打断</strong>正在执行的中断服务程序，决定多个服务程序<strong>执行完</strong>的次序（低优先级会被屏蔽）。",
+            "③ <strong>关中断</strong>：允许中断触发器置 0 即关中断；在<strong>中断响应周期</strong>由<strong>中断隐指令</strong>（硬件自动）完成。而恢复现场、恢复屏蔽字时的关中断，是由<strong>关中断指令</strong>完成的——两个场景，两种主体。"
+          ],
+          "conclusion": "一句话判据：「同时到、谁先上」看响应优先级；「已经在跑、谁能打断它」看处理优先级（屏蔽字）。",
+          "noteLink": {
+            "name": "计算机组成原理强化.md",
+            "path": "E:/NPEE/408/计算机组成原理强化.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "q-eng-topic-3steps",
+          "question": "图画作文动笔前必须先走的<strong>审题三步</strong>是哪三步？为什么说 2002（11 分）与 2005（7 分）差的 4 分主要不在语法？",
+          "answer": "三步：<br>① 图里有什么<strong>具体信息</strong>（数字 / 文字 / 人物）；<br>② 两图的<strong>共同点</strong>就是寓意；<br>③ <strong>我赞成还是反对</strong>——立场必须明确。<br><br>总表的判断：这是 2002 与 2005 拉开 4 分的<strong>主因，不是语法</strong>。两篇的错误密度其实接近（12.1 与 17.6），差别在<strong>立意准不准、结构清不清</strong>。<br>顺带一条：<strong>字数从来不是加分项，只是门槛</strong>——2001 写了 238 词（超 19%），却是四篇图画里错误最多的一篇。",
+          "noteLink": {
+            "name": "批改得分总表.md",
+            "path": "E:/NPEE/English/translation&writing/作文/批改得分总表.md"
+          }
+        },
+        {
+          "id": "q-os-pc-wakeup",
+          "question": "生产者-消费者问题里<strong>谁能唤醒谁</strong>？V(mutex) 唤醒的又是谁？三个信号量的初值分别是多少？",
+          "answer": "① 生产者做完 <code>V(full)</code> 唤醒<strong>消费者</strong>——缓冲区多了一个产品，来取货；<br>② 消费者做完 <code>V(empty)</code> 唤醒<strong>生产者</strong>——多了一个空位，来放货；<br>③ <code>V(mutex)</code> <strong>只释放临界区</strong>，唤醒的是「等待进入临界区的<strong>任意</strong>进程」（可能是生产者也可能是消费者），它不承担数据同步。<br><br>初值：<code>mutex = 1</code>（互斥，二元）、<code>empty = n</code>（空位数＝缓冲区大小）、<code>full = 0</code>（初始无产品）。<br>一句话本质：V(full) 摇铃叫人来取货，V(empty) 摇铃叫人来放货，V(mutex) 只是开门让下一个人进房间、不管是谁。",
+          "noteLink": {
+            "name": "第2章_进程管理.md",
+            "path": "E:/NPEE/408/OS/第2章_进程管理.md"
+          }
+        }
+      ],
+      "math": {
+        "id": "sec-math",
+        "points": [
+          {
+            "id": "math-gs16-missing-term",
+            "type": "trap",
+            "badges": [
+              "高数",
+              "无穷级数"
+            ],
+            "title": "缺项幂级数禁用系数比公式",
+            "body": "求收敛半径的标准公式 R = lim |a_n / a_{n+1}|（或根值 R = 1 / lim ⁿ√|a_n|）<strong>只对不缺项的幂级数成立</strong>。<br>遇到系数隔项非零的缺项形式（x^{2n}、x^{2n+1} 型）：此时 a_{n+1} = 0，系数比公式直接失去意义 → 必须<strong>回到通项</strong>，解 lim |u_{n+1}(x) / u_n(x)| &lt; 1 求成立的 |x| 范围；或者<strong>换元</strong> t = x^k 化回标准形式，再套系数比公式。",
+            "conclusion": "先看幂次连不连续：系数只有隔项非零，就别套系数公式——这一步 10 秒，省一道题。",
+            "noteLink": {
+              "name": "第16讲_无穷级数.md",
+              "path": "E:/NPEE/Math/高数/第16讲_无穷级数.md"
+            }
+          },
+          {
+            "id": "math-gs17-rot-surface",
+            "type": "knowledge",
+            "badges": [
+              "高数",
+              "多元函数积分学"
+            ],
+            "title": "旋转曲面：谁不转就留谁，另一个换成平方和开根号",
+            "body": "考研<strong>只考</strong>坐标面内的曲线绕<strong>坐标轴</strong>旋转。设母线在 yOz 面：<br>① 绕 z 轴：z <strong>不变</strong>，y 换成 ±√(x^2 + y^2)；<br>② 绕 y 轴：y <strong>不变</strong>，z 换成 ±√(x^2 + z^2)。<br>三条速记：y^2 = 2pz 绕 z 轴 → x^2 + y^2 = 2pz（旋转抛物面）｜y = kz 绕 z 轴 → x^2 + y^2 = k^2 z^2（圆锥面）｜椭圆 y^2/a^2 + z^2/b^2 = 1 绕 z 轴 → (x^2 + y^2)/a^2 + z^2/b^2 = 1（旋转椭球面）。",
+            "conclusion": "最高频的错是「绕 z 轴却把 z 也换了」——下笔先把转轴那个字母圈出来，它一个字都不动。",
+            "noteLink": {
+              "name": "第17讲_多元函数积分学的预备知识.md",
+              "path": "E:/NPEE/Math/高数/第17讲_多元函数积分学的预备知识.md"
             }
           }
         ]
