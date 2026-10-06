@@ -4,15 +4,15 @@
   "migrated_at": "2026-09-15T09:54:30.911Z",
   "note": "由 _extract_review.js 一次性迁移生成；此后由 morning-review 工作流直接维护本文件，不再回写 HTML。",
   "meta": {
-    "days": 26,
+    "days": 27,
     "first_date": "2026-06-19",
-    "last_date": "2026-10-06",
-    "review_items": 116,
-    "quiz_items_unused": 94,
+    "last_date": "2026-10-07",
+    "review_items": 121,
+    "quiz_items_unused": 97,
     "english_days": 9,
     "flashcard_cards": 30,
     "flashcard_start_date": "2026-07-07",
-    "math_items": 49,
+    "math_items": 51,
     "note": ""
   },
   "days": {
@@ -4667,6 +4667,187 @@
             "noteLink": {
               "name": "第17讲_多元函数积分学的预备知识.md",
               "path": "E:/NPEE/Math/高数/第17讲_多元函数积分学的预备知识.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-10-07": {
+      "date": "2026-10-07",
+      "weekday": "周三",
+      "studied": true,
+      "subject": "英语·词义辨析（捏造/协作） ｜ 408·临界区调度与TCP计时器 ｜ 政治·资本主义基本矛盾 ｜ 高数·积分与中值定理的信号路由",
+      "review": [
+        {
+          "id": "d07-eng-polarity-by-object",
+          "badges": [
+            "英语",
+            "词义辨析"
+          ],
+          "title": "捏造类动词的褒贬，由<strong>宾语</strong>决定",
+          "body": "同一个 <code>fabricate</code>，宾语是<strong>物/产品/流程</strong>就是中性的「制造」，宾语是<strong>证据/数据/借口/身份/罪名</strong>才是贬义的「捏造」。一句话：<strong>看宾语，不看词</strong>。",
+          "list": [
+            "fabricate a chip（造芯片，中性）／ fabricate data（造数据，学术造假，高频）",
+            "forge 只接<strong>文书或实物</strong>：document / signature / passport / will / money",
+            "frame 的对象是<strong>人</strong>（was framed for murder）；trump up 只接 charges / accusations",
+            "devise ＝ 设计、想出（计划/方案/装置），<strong>纯中性</strong>，真题常把它当「捏造」的干扰项"
+          ],
+          "conclusion": "先问「宾语是什么」再判褒贬；<code>devise</code> 永远不是贬义词。",
+          "noteLink": {
+            "name": "第309节_捏造编造.md",
+            "path": "E:/NPEE/English/word&phrase/辨析/第309节_捏造编造.md"
+          }
+        },
+        {
+          "id": "d07-eng-collab-enemy",
+          "badges": [
+            "英语",
+            "词义辨析"
+          ],
+          "title": "collaboration 的第二个义项：<strong>通敌</strong>",
+          "body": "<code>cooperation</code> 是「各干各的、对接得上」，可以只是<strong>不拆台</strong>（消极配合）；<code>collaboration</code> 是「一起下手做同一件事」，成果通常<strong>共有</strong>（合著、联名）。正因为它强调<strong>亲自下场</strong>，才长出了贬义——<strong>与占领军合作的人</strong>。<strong>cooperation 没有这个义项</strong>。",
+          "list": [
+            "国家/条约/项目对接 → cooperation（in cooperation with）",
+            "合著论文、联合研发 → collaboration（collaborate with sb on sth）",
+            "二战题材阅读里 <code>collaborator</code> ＝ <strong>通敌者</strong>，不是「同事」",
+            "派生：cooperative 说<strong>态度</strong>（肯配合的同事）；collaborative 说<strong>属性</strong>（协作型项目）"
+          ],
+          "conclusion": "阅读里见到 collaboration / collaborator，先问一句「是不是在说通敌」。",
+          "noteLink": {
+            "name": "第403节_合作协作.md",
+            "path": "E:/NPEE/English/word&phrase/辨析/第403节_合作协作.md"
+          }
+        },
+        {
+          "id": "d07-os-critical-sched",
+          "badges": [
+            "408",
+            "操作系统"
+          ],
+          "title": "进程在临界区里，<strong>能</strong>被调度吗？——只有「内核临界区」不能",
+          "body": "「在临界区」不等于「占着 CPU 不放」。若它在临界区里<strong>请求一个需要等待的资源</strong>（打印机、I/O），它会<strong>主动放弃</strong>处理器，这时调度照常发生。真正禁止调度的是<strong>操作系统内核程序的临界区</strong>——在里面切换会改坏内核数据结构。",
+          "list": [
+            "<strong>可以</strong>调度：主动放弃 CPU（阻塞 I/O、wait/sleep）／时间片用完／中断或系统调用<strong>返回用户态之前</strong>／抢占式内核里有更高优先级进程就绪",
+            "<strong>不能</strong>调度：中断处理过程中／内核临界区中／原子操作过程中"
+          ],
+          "conclusion": "判据是「会不会破坏内核数据结构」——用户态临界区不构成禁区。",
+          "noteLink": {
+            "name": "操作系统强化.md",
+            "path": "E:/NPEE/408/操作系统强化.md"
+          }
+        },
+        {
+          "id": "d07-cn-tcp-timers",
+          "badges": [
+            "408",
+            "计算机网络"
+          ],
+          "title": "TCP 四个计时器：靠<strong>启动时机</strong>区分",
+          "body": "四个计时器的功能不像名字那么一目了然，记住<strong>谁在什么时候启动</strong>就不会串。",
+          "list": [
+            "<strong>重传计时器</strong>：发送报文段后启动 → 超时<strong>重传该段</strong>",
+            "<strong>持续计时器</strong>：<strong>收到零窗口通知</strong>时启动 → 超时发<strong>零窗口探测</strong> → 专治<strong>零窗口死锁</strong>",
+            "<strong>保活计时器</strong>：连接长期空闲（通常 2h）启动 → 发探测段，判断对端是否还活着",
+            "<strong>时间等待计时器</strong>：<strong>主动关闭方发出最后一个 ACK 后</strong>启动 → 到点才从 TIME_WAIT 进 CLOSED"
+          ],
+          "conclusion": "「零窗口」配「持续」，「长期空闲」配「保活」——这两个最容易反。",
+          "noteLink": {
+            "name": "计算机网络强化.md",
+            "path": "E:/NPEE/408/计算机网络强化.md"
+          }
+        },
+        {
+          "id": "d07-pol-basic-contradiction",
+          "badges": [
+            "政治",
+            "马原"
+          ],
+          "title": "资本主义基本矛盾 → 经济上集中表现为<strong>经济危机</strong>",
+          "body": "资本主义基本矛盾 ＝ <strong>生产社会化</strong> 与 <strong>生产资料资本主义私人占有</strong> 之间的矛盾。它<strong>在经济上的集中表现</strong>是经济危机；危机的<strong>根本原因</strong>就是基本矛盾；危机的<strong>本质特征</strong>是「相对于劳动人民<strong>有支付能力的需求</strong>来说，社会生产的商品的过剩」——是<strong>相对过剩</strong>，不是绝对过剩。",
+          "list": [
+            "生产无限扩大（资本家逐利） vs 有支付能力的需求相对不足 → 比例失调 → 总产品无法实现",
+            "周期性四阶段：<strong>危机 → 萧条 → 复苏 → 高涨</strong>（危机是基本矛盾尖锐化的强制解决）"
+          ],
+          "conclusion": "「社会化 vs 私人占有」是根，「相对过剩」是本质特征，「经济危机」是集中表现——三层别答串。",
+          "noteLink": {
+            "name": "政治强化.md",
+            "path": "E:/NPEE/Politics/政治强化.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "d07-q-ds-topo",
+          "question": "拓扑排序存在的<strong>充要条件</strong>只有一个，是什么？一张有向图<strong>不连通</strong>，它还有拓扑序列吗？如果排序输出结束后剩下的顶点<strong>都有前趋</strong>，说明什么？",
+          "answer": "充要条件是<strong>有向图无环（DAG）</strong>，与连通与否无关。不连通的 DAG 照样有拓扑序列——每个弱连通分量各自都有入度为 0 的顶点，取来输出即可，互不干扰（如两个独立分量 1→2 与 3→4）。输出结束后剩下顶点<strong>都有前趋</strong> ⇒ 它们彼此构成<strong>回路</strong>，刚才只得到了<strong>部分</strong>顶点的拓扑有序序列。",
+          "noteLink": {
+            "name": "数据结构强化.md",
+            "path": "E:/NPEE/408/数据结构强化.md"
+          }
+        },
+        {
+          "id": "d07-q-os-sched-moments",
+          "question": "下列四个时刻，哪些<strong>可以</strong>发生处理器调度？①中断处理过程中 ②操作系统内核程序的临界区中 ③系统调用<strong>返回用户态之前</strong> ④进程在临界区里请求打印机而阻塞",
+          "answer": "③④可以，①②不行。③：系统调用已经在内核里把数据拷进<strong>用户缓冲区</strong>、返回值写进寄存器，只是还没执行「切回用户态」那条指令——此时切换的只是 <strong>CPU 现场</strong>，结果不会丢。④：进程在临界区里请求需要等待的资源，可以<strong>主动放弃</strong>处理器。①中断处理过程中、②<strong>内核程序</strong>临界区中不能调度（会破坏内核数据结构）；原子操作过程中同样不能。",
+          "noteLink": {
+            "name": "操作系统强化.md",
+            "path": "E:/NPEE/408/操作系统强化.md"
+          }
+        },
+        {
+          "id": "d07-q-eng-fabricate-apply",
+          "question": "「警方刻意编造证据」「伪造护照」「他被陷害谋杀罪」——分别用哪个词最准？如果要说「捏造根本不存在的证据」这个学术/法律说法呢？",
+          "answer": "<strong>manufactured</strong> evidence（强调人为刻意、流水线式地造）／<strong>forged</strong> a passport（forge 只接文书、货币这类<strong>仿冒真品的实物</strong>）／was <strong>framed</strong> for murder（frame 的对象是<strong>人</strong>，栽赃陷害）。学术/法律要「无中生有」的那一层，用 <strong>fabricated</strong> evidence——同一个 fabricate 用来造芯片就是中性的「制造」。",
+          "noteLink": {
+            "name": "第309节_捏造编造.md",
+            "path": "E:/NPEE/English/word&phrase/辨析/第309节_捏造编造.md"
+          }
+        }
+      ],
+      "math": {
+        "id": "d07-math",
+        "points": [
+          {
+            "id": "d07-math-integral-route",
+            "type": "method",
+            "badges": [
+              "高数",
+              "积分等式与不等式"
+            ],
+            "title": "证积分等式/不等式：<strong>看信号选工具</strong>，不是看难度",
+            "body": "第11讲把这一块做成了信号路由表——先认信号，第一步动作就定了。最常考的五条：",
+            "list": [
+              "区间对称 / 含 $f(a+b-x)$ / 含 $x\\cdot f(\\sin x)$ → <strong>区间再现换元</strong> 令 $x=a+b-t$，与原式相加消元",
+              "含 $\\int f^2$ 与 $(\\int f)^2$ 的对比 → <strong>柯西-施瓦茨</strong>（取 $g(x)=1$ 直接套）",
+              "给了 $|f'|\\leq M$ 或端点 $f=0$ → <strong>拉格朗日 MVT + 积分放缩</strong>",
+              "结论含「存在 $\\xi$」→ <strong>积分中值定理</strong>（把积分化成 $f(\\xi)\\cdot$ 长度）",
+              "等式两边都是积分但形式不同 → 构造 $F=$ 左 $-$ 右，证 $F'\\equiv 0$"
+            ],
+            "conclusion": "换路条件也要记：被积函数<strong>变号</strong>时积分中值定理不适用，改走罗尔或变上限求导。",
+            "noteLink": {
+              "name": "第11讲_积分等式与积分不等式.md",
+              "path": "E:/NPEE/Math/高数/第11讲_一元函数积分学的应用二_积分等式与积分不等式.md"
+            }
+          },
+          {
+            "id": "d07-math-mvt-gates",
+            "type": "method",
+            "badges": [
+              "高数",
+              "中值定理"
+            ],
+            "title": "中值定理证明的<strong>四道门</strong>：按序过，第 3 道最致命",
+            "body": "结论要「存在 $\\xi$」时，依次问自己四句话：",
+            "list": [
+              "①<strong>有无 $f'$</strong>：待证式不含 $f'$ ⇒ 是<strong>零点/介值定理</strong>的题，根本不走中值定理",
+              "②<strong>数函数个数</strong>：只有 $f$ 且 $f'$ 裸出现 ⇒ 拉格朗日；$f$ 与 $g$（$x^2$、$\\ln x$、$e^x$…）的增量或导数同时出现 ⇒ 柯西 / 罗尔构造",
+              "③<strong>同点测试（最致命）</strong>：结论要求所有量在<strong>同一个 $\\xi$</strong> 成立 ⇒ 拉格朗日每用一次只给一个位置不可控的点，对两个函数各用一次得 $\\xi_1\\neq\\xi_2$ 合不起来，<strong>必须改用柯西/罗尔</strong>；题目明写「存在 $\\xi,\\eta$」才允许异点",
+              "④<strong>条件暗示</strong>：$f(a)=f(b)$ ⇒ 直接罗尔；含 $f'+\\alpha f$ ⇒ 构造 $F=e^{\\alpha x}f(x)$ 再罗尔"
+            ],
+            "conclusion": "只要看到「同一个 $\\xi$ 处把两个函数耦合起来」，就别再想拉格朗日——那是柯西的活。",
+            "noteLink": {
+              "name": "第6讲_中值定理与微分等式不等式.md",
+              "path": "E:/NPEE/Math/高数/第6讲_一元函数微分学的应用二_中值定理与微分等式不等式.md"
             }
           }
         ]
