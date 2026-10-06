@@ -3312,7 +3312,9 @@ const server = http.createServer((req, res) => {
       let out = '', err = '';
       let proc;
       try {
-        proc = spawn(py, args, { cwd: __dirname });
+        // ⚠️ windowsHide 必须显式给：Windows 上 spawn 默认**弹一个控制台窗口**。
+        // 这里每次传 PDF 都会闪一下黑窗，属于「用户没做错任何事却被打扰」（2026-10-06 用户反馈）。
+        proc = spawn(py, args, { cwd: __dirname, windowsHide: true });
       } catch (e) {
         resolve({ ok: false, error: e.message, spawnFailed: true });
         return;
@@ -5057,7 +5059,9 @@ const SECRETS_PATH = process.env.SECRETS_PATH
         };
         console.log('[TargetedCards] start', jobId, 'prefixes=', prefixes, 'count=', count);
 
-        const proc = spawn('python', args, { cwd: __dirname });
+        // ⚠️ windowsHide 必须显式给：Windows 上 spawn 默认会弹控制台窗口，
+        // 点一次「出题」就闪一个黑窗。输出本来就走 stdout 管道回传给前端，不需要窗口。
+        const proc = spawn('python', args, { cwd: __dirname, windowsHide: true });
         proc.stdout.on('data', d => {
           targetedJob.output += d.toString();
           const m = targetedJob.output.match(/新增 (\d+) 张闪卡/);
