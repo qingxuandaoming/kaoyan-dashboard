@@ -100,6 +100,12 @@ def build_steps(skip_plan):
          [os.path.join(SRC, "tools", "gen_english_index.py")]),
         ("build_index.py（重建笔记索引）", [os.path.join(SRC, "build_index.py")]),
         ("gap_analysis.py（覆盖率与缺口）", [os.path.join(SRC, "gap_analysis.py")]),
+        # 作文复盘训练（2026-10-06）：把 7 篇作文批改记录出成闪卡 + 写复盘会话。
+        # 放在 build_review_patterns 之前——种下去的会话能在同一次运行里进错因画像。
+        # 幂等（靠 questions.ext_key），重复跑是空操作，所以挂在每次管道里是安全的；
+        # 改了 essay_review_spec.json 就能靠它自动补/更新卡片。
+        ("tools/add_essay_review_cards.py（作文复盘出卡）",
+         [os.path.join(SRC, "tools", "add_essay_review_cards.py")]),
         # 错题复盘的错因画像：大盘「复/学/首页」与每周出卡报告都读这一份派生结果。
         # 放主管道里，保证每次刷新大盘时画像同步更新（脚本只读 Review 下的 errors.json，毫秒级）。
         ("build_review_patterns.py（错因画像）", [os.path.join(SRC, "build_review_patterns.py")]),
@@ -124,6 +130,8 @@ def collect_inputs(steps, skip_plan):
     inputs += [os.path.join(SRC, n) for n in (
         "subjects.json", "metrics_spec.json", "math_lectures.json",
         "paths.json", "morning_review.json",
+        # 作文复盘的素材规格：改了它就该重跑出卡步骤
+        "essay_review_spec.json",
     )]
     if not skip_plan:
         inputs.append(os.path.join(SRC, "progress.json"))

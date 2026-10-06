@@ -1664,6 +1664,42 @@ FLASH_CSS = '''
         .fs-btn.primary { border-color: var(--accent-blue); color: var(--accent-blue); }
         .fs-short-err { margin-top: 8px; font-size: 0.8rem; color: var(--accent-orange); }
 
+        /* --- 拼写题 spell（2026-10-06）：系统里第一个「可输入答案」的题型 ---
+           在此之前 fill 只是「挖空→点一下显示答案」，不接收打字；
+           拼写是本轮复盘里复现率最高的失分项（7/7 篇都有），所以单独做一类。 */
+        .fs-spell { display: flex; flex-direction: column; gap: 8px; }
+        .fs-spell-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            font-size: 0.78rem; color: var(--text-muted); }
+        .fs-spell-phonetic { font-family: Consolas, "Courier New", monospace; font-size: 0.86rem;
+            color: var(--accent-blue); }
+        .fs-spell-hint { font-size: 0.76rem; color: var(--text-muted); }
+        .fs-spell-input { width: 100%; box-sizing: border-box; padding: 12px 14px;
+            background: var(--bg-primary); color: var(--text-primary);
+            border: 1px solid var(--border-color); border-radius: 6px;
+            font-family: Consolas, "Courier New", monospace; font-size: 1.16rem;
+            letter-spacing: .05em; }
+        .fs-spell-input:focus { outline: none; border-color: var(--accent-blue); }
+        .fs-spell-input:disabled { opacity: .75; }
+        .fs-spell-input.ok { border-color: #6FCF97; }
+        .fs-spell-input.near { border-color: var(--accent-orange); }
+        .fs-spell-input.bad { border-color: #EB5757; }
+        .fs-spell-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .fs-spell-err { font-size: 0.84rem; line-height: 1.7; }
+        .fs-spell-err.ok { color: #6FCF97; }
+        .fs-spell-err.near { color: var(--accent-orange); }
+        .fs-spell-err.bad { color: #EB5757; }
+        /* 差异高亮：近错时把「你多打/少打的那个字母」标出来 */
+        .fs-spell-del { color: #EB5757; text-decoration: line-through; }
+        .fs-spell-ins { color: #6FCF97; font-weight: 700; }
+
+        /* --- 复盘案例行（2026-10-06）：所有题型共用 ---
+           content.retro 存「这个错误出自哪篇作文的哪个原句」，在反馈区统一渲染。
+           与 questions.source（文件路径，管溯源）分工：retro 管教学。 */
+        .fs-retro { margin-top: 10px; padding: 9px 12px; border-radius: 6px;
+            background: rgba(255,255,255,.03); border-left: 3px solid var(--accent-orange);
+            font-size: 0.82rem; line-height: 1.7; color: var(--text-secondary); }
+        .fs-retro .fs-retro-tag { color: var(--accent-orange); font-weight: 600; margin-right: 6px; }
+
         /* 手写板（2026-09-20）：覆盖层 + 白底画布，给平板/触屏用笔书写 */
         .fs-ink-pad { position: fixed; inset: 0; z-index: 950; background: rgba(0,0,0,.55);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -3187,6 +3223,10 @@ const SFX = (function () {
             } else if (c.type === "short") {
                 el.textContent = "快捷键：Ctrl+Enter 提交批改 · " + SP + " 先看参考答案 · "
                     + UD + " 撤销 · " + FS + " 全屏";
+            } else if (c.type === "spell") {
+                // ⚠️ 必须排在 !opts.length 之前——spell 也没有 options，会被那个分支吃掉
+                el.textContent = "快捷键：回车 提交拼写 · " + SP + " 看答案 · "
+                    + UD + " 撤销 · " + FS + " 全屏";
             } else if (!opts.length) {
                 el.textContent = "快捷键：" + SP + " 显示答案 · " + UD + " 撤销上一张 · " + FS + " 全屏";
             } else if (c.type === "judge") {
@@ -3330,6 +3370,17 @@ const SFX = (function () {
         if (c.type === "short") {
             body.innerHTML = shortHtml();
             bindShort(body, c, ct);
+            const hint = document.createElement("div");
+            hint.className = "fs-hint";
+            box.appendChild(hint);
+            updateHint();
+            return;
+        }
+
+        // 拼写题：一个输入框替代选项按钮（2026-10-06）
+        if (c.type === "spell") {
+            body.innerHTML = spellHtml(ct);
+            bindSpell(body, c, ct);
             const hint = document.createElement("div");
             hint.className = "fs-hint";
             box.appendChild(hint);
@@ -3552,6 +3603,185 @@ const SFX = (function () {
         gradeBtn.onclick = () => gradeShort(card, ct);
         skip.onclick = () => { st.text = ta.value; reveal(); };
         renderShortImage();
+    }
+
+    // ============================================================
+    // 拼写题（type === "spell"，2026-10-06）
+    //
+    // 这是系统里**第一个「可输入答案」的题型**。在此之前 fill 只是
+    // 「挖空 → 点一下显示答案」，不接收打字，所以「拼写」这件事一直没被真正测过；
+    // 而作文复盘的统计里拼写硬伤命中 7/7 篇，是最该练的一项。
+    //
+    // 判分全在本地（不调 AI）：归一化 → 与 answer / alt_answers 比对 → 三态：
+    //   ok（完全对） / near（差一个字母） / bad（错）。
+    // near 也按 Again(1) 回写——考场上拼错一个字母就是丢这一分，不能算过。
+    //
+    // ⚠️ 输入框里的回车必须绑在 <input> 自己身上（见 bindSpell）：文档层 keydown
+    //    有一条守卫「焦点在 INPUT/TEXTAREA 时一律 return」（那是为了让追问框能正常
+    //    打字），绑在文档层根本收不到回车。
+    // ⚠️ 提交后必须 input.blur()：否则焦点还在框里，1–4 自评键同样会被那条守卫吞掉。
+    // ============================================================
+    function spellNorm(s) {
+        return String(s == null ? "" : s)
+            .trim().toLowerCase()
+            .replace(/^[^a-z]+|[^a-z]+$/g, "")   // 顺手清掉粘贴带进来的标点/空格
+            .replace(/\s+/g, " ");
+    }
+
+    // Levenshtein 距离。只用来判「差一个字母」，词长 ≤ 30，O(n²) 无压力。
+    function spellDist(a, b) {
+        if (a === b) return 0;
+        const m = a.length, n = b.length;
+        if (!m) return n;
+        if (!n) return m;
+        let prev = new Array(n + 1), cur = new Array(n + 1);
+        for (let j = 0; j <= n; j++) prev[j] = j;
+        for (let i = 1; i <= m; i++) {
+            cur[0] = i;
+            for (let j = 1; j <= n; j++) {
+                const cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+                cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+            }
+            const t = prev; prev = cur; cur = t;
+        }
+        return prev[n];
+    }
+
+    // 可接受答案池：answer + alt_answers（英式/美式拼写差异走 alt_answers，
+    // 例如 specialise / specialize 都算对）
+    function spellPool(ct) {
+        const ans = spellNorm(ct.answer);
+        const alts = (Array.isArray(ct.alt_answers) ? ct.alt_answers : []).map(spellNorm);
+        return { ans: ans, pool: [ans].concat(alts.filter(x => x && x !== ans)) };
+    }
+
+    // → { status: "ok" | "near" | "bad" | "empty", typed, ans, diff }
+    function spellMatch(input, ct) {
+        const typed = spellNorm(input);
+        const p = spellPool(ct);
+        if (!typed) return { status: "empty", typed: typed, ans: p.ans, diff: null };
+        if (p.pool.indexOf(typed) >= 0) return { status: "ok", typed: typed, ans: p.ans, diff: null };
+        for (let k = 0; k < p.pool.length; k++) {
+            if (p.pool[k] && spellDist(typed, p.pool[k]) === 1) {
+                return { status: "near", typed: typed, ans: p.ans, diff: spellDiff(typed, p.pool[k]) };
+            }
+        }
+        return { status: "bad", typed: typed, ans: p.ans, diff: null };
+    }
+
+    // 近错的逐字符对照：剥掉公共前后缀，中间那段就是差异（编辑距离=1，至多一个字）。
+    // mine 里多出来/写错的字符划掉，real 里该有的字符高亮。
+    function spellDiff(typed, cand) {
+        let p = 0;
+        while (p < typed.length && p < cand.length && typed.charAt(p) === cand.charAt(p)) p++;
+        let s = 0;
+        while (s < typed.length - p && s < cand.length - p
+               && typed.charAt(typed.length - 1 - s) === cand.charAt(cand.length - 1 - s)) s++;
+        const wrap = (str, open, close) => {
+            const mid = str.slice(p, str.length - s);
+            return esc(str.slice(0, p)) + (mid ? open + esc(mid) + close : "")
+                 + esc(str.slice(str.length - s));
+        };
+        return {
+            mine: wrap(typed, '<span class="fs-spell-del">', '</span>'),
+            real: wrap(cand, '<span class="fs-spell-ins">', '</span>'),
+        };
+    }
+
+    function spellHtml(ct) {
+        const ph = ct.phonetic
+            ? '<span class="fs-spell-phonetic">' + esc(ct.phonetic) + '</span>' : '';
+        const hint = ct.hint
+            ? '<span class="fs-spell-hint">💡 ' + esc(ct.hint) + '</span>' : '';
+        const meta = (ph || hint) ? '<div class="fs-spell-meta">' + ph + hint + '</div>' : '';
+        // spellcheck/autocorrect 一律关掉：浏览器「帮你纠正拼写」正好会破坏这道题
+        return '<div class="fs-spell">'
+            + meta
+            + '<input type="text" id="fs-spell-input" class="fs-spell-input" autocomplete="off"'
+            + ' autocorrect="off" autocapitalize="off" spellcheck="false"'
+            + ' placeholder="键入英文单词，回车提交">'
+            + '<div class="fs-spell-actions">'
+            + '<button class="fs-btn primary" id="fs-spell-submit">提交（回车）</button>'
+            + '<button class="fs-btn" id="fs-spell-skip">看答案（空格）</button>'
+            + '</div>'
+            + '<div class="fs-spell-err" id="fs-spell-err"></div>'
+            + '</div>';
+    }
+
+    function bindSpell(body, card, ct) {
+        const inp = document.getElementById("fs-spell-input");
+        const submit = document.getElementById("fs-spell-submit");
+        const skip = document.getElementById("fs-spell-skip");
+        if (!inp) return;
+        // 回车提交绑在输入框自己身上，理由见函数头注释
+        inp.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !(e.isComposing || e.keyCode === 229)) {
+                e.preventDefault();
+                submitSpell(card, ct, inp);
+            }
+        });
+        // 重新打字时把上一次的红/橙/绿边框清掉，不然用户会以为还没改
+        inp.oninput = () => {
+            inp.classList.remove("ok", "near", "bad");
+            const eb = document.getElementById("fs-spell-err");
+            if (eb) { eb.textContent = ""; eb.className = "fs-spell-err"; }
+        };
+        if (submit) submit.onclick = () => submitSpell(card, ct, inp);
+        if (skip) skip.onclick = () => reveal();
+        if (typeof inp.focus === "function") inp.focus();
+    }
+
+    function submitSpell(card, ct, inp) {
+        if (state.answered || state.revealed) return;
+        const m = spellMatch(inp ? inp.value : "", ct);
+        const errBox = document.getElementById("fs-spell-err");
+        if (m.status === "empty") {
+            // 空提交不判错：他可能只是想不了，空格照样能看答案
+            if (errBox) {
+                errBox.className = "fs-spell-err bad";
+                errBox.textContent = "先写一个单词再提交（或按空格直接看答案）";
+            }
+            return;
+        }
+        state.answered = true; state.revealed = true;
+        if (inp) {
+            inp.disabled = true;
+            // 焦点交还给文档，否则 1–4 自评键会被「聚焦 INPUT」那条守卫吞掉
+            if (typeof inp.blur === "function") inp.blur();
+        }
+        // 落进 review_log.chosen：这是后续复盘「我总把哪个词拼成什么」的原始数据
+        state.chosen = m.typed;
+
+        if (m.status === "ok") {
+            if (inp) inp.classList.add("ok");
+            if (errBox) {
+                errBox.className = "fs-spell-err ok";
+                errBox.innerHTML = "✅ 拼对了（" + esc(m.ans) + "）";
+            }
+            SFX.play("correct");
+            showFeedback(ct);
+            return;
+        }
+
+        // near 与 bad 都按 Again(1) 回写
+        SFX.play("wrong");
+        state.autoWrong = true;
+        if (inp) inp.classList.add(m.status === "near" ? "near" : "bad");
+        if (errBox) {
+            errBox.className = "fs-spell-err " + (m.status === "near" ? "near" : "bad");
+            errBox.innerHTML = m.status === "near"
+                ? "🟠 <b>只差一个字母</b>——考场上这一分照样拿不到。"
+                  + "<br>你写的：<code>" + m.diff.mine + "</code>"
+                  + "<br>正确的：<code>" + m.diff.real + "</code>"
+                : "❌ 拼写错误。你写的是 <code>" + esc(m.typed) + "</code>";
+        }
+        showFeedback(ct);
+        // 复用既有的「按实际错答生成针对性解析」链路（和选择题选错走同一条路）
+        mountExplain(state.cards[state.idx] || {}, m.typed);
+        pendingSubmit = submitRating(1).then(ok => {
+            pendingSubmit = null;
+            if (!ok) { state.autoWrong = false; state.saveFailed = true; showFeedback(ct); }
+        });
     }
 
     // AI 批改结果面板
@@ -4295,7 +4525,9 @@ const SFX = (function () {
             || (typeof ct.answer === "string" && !/^[A-Da-d]$/.test(String(ct.answer).trim()));
         if (refAns) {
             html += '<div class="fs-explain"><b>参考答案：</b>' + texWrap(refAns) + '</div>';
-        } else if (isTextAnswer && ans) {
+        } else if (isTextAnswer && ans && card.type !== "spell") {
+            // 拼写题排除在外：光给「答案：phenomenon」看不出自己错在哪，
+            // 由下面那段单独给「正确拼写 / 你写的」对照。
             html += '<div class="fs-explain"><b>答案：</b>' + texWrap(ans) + '</div>';
         } else {
             const opts = optionsOf(card);
@@ -4309,9 +4541,27 @@ const SFX = (function () {
         if (hasCloze(ct.stem)) {
             html += '<div class="fs-explain"><b>完整原文：</b>' + texWrap(clozeText(ct.stem, true)) + '</div>';
         }
+        // 拼写题（spell）：给「正确拼写 + 音标 + 你写的」三项对照。
+        // 只看正确写法是学不会的——错在哪个字母才是这张卡要教的东西。
+        if (card.type === "spell") {
+            const typed = String(state.chosen == null ? "" : state.chosen).trim();
+            const ph = ct.phonetic
+                ? ' <span class="fs-spell-phonetic">' + esc(ct.phonetic) + '</span>' : '';
+            html += '<div class="fs-explain"><b>正确拼写：</b><code>' + esc(ct.answer) + '</code>' + ph + '</div>';
+            if (typed && spellNorm(typed) !== spellNorm(ct.answer)) {
+                html += '<div class="fs-explain"><b>你写的：</b><code>' + esc(typed) + '</code></div>';
+            }
+        }
         if (ct.explanation) html += '<div class="fs-explain">' + texWrap(ct.explanation) + '</div>';
         if (Array.isArray(ct.traps) && ct.traps.filter(Boolean).length)
             html += '<div class="fs-traps">⚠ 易错点：' + ct.traps.filter(Boolean).map(texWrap).join("；") + '</div>';
+        // 📌 复盘案例行（2026-10-06）：content.retro 记「这个错误出自哪篇作文的哪句原话」。
+        // **所有题型共用**——作文复盘卡的价值就在「认得这是我自己写的」，不是教科书例句。
+        // 与 questions.source（记录文件路径，管溯源）分工：retro 管教学。
+        if (ct.retro) {
+            html += '<div class="fs-retro"><span class="fs-retro-tag">📌 复盘案例</span>'
+                + texWrap(ct.retro) + '</div>';
+        }
 
         // AI 解析容器。答错时自动挂载解析；答对/直接看答案时**不自动生成任何东西**——
         // 用户明确要求：答对的场合给一个**空的追问框**，他要问的肯定是自己针对性的问题，
@@ -5225,6 +5475,20 @@ const SFX = (function () {
         if (state.revealed) {
             if (["1", "2", "3", "4"].includes(k)) { e.preventDefault(); rate(parseInt(k, 10)); }
             else if (isShowAnswer) { e.preventDefault(); rate(3); }
+            return;
+        }
+
+        // ③.5 拼写题（spell）：未揭晓时空格 = 看答案。
+        // 「提交」那一半故意不在这里——它绑在输入框自己的回车键上（见 bindSpell），
+        // 因为焦点在 INPUT 时上面那条守卫会先 return，文档层根本收不到按键。
+        // ⚠️ 必须插在 ④ 之前：spell 也没有 options，落到 ④ 会去点 #fs-body 里第一个
+        //    按钮（即「提交」），空提交只会弹一句「先写一个单词」，不是用户要的。
+        if (state.cards[state.idx] && state.cards[state.idx].type === "spell") {
+            if (isShowAnswer) {
+                e.preventDefault();
+                const sb = document.getElementById("fs-spell-skip");
+                if (sb) sb.click();
+            }
             return;
         }
 

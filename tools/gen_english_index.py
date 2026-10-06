@@ -77,6 +77,8 @@ RULES = [
     # 章号必须落在图谱真有的章上（英语写作上图只有 3 个考点：01 小作文 / 02 大作文 /
     # 03 写作积累与批改；翻译只有 ENG-TRAN-01 一个）。所以按内容分派：
     ("translation&writing/积累.md",                             "WRITE", 3),
+    # 纵向得分总表：跨小作文/大作文的批改追踪表，归到 03 写作积累与批改
+    ("translation&writing/作文/批改得分总表.md",                 "WRITE", 3),
     ("translation&writing/作文/图画作文/**/*.md",                "WRITE", 2),
     ("translation&writing/作文/应用文/**/*.md",                  "WRITE", 1),
     ("translation&writing/*批改记录.md",                        "WRITE", 3),

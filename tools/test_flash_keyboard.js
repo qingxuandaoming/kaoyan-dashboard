@@ -200,6 +200,18 @@ function qsa(root, sel) {
     const base = registry[m[1]];
     return base ? base.children.filter(c => matches(c, m[2])) : [];
   }
+  // 单个 "#id" 选择器（2026-10-06 补）。
+  // 真实 DOM 里元素级 querySelector("#x") 是「在子孙里找」，桩没有父子关系可循，
+  // 退化成「注册表里有没有这个 id」——用到的四处（#fl-open / #ff-start / #ff-all /
+  // #fl-close）都是全页唯一 id，退化无副作用。
+  // 补它的原因：以前这些查询恒返回 null，于是 renderFilterBar 里
+  // `fbox.querySelector("#fl-open").onclick = openFilterModal` 这条接线在测试里
+  // **从来没生效过**——用例看到的是一个按钮壳子，接线断了也发现不了。
+  // 本仓库正有过「侧栏按钮画了没接事件、点了毫无反应」的同类事故（见 FACT.md）。
+  if (/^#[\w-]+$/.test(sel)) {
+    const el = registry[sel.slice(1)];
+    return el ? [el] : [];
+  }
   const out = [];
   (function walk(n) { (n.children || []).forEach(c => { if (matches(c, sel)) out.push(c); walk(c); }); })(root);
   return out;
@@ -625,20 +637,27 @@ function check(name, cond, extra) {
   }
 
   // ---------- 10. 筛选页 chips ----------
-  console.log("\n[10] 筛选页渲染");
+  console.log("\n[10] 筛选页渲染（收起态范围条）");
   {
+    // ⚠️ 2026-10-06 重写：筛选 UI 早已从「内联 chip 表格」改成「一行范围说明 + 浮窗」
+    //    （见 generate_dashboard.py 的 renderFilterBar / openFilterModal），
+    //    但这段用例一直没跟着改，于是恒红 5 条。
+    //    chip 级断言（data-bucket / data-subject / data-topic / #ff-start）现在只存在于
+    //    浮窗 buildFilterModal 里，而**测试桩建不出浮窗内容**：mkEl 的 innerHTML
+    //    只按 id 注册子元素（registerIds 的正则带 \bid="），浮窗里 `.fl-body` 这类
+    //    只有 class 的节点不会成为 children，ov.querySelector(".fl-body") 返回 null
+    //    → buildFilterModal 直接抛。所以这里只断言收起态那一行 + 按钮已接线；
+    //    chip 级覆盖缺口记在方案的「遗留」里，等需要时再扩桩。
     await bootStarted(); await tick();
     const fb = registry["flash-filter"];
     check("筛选容器存在（大盘里是 #flash-filter）", !!fb);
     if (fb) {
       const h = fb._html;
-      check("渲染出状态 chip", h.includes('data-bucket="new"') && h.includes("未学习"), h.slice(0, 120));
-      check("渲染出科目 chip", h.includes('data-subject="政治"'), h.slice(0, 200));
-      check("数量来自 /facets", h.includes("167"), h.slice(0, 300));
-      check("数量为 0 的桶标为禁用（水蛭/已暂停）",
-        /class="ff-chip empty"[^>]*data-bucket="leech"[^>]*disabled/.test(h)
-        || /data-bucket="leech"[^>]*disabled/.test(h), h.slice(0, 300));
-      check("有开始按钮", h.includes('id="ff-start"'));
+      check("收起态给出范围说明", h.includes("fl-scope") && h.includes("全部闪卡"), h.slice(0, 200));
+      check("收起态给出张数（来自 /facets 的 pendingCount）", /<b>\d+<\/b>\s*张/.test(h), h.slice(0, 300));
+      check("有打开筛选浮窗的按钮", h.includes('id="fl-open"'));
+      check("★ 按钮已接线到 openFilterModal（不是画了个死按钮）",
+        typeof (registry["fl-open"] && registry["fl-open"].onclick) === "function");
     }
     // facets 缺字段时不能抛
     let threw = false;
@@ -701,6 +720,151 @@ function check(name, cond, extra) {
     check("可按 AI 建议档提交评分", rated().length === before + 1);
     check("提交的 rating=3", (rated().slice(-1)[0].body || {}).rating === 3);
   }
+
+  // ---------- 11b. 拼写题 spell（2026-10-06）：系统里第一个「可输入答案」的题型 ----------
+  // 出它的原因：作文复盘里拼写硬伤命中 7/7 篇，而 fill 只是「挖空→点一下显示答案」，
+  // 不接收打字，拼写这件事根本测不出来。
+  console.log("\n[11b] 拼写题输入与模糊判分");
+  const SPELL = {
+    // question_id 不能省：mountExplain 开头就是 `if (!qid) return;`
+    // 没有它，答错时那条「针对性解析」链路根本不会被触达，用例会假通过。
+    card_id: 61, question_id: "Q-ENG-WRITE-03-04-9001",
+    type: "spell", subject: "英语一", topic_name: "作文批改与复盘",
+    state: 0, lapses: 0, previews: { 1: "1分", 2: "6分", 3: "10分", 4: "4天" },
+    content: {
+      stem: "写出「现象」的英文单词（名词，复数 phenomena）",
+      answer: "phenomenon", alt_answers: ["phenomenons"], phonetic: "/fəˈnɒmɪnən/",
+      hint: "p 开头，10 个字母",
+      retro: "原错拼 phenominon ← 2000 年图画作文",
+      explanation: "结尾是 -non，不是 -nom。", traps: ["别丢掉中间那个 e"],
+    },
+  };
+  {
+    cardsPayload = [Object.assign({}, SPELL)];
+    await bootStarted();
+    check("拼写题渲染出输入框", !!registry["fs-spell-input"]);
+    check("有提交按钮", !!registry["fs-spell-submit"]);
+    check("有看答案按钮", !!registry["fs-spell-skip"]);
+    check("拼写题不给选项按钮", opts().length === 0);
+    check("音标与提示渲染出来",
+      registry["fs-body"]._html.indexOf("fəˈnɒmɪnən") >= 0
+      && registry["fs-body"]._html.indexOf("p 开头") >= 0);
+    check("★ 关掉浏览器自动纠错（否则等于让浏览器替答）",
+      registry["fs-body"]._html.indexOf('spellcheck="false"') >= 0);
+
+    // ① 空提交：只提示，不判错、不写评分
+    const n0 = rated().length;
+    registry["fs-spell-submit"].onclick();
+    await tick();
+    check("空提交不判错、不写评分", rated().length === n0);
+    // ⚠️ 断言一律读 _html 而不是 _text：桩里 textContent 会同步 _html，
+    //    但 innerHTML 只写 _html、不动 _text（真实 DOM 两者是同步的）。
+    //    拼写提示用的是 innerHTML（要带 <code> 与高亮 <span>），读 _text 会拿到
+    //    上一次 textContent 留下的旧文案，假失败。
+    check("空提交给了提示",
+      registry["fs-spell-err"]._html.indexOf("先写一个单词") >= 0, registry["fs-spell-err"]._html);
+
+    // ② 近错：phenomenan（正确 phenomenon，第 8 个字母写成 a）→ 编辑距离 1
+    const inp = registry["fs-spell-input"];
+    inp.value = "phenomenan";
+    inp.dispatch("keydown", { key: "Enter", preventDefault: () => {} });
+    await tick(); await tick();
+    check("★ 输入框里按回车能提交（文档层快捷键会被「聚焦 INPUT」守卫拦掉）",
+      rated().length === n0 + 1, "rated=" + rated().length + " 期望 " + (n0 + 1));
+    const near = rated().slice(-1)[0] || {};
+    check("近错照样按 Again(1) 回写（考场拼错一个字母就是丢分）",
+      (near.body || {}).rating === 1, JSON.stringify(near.body));
+    check("★ 近错把用户的实际拼写记进 review_log.chosen",
+      (near.body || {}).chosen === "phenomenan", JSON.stringify(near.body));
+    check("近错提示「只差一个字母」",
+      registry["fs-spell-err"]._html.indexOf("只差一个字母") >= 0, registry["fs-spell-err"]._html);
+    check("近错把差异字母标出来（删除线 + 新增高亮）",
+      registry["fs-spell-err"]._html.indexOf("fs-spell-del") >= 0
+      && registry["fs-spell-err"]._html.indexOf("fs-spell-ins") >= 0);
+    check("已自动判错就不给四档自评", (fb().match(/data-rate=/g) || []).length === 0);
+    check("提交后输入框锁定", inp.disabled === true);
+    check("反馈区给出正确拼写", fb().indexOf("正确拼写") >= 0, fb().slice(0, 200));
+    check("反馈区同时给出你写的", fb().indexOf("你写的") >= 0);
+  }
+  {
+    // ③ 完全拼错：phenomen（少两个字母）→ 编辑距离 2，不是近错
+    cardsPayload = [Object.assign({}, SPELL)];
+    await bootStarted();
+    const n1 = rated().length;
+    const inp = registry["fs-spell-input"];
+    inp.value = "phenomen";
+    registry["fs-spell-submit"].onclick();
+    await tick(); await tick();
+    check("全错按 Again(1) 回写", (rated().slice(-1)[0].body || {}).rating === 1);
+    check("全错提示写成「拼写错误」而不是「差一个字母」",
+      registry["fs-spell-err"]._html.indexOf("拼写错误") >= 0, registry["fs-spell-err"]._html);
+    check("全错不画差异高亮", registry["fs-spell-err"]._html.indexOf("fs-spell-del") < 0);
+    check("全错触发了针对性解析请求",
+      fetchCalls.filter(c => c.url.indexOf("/api/explain") >= 0).length > 0);
+    check("全错只写一次评分", rated().length === n1 + 1);
+  }
+  {
+    // ④ 拼对：直接对 answer
+    cardsPayload = [Object.assign({}, SPELL)];
+    await bootStarted();
+    const n2 = rated().length;
+    registry["fs-spell-input"].value = "phenomenon";
+    registry["fs-spell-submit"].onclick();
+    await tick(); await tick();
+    check("★ 拼对不自动判分，交给用户自评（与选择题答对一致）",
+      rated().length === n2);
+    check("拼对给出四档评分按钮", (fb().match(/data-rate=/g) || []).length === 4);
+    check("拼对提示正确", registry["fs-spell-err"]._html.indexOf("拼对了") >= 0,
+      registry["fs-spell-err"]._html);
+    press("3");
+    await tick();
+    check("拼对后可按 3 提交", rated().length === n2 + 1
+      && (rated().slice(-1)[0].body || {}).rating === 3);
+  }
+  {
+    // ⑤ alt_answers：英式/美式之类的等价拼法要算对
+    cardsPayload = [Object.assign({}, SPELL)];
+    await bootStarted();
+    const n3 = rated().length;
+    registry["fs-spell-input"].value = "Phenomenons";   // 大小写 + alt_answers 命中
+    registry["fs-spell-submit"].onclick();
+    await tick(); await tick();
+    check("★ 大小写不敏感且 alt_answers 命中（英式/美式等价拼法不该判错）",
+      rated().length === n3 && (fb().match(/data-rate=/g) || []).length === 4);
+  }
+  {
+    // ⑥ 空格 = 看答案（未揭晓时走的是 spell 专属分支，不是 ④ 那个「点第一个按钮」）
+    cardsPayload = [Object.assign({}, SPELL)];
+    await bootStarted();
+    check("未揭晓时按空格前，反馈区是空的", fb().indexOf("正确拼写") < 0);
+    SPACE();
+    await tick();
+    check("★ 空格 = 看答案（没焦点在输入框时）", fb().indexOf("正确拼写") >= 0, fb().slice(0, 200));
+    check("看答案后给出四档自评", (fb().match(/data-rate=/g) || []).length === 4);
+  }
+  {
+    // ⑦ 复盘案例行：content.retro 要在反馈区渲染出来
+    cardsPayload = [Object.assign({}, SPELL)];
+    await bootStarted();
+    check("未揭晓时没有复盘行", fb().indexOf("复盘案例") < 0);
+    registry["fs-spell-skip"].onclick();
+    await tick();
+    check("★ 反馈区渲染出「复盘案例」溯源行",
+      fb().indexOf("fs-retro") >= 0 && fb().indexOf("原错拼 phenominon") >= 0, fb().slice(-320));
+  }
+  {
+    // ⑧ 复盘行不绑定题型：选择题带 retro 时同样渲染
+    cardsPayload = [Object.assign({}, CARDS[0], {
+      content: Object.assign({}, CARDS[0].content,
+        { retro: "原句：the more and more pepoles has became" }),
+    })];
+    await bootStarted();
+    registry["fs-body"].children.filter(c => c._cls.has("fs-opt"))[1].click();
+    await tick(); await tick();
+    check("选择题带 retro 时同样渲染（复盘行是所有题型共用的）",
+      fb().indexOf("复盘案例") >= 0 && fb().indexOf("pepoles") >= 0, fb().slice(-320));
+  }
+  cardsPayload = null;   // 别把换过的卡留给后面的用例
 
   // ---------- 12. 「开始」闸门 + 学习计时（失焦暂停）----------
   console.log("\n[12] 「开始」闸门与学习计时");

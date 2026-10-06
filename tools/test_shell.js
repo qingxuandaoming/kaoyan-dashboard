@@ -348,17 +348,31 @@ function check(name, cond, extra) {
     const cv = env.doc.getElementById("mouse-fx");
     check("有 canvas 且默认开着（没 hidden）", !!cv && cv.hidden === false, "hidden=" + (cv && cv.hidden));
     const before = canvasCalls.arc;
+
+    // ⚠️ 2026-10-06 重写这段：粒子效果在 2026-09-22 从「离子星火」重做成「细尘」
+    //    （见 SHELL_JS 里 mouseFx 的注释：没有大亮点、不闪、不炸），两处行为都变了：
+    //      ① 每个粒子画 1 个圆（旧版是「芯 + 晕」2 个）——旧断言 `f1 >= 2` 按 2 个圆校准；
+    //      ② 首帧只落锚点、不撒粒子——粒子的速度方向由「上一位置」算出（back = angleOf(-dx,-dy)），
+    //         首帧没有上一位置就没有方向，所以故意不画。
+    //    用例没跟着改，于是恒红 3 条。**产品行为是有意为之，这里只把用例对齐到现状**，
+    //    并且断言写得更严：改判「每粒子恰好 1 个圆」，将来若有人把带光晕的旧版改回来会立刻红。
+
+    // ① 第一下移动：只落锚点，不排帧、不撒粒子
     fireWin("pointermove", { pointerType: "mouse", clientX: 100, clientY: 100 });
-    check("鼠标移动排了一帧（requestAnimationFrame）", rafQueue.length === 1, "queue=" + rafQueue.length);
-    // 一帧里每个粒子画 2 个圆（芯 + 晕），所以「这一帧画了几个圆」能反推粒子数
+    check("第一下移动只落锚点、不撒粒子（首帧没有方向）",
+      rafQueue.length === 0, "queue=" + rafQueue.length);
+
+    // ② 跨越 12px：steps = round(12/6) = 2 → 恰好 2 个粒子；细尘版每粒子 1 个圆，故本帧应恰为 2
     const frameArcs = () => { const a = canvasCalls.arc; flushRaf(1); return canvasCalls.arc - a; };
+    fireWin("pointermove", { pointerType: "mouse", clientX: 112, clientY: 100 });
     const f1 = frameArcs();
-    check("第一下移动就给了个「头」粒子（不是等第二次才出现）", f1 >= 2, "本帧圆数=" + f1);
-    check("画出了粒子（arc/fill 被调用）", canvasCalls.arc > before && canvasCalls.fill > 0,
+    check("移动后画出了粒子（arc/fill 被调用）", canvasCalls.arc > before && canvasCalls.fill > 0,
       JSON.stringify(canvasCalls));
+    check("★ 细尘设计：每个粒子恰好 1 个圆（旧的芯+晕是 2 个，改回去会红）",
+      f1 === 2, "本帧圆数=" + f1 + "（12px / 每 6px 一点 = 2 个粒子）");
 
     // 沿轨迹补点：一次跨越 70px，应当产生多点而不是只画端点
-    fireWin("pointermove", { pointerType: "mouse", clientX: 170, clientY: 100 });
+    fireWin("pointermove", { pointerType: "mouse", clientX: 182, clientY: 100 });
     const f2 = frameArcs();
     check("快速移动会沿轨迹补点（粒子数明显增加）", f2 > f1, "上一帧=" + f1 + " 本帧=" + f2);
 

@@ -17,6 +17,12 @@ card_quality.py — 闪卡选项质量闸门（单一事实来源）
   W1 选项形态混排：部分带"词缀(释义)"标签、部分为裸释义 → 格式泄露
   W2 选项长度失衡（最长 > 最短的 2.5 倍）→"最长即答案"
 
+拼写题（type="spell"，2026-10-06 新增，判定函数 check_spell_quality）：
+  E4 answer 不是合法英文单词形式
+  E5 answer 出现在 stem 里 → 等于把答案写在题面上
+  E6 alt_answers 冗余或形态非法
+  W4 stem 过长
+
 被 tools/check_card_quality.py（全库审计）、generate_targeted_cards.py（入库拦截）、
 以及各补卡脚本共用。
 """
@@ -94,3 +100,76 @@ def shuffle_opts(qid, options, answer):
     idx = list(range(len(options)))
     random.Random(qid).shuffle(idx)
     return [options[i] for i in idx], idx.index(answer)
+
+
+# ---------------------------------------------------------------- 拼写题 spell
+# 2026-10-06 新增题型：给中文释义/语境，学生键入英文单词，本地模糊判分
+# （完全对 / 差一个字母 / 错）。这是系统里第一个「可输入答案」的题型，
+# 出现的原因是作文复盘里拼写硬伤命中 7/7 篇，而 fill 只是「挖空→显示答案」，
+# 根本测不出拼写。
+#
+# 判定项：
+#   E4 answer 不是合法的英文单词形式（空串 / 含数字或中文 / 带空格）
+#   E5 answer 出现在 stem 里 —— 等于把答案写在题面上（同 E1 格式泄露的性质）
+#   E6 alt_answers 里有与 answer 归一化后相同的项（冗余，且易掩盖真错）
+#   W4 stem 过长（>120 字）—— 拼写题要的是「一秒看懂问什么」，不是阅读理解
+SPELL_ANSWER_RE = re.compile(r"^[A-Za-z][A-Za-z'\-]*$")
+SPELL_STEM_LIMIT = 120
+
+
+def normalize_word(s):
+    """拼写比较用的归一化：小写、去首尾非字母、压空格。
+
+    与前端 FLASH_JS 的 spellNorm 保持同一套规则——两边不一致会出现
+    「审计说没问题、学生判错」这种最难查的偏差。
+    """
+    t = re.sub(r"^[^A-Za-z]+|[^A-Za-z]+$", "", str(s or "").strip().lower())
+    return re.sub(r"\s+", " ", t)
+
+
+def check_spell_quality(content):
+    """校验拼写题 content；返回问题列表，空列表表示通过。"""
+    if not isinstance(content, dict):
+        return ["content 不是对象"]
+
+    problems = []
+    ans = content.get("answer")
+    stem = str(content.get("stem") or "")
+
+    # E4 answer 形态
+    if not isinstance(ans, str) or not ans.strip():
+        problems.append("E4 answer 缺失或为空")
+    elif not SPELL_ANSWER_RE.match(ans.strip()):
+        problems.append(f"E4 answer 不是合法英文单词形式：{ans!r}"
+                        "（只允许字母、连字符、撇号）")
+
+    # E5 答案泄露：answer 不能以「整词」形式出现在 stem 里。
+    # ⚠️ 不能用 normalize_word(stem) 去比对：那个函数只剥首尾非字母，
+    #    中文题干里"……的英文单词（名词，复数 phenomena）"会被剥成 "phenomena"，
+    #    反而丢掉上下文、漏判真正写在题面上的答案。这里直接在原串上做整词搜索。
+    # 用前后 lookaround 而不是 \b：answer 允许连字符/撇号，\b 在 "self-aware" 上会错切。
+    if isinstance(ans, str) and ans.strip() and stem:
+        na = normalize_word(ans)
+        if na and len(na) >= 3 and re.search(
+                r"(?<![A-Za-z])" + re.escape(na) + r"(?![A-Za-z])", stem.lower()):
+            problems.append(f"E5 answer {ans!r} 出现在 stem 里，等于把答案写在题面上")
+
+    # E6 alt_answers 冗余
+    alts = content.get("alt_answers")
+    if alts is not None:
+        if not isinstance(alts, list):
+            problems.append("E6 alt_answers 不是数组")
+        else:
+            na = normalize_word(ans)
+            for a in alts:
+                if normalize_word(a) == na:
+                    problems.append(f"E6 alt_answers 里的 {a!r} 与 answer 相同，属冗余")
+                if not SPELL_ANSWER_RE.match(str(a).strip()):
+                    problems.append(f"E6 alt_answers 项不是合法单词形式：{a!r}")
+
+    # W4 stem 过长
+    if len(stem) > SPELL_STEM_LIMIT:
+        problems.append(f"W4 stem 长 {len(stem)} 字（>{SPELL_STEM_LIMIT}），"
+                        "拼写题应一句话说清问什么")
+
+    return problems

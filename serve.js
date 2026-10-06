@@ -1505,6 +1505,12 @@ const server = http.createServer((req, res) => {
           } else if (row.type === 'choice' && Array.isArray(content.options)
                      && typeof content.answer === 'number' && content.options[content.answer] != null) {
             content.reference_answer = String(content.options[content.answer]);
+          } else if (row.type === 'spell') {
+            // 拼写题（2026-10-06）：answer 就是要拼的那个单词，可接受拼法一并给模型，
+            // 免得它把英式/美式差异（specialise / specialize）判成错。
+            const alts = Array.isArray(content.alt_answers) ? content.alt_answers.filter(Boolean) : [];
+            content.reference_answer = String(content.answer == null ? '' : content.answer)
+              + (alts.length ? '（也可接受：' + alts.join(' / ') + '）' : '');
           } else if (typeof content.answer === 'boolean') {
             content.reference_answer = content.answer ? '正确' : '错误';
           }

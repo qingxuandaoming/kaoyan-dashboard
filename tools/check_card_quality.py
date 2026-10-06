@@ -49,6 +49,7 @@ from card_quality import (  # noqa: E402
     LEN_RATIO_LIMIT,
     LETTER_PREFIX_RE as LETTER_PREFIX,
     SHORT_OPTION_CHARS,
+    check_spell_quality,
     normalize_option as norm,
 )
 
@@ -65,6 +66,12 @@ def audit_one(qid, qtype, content):
         ans = ct.get("answer")
         if isinstance(ans, bool) or not isinstance(ans, int) or (isinstance(opts, list) and not 0 <= ans < len(opts)):
             errors.append(f"E3 answer={ans!r} 非法")
+
+    # 拼写题（2026-10-06 新增）：判定规则同样来自 card_quality.py（单一事实来源）。
+    # 不在这里登记的话，全库审计对新题型等于"放行"——答案写在题面上也查不出来。
+    if qtype == "spell":
+        for p in check_spell_quality(ct):
+            (errors if p.startswith("E") else warns).append(p)
 
     if isinstance(opts, list) and opts:
         # E1 字母前缀

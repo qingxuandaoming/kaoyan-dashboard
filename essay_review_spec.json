@@ -1,0 +1,1681 @@
+{
+  "version": 1,
+  "_note": [
+    "作文复盘训练素材规格 —— 纯数据，改内容不用碰代码（引擎：tools/add_essay_review_cards.py）。",
+    "",
+    "素材来源：E:/NPEE/English/translation&writing/作文/ 下 7 篇批改记录 + 批改得分总表.md 第 2.3 节复现错误 Top5。",
+    "卡面一律用**学生本人的原句**（如 the more and more pepoles has became），不用教科书例句，",
+    "因为复盘的价值就在「认得这是我自己写的」。",
+    "",
+    "四个区块：",
+    "  essays    每篇作文 = 一次复盘会话（写进 E:/NPEE/Review/英语一/sessions/，零改动接入错因画像）",
+    "  cards     choice / judge / short 三类，content 里 options[0] 恒为**正确答案**（引擎按 qid 打乱）",
+    "  spell     拼写题词条。**只写词与错拼，题干由引擎生成** —— 这样 answers 永远不会泄进 stem",
+    "  sentences 好句子：fill 由引擎把 blank 挖成 {{c1::...}}；short 由引擎把 zh 变成中译英题干",
+    "",
+    "topic 落点（都用 topics 表里已存在且为空的位置，不新建 topic、不动图谱口径）：",
+    "  ENG-WRITE-03-02 常见语法错误      ← 常犯语法错误",
+    "  ENG-WRITE-03-04 作文批改与复盘    ← 审题突出问题 + 拼写错词",
+    "  ENG-WRITE-03-01 高分范文分析      ← 好句子背诵",
+    "  ENG-WRITE-01-03 格式与语域        ← 应用文称呼/落款/敬语（该 topic 本身就是干这个的）"
+  ],
+  "essays": [
+    {
+      "key": "2000pic",
+      "year": 2000,
+      "kind": "图画",
+      "score": 7,
+      "full": 20,
+      "band": "第二档偏上",
+      "title": "世界商业捕鱼简史（A Brief History of World Commercial Fishing）",
+      "record": "English/translation&writing/作文/图画作文/2000-图画作文-世界商业捕鱼简史-批改记录.md",
+      "date": "2026-06-09",
+      "headline": "三要点全中、寓意判对，但 133 词不达 150 下限，且错误密度 21.1 条/百词为七篇最高",
+      "points": [
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·时间误读：1900–1995 读成 five years",
+          "what_wrong": "during five years change",
+          "cause_kind": "method",
+          "severity": 4,
+          "detail": "图上标的是 1900 和 1995 两个年份，跨度是 95 年。看图第一步就该把数字圈出来读准。",
+          "cause": "审题·数字与时间要读准",
+          "cards": [
+            "issue-1",
+            "issue-6"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·主谓一致：anothers is so many ship",
+          "what_wrong": "anothers is so many ship in water",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "another 不能加 s；两图对比用 the other；复数主语配复数谓语。",
+          "cause": "主谓一致：第三人称单数漏 -s",
+          "cards": [
+            "gram-sva-1",
+            "gram-sva-2",
+            "gram-sva-3",
+            "gram-sva-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·词性混用：purpose / transient / reckles",
+          "what_wrong": "but purpose a relationship is human with nature / to transient what time we can use how many ship / we shouldn't reckles balance",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "purpose 是名词，别当动词；transient 是形容词（短暂的），连着两处当名词用；reckless 是形容词，不能作谓语。写前先确认词性。",
+          "cause": "词性混用",
+          "cards": [
+            "gram-pos-1",
+            "gram-pos-2",
+            "gram-pos-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·中式直译：The time is change",
+          "what_wrong": "The time is change between 1900 to 1995",
+          "cause_kind": "concept",
+          "severity": 3,
+          "detail": "「时间在变化」不能逐字搬。描述时间跨度用 over the past century / between 1900 and 1995。",
+          "cause": "中式直译",
+          "cards": [
+            "gram-cn-1",
+            "gram-cn-2",
+            "gram-cn-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-04",
+          "title": "作文·字数硬伤：133 词 < 150 下限",
+          "what_wrong": "全文 133 词",
+          "cause_kind": "method",
+          "severity": 4,
+          "detail": "本篇是七篇里唯一字数不达标的。字数归零已直接扣掉 2 分，且总分封顶 8 分。补字数靠每段加 1–2 个细节句，是唯一「不靠语法也能拿到」的分。",
+          "cause": "字数与卷面（字数只是门槛）",
+          "cards": [
+            "issue-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·拼写硬伤：phenominon / distory / contol / reckles",
+          "what_wrong": "phenominon / distory / contol / reckles",
+          "cause": "拼写硬伤",
+          "cause_kind": "memory",
+          "severity": 4,
+          "detail": "四个词全是「少字母或换字母」型错拼。拼写是不依赖语法水平、纯靠默写就能拿回来的分，也是七篇里 7/7 全部命中的唯一一类。",
+          "cards": [
+            "spell:phenomenon",
+            "spell:destroy",
+            "spell:control",
+            "spell:reckless"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "2001pic",
+      "year": 2001,
+      "kind": "图画",
+      "score": 8,
+      "full": 20,
+      "band": "第二档偏上",
+      "title": "爱心是一盏灯，在越黑暗的地方越明亮",
+      "record": "English/translation&writing/作文/图画作文/2001-图画作文-爱心是一盏灯-批改记录.md",
+      "date": "2026-06-10",
+      "headline": "三要点齐、寓意对，但拆成 5 段、举例段读者无法还原，错误绝对数 39 条为七篇之最",
+      "points": [
+        {
+          "topic_id": "ENG-WRITE-03-04",
+          "title": "作文·段落划分随意：238 词拆成 5 段",
+          "what_wrong": "第四段仅 24 词、第五段单独收尾",
+          "cause_kind": "method",
+          "severity": 3,
+          "detail": "考研大作文标准是三段（描述 / 阐释 / 评论）。碎段会让结构分直接掉档；篇幅超出 about 200 词 19% 也没换来内容分。",
+          "cause": "结构·段落划分",
+          "cards": [
+            "issue-5"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-04",
+          "title": "作文·举例段读者无法还原",
+          "what_wrong": "you shouldn't care who make breakfast is identical man for you",
+          "cause_kind": "method",
+          "severity": 4,
+          "detail": "例子要能一句话说清。「谁给你做早餐的那个人其实是同一个人」这个例子读者还原不出来，等于这一段白写。",
+          "cause": "举例不可理解",
+          "cards": [
+            "issue-6"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·主谓一致（三连错）",
+          "what_wrong": "that depict love for our / who make breakfast / that only need one light",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "定语从句关系代词作主语时，谓语要跟着先行词的单复数走。同一篇里连错三处，是习惯不是偶然。",
+          "cause": "主谓一致：第三人称单数漏 -s",
+          "cards": [
+            "gram-sva-1",
+            "gram-sva-2",
+            "gram-sva-3",
+            "gram-sva-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·词性混用：loss / easy / careful",
+          "what_wrong": "Humanity always loss the point / you will easy to know / a heart that careful",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "loss 是名词（动词是 lose）；easy 是形容词，修饰动词要用 easily；careful 是形容词，不能单独作从句谓语。",
+          "cause": "词性混用",
+          "cards": [
+            "gram-pos-1",
+            "gram-pos-2",
+            "gram-pos-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·中式直译：in every time / past time",
+          "what_wrong": "in every time（全篇出现 3 次）/ enjoy past time",
+          "cause_kind": "concept",
+          "severity": 3,
+          "detail": "「每一次」是 at all times / every time；「消遣」是一个词 pastime。重复表达同一意思是凑字数，只会放大错误。",
+          "cause": "中式直译",
+          "cards": [
+            "gram-cn-1",
+            "gram-cn-2",
+            "gram-cn-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·拼写硬伤：Whe / Thousend / istance / everytime",
+          "what_wrong": "Whe / Thousend / istance / everytime",
+          "cause": "拼写硬伤",
+          "cause_kind": "memory",
+          "severity": 4,
+          "detail": "When / Thousand / instance / every time。everytime 是「两个词写成一个」型错误，同类还有 everyday（形容词）vs every day（状语）。",
+          "cards": [
+            "spell:instance"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·一句里两个谓语：love is stay by sideways",
+          "what_wrong": "love is stay by sideways",
+          "cause": "一句两个谓语",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "is 后面不能直接接动词原形 stay。应为 love stays by your side（系动词后接形容词/名词，实义动词单独作谓语）。",
+          "cards": [
+            "gram-verb-1",
+            "gram-be-3"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "2002pic",
+      "year": 2002,
+      "kind": "图画",
+      "score": 11,
+      "full": 20,
+      "band": "第三档偏上",
+      "title": "Cultures — National and International",
+      "record": "English/translation&writing/作文/图画作文/2002-图画作文-Cultures-National-and-International-批改记录.md",
+      "date": "2026-06-11",
+      "headline": "七篇里唯一进第三档的一篇：靠内容 5/7 + 结构 2/3，不是靠语言（语言同样只有 2/8）。拼写错得集中在同一类词根上",
+      "points": [
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·拼写集中在同一类词根",
+          "what_wrong": "interation / interctive / confidenes / historitic / humanality / devolpment",
+          "cause_kind": "memory",
+          "severity": 4,
+          "detail": "7 处拼错全是 -tion / -tive / -dence / -ric / -nity / -ment 这类词尾。一次把这些词尾的规律理清，比逐个背有效得多。",
+          "cause": "拼写硬伤",
+          "cards": [
+            "spell:interaction",
+            "spell:interactive",
+            "spell:confidence",
+            "spell:historic",
+            "spell:humanity",
+            "spell:development"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·主谓一致（三连错）",
+          "what_wrong": "our country have become / Picture show / a nation become power",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "country / picture / nation 都是第三人称单数，谓语要加 -s。这是七篇里命中 4 篇的头号复现错误。",
+          "cause": "主谓一致：第三人称单数漏 -s",
+          "cards": [
+            "gram-sva-1",
+            "gram-sva-2",
+            "gram-sva-3",
+            "gram-sva-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·词性混用：power / popular / political",
+          "what_wrong": "become power and open / International popular is historitic must way / learn its culture and technique and political",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "power 是名词（形容词 powerful）；popular 是形容词，不能作主语（名词 popularity）；political 是形容词，不能作 learn 的宾语（名词 politics）。",
+          "cause": "词性混用",
+          "cards": [
+            "gram-pos-1",
+            "gram-pos-2",
+            "gram-pos-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·中式直译：China because its clothes beautiful",
+          "what_wrong": "In the history, China because its clothes beautiful to be \"Hua\"",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "because 是连词，不能单独作谓语，也不是介词。「因…而被称为」要用 was called … because of …。",
+          "cause": "中式直译",
+          "cards": [
+            "gram-cn-1",
+            "gram-cn-2",
+            "gram-cn-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-04",
+          "title": "作文·段长失衡：第二段独占 45%",
+          "what_wrong": "第一段 52 词 / 第二段 94 词 / 第三段 61 词",
+          "cause_kind": "method",
+          "severity": 2,
+          "detail": "第二段 94 词占了全文 45%，第三段的评论被历史回顾挤掉。三段大致均衡（约 3:4:3）读起来才稳。",
+          "cause": "结构·段长失衡",
+          "cards": [
+            "issue-5"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "2005pic",
+      "year": 2005,
+      "kind": "图画",
+      "score": 7,
+      "full": 20,
+      "band": "第二档偏上",
+      "title": "偶像崇拜（把崇拜写在脸上 / 花300元做个\"小贝头\"）",
+      "record": "English/translation&writing/作文/图画作文/2005-图画作文-偶像崇拜-批改记录.md",
+      "date": "2026-10-06",
+      "headline": "错误密度 17.6 条/百词、崩溃句 6 处；寓意解读偏靶（谈社交焦虑而非盲目追星），结尾也没表态",
+      "points": [
+        {
+          "topic_id": "ENG-WRITE-03-04",
+          "title": "作文·寓意偏靶：把追星写成了社交焦虑",
+          "what_wrong": "As media development, more or less pepole feel that they couldn't engage with someone in the true world social.",
+          "cause_kind": "method",
+          "severity": 5,
+          "detail": "两图共同点是**盲目崇拜偶像、跟风消费**，不是「媒体发展让人不会社交」。立意偏了，第二段整段论证都落空。",
+          "cause": "审题·寓意偏靶",
+          "cards": [
+            "issue-2",
+            "issue-6"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-04",
+          "title": "作文·图画细节一个没落地",
+          "what_wrong": "in these pictures（全篇没有出现「300 元」「小贝头」）",
+          "cause_kind": "method",
+          "severity": 4,
+          "detail": "题目第 1 条要求 describe the photos。图上写着 300 元、写着「小贝头」，这些是最容易拿的分，一个不写等于白丢内容分。",
+          "cause": "审题·图画细节缺失",
+          "cards": [
+            "issue-1",
+            "issue-6"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-04",
+          "title": "作文·结尾没有表态",
+          "what_wrong": "We should keep eyes about it, we should change and find way that need keep patience and have wise.",
+          "cause_kind": "method",
+          "severity": 4,
+          "detail": "题目第 3 条要求 give your point of view。结尾只说要「改变、有耐心和智慧」，没回答「我认为这事对还是不对」。",
+          "cause": "审题·观点缺失",
+          "cards": [
+            "issue-3",
+            "issue-6"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·be 动词丢失或重复",
+          "what_wrong": "Because we scard that / scard others couldn't understanding / it is really make they feel / But is turly has been a importance phenomenon",
+          "cause_kind": "concept",
+          "severity": 5,
+          "detail": "形容词 scared/afraid 不能单独作谓语，前面必须有 be；反过来，一句里也不能出现两个 be（is … has been）。这是七篇里命中 4 篇的第二号复现错误。",
+          "cause": "be 动词丢失或重复",
+          "cards": [
+            "gram-be-1",
+            "gram-be-2",
+            "gram-be-3",
+            "gram-be-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·句子里塞两个动词",
+          "what_wrong": "it is really make they feel better / only transient can make long term thrive",
+          "cause_kind": "concept",
+          "severity": 5,
+          "detail": "一个简单句只能有一个谓语。is 后面要接 doing/done/形容词，不能直接接动词原形 make；they 作宾语要用宾格 them。",
+          "cause": "一句两个谓语",
+          "cards": [
+            "gram-verb-1",
+            "gram-be-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·中式直译：keep eyes about it / write to face",
+          "what_wrong": "We should keep eyes about it / So \"write to face\" is acceptable way / in the least time",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "「保持关注」是 keep an eye on it / pay close attention to；「写在脸上」是 write it on one's face；「在最短时间内」是 as quickly as possible。逐字翻译是这一篇最大的失分源。",
+          "cause": "中式直译",
+          "cards": [
+            "gram-cn-1",
+            "gram-cn-2",
+            "gram-cn-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·拼写硬伤：pepoles / specail / turly / theresting 等 7 词",
+          "what_wrong": "pepoles / pepole / specail / specal / turly / theresting / explensively / scard / sociat",
+          "cause": "拼写硬伤",
+          "cause_kind": "memory",
+          "severity": 5,
+          "detail": "9 个错拼词里 7 个是独立的词，集中在 people / special / truly / interesting / expensively / scared / socialize。拼写是本篇占分最多、也最好补的一类。",
+          "cards": [
+            "spell:people",
+            "spell:special",
+            "spell:truly",
+            "spell:interesting",
+            "spell:expensively",
+            "spell:scared",
+            "spell:socialize"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "作文·主谓一致：pepoles has became",
+          "what_wrong": "the more and more pepoles has became to use specail symbol",
+          "cause": "主谓一致：第三人称单数漏 -s",
+          "cause_kind": "concept",
+          "severity": 5,
+          "detail": "people 本身是复数，谓语必须用 have；且 has 后面不能接过去式 became。这一句同时踩了主谓一致、时态、拼写三类错。",
+          "cards": [
+            "gram-sva-1",
+            "gram-sva-2",
+            "gram-verb-1"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "2005app",
+      "year": 2005,
+      "kind": "应用文",
+      "score": 4,
+      "full": 10,
+      "band": "第二档偏上",
+      "title": "辞职信（Part A 51. You got a job as an editor for the magazine Designs & Fashions）",
+      "record": "English/translation&writing/作文/应用文/2005-应用文作文-辞职信-批改记录.md",
+      "date": "2026-09-14",
+      "headline": "三个要点都写了，但**称呼整段缺失**、落款写成 by yours Li Ming、96 词不达 100 下限——格式分几乎全失",
+      "points": [
+        {
+          "topic_id": "ENG-WRITE-01-03",
+          "title": "应用文·整篇没有称呼",
+          "what_wrong": "全文以 Resignation Letter 开头，没有 Dear Mr. Wang,",
+          "cause_kind": "method",
+          "severity": 5,
+          "detail": "题目给了杂志主编的姓名。书信没有称呼 = 格式硬伤必扣，且「结构完整性」直接 ≤1/3。",
+          "cause": "应用文格式（称呼/落款/敬语）",
+          "cards": [
+            "letter-1",
+            "letter-2"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-01-03",
+          "title": "应用文·落款写成 by yours Li Ming.",
+          "what_wrong": "by yours Li Ming.",
+          "cause_kind": "method",
+          "severity": 5,
+          "detail": "落款固定是「敬语 + 换行 + 署名」：Yours sincerely, 然后另起一行 Li Ming。不能加 by，不能写 yours 在前，署名后不加句号。",
+          "cause": "应用文格式（称呼/落款/敬语）",
+          "cards": [
+            "letter-1",
+            "letter-2"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-01-03",
+          "title": "应用文·首句没有点题",
+          "what_wrong": "Every meeting having ending, I sorry to write this letter",
+          "cause_kind": "method",
+          "severity": 4,
+          "detail": "第一段第一句就该交代「我写信是为了辞职」。开头先抒情，读者要读两段才知道来意，内容分直接打折。",
+          "cause": "应用文首句未点题",
+          "cards": [
+            "letter-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-04",
+          "title": "应用文·字数硬伤：96 词 < 100 下限",
+          "what_wrong": "全文 96 词",
+          "cause_kind": "method",
+          "severity": 4,
+          "detail": "小作文下限 100 词。字数维度归零，且总分封顶 4 分——本篇正好卡在封顶线上。",
+          "cause": "字数与卷面（字数只是门槛）",
+          "cards": [
+            "issue-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·be 动词丢失（四处）",
+          "what_wrong": "I sorry to write this letter / we should honest to ourself / When I in school / could find evaluble points",
+          "cause_kind": "concept",
+          "severity": 5,
+          "detail": "sorry / honest 是形容词，不能裸奔作谓语；When I in school 缺 was。这一篇是「形容词前面必须有 be」的集中样本。",
+          "cause": "be 动词丢失或重复",
+          "cards": [
+            "gram-be-1",
+            "gram-be-2",
+            "gram-be-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·拼写硬伤：evaluble / expated / intersting",
+          "what_wrong": "evaluble / expated / intersting",
+          "cause": "拼写硬伤",
+          "cause_kind": "memory",
+          "severity": 4,
+          "detail": "valuable / expected / interesting。这一篇只有 96 词，却有 4 处拼写错——错误密度 24.0 条/百词，是七篇里最高的。",
+          "cards": [
+            "spell:valuable",
+            "spell:expected"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·动词形态失控：choosed / have had read",
+          "what_wrong": "I surely choosed this work / When I in school, I have had read it",
+          "cause": "动词形态失控",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "choosed 不是词（choose 的过去式是 chose）；have had read 三个助动词叠在一起。同一段里时态在 chose / have read / could 之间乱跳。",
+          "cards": [
+            "gram-verb-1"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-04",
+          "title": "应用文·理由表达含糊：evaluble points / so many from",
+          "what_wrong": "I couldn't find evaluble points to use my knowledge, and I couldn't write under so many from",
+          "cause": "表达含糊，读者要猜",
+          "cause_kind": "method",
+          "severity": 3,
+          "detail": "辞职信的第二段要说明辞职理由。「找不到有价值的点来用我的知识」「在这么多 from 之下没法写」——读者得猜 from 指什么。理由写不清楚，这个要点等于没写到。",
+          "cards": [
+            "letter-3"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "2006app",
+      "year": 2006,
+      "kind": "应用文",
+      "score": 6,
+      "full": 10,
+      "band": "第三档偏上",
+      "title": "希望工程助学信（Part A 51. 给 Project Hope 写信，请求资助一名失学儿童）",
+      "record": "English/translation&writing/作文/应用文/2006-应用文作文-希望工程助学信-批改记录.md",
+      "date": "2026-09-30",
+      "headline": "三段式完整、行文有推进，但漏掉「请对方帮忙物色受助对象」这个要点，称呼与落款都不规范",
+      "points": [
+        {
+          "topic_id": "ENG-WRITE-01-03",
+          "title": "应用文·漏掉一个明示要点",
+          "what_wrong": "写了「什么样的孩子」和「如何实施」，但没写「请对方帮忙物色一名受助儿童」",
+          "cause_kind": "method",
+          "severity": 5,
+          "detail": "题目列的要点漏一个必扣。动笔前先把要点抄在草稿边上，写完逐条打勾。",
+          "cause": "应用文要点遗漏",
+          "cards": [
+            "letter-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-01-03",
+          "title": "应用文·称呼不规范 Dear commission:",
+          "what_wrong": "Dear commission:",
+          "cause_kind": "method",
+          "severity": 4,
+          "detail": "不知道具体人名时用 Dear Sir or Madam,（逗号不是冒号）；commission 是机构不是称谓，不能当收信人。",
+          "cause": "应用文格式（称呼/落款/敬语）",
+          "cards": [
+            "letter-1",
+            "letter-2"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-01-03",
+          "title": "应用文·敬语拼错 Yours sencerely",
+          "what_wrong": "Yours sencerely,",
+          "cause_kind": "memory",
+          "severity": 4,
+          "detail": "sincerely 的拼写是 s-i-n-c-e-r-e-l-y。敬语拼错是「会写也要丢分」的典型，一次背死。",
+          "cause": "应用文格式（称呼/落款/敬语）",
+          "cards": [
+            "letter-1",
+            "letter-2"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·主语从句缺谓语",
+          "what_wrong": "I do is little but you do are great",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "两句都缺关系词/结构不完整：应为 What I do is little, but what you do is great. 用 what 引导主语从句。",
+          "cause": "主语从句结构不完整",
+          "cards": []
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·help 的宾语用了主格",
+          "what_wrong": "only education can help they change themself",
+          "cause_kind": "concept",
+          "severity": 3,
+          "detail": "help 后面作宾语要用宾格 them；themself 不是标准拼写，复数反身代词是 themselves。",
+          "cause": "代词宾格",
+          "cards": []
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·拼写硬伤：littel / competance / unfortunat / sencerely",
+          "what_wrong": "littel / competance / unfortunat / sencerely",
+          "cause": "拼写硬伤",
+          "cause_kind": "memory",
+          "severity": 4,
+          "detail": "little / competence / misfortune / sincerely。unfortunat 是形容词且拼错，这里需要名词 misfortunes。",
+          "cards": [
+            "spell:sincerely"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·主谓一致：This world have",
+          "what_wrong": "This world have to many different unfortunat",
+          "cause": "主谓一致：第三人称单数漏 -s",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "This world 是第三人称单数，谓语应为 has；to 应为 too。主谓一致是七篇里命中 4 篇的头号复现错误。",
+          "cards": [
+            "gram-sva-1",
+            "gram-sva-2",
+            "gram-sva-3",
+            "gram-sva-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·缺谓语 be：My plan to aid building a school",
+          "what_wrong": "My plan to aid building a school and aid teaches going there to educate these child",
+          "cause": "be 动词丢失或重复",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "整句没有谓语，应为 My plan is to aid in building a school and to send teachers there。另一个样本是 my competence also be stricted（be 形态错，应为 is）。",
+          "cards": [
+            "gram-be-1",
+            "gram-be-2",
+            "gram-be-4"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-01-03",
+          "title": "应用文·语域：正式书信忌用缩写",
+          "what_wrong": "couldn't（出现多次）",
+          "cause": "语域（正式书信忌用缩写）",
+          "cause_kind": "method",
+          "severity": 3,
+          "detail": "正式书信里不用 couldn't / don't 这类缩写，且时态要与全篇一致（改为 cannot）。同篇还有两处用感叹号表达情绪，也不符合书信语域。",
+          "cards": [
+            "letter-2"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "2008app",
+      "year": 2008,
+      "kind": "应用文",
+      "score": 5,
+      "full": 10,
+      "band": "第三档偏下",
+      "title": "道歉信（Part A 51. 加拿大朋友 Bob 借你的爵士 CD，回国后才发现没还）",
+      "record": "English/translation&writing/作文/应用文/2008-应用文作文-道歉信-批改记录.md",
+      "date": "2026-09-15",
+      "headline": "解决办法（随信寄回 CD）写得清楚，但**全文没有一句显式道歉**，敬语拼错且与署名同行、署名还带了句号",
+      "points": [
+        {
+          "topic_id": "ENG-WRITE-01-03",
+          "title": "应用文·全文没有一句显式道歉",
+          "what_wrong": "只有隐含承认（one thing is bad that I forget to return the CD to you!），没有 I am writing to apologize for…",
+          "cause_kind": "method",
+          "severity": 5,
+          "detail": "道歉信的核心功能就是道歉。题目要点里明写了「道歉」，只用「有件事不太好」暗示，覆盖偏弱必扣。",
+          "cause": "应用文要点·道歉缺失",
+          "cards": [
+            "letter-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-01-03",
+          "title": "应用文·敬语拼错 + 与署名同行 + 署名带句号",
+          "what_wrong": "Yours sensevely, Li Ming.",
+          "cause_kind": "method",
+          "severity": 5,
+          "detail": "三处格式错叠在一行：sincerely 拼错、敬语与署名必须分两行、署名后不加句号。",
+          "cause": "应用文格式（称呼/落款/敬语）",
+          "cards": [
+            "letter-1",
+            "letter-2"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·borrow / lend 方向颠倒",
+          "what_wrong": "so many jazz will miss, but you borrow to me",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "borrow 是「我借进来」，lend 是「别人借给我」。你从 Bob 那里借 CD，应用 you lent it to me 或 I borrowed it from you。",
+          "cause": "易混动词 borrow/lend",
+          "cards": [
+            "letter-5"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·情态动词后又加 to",
+          "what_wrong": "You should to recieve it",
+          "cause_kind": "concept",
+          "severity": 4,
+          "detail": "情态动词 should 后面直接接动词原形，不加 to。同类还有 must / can / may。",
+          "cause": "情态动词后不能加 to",
+          "cards": []
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·拼写硬伤五处",
+          "what_wrong": "exparence / rear / recieve / writting / sensevely",
+          "cause_kind": "memory",
+          "severity": 4,
+          "detail": "分别应为 experience / rare / receive / writing / sincerely。receive 与 experience 是英语作文最高频的两个拼错点，背死它。",
+          "cause": "拼写硬伤",
+          "cards": [
+            "spell:experience",
+            "spell:receive",
+            "spell:writing",
+            "spell:sincerely"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·时态失控：六个过去动作全用现在时",
+          "what_wrong": "When you read this letter, that I am already in China / I have a good experience / when I am back, I find it / we can meet in your country",
+          "cause": "时态失控（该用过去时）",
+          "cause_kind": "concept",
+          "severity": 5,
+          "detail": "在加拿大的经历、回国、发现 CD 全都是已完成的过去动作，应统一用过去时（was / had / found / met）；「你读信时我已回国」相对读信时刻是将来，用 will be。这一篇 26 处问题里时态占 6 处，是最集中的一类。",
+          "cards": []
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·被动语态缺 be（自补成功，值得表扬）",
+          "what_wrong": "because it will checked（稿中已用插入符号补上 be ✓）",
+          "cause": "be 动词丢失或重复",
+          "cause_kind": "concept",
+          "severity": 2,
+          "detail": "写完主动回头检查、发现被动语态缺 be 并用插入符号补上——这个自查动作正是「be 动词扫描」习惯，继续保持。补全后是 because it will be checked。",
+          "cards": [
+            "gram-be-1",
+            "gram-be-3"
+          ]
+        },
+        {
+          "topic_id": "ENG-WRITE-03-02",
+          "title": "应用文·中式直译：one thing is bad that",
+          "what_wrong": "But one thing is bad that I forget to return the CD to you!",
+          "cause": "中式直译",
+          "cause_kind": "concept",
+          "severity": 3,
+          "detail": "「有件事不太好」逐字直译。道歉信里直接写 I feel terribly sorry that I forgot to return your CD 更贴切，也顺带把「道歉」这个要点补上。感叹号在正式书信里也要少用。",
+          "cards": [
+            "letter-3",
+            "gram-cn-1"
+          ]
+        }
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "_id": "gram-sva-1",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "judge",
+      "content": {
+        "stem": "判断语法对错：`the more and more people has become to use special symbols`",
+        "answer": false,
+        "explanation": "people 是复数集合名词，谓语必须用 have；另外 more and more 前面不加 the，has become to 也用错了（become 不能接 to do）。正确写法：more and more people have come to use special symbols。",
+        "traps": [
+          "people 永远不加 -s，也永远不接 has",
+          "more and more 是固定搭配，前面不加 the"
+        ],
+        "retro": "你 2005 年图画作文原句：the more and more pepoles has became to use specail symbol to declare who they are",
+        "tags": [
+          "主谓一致",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-sva-2",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "下面哪一句的主谓一致和拼写都正确？（其余三句各错一处）",
+        "options": [
+          "more and more people have come to use special symbols",
+          "more and more people has come to use special symbols",
+          "more and more peoples have came to use special symbols",
+          "the more and more people have become to use special symbols"
+        ],
+        "answer": 0,
+        "explanation": "people 是复数（不加 -s），谓语用 have；become 不接 to do，这里用 have come to do。",
+        "traps": [
+          "people 加 -s、接 has、前面加 the —— 这三个错法你在同一句里全犯过"
+        ],
+        "retro": "同句四处错叠在 2005 年图画作文第一段第一句上",
+        "tags": [
+          "主谓一致",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-sva-3",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "主语是单数名词时，谓语该用哪个？（你自己的原句：`our country have become` / `Picture show` / `a nation become power`）",
+        "options": [
+          "our country has become / the picture shows / a nation becomes powerful",
+          "our country have become / the picture show / a nation become powerful",
+          "our country have become / the picture shows / a nation become power",
+          "our country has become / the picture show / a nation becomes power"
+        ],
+        "answer": 0,
+        "explanation": "country / picture / nation 都是第三人称单数，一般现在时谓语要加 -s（have → has）；become 后面要接形容词 powerful，不是名词 power。",
+        "traps": [
+          "become 是系动词性质，后面接形容词：become powerful 不是 become power"
+        ],
+        "retro": "你在 2002 年图画作文里同一篇连错这三处（错误密度 12.1 条/百词的七篇最低纪录下，主谓一致仍占 4 处）",
+        "tags": [
+          "主谓一致",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-sva-4",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "judge",
+      "content": {
+        "stem": "判断：定语从句里关系代词作主语时，从句谓语的单复数要跟先行词一致（`that depict` 应改为 `that depicts` 是因为先行词是单数 `a light`）。",
+        "answer": true,
+        "explanation": "对。2001 年那篇里 that depict love（先行词 a light 单数）、who make breakfast（先行词 the person 单数）、that only need one light（先行词 light 单数）三处都是同一类错。",
+        "traps": [
+          "先行词被 a / one 修饰时最容易忘记加 -s"
+        ],
+        "retro": "你 2001 年图画作文里连错三处：that depict / who make / that only need",
+        "tags": [
+          "主谓一致",
+          "定语从句",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-be-1",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "judge",
+      "content": {
+        "stem": "判断语法对错：`Because we scared that we cannot find a group`",
+        "answer": false,
+        "explanation": "scared 是形容词，不能单独作谓语，前面必须加 be：Because we are scared that…。同理 afraid 也要有 be。",
+        "traps": [
+          "「形容词裸奔作谓语」是中文母语者第一大隐性错误——每见一个形容词先问「be 在哪」"
+        ],
+        "retro": "你 2005 年图画作文原句：Because we scard that we couldn't find group（scard 还拼错了，应为 scared）",
+        "tags": [
+          "be 动词",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-be-2",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "下面哪一句没有 be 动词问题？",
+        "options": [
+          "I am sorry to write this letter, but we should be honest to ourselves",
+          "I sorry to write this letter, but we should honest to ourselves",
+          "I am sorry to write this letter, but we should honest to ourselves",
+          "I sorry to write this letter, but we should be honest to ourself"
+        ],
+        "answer": 0,
+        "explanation": "sorry 和 honest 都是形容词，前面都要有 be。反身代词「我们自己」是 ourselves，不是 ourself。",
+        "traps": [
+          "should 后面要接 be honest，不是 should honest"
+        ],
+        "retro": "你 2005 年应用文辞职信开头：I sorry to write this letter, but we should honest to ourself and others",
+        "tags": [
+          "be 动词",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-be-3",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "一个简单句里出现两个 be 动词是错的。下面哪一句改对了？",
+        "options": [
+          "But it has truly been an important phenomenon for this generation",
+          "But is truly has been a importance phenomenon to this generation",
+          "But it is truly has been a importance phenomenon for this generation",
+          "But it has truly been a important phenomenon to this generation"
+        ],
+        "answer": 0,
+        "explanation": "一句只能有一个谓语（has been）；importance 是名词，修饰名词要用形容词 important；important 以元音音素开头，冠词用 an 不用 a；「对这一代人而言」用 for。",
+        "traps": [
+          "is … has been 是最常见的双谓语叠法",
+          "元音音素前用 an：an important phenomenon"
+        ],
+        "retro": "你 2005 年图画作文原句：But is turly has been a importance phenomenon to this generation（四处错叠一句）",
+        "tags": [
+          "be 动词",
+          "词性",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-be-4",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "judge",
+      "content": {
+        "stem": "判断：`When I in school, I have read it` 这句话缺了 be 动词。",
+        "answer": true,
+        "explanation": "对。in school 是介词短语，不能单独作谓语，应为 When I was in school。同类还有 When I at home / When I young 都要补 be。",
+        "traps": [
+          "时间状语从句里的「我（是）……」最容易漏 was/am"
+        ],
+        "retro": "你 2005 年应用文辞职信原句：When I in school, I have had read it",
+        "tags": [
+          "be 动词",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-pos-1",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "哪个词性用对了？",
+        "options": [
+          "it has truly been an important phenomenon for this generation",
+          "it has truly been a importance phenomenon to this generation",
+          "International popular is an inevitable trend for humanity",
+          "other countries will come to learn its culture and political"
+        ],
+        "answer": 0,
+        "explanation": "importance 是名词，不能修饰名词（要 important）；popular 是形容词，不能作主语（要 popularity）；political 是形容词，不能作 learn 的宾语（要 politics）。",
+        "traps": [
+          "名词位置放形容词、动词位置放名词——写完检查一遍词性"
+        ],
+        "retro": "三处都出自你的作文：2005 图画 a importance phenomenon、2002 图画 International popular / learn its political",
+        "tags": [
+          "词性",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-pos-2",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "judge",
+      "content": {
+        "stem": "判断：`Humanity always loss the point about love` 里的 loss 用错了，因为 loss 是名词、这里需要动词。",
+        "answer": true,
+        "explanation": "对。loss 是名词（损失），动词是 lose，第三人称单数 loses。同类：advice（名）/ advise（动）、proof（名）/ prove（动）。",
+        "traps": [
+          "loss 和 lose 只差一个字母，但一个是名词一个是动词"
+        ],
+        "retro": "你 2001 年图画作文第二段原句：Humanity always loss the point about love",
+        "tags": [
+          "词性",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-pos-3",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "下面哪一句里没有词性误用？",
+        "options": [
+          "aims to reveal the relationship between humanity and nature",
+          "purpose a relationship between humanity and nature",
+          "but purpose a relationship is human with nature",
+          "we shouldn't recklessly disrupt the balance"
+        ],
+        "answer": 0,
+        "explanation": "第二句把「意图揭示人与自然的关系」用动词 aims to reveal 表达，词性正确。purpose 是名词（作动词要用 aim/intend）；human 是形容词/名词，表「人类」用 humanity；recklessly 是副词，可修饰 disrupt，但原文写成形容词 reckles 裸奔作谓语是错的。",
+        "traps": [
+          "purpose 当动词用很生硬，改用 aim to / intend to",
+          "transient 是形容词（短暂的），不是名词——你曾连着当名词用两次"
+        ],
+        "retro": "你 2000 年图画作文第二、三段：but purpose a relationship is human with nature / to transient what time we can use how many ship",
+        "tags": [
+          "词性",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-cn-1",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "「保持关注这件事」用英语怎么说？",
+        "options": [
+          "We should keep an eye on this trend",
+          "We should keep eyes about it",
+          "We should keep eye on it",
+          "We should keep our eyes about this trend"
+        ],
+        "answer": 0,
+        "explanation": "固定搭配是 keep an eye on（单数 an eye，介词 on）。keep eyes about 是逐字翻译，英语里不成立。",
+        "traps": [
+          "eye 在搭配里是单数：keep an eye on",
+          "介词是 on 不是 about"
+        ],
+        "retro": "你 2005 年图画作文结尾原句：We should keep eyes about it",
+        "tags": [
+          "中式直译",
+          "固定搭配",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-cn-2",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "「时间在变化」不能逐字搬。下面哪一句的描述方式正确？",
+        "options": [
+          "Dramatic changes took place between 1900 and 1995",
+          "The time is change between 1900 to 1995",
+          "The time is changing from 1900 to 1995",
+          "Time changed between 1900 to 1995 year"
+        ],
+        "answer": 0,
+        "explanation": "描述时间跨度用 take place / occur + between A and B。is change 是两个动词叠加；between … to 应改 between … and。",
+        "traps": [
+          "between 的搭档永远是 and，不是 to",
+          "「时间在变化」是中文说法，英语里主语换成人/事："
+        ],
+        "retro": "你 2000 年图画作文原句：The time is change between 1900 to 1995",
+        "tags": [
+          "中式直译",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-cn-3",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "judge",
+      "content": {
+        "stem": "判断：`In the history, China because its clothes beautiful to be \"Hua\"` 的问题是 because 被当成了谓语。",
+        "answer": true,
+        "explanation": "对。because 是连词，不能单独作谓语，也不是介词。应为 China was called \"Hua\" because of its beautiful costumes。",
+        "traps": [
+          "because of 是介词短语（接名词），because 是连词（接句子）——两个都不能当谓语"
+        ],
+        "retro": "你 2002 年图画作文第二段原句：In the history, China because its clothes beautiful to be \"Hua\"",
+        "tags": [
+          "中式直译",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "gram-verb-1",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "has / have 后面不能接动词的过去式。下面哪个是正确的？",
+        "options": [
+          "the weather has become colder and colder recently",
+          "the weather has became colder and colder recently",
+          "the weather have become colder and colder recently",
+          "the weather has becoming colder and colder recently"
+        ],
+        "answer": 0,
+        "explanation": "现在完成时是 have/has + 过去分词（become 的过去分词是 become，过去式才是 became）；主语 the weather 单数用 has。",
+        "traps": [
+          "has became（过去式跟在 has 后）、has becoming（用现在分词）—— 都是常见错法",
+          "become 的三种形式：become – became – become"
+        ],
+        "retro": "你 2005 年图画作文原句：pepoles has became to use specail symbol",
+        "tags": [
+          "动词形态",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "letter-1",
+      "topic_id": "ENG-WRITE-01-03",
+      "type": "choice",
+      "content": {
+        "stem": "题目给了收信人姓名 Mr. Wang（杂志主编）。下面哪一种书信开头与结尾的格式是对的？",
+        "options": [
+          "Dear Mr. Wang, … 结尾：Yours sincerely, 换行 Li Ming",
+          "Dear Mr. Wang: … 结尾：Yours sincerely, Li Ming.",
+          "没有称呼 … 结尾：by yours Li Ming",
+          "Dear commission: … 结尾：Yours sencerely, Li Ming"
+        ],
+        "answer": 0,
+        "explanation": "知道姓名用 Dear Mr. Wang,（逗号）；落款是敬语单独一行、署名另起一行、署名后不加句号。不知道姓名才用 Dear Sir or Madam,。",
+        "traps": [
+          "称呼后是逗号不是冒号",
+          "敬语与署名必须分两行",
+          "署名后不加句号"
+        ],
+        "retro": "你 2005 年应用文整篇没有称呼、落款写成 by yours Li Ming.；2006 年应用文写 Dear commission: 且敬语拼成 sencerely",
+        "tags": [
+          "应用文格式",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "letter-2",
+      "topic_id": "ENG-WRITE-01-03",
+      "type": "judge",
+      "content": {
+        "stem": "判断：「Dear Sir or Madam, 搭配 Yours sincerely,」这种组合是正确的。",
+        "answer": false,
+        "explanation": "敬语要跟称呼匹配：知道姓名用 Yours sincerely，不知道姓名（Sir or Madam）用 Yours faithfully。配错了要扣格式分。",
+        "traps": [
+          "sincerely 对已知姓名；faithfully 对未知姓名——记住「sincere 是对具体的人」"
+        ],
+        "retro": "你 2006 年应用文用了 Dear commission: 这种非称谓的收信人，敬语又拼错成 sencerely",
+        "tags": [
+          "应用文格式",
+          "语域",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "letter-3",
+      "topic_id": "ENG-WRITE-01-03",
+      "type": "choice",
+      "content": {
+        "stem": "道歉信的第一句应该怎么写？",
+        "options": [
+          "I am writing to apologize for having failed to return your CD",
+          "One thing is bad that I forget to return the CD to you",
+          "I am writing to tell you something about the CD",
+          "It is really lucky that we both love jazz music"
+        ],
+        "answer": 0,
+        "explanation": "道歉信第一句就要点题并明说道歉（I am writing to apologize for…）。用「有件事不太好」暗示等于没覆盖「道歉」这个要点。",
+        "traps": [
+          "首句点题是应用文的内容分，不点读者要读两段才知道来意",
+          "apologize for + doing / 名词"
+        ],
+        "retro": "你 2008 年应用文全文没有一句显式道歉，只用 one thing is bad 暗示",
+        "tags": [
+          "应用文要点",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "letter-4",
+      "topic_id": "ENG-WRITE-01-03",
+      "type": "judge",
+      "content": {
+        "stem": "判断：2006 年那道「给希望工程写信」的题目里，「请对方帮忙物色一名受助儿童」属于明示要点，漏写要扣分。",
+        "answer": true,
+        "explanation": "对。当年你写了「什么样的孩子」和「如何实施」，漏了「请对方物色」。要点是逐条对照打勾的，不是凭印象写。",
+        "traps": [
+          "动笔前先把题目里的要点抄在草稿边上，写完逐条打勾"
+        ],
+        "retro": "你 2006 年应用文批改结论：三个要点漏掉一个",
+        "tags": [
+          "应用文要点",
+          "审题",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "letter-5",
+      "topic_id": "ENG-WRITE-03-02",
+      "type": "choice",
+      "content": {
+        "stem": "borrow 与 lend 的方向相反。你要表达「你借给了我这张 CD」，正确的是——",
+        "options": [
+          "you lent the CD to me / I borrowed the CD from you",
+          "you borrowed the CD to me / I lent the CD from you",
+          "you borrow the CD to me / I lend the CD from you",
+          "you borrowed me the CD / I lent from you the CD"
+        ],
+        "answer": 0,
+        "explanation": "borrow 是「借进来」（borrow sth from sb），lend 是「借出去」（lend sth to sb）。方向颠倒会把「我欠你」说成「你欠我」。",
+        "traps": [
+          "borrow … from，lend … to —— 介词的 from/to 就是方向本身"
+        ],
+        "retro": "你 2008 年应用文原句：but you borrow to me（应为 you lent it to me）",
+        "tags": [
+          "易混动词",
+          "应用文",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "issue-1",
+      "topic_id": "ENG-WRITE-03-04",
+      "type": "choice",
+      "content": {
+        "stem": "【2005 年真题】两幅照片分别写着「把崇拜写在脸上」和「花300元做个\"小贝头\"」。题目第 1 条要求 describe the photos briefly。第一段该怎么写？",
+        "options": [
+          "one young man has written \"Beckham\" on his face, while another has spent 300 yuan on a Beckham-style haircut",
+          "these pictures show that young people today are very interesting",
+          "one picture shows a man, and the other picture shows another man",
+          "as media development, more and more people cannot socialize well"
+        ],
+        "answer": 0,
+        "explanation": "描述图画必须落到图上的**具体信息**：名字 Beckham、金额 300 元、发型\"小贝头\"。这些是最容易拿的分，也是你 2005 年那篇一个都没写的部分。",
+        "traps": [
+          "「两幅图各有什么」要说具体到数字和文字",
+          "描述图画不要掺入议论（那是第二段的事）"
+        ],
+        "retro": "你 2005 年图画作文第一段只写了 in these pictures，全篇没出现「300 元」「小贝头」",
+        "tags": [
+          "审题",
+          "图画描述",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "issue-2",
+      "topic_id": "ENG-WRITE-03-04",
+      "type": "judge",
+      "content": {
+        "stem": "判断：2005 年那两幅照片的共同寓意是「媒体发展让人越来越不会面对面社交」。",
+        "answer": false,
+        "explanation": "共同寓意是**盲目崇拜偶像、跟风消费**：一个把崇拜写在脸上，一个为模仿明星发型花 300 元。「社交焦虑」是你自己带进来的立意，跟图没关系。",
+        "traps": [
+          "两图的共同点就是寓意所在——先找共同点，再想它批评什么",
+          "立意偏了，整段论证都白写（这是那篇最大的失分点）"
+        ],
+        "retro": "你 2005 年作文第二段整段在论证「媒体发展 → 人们不会社交」，与图画脱节",
+        "tags": [
+          "审题",
+          "寓意",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "issue-3",
+      "topic_id": "ENG-WRITE-03-04",
+      "type": "choice",
+      "content": {
+        "stem": "题目第 3 条要求 give your point of view。下面哪个结尾真正表达了观点？",
+        "options": [
+          "In my view, admiring a star is not wrong in itself; what matters is how we admire him",
+          "We should keep eyes about it, we should change and find way that need keep patience",
+          "In a word, this phenomenon is very important for all of us in our daily life",
+          "All in all, we should pay more attention to this problem in the future"
+        ],
+        "answer": 0,
+        "explanation": "表达观点 = 明确说「我认为对还是不对、该怎么办」。只说要「改变、有耐心和智慧」等于没有立场；my feeling is complex 只是描述自己的感受，也不是观点。",
+        "traps": [
+          "观点句的句式：In my view, … is not wrong in itself; what matters is …",
+          "「我们应该注意这个问题」是空话，不构成观点"
+        ],
+        "retro": "你 2005 年图画作文结尾：We should keep eyes about it, we should change and find way that need keep patience and have wise",
+        "tags": [
+          "审题",
+          "观点",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "issue-4",
+      "topic_id": "ENG-WRITE-03-04",
+      "type": "judge",
+      "content": {
+        "stem": "判断：考研大作文写得多、写得长是加分项，所以 2001 年那篇写到 238 词（超出 about 200 词 19%）是好事。",
+        "answer": false,
+        "explanation": "错。字数只是**门槛**不是加分项：达标不加分，不足要扣。你那篇 238 词是七篇里错误最多的（39 处），多出来的篇幅主要是在重复（in every time 出现 3 次，本身就是错）。",
+        "traps": [
+          "字数掌控在 180–220 词最稳，超了不加分只增风险",
+          "「凑字数」凑出来的句子错误率最高"
+        ],
+        "retro": "2001 年图画作文 238 词 / 39 处错误；2000 年 133 词（不达标）/ 密度 21.1 条/百词 —— 两头都没占到便宜",
+        "tags": [
+          "审题",
+          "字数",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "issue-5",
+      "topic_id": "ENG-WRITE-03-04",
+      "type": "judge",
+      "content": {
+        "stem": "判断：大作文写成 5 个自然段（其中一段只有 24 词）比写成标准三段更清楚。",
+        "answer": false,
+        "explanation": "错。考研大作文的标准结构是三段（描述图画 / 阐释寓意 / 给出观点与对策）。碎段会让结构分直接掉档——你 2001 年那篇就拆成了 5 段。",
+        "traps": [
+          "段落数写在草稿上就定死：3 段，最多 4 段",
+          "段长大致均衡，别让一段独占近一半篇幅"
+        ],
+        "retro": "2001 年图画作文拆成 5 段（35/62/76/24/41 词）；2002 年第二段 94 词占全文 45%",
+        "tags": [
+          "审题",
+          "结构",
+          "作文复盘"
+        ]
+      }
+    },
+    {
+      "_id": "issue-6",
+      "topic_id": "ENG-WRITE-03-04",
+      "type": "short",
+      "content": {
+        "stem": "【复盘题】你自己的三篇作文各有一次「审题失手」：2000 年把 1900–1995 读成 five years；2005 年把写图画细节漏掉了；2001 年拆成 5 段。请写出一条你在考场上**动笔前**会执行的三步审题清单（用中文写，要点清楚即可）。",
+        "answer": "1) 图里有什么具体信息（数字/文字/人物动作）；2) 两图的共同点是什么（共同点就是寓意）；3) 我赞成还是反对，列 2 条理由。结构写 3 段。",
+        "reference_answer": "1) 图里的具体信息逐个圈出来（年份、金额、图上文字、人物动作），描述段必须落到这些细节；2) 找两幅图的共同点，共同点就是寓意所在，不要自己带一个与图无关的立意进来；3) 先定立场（赞成/反对/辩证），再用 2 条理由支撑，结尾必须回应立场；4) 草稿上先写定「3 段」和每段大意，再动笔。",
+        "key_points": [
+          "图里的具体信息要逐个圈出来（数字/文字/动作）",
+          "两图的共同点就是寓意，不能自己带与图无关的立意",
+          "先定立场，结尾必须回应立场",
+          "动笔前先定好段落数与每段大意"
+        ],
+        "explanation": "这三步正好对应你三次失手：2000 年数字读错（第 1 步）、2005 年细节漏写 + 立意偏靶（第 1、2 步）、2001 年碎段（第 4 步）。审题是投入产出比最高的环节——它不依赖语法水平。",
+        "traps": [
+          "审题错误扣的是内容分（满分 7），比语言分更难靠刷题补回来"
+        ],
+        "retro": "跨三篇统计：2000 年时间误读 / 2005 年细节缺失 + 立意偏靶 / 2001 年 5 段碎段",
+        "tags": [
+          "审题",
+          "作文复盘",
+          "复盘题"
+        ]
+      }
+    }
+  ],
+  "spell": [
+    {
+      "word": "people",
+      "phonetic": "/ˈpiːpl/",
+      "meaning": "人们（集合名词，本身就是复数）",
+      "hint": "p 开头，6 个字母，永远不加 -s",
+      "from": "2005 年图画作文（写成 pepoles / pepole）"
+    },
+    {
+      "word": "special",
+      "phonetic": "/ˈspeʃl/",
+      "meaning": "特别的；专门的",
+      "hint": "s 开头，7 个字母，-cial 结尾",
+      "from": "2005 年图画作文（写成 specail / specal）"
+    },
+    {
+      "word": "truly",
+      "phonetic": "/ˈtruːli/",
+      "meaning": "真正地；确实",
+      "hint": "t 开头，5 个字母，注意中间没有 e",
+      "from": "2005 年图画作文（写成 turly）"
+    },
+    {
+      "word": "interesting",
+      "phonetic": "/ˈɪntrəstɪŋ/",
+      "meaning": "有趣的",
+      "hint": "i 开头，11 个字母，注意 -terest- 的顺序",
+      "from": "2005 年图画作文（写成 theresting，字母顺序乱了）"
+    },
+    {
+      "word": "expensively",
+      "phonetic": "/ɪkˈspensɪvli/",
+      "meaning": "昂贵地（副词）",
+      "hint": "ex- 开头，12 个字母，-sively 结尾",
+      "from": "2005 年图画作文（写成 explensively）"
+    },
+    {
+      "word": "scared",
+      "phonetic": "/skeəd/",
+      "meaning": "害怕的（形容词，前面要有 be）",
+      "hint": "sc- 开头，6 个字母，-ared 结尾",
+      "from": "2005 年图画作文（写成 scard）"
+    },
+    {
+      "word": "socialize",
+      "phonetic": "/ˈsəʊʃəlaɪz/",
+      "meaning": "社交；交往",
+      "alts": [
+        "socialise"
+      ],
+      "hint": "soc- 开头，9 个字母，-ize 结尾",
+      "from": "2005 年图画作文（写成 sociat）"
+    },
+    {
+      "word": "phenomenon",
+      "phonetic": "/fəˈnɒmɪnən/",
+      "meaning": "现象（名词，复数 phenomena）",
+      "hint": "ph- 开头，10 个字母，结尾是 -non 不是 -nom",
+      "from": "2000 年图画作文（写成 phenominon）"
+    },
+    {
+      "word": "destroy",
+      "phonetic": "/dɪˈstrɔɪ/",
+      "meaning": "破坏；毁掉",
+      "hint": "d 开头，7 个字母，-stroy 结尾",
+      "from": "2000 年图画作文（写成 distory）"
+    },
+    {
+      "word": "control",
+      "phonetic": "/kənˈtrəʊl/",
+      "meaning": "控制",
+      "hint": "c 开头，7 个字母，中间是 -ntr-",
+      "from": "2000 年图画作文（写成 contol）"
+    },
+    {
+      "word": "reckless",
+      "phonetic": "/ˈrekləs/",
+      "meaning": "鲁莽的；不顾后果的（形容词）",
+      "hint": "r 开头，8 个字母，-less 结尾",
+      "from": "2000 年图画作文（写成 reckles）"
+    },
+    {
+      "word": "interaction",
+      "phonetic": "/ˌɪntərˈækʃn/",
+      "meaning": "互动；相互作用（名词）",
+      "hint": "in- 开头，11 个字母，-action 结尾",
+      "from": "2002 年图画作文（写成 interation）"
+    },
+    {
+      "word": "interactive",
+      "phonetic": "/ˌɪntərˈæktɪv/",
+      "meaning": "互动的（形容词）",
+      "hint": "in- 开头，11 个字母，-active 结尾",
+      "from": "2002 年图画作文（写成 interctive，漏了字母 a）"
+    },
+    {
+      "word": "confidence",
+      "phonetic": "/ˈkɒnfɪdəns/",
+      "meaning": "信心；自信",
+      "hint": "con- 开头，10 个字母，-dence 结尾",
+      "from": "2002 年图画作文（写成 confidenes）"
+    },
+    {
+      "word": "historic",
+      "phonetic": "/hɪˈstɒrɪk/",
+      "meaning": "历史性的；有历史意义的",
+      "hint": "h 开头，8 个字母，-toric 结尾",
+      "from": "2002 年图画作文（写成 historitic）"
+    },
+    {
+      "word": "humanity",
+      "phonetic": "/hjuːˈmænəti/",
+      "meaning": "人类；人性",
+      "hint": "hu- 开头，8 个字母，-manity 结尾，别写成 humanality",
+      "from": "2002 年图画作文（写成 humanality）；2000 年把 humanity 写成 human"
+    },
+    {
+      "word": "development",
+      "phonetic": "/dɪˈveləpmənt/",
+      "meaning": "发展；开发",
+      "hint": "de- 开头，11 个字母，-lopment 结尾（没有 e）",
+      "from": "2002 年图画作文（写成 devolpment）"
+    },
+    {
+      "word": "experience",
+      "phonetic": "/ɪkˈspɪəriəns/",
+      "meaning": "经历；经验",
+      "hint": "ex- 开头，10 个字母，-rience 结尾，别漏中间的 r",
+      "from": "2008 年应用文（写成 exparence）"
+    },
+    {
+      "word": "receive",
+      "phonetic": "/rɪˈsiːv/",
+      "meaning": "收到；接收",
+      "hint": "r 开头，7 个字母，记住「i 在 e 前，除非在 c 后」",
+      "from": "2008 年应用文（写成 recieve）"
+    },
+    {
+      "word": "sincerely",
+      "phonetic": "/sɪnˈsɪəli/",
+      "meaning": "真诚地（写信结尾的敬语里要用到的那个词）",
+      "hint": "sin- 开头，9 个字母，-cerely 结尾",
+      "from": "2006 年应用文（写成 sencerely）；2008 年应用文（写成 sensevely）"
+    },
+    {
+      "word": "valuable",
+      "phonetic": "/ˈvæljuəbl/",
+      "meaning": "有价值的",
+      "hint": "v 开头，8 个字母，-uable 结尾",
+      "from": "2005 年应用文（写成 evaluble）"
+    },
+    {
+      "word": "expected",
+      "phonetic": "/ɪkˈspektɪd/",
+      "meaning": "预期的；期望的（过去式/过去分词）",
+      "hint": "ex- 开头，8 个字母，-cted 结尾",
+      "from": "2005 年应用文（写成 expated）"
+    },
+    {
+      "word": "writing",
+      "phonetic": "/ˈraɪtɪŋ/",
+      "meaning": "写；写作（write 的现在分词）",
+      "hint": "w 开头，7 个字母，只保留一个 t",
+      "from": "2008 年应用文（写成 writting）"
+    },
+    {
+      "word": "instance",
+      "phonetic": "/ˈɪnstəns/",
+      "meaning": "例子（「例如」的固定说法里用到的那个词）",
+      "hint": "in- 开头，8 个字母，-stance 结尾",
+      "from": "2001 年图画作文（写成 istance）"
+    }
+  ],
+  "sentences": [
+    {
+      "kind": "fill",
+      "topic_id": "ENG-WRITE-03-01",
+      "en": "Simple as the pictures are, they reveal a common social phenomenon: the blind worship of idols, especially among the young.",
+      "blank": "the blind worship of idols",
+      "zh": "图画虽简单，却揭示了一个普遍的社会现象：偶像的盲目崇拜，在年轻人中尤为突出。",
+      "from": "2005 年范文开头（图画作文的黄金收尾句）",
+      "explanation": "Simple as the pictures are, … 是让步倒装（= Although the pictures are simple），比 Although 开头更高级。破折号/冒号后直接点出寓意。",
+      "traps": [
+        "注意倒装：Simple as the pictures ARE（不是 are the pictures）"
+      ]
+    },
+    {
+      "kind": "fill",
+      "topic_id": "ENG-WRITE-03-01",
+      "en": "Several factors account for this trend. To begin with, the mass media keep presenting celebrities as perfect images.",
+      "blank": "account for",
+      "zh": "造成这一趋势的原因有几方面。首先，大众媒体不断把名人包装成完美的形象。",
+      "from": "2005 年范文第二段（引出原因段）",
+      "explanation": "Several factors account for this trend 是引出原因段的标准句，替换掉你原来那句 As media development（as 不能这么用）。",
+      "traps": [
+        "account for = 解释/造成，介词是 for",
+        "区分 on account of（因为）"
+      ]
+    },
+    {
+      "kind": "fill",
+      "topic_id": "ENG-WRITE-03-01",
+      "en": "In my view, admiring a star is not wrong in itself; what matters is how we admire him.",
+      "blank": "what matters is",
+      "zh": "在我看来，崇拜明星本身并没有错，关键在于我们如何崇拜。",
+      "from": "2005 年范文第三段（「不是错，关键在度」万能表态句）",
+      "explanation": "… is not wrong in itself; what matters is … 是兼顾辩证与立场的表态句式，正好补上你 2005 年那篇「结尾没有表态」的缺口。",
+      "traps": [
+        "what matters is 后面接名词或从句，不接 to do"
+      ]
+    },
+    {
+      "kind": "fill",
+      "topic_id": "ENG-WRITE-03-01",
+      "en": "Only by learning from hard work and persistence rather than copying appearance can we make idol worship a positive force.",
+      "blank": "can we",
+      "zh": "只有学习勤奋与坚持、而不是模仿外表，我们才能让偶像崇拜成为正向力量。",
+      "from": "2005 年范文结尾（Only 开头部分倒装）",
+      "explanation": "Only + 状语置于句首时，主句要部分倒装：can we 而不是 we can。这是结尾加分句，但要确保不倒装错。",
+      "traps": [
+        "Only 后面修饰状语（by doing / in this way）才倒装；Only because 不倒装"
+      ]
+    },
+    {
+      "kind": "fill",
+      "topic_id": "ENG-WRITE-03-01",
+      "en": "The two photos form a sharp contrast: in the first, a young man has written the name on his face, whereas in the second, another pays 300 yuan for a star's haircut.",
+      "blank": "form a sharp contrast",
+      "zh": "这两幅照片形成鲜明对比：第一幅里一个年轻人把名字写在脸上，而第二幅里另一个花 300 元剪明星发型。",
+      "from": "两图对比型的描述句（2005 真题专属结构）",
+      "explanation": "两幅图对比用 form a sharp contrast，再分别用 in the first … whereas in the second … 交代细节。这一步正是你 2005 年漏掉的「describe the photos briefly」。",
+      "traps": [
+        "whereas / while 表对比，前后结构要对称"
+      ]
+    },
+    {
+      "kind": "fill",
+      "topic_id": "ENG-WRITE-03-01",
+      "en": "For the same reason, we want to tell others what kind of person we are as quickly as possible.",
+      "blank": "as quickly as possible",
+      "zh": "出于同样的原因，我们想尽快告诉别人我们是怎样的人。",
+      "from": "2005 年你的原意（in the least time → as quickly as possible）",
+      "explanation": "「尽快」是 as quickly as possible / as soon as possible，没有 in the least time 这种说法。写成 as … as possible 时形容词/副词必须放中间。",
+      "traps": [
+        "in the least time 不是英语；in the least 是「一点也不」（表否定）"
+      ]
+    },
+    {
+      "kind": "short",
+      "topic_id": "ENG-WRITE-03-01",
+      "zh": "正如这两幅照片所生动展示的，一个年轻人把「贝克汉姆」写在了脸上，而另一个愿意花 300 元剪一个模仿这位球星风格的发型。",
+      "reference": "As is vividly shown in the two photos, one young man has written \"Beckham\" on his face, while another is willing to spend 300 yuan on a haircut that copies the football star's style.",
+      "key_points": [
+        "用 As is vividly shown in the two photos 开头（as 引导定语从句，is 不能省）",
+        "两图对比用 while / whereas 连接",
+        "把「300 元」「贝克汉姆」这两个具体信息写进去",
+        "haircut 后接定语从句 that copies the star's style"
+      ],
+      "from": "2005 年范文第一段（对应你漏写图画细节的那段）",
+      "explanation": "描述图画这一段的评分要点只有两个：句式正确 + 细节到位。你把细节全省了，等于把这一段的分让出去。",
+      "traps": [
+        "As is shown 不能写成 As shown 或 As is show",
+        "spend money ON sth（不是 for/in）"
+      ]
+    },
+    {
+      "kind": "short",
+      "topic_id": "ENG-WRITE-03-01",
+      "zh": "在我看来，崇拜明星本身并没有错，关键在于我们是否学会了偶像身上那些真正值得学习的品质。",
+      "reference": "In my view, admiring a star is not wrong in itself; what matters is whether we have learned the qualities in the idol that are truly worth learning.",
+      "key_points": [
+        "用 In my view 明确表明观点",
+        "is not wrong in itself 承接辩证语气",
+        "what matters is 引出「关键在于」",
+        "用 whether 引导从句表达「是否」"
+      ],
+      "from": "2005 年范文第三段（补你「结尾没有表态」的缺口）",
+      "explanation": "题目第 3 条要求 give your point of view，这一句必须让你明确站队。写成「我们应该改变、要有耐心和智慧」不算观点。",
+      "traps": [
+        "what matters is whether … 而不是 what matters is that if …",
+        "admiring 作主语用动名词"
+      ]
+    },
+    {
+      "kind": "short",
+      "topic_id": "ENG-WRITE-03-01",
+      "zh": "只有把偶像当作努力的方向而不是消费的对象，我们才能让这份崇拜成为成长中的正向力量。",
+      "reference": "Only by treating an idol as a direction for our efforts rather than an object of consumption can we make this admiration a positive force in our growth.",
+      "key_points": [
+        "Only by doing 置于句首，主句部分倒装：can we",
+        "treat … as … 把…当作…",
+        "rather than 表「而不是」，前后结构对称（as a direction … rather than an object …）",
+        "positive force in our growth 收尾"
+      ],
+      "from": "2005 年范文结尾（倒装加分句）",
+      "explanation": "Only by + 动名词 + can we 是结尾最稳的高分结构。注意倒装只倒主句的助动词，动词本身不变。",
+      "traps": [
+        "Only by 是介词短语，后面接动名词 doing 不接 do",
+        "倒装后是 can we make，不是 can we to make"
+      ]
+    }
+  ]
+}

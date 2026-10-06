@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS topics (
 CREATE TABLE IF NOT EXISTS questions (
     id             TEXT PRIMARY KEY,
     topic_id       TEXT REFERENCES topics(id),
-    type           TEXT NOT NULL,          -- choice | fill | short_answer | essay
+    -- choice 选择 / judge 判断 / fill 挖空 / short 简答 / spell 拼写（2026-10-06 新增）
+    -- 注：无 CHECK 约束，改这里只是对齐文档；历史上曾误写为 short_answer | essay，实际库里没有这两种
+    type           TEXT NOT NULL,          -- choice | judge | fill | short | spell
     difficulty     REAL DEFAULT 0.5,
     source         TEXT,
     year           INTEGER,

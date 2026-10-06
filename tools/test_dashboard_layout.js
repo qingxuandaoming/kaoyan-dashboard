@@ -84,9 +84,16 @@ check("首屏只显示 overview，其余 hidden",
 
 console.log("\n[2] 必需容器 id 一个都不能漏");
 const REQUIRED = ["metrics-row", "rev-score", "rev-chips", "rev-by-prefix", "rev-targets", "rev-tip",
-  "weak-list", "gap-list", "flash-studio", "flash-filter", "act-cal", "act-cal-labels",
-  "act-total", "act-streak", "act-acc", "heatmap-container", "timeline-chart", "level-chart",
-  "flashcard-chart", "header-subtitle", "gen-time", "verified-count",
+  "weak-list", "gap-list", "flash-studio", "flash-filter", "heatmap-container", "timeline-chart",
+  "level-chart", "flashcard-chart", "header-subtitle", "gen-time", "verified-count",
+  // 2026-10-06 更正：原来的 act-cal / act-cal-labels / act-total / act-streak / act-acc
+  // 是已废弃的「练习活动」视图（复习日历 + 连续天数 + 正确率）的容器 id，
+  // 该视图早已被「计划页」取代，id 在生成器里出现 0 次 —— 也就是说这几条**不可能**
+  // 再从当前源码生成出来，用例恒红。改用计划页真正会输出的容器：
+  // 注：`compute_revival()` 仍在算练习活动那批数据（generate_dashboard.py:1427），
+  //     只是前端已无人消费，属于待清理的死数据，不在本用例的管辖范围内。
+  "task-list", "task-input", "task-day", "task-progress", "task-subject", "task-hint",
+  "task-add-btn",
   // 2026-09-21：番茄钟（占位容器 + 全屏层）、闪卡学习计时（徽标 + 结束键），
   // 以及页面外壳（右上角整页全屏 + 首页专注/打卡数据条）
   "pm-slot", "pm-overlay", "fs-timer", "fs-stop", "shell-fs", "focus-strip"];
