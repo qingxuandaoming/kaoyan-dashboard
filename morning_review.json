@@ -4,15 +4,15 @@
   "migrated_at": "2026-09-15T09:54:30.911Z",
   "note": "由 _extract_review.js 一次性迁移生成；此后由 morning-review 工作流直接维护本文件，不再回写 HTML。",
   "meta": {
-    "days": 27,
+    "days": 28,
     "first_date": "2026-06-19",
-    "last_date": "2026-10-07",
-    "review_items": 121,
-    "quiz_items_unused": 97,
+    "last_date": "2026-10-08",
+    "review_items": 126,
+    "quiz_items_unused": 100,
     "english_days": 9,
     "flashcard_cards": 30,
     "flashcard_start_date": "2026-07-07",
-    "math_items": 51,
+    "math_items": 53,
     "note": ""
   },
   "days": {
@@ -4848,6 +4848,189 @@
             "noteLink": {
               "name": "第6讲_中值定理与微分等式不等式.md",
               "path": "E:/NPEE/Math/高数/第6讲_一元函数微分学的应用二_中值定理与微分等式不等式.md"
+            }
+          }
+        ]
+      }
+    },
+    "2026-10-08": {
+      "date": "2026-10-08",
+      "weekday": "周四",
+      "studied": true,
+      "subject": "英语·2016 翻译真题踩坑（语法桩 + 熟词偏义） ｜ 英语·必不可少家族辨析 ｜ 408·排序稳定性与比较标志位 ｜ 数学·边缘分布与惯性指数",
+      "review": [
+        {
+          "id": "d08-eng-trans-grammar3",
+          "badges": [
+            "英语一",
+            "翻译"
+          ],
+          "title": "翻译长句先落<strong>三根桩</strong>，认错一根整句就反",
+          "body": "2016 Part C 五句只拿 <strong>2.5/10</strong>，失分不在词汇量，在于三个结构没先认出来。句子再长，先花 3 秒定位这三处，其余成分按「定语后置、状语可拆」挂着走。",
+          "list": [
+            "① <code>It may be said that…</code> — It 是<strong>形式主语</strong>，that 引导<strong>主语从句</strong>（不是定语从句）；主干是 <code>the measure is its effect</code>，A is B 千万别译反（46 题就丢在这里）。",
+            "② <code>Only + 状语</code>提前 → <strong>部分倒装</strong>，且常伴<strong>被动框</strong>：<code>was…noted</code> / <code>was…considered</code> 里的 was <strong>不是系动词</strong>。读法：把句首助动词与句尾实义动词用括号连成整体，中间全是主语（47 题）。",
+            "③ <strong>句首 While + 主句含 not</strong> → 让步「虽然」，不是「然而」；<code>not so easy as</code> = 不如（48 题）。"
+          ],
+          "conclusion": "句式先定型再动笔——三根桩错一根，整句意思就翻个面。",
+          "noteLink": {
+            "name": "2016-翻译真题-批改记录.md",
+            "path": "E:/NPEE/English/translation&writing/翻译/2016-翻译真题-批改记录.md"
+          }
+        },
+        {
+          "id": "d08-eng-shuci-2016",
+          "badges": [
+            "英语一",
+            "翻译",
+            "熟词偏义"
+          ],
+          "title": "第一义代进句子<strong>讲不通</strong>，就是在考第二义",
+          "body": "<strong>口诀：字典第一义代进句子讲不通 → 十有八九考第二义 → 查搭配，别硬编</strong>。<br>背「标志搭配」，不背裸词——熟词偏义永远挂在特定搭配上。2016(49) 一句里连踩五坑，全句只拿 0.5/2。",
+          "list": [
+            "① <code>secure</code> = <strong>保障、确保</strong>（营救是 rescue）｜<code>powers</code> = <strong>能力、力量</strong>（权利是 rights）",
+            "② <code>business</code> = <strong>任务、事务</strong>（our chief business is to… 我们的首要任务是）｜<code>common life</code> = <strong>共同生活</strong>（com- 表「共同」，不是「日常」）",
+            "③ <code>since</code> 句首 + 一般现在时 = <strong>由于、既然</strong>（不是「自从」）｜<code>still</code> 放比较级后 = <strong>还要更…</strong>",
+            "④ <strong>形近词对立</strong>：<code>disposition</code> = 性情（≠ position 位置，连错 2 次）｜<code>directive</code> = 导向性的（≠ direct）｜<code>broad</code> = 广泛的（≠ abroad）｜<code>led</code> = 引导（≠ sad）"
+          ],
+          "conclusion": "熟词偏义不靠「多背一个词义」，靠「搭配一眼认出」；搭配对不上就先怀疑自己认错了词。",
+          "noteLink": {
+            "name": "熟词偏义.md",
+            "path": "E:/NPEE/English/translation&writing/熟词偏义.md"
+          }
+        },
+        {
+          "id": "d08-eng-indispensable",
+          "badges": [
+            "英语一",
+            "辨析",
+            "词汇"
+          ],
+          "title": "九个「必不可少的」：差别在<strong>语义重心</strong>与<strong>介词</strong>",
+          "body": "都译「必不可少的」，但阅卷与阅读题挑的正是这两处：<strong>语义重心</strong>（不可替代？本质所系？仅垫在下面？）与<strong>介词搭配</strong>（to 还是 to/for），外加<strong>能不能进虚拟句型</strong>。",
+          "list": [
+            "① <strong>只搭 to</strong> 的三个：<code>indispensable</code>（不可替代，语气最强，<strong>常修饰人</strong>）、<code>fundamental</code>（根基性）、<code>integral</code>（构成整体所必需）。",
+            "② <strong>to / for 皆可</strong>：<code>essential</code>（本质所系，最通用最安全）、<code>necessary</code>（最弱最泛）、<code>vital</code>（关乎存亡）、<code>crucial</code>（决定成败的节点）。",
+            "③ <strong>critical 一词三义</strong>：关键的 / 危急的 / <strong>批评的（搭 of）</strong>——<code>critical of the study</code> 是阅读陷阱。",
+            "④ 强度梯度：necessary ＜ essential ≈ fundamental ＜ integral ＜ vital ≈ crucial ≈ critical ＜ indispensable；<code>imperative</code> 不在这条轴上，它单讲<strong>紧迫性</strong>。"
+          ],
+          "conclusion": "选词先问「它的重心是替代性、本质、还是根基」，再问「后面跟 to 还是 for」。",
+          "noteLink": {
+            "name": "第404节_必不可少.md",
+            "path": "E:/NPEE/English/word&phrase/辨析/第404节_必不可少.md"
+          }
+        },
+        {
+          "id": "d08-ds-sort-stab",
+          "badges": [
+            "408",
+            "数据结构"
+          ],
+          "title": "八大排序：先背<strong>稳定性口诀</strong>，再背复杂度三档",
+          "body": "这一章考的就是「<strong>对比</strong>」，记成两张表比逐个算法啃省力得多。<br>稳定性口诀：<strong>快、选、堆、希不稳定；插、冒、归、基保稳定</strong>。",
+          "list": [
+            "① <strong>时间三档</strong>：<code>n log n</code> → 快排 / 堆排 / 归并；<code>n²</code> → 直接插入 / 冒泡 / 简单选择；基数排序 → <code>d(n+r)</code>。",
+            "② <strong>空间</strong>：快排 <code>O(log n)</code>（最坏退化 <code>O(n)</code>）；归并 <code>O(n)</code>；基数 <code>O(r)</code>；其余 <code>O(1)</code>——所以「空间受限又要 n log n」选<strong>堆排序</strong>。",
+            "③ 两个反直觉：<strong>折半插入</strong>只减少<strong>比较</strong>次数，<strong>移动</strong>次数与直接插入一致，总时间仍是 <code>O(n²)</code>；<strong>建堆</strong>的总时间是 <code>O(n)</code>（不是 n log n）。",
+            "④ 快排最坏 <code>O(n²)</code> 出现在<strong>基本有序或基本逆序</strong>；每次 Partition 后<strong>枢轴都落到最终位置</strong>——这是数「进行了几趟」的黄金法则。"
+          ],
+          "conclusion": "稳定性背口诀，复杂度背三档；例外只有「折半插入」和「建堆」这两个常考陷阱。",
+          "noteLink": {
+            "name": "第8章_排序.md",
+            "path": "E:/NPEE/408/DS/第8章_排序.md"
+          }
+        },
+        {
+          "id": "d08-co-flags-m4",
+          "badges": [
+            "408",
+            "计组"
+          ],
+          "title": "判比较用哪个标志位；模4补码只活在 <strong>ALU</strong> 里",
+          "body": "两件事共用一个前提：<strong>无符号数与有符号数的硬件判据不是一套</strong>，别串线。",
+          "list": [
+            "① 无符号数看 <code>CF</code>：<code>A&gt;B</code> 要 <strong>CF=0 且 ZF=0</strong>；<code>A≥B</code> 只要 CF=0；<code>A≤B</code> 是 <strong>CF=1 或 ZF=1</strong>。",
+            "② 有符号数看 <code>SF⊕OF</code>：<code>A&gt;B</code> 要 SF⊕OF=0 <strong>且 ZF=0</strong>；其余同理挂 ZF。",
+            "③ <strong>模4补码 = 双符号位 = 变形补码</strong>：<strong>存储时只用一位符号位</strong>（正确数值的两个符号位总是相同），只有<strong>送进 ALU 做加减</strong>时，才把符号位的值同时送到 ALU 的<strong>双符号位</strong>。",
+            "④ 它的价值：保留模 2 补码的全部优点，且<strong>更易检查加减运算中的溢出</strong>。"
+          ],
+          "conclusion": "无符号看 CF、有符号看 SF⊕OF；模4补码是「ALU 里的表示」，不是「内存里的表示」。",
+          "noteLink": {
+            "name": "计算机组成原理强化.md",
+            "path": "E:/NPEE/408/计算机组成原理强化.md"
+          }
+        }
+      ],
+      "quiz": [
+        {
+          "id": "d08-q-eng-since-while",
+          "question": "2016 翻译这两句都从连词开头：<code>Since our chief business … is to enable…</code>（49）、<code>While it is easy to ignore…, it is not so easy…</code>（48）。<strong>句首 Since + 一般现在时</strong>与<strong>句首 While + 主句含 not</strong> 分别该译成什么？为什么不能按「自从」「然而」译？",
+          "answer": "<strong>Since → 由于、既然</strong>；<strong>While → 虽然</strong>（让步）。<br>判据：① Since 后面跟<strong>一般现在时</strong>（而不是「自从 + 过去时间点」的搭配），一律按<strong>原因状语从句</strong>处理；② While 有三个身份——当…时 / 然而对比 / 虽然让步，<strong>只要主句里出现 not、或「做得到—做不到」这类反向对照，就是让步</strong>。<br>验证法：把「自从」代进去 →「自从我们的首要任务是…」句子根本不成立，当场就能发现。",
+          "noteLink": {
+            "name": "2016-翻译真题-批改记录.md",
+            "path": "E:/NPEE/English/translation&writing/翻译/2016-翻译真题-批改记录.md"
+          }
+        },
+        {
+          "id": "d08-q-eng-subjunctive-set",
+          "question": "「It is ___ that + (should) do」这个<strong>虚拟语气句型</strong>，下面哪些词能进去：<code>essential</code>、<code>indispensable</code>、<code>fundamental</code>、<code>critical</code>、<code>integral</code>、<code>necessary</code>、<code>imperative</code>？顺带说：<code>essential</code> 与 <code>fundamental</code> 的词根分别是什么、这解释了它们什么分工？",
+          "answer": "<strong>能进去的</strong>：<code>essential</code>、<code>necessary</code>、<code>imperative</code>（以及 vital / crucial）。<br><strong>进不去的</strong>：<code>indispensable</code>、<code>fundamental</code>、<code>critical</code>、<code>integral</code>。<br>词根分工：<code>essential</code> 的词根是「<strong>存在</strong>」（esse）→ 属于「它是谁」的一部分 → 本质所系，最强也最通用；<code>fundamental</code> 的词根是「<strong>地基</strong>」（fundus，同根 foundation/profound）→ 只是<strong>垫在最下面</strong>，不等于「没有就不行」。<br>补充钩子：<code>integral</code> 词根是「没被碰坏的一块」（in- 不 + tangere 触碰）→ 只管「是不是整体的一部分」；<code>vital</code> 词根是 vita 生命。",
+          "noteLink": {
+            "name": "第404节_必不可少.md",
+            "path": "E:/NPEE/English/word&phrase/辨析/第404节_必不可少.md"
+          }
+        },
+        {
+          "id": "d08-q-ds-sort-pick",
+          "question": "八大内部排序里，<strong>不稳定</strong>的是哪四个？（先背口诀）<br>若题目强调「<strong>辅助空间尽量小</strong>，同时要 <code>O(n log n)</code>」，该选哪个？<br>只论「<strong>移动次数最少</strong>」又是哪个？它的比较次数有什么特点？",
+          "answer": "不稳定四个：<strong>快排、简单选择、堆排、希尔</strong>——口诀「快选堆希不稳定，插冒归基保稳定」。<br>「空间小 + n log n」→ <strong>堆排序</strong>（空间 <code>O(1)</code>，建堆只要 <code>O(n)</code>；求 Top-K 时<strong>小根堆求最大、大根堆求最小</strong>）。<br>「移动次数最少」→ <strong>简单选择排序</strong>；但它的<strong>比较次数与初始状态无关</strong>，恒为 <code>n(n−1)/2</code>。",
+          "noteLink": {
+            "name": "第8章_排序.md",
+            "path": "E:/NPEE/408/DS/第8章_排序.md"
+          }
+        }
+      ],
+      "math": {
+        "id": "d08-math",
+        "points": [
+          {
+            "id": "d08-math-gl-marginal",
+            "type": "knowledge",
+            "badges": [
+              "概率论",
+              "边缘分布"
+            ],
+            "title": "边缘分布只有<strong>一个操作</strong>：把另一个变量的份额累加掉",
+            "body": "求和 / 积分 / 取极限<strong>不是三种方法</strong>，是同一件事在三种「给定形式」下的写法。用哪种由 <code>(X,Y)</code> 的<strong>给定形式</strong>决定，不是方法选择题。",
+            "list": [
+              "① 给<strong>联合分布表</strong> → 逐行/列<strong>求和</strong>；加完验算 Σ = 1 当检查。",
+              "② 给<strong>联合密度</strong> → 对另一变量<strong>积分</strong>，积分限取<strong>密度非零区域</strong>（区域分片时分段写）。",
+              "③ 给<strong>分布函数</strong> → <strong>取极限</strong>：<code>F_X(x) = F(x, +∞)</code>；拿到 F 后连续型求导、离散型取跳跃（单点概率 <code>F(a) − F(a−0)</code>）。"
+            ],
+            "conclusion": "三者同源；唯一真易错是「积分限必须按非零区域分段」，别照抄 ±∞。",
+            "noteLink": {
+              "name": "第3章_多维随机变量及其分布.md",
+              "path": "E:/NPEE/Math/概率论/第3章_多维随机变量及其分布.md"
+            }
+          },
+          {
+            "id": "d08-math-xd-inertia",
+            "type": "knowledge",
+            "badges": [
+              "线代",
+              "二次型"
+            ],
+            "title": "惯性指数 <code>(p,q)</code> 就是曲面的<strong>身份证</strong>",
+            "body": "正交变换化成标准形后，<strong>特征值的符号模式</strong>直接决定曲面类型，不用再算别的。唯一要额外看一眼的是：零特征值对应的变量在标准形里是<strong>消失</strong>（→ 柱面）还是以<strong>一次项</strong>出现（→ 抛物面）。",
+            "list": [
+              "① 常数项 ≠ 0：<code>(3,0)</code> 椭球面｜<code>(2,1)</code> 单叶双曲面（=1）或双叶双曲面（=−1）｜<code>(2,0)</code> 椭圆抛物面｜<code>(1,1)</code> 双曲抛物面（马鞍面）。",
+              "② 常数项 = 0：<code>(2,0)</code> 椭圆柱面｜<code>(1,1)</code> 双曲柱面｜<code>(1,0)</code> 抛物柱面。",
+              "③ 化简顺序固定：<strong>先正交变换（旋转、消交叉项）、后配方平移（消一次项）</strong>——正交变换只管二次项，平移只管一次项，职责不重叠。"
+            ],
+            "conclusion": "求特征值 → 读符号 (p,q) → 查表得曲面；顺序永远是「先旋转后平移」。",
+            "noteLink": {
+              "name": "第6章_二次型.md",
+              "path": "E:/NPEE/Math/线代/第6章_二次型.md"
             }
           }
         ]
